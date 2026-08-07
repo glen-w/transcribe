@@ -1,0 +1,13 @@
+Transcribe
+Copyright (c) 2026 Glen
+
+This product includes prompt wording adapted from Ollama-OCR:
+
+  Ollama-OCR
+  Copyright (c) 2024 Anoop Maurya
+  Licensed under the MIT License
+  https://github.com/imanoop7/Ollama-OCR
+
+Durability, locking, and Ollama HTTP hardening patterns were informed by
+TranscriptX (local reference implementation) but are independently reimplemented
+and are not a derivative of TranscriptX's licensed source as a dependency.

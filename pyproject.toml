@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transcribe"
+version = "0.1.0"
+description = "Local-first handwritten notebook OCR using Ollama vision models"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Glen" }]
+dependencies = [
+  "Pillow>=10.0.0",
+  "pymupdf>=1.24.0",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.32.0"]
+dev = ["pytest>=8.0.0", "streamlit>=1.32.0"]
+
+[project.scripts]
+transcribe = "transcribe.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+  "integration: tests that require a live local Ollama server",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

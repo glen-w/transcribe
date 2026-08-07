@@ -1,0 +1,7 @@
+[server]
+# Transcribe UI port — keep off 8501 (TranscriptX default).
+port = 8510
+headless = true
+
+[browser]
+gatherUsageStats = false
