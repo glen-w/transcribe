@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from .base import DiscoveryResult, ModelInfo, ProviderResult, VisionOCRProvider
-from .ollama import OllamaVisionProvider, is_loopback_host, normalize_base_url
+from .ollama import (
+    OllamaVisionProvider,
+    is_local_machine_host,
+    is_loopback_host,
+    normalize_base_url,
+)
 
 __all__ = [
     "DiscoveryResult",
@@ -9,6 +14,7 @@ __all__ = [
     "OllamaVisionProvider",
     "ProviderResult",
     "VisionOCRProvider",
+    "is_local_machine_host",
     "is_loopback_host",
     "normalize_base_url",
 ]

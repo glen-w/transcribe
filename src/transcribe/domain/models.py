@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from transcribe.domain.dates import ApproximateDate, normalize_tags
+
 PROVIDER_METADATA_ALLOWLIST = frozenset(
     {
         "total_duration",
@@ -141,9 +143,20 @@ class PageIndex:
     active_render_id: str
     width: int
     height: int
+    date: ApproximateDate | None = None
+    tags: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            "page_id": self.page_id,
+            "source_id": self.source_id,
+            "page_index": self.page_index,
+            "active_render_id": self.active_render_id,
+            "width": self.width,
+            "height": self.height,
+            "date": self.date.as_dict() if self.date else None,
+            "tags": list(self.tags),
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PageIndex:
@@ -154,6 +167,8 @@ class PageIndex:
             active_render_id=data["active_render_id"],
             width=int(data["width"]),
             height=int(data["height"]),
+            date=ApproximateDate.from_dict(data.get("date")),
+            tags=normalize_tags(data.get("tags")),
         )
 
 
@@ -167,6 +182,10 @@ class Project:
     sources: list[SourceDocument] = field(default_factory=list)
     pages: list[PageIndex] = field(default_factory=list)
     renders: dict[str, RenderProvenance] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    cover_page_id: str | None = None
+    date_start: ApproximateDate | None = None
+    date_end: ApproximateDate | None = None
     format: str = "transcribe.project"
     schema_version: int = 1
 
@@ -182,6 +201,10 @@ class Project:
             "sources": [s.as_dict() for s in self.sources],
             "pages": [p.as_dict() for p in self.pages],
             "renders": {k: v.as_dict() for k, v in self.renders.items()},
+            "tags": list(self.tags),
+            "cover_page_id": self.cover_page_id,
+            "date_start": self.date_start.as_dict() if self.date_start else None,
+            "date_end": self.date_end.as_dict() if self.date_end else None,
         }
 
     @classmethod
@@ -196,6 +219,10 @@ class Project:
             sources=[SourceDocument.from_dict(s) for s in data.get("sources") or []],
             pages=[PageIndex.from_dict(p) for p in data.get("pages") or []],
             renders={k: RenderProvenance.from_dict(v) for k, v in renders_raw.items()},
+            tags=normalize_tags(data.get("tags")),
+            cover_page_id=data.get("cover_page_id"),
+            date_start=ApproximateDate.from_dict(data.get("date_start")),
+            date_end=ApproximateDate.from_dict(data.get("date_end")),
         )
 
     def global_index_for(self, page_id: str) -> int:

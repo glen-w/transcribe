@@ -55,6 +55,8 @@ class ExportService:
                     if attempt and attempt.provenance
                     else None,
                     "provider_metadata": attempt.provider_metadata if attempt else None,
+                    "date": page.date.as_dict() if page.date else None,
+                    "tags": list(page.tags),
                 }
             )
         return {
@@ -66,6 +68,10 @@ class ExportService:
                 "title": project.title,
                 "created_at": project.created_at,
                 "updated_at": project.updated_at,
+                "tags": list(project.tags),
+                "cover_page_id": project.cover_page_id,
+                "date_start": project.date_start.as_dict() if project.date_start else None,
+                "date_end": project.date_end.as_dict() if project.date_end else None,
             },
             "sources": [
                 {

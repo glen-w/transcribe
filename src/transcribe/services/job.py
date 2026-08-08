@@ -425,7 +425,9 @@ def build_coordinator(
     paths = open_project_paths(Path(root))
     projects = ProjectService(paths, clock=clock, ids=ids)
     # Load settings for provider base URL if project exists
-    base_url = "http://localhost:11434"
+    from transcribe.runtime_paths import default_ollama_base_url
+
+    base_url = default_ollama_base_url()
     if paths.manifest.exists():
         try:
             project = projects.load(reconcile=True)

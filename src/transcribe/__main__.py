@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from transcribe.errors import JobConflictError, ProviderError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
-from transcribe.providers.ollama import OllamaVisionProvider, is_loopback_host, normalize_base_url
+from transcribe.providers.ollama import (
+    OllamaVisionProvider,
+    is_local_machine_host,
+    normalize_base_url,
+)
+from transcribe.runtime_paths import PATHS, default_ollama_base_url
 from transcribe.services.export import ExportService
 from transcribe.services.job import build_coordinator
 from transcribe.services.project import ProjectService, open_project_paths
@@ -28,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     p_import.add_argument("--dpi", type=int, default=200)
 
     p_models = sub.add_parser("models", help="List vision-capable Ollama models")
-    p_models.add_argument("--base-url", default="http://localhost:11434")
+    p_models.add_argument("--base-url", default=None)
     p_models.add_argument("--all", action="store_true", help="List all models")
     p_models.add_argument("--refresh", action="store_true")
 
@@ -59,10 +65,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.cmd == "models":
-            url = normalize_base_url(args.base_url)
-            if not is_loopback_host(url):
+            url = normalize_base_url(args.base_url or default_ollama_base_url())
+            if not is_local_machine_host(url):
                 print(
-                    "WARNING: Ollama host is not loopback; images would leave this machine.",
+                    "WARNING: Ollama host is not on this machine; images would leave this machine.",
                     file=sys.stderr,
                 )
             provider = OllamaVisionProvider(url)
@@ -108,9 +114,9 @@ def main(argv: list[str] | None = None) -> int:
                 settings.base_url = normalize_base_url(args.base_url)
             settings.max_workers = max(1, min(2, args.workers))
             url = normalize_base_url(settings.base_url)
-            if not is_loopback_host(url) and not args.allow_remote_ollama:
+            if not is_local_machine_host(url) and not args.allow_remote_ollama:
                 print(
-                    "Refusing non-loopback Ollama host without --allow-remote-ollama "
+                    "Refusing non-local Ollama host without --allow-remote-ollama "
                     "(page images would leave this machine).",
                     file=sys.stderr,
                 )
@@ -127,7 +133,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "export":
             project = projects.load()
-            dest = args.dest or paths.exports_dir
+            if args.dest is not None:
+                dest = args.dest
+            elif os.getenv("TRANSCRIBE_EXPORT_DIR"):
+                dest = PATHS.export_dir / paths.root.name
+            else:
+                dest = paths.exports_dir
             written = ExportService(paths, projects).export_all(project, dest)
             for kind, path in written.items():
                 print(f"{kind}: {path}")

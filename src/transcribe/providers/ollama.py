@@ -59,6 +59,14 @@ def is_loopback_host(url: str) -> bool:
         return False
 
 
+def is_local_machine_host(url: str) -> bool:
+    """True when OCR traffic stays on this machine (loopback or Docker→host)."""
+    if is_loopback_host(url):
+        return True
+    host = (urlparse(url).hostname or "").lower()
+    return host in {"host.docker.internal"}
+
+
 def _allowlisted_metadata(payload: dict[str, Any], *, retry_count: int) -> dict[str, Any]:
     meta: dict[str, Any] = {"retry_count": retry_count}
     for key in (

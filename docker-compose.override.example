@@ -1,0 +1,21 @@
+# Local Compose override EXAMPLE — copy to docker-compose.override.yml
+#
+# Docker Compose auto-loads docker-compose.override.yml when present (gitignored).
+# Listing `volumes` here replaces the entire volumes array for transcribe-web,
+# so we repeat the base mounts and adjust for local development.
+#
+# - Mount ./src for live UI/code edits without rebuilding the image
+# - Make inbox writable for import experiments
+# - Default Ollama URL to host.docker.internal when unset in .env
+
+services:
+  transcribe-web:
+    environment:
+      - TRANSCRIBE_OLLAMA_BASE_URL=${TRANSCRIBE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    volumes:
+      - ${HOST_DATA_DIR:-./data}:/data
+      - ${HOST_PROJECTS_DIR:?Set HOST_PROJECTS_DIR in .env to your notebook projects folder outside the repo}:/mnt/projects
+      - ${HOST_INBOX_DIR:-./data/inbox}:/mnt/inbox
+      - ${HOST_EXPORT_DIR:-./data/exports}:/mnt/exports
+      # Live-edit package (Python 3.11 site-packages path matches Dockerfile base)
+      - ./src/transcribe:/opt/venv/lib/python3.11/site-packages/transcribe

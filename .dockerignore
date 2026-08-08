@@ -1,0 +1,42 @@
+# Build context only — keep uploads fast; never bake user notebooks into layers.
+
+.git
+.github
+.cursor
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+
+*.egg-info
+.eggs
+dist
+build
+.venv
+venv
+
+# Runtime / local data (never needed to build)
+data
+exports
+projects
+notebook-project
+notebook-test
+.test_outputs
+.local
+
+# Env and local overrides
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
+
+# Docs and tests not used by Dockerfile COPY
+docs
+tests
+*.md
+!README.md

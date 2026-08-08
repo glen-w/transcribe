@@ -20,6 +20,11 @@ exports/
 .test_outputs/
 notebook-project/
 notebook-test/
+data/
+.env
+.env.*
+!.env.example
+docker-compose.override.yml
 *.png
 !tests/fixtures/*.png
 *.jpg
@@ -28,3 +33,4 @@ notebook-test/
 !tests/fixtures/*.jpeg
 *.pdf
 !tests/fixtures/*.pdf
+.cache/

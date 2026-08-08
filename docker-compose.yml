@@ -1,0 +1,56 @@
+# Transcribe: recommended Docker run path (no host Python install).
+#
+# Volumes:
+#   HOST_DATA_DIR     → /data              (optional scratch / caches)
+#   HOST_PROJECTS_DIR → /mnt/projects      (notebook projects; prefer outside repo)
+#   HOST_INBOX_DIR    → /mnt/inbox:ro      (scans / PDFs to import)
+#   HOST_EXPORT_DIR   → /mnt/exports       (markdown / notebook JSON exports)
+#
+# HOST_* — compose mount sources on the host (set in .env).
+# TRANSCRIBE_* — app paths inside the container (set below).
+#
+# Non-root: runs as host UID/GID so mounted dirs stay owned correctly.
+# Ollama stays on the host; container talks to host.docker.internal:11434.
+#
+# Web: docker compose up → http://127.0.0.1:8510
+
+services:
+  transcribe-web:
+    build:
+      context: .
+    image: transcribe:latest
+    init: true
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /data
+    volumes:
+      - ${HOST_DATA_DIR:-./data}:/data
+      - ${HOST_PROJECTS_DIR:?Set HOST_PROJECTS_DIR in .env to your notebook projects folder outside the repo}:/mnt/projects
+      - ${HOST_INBOX_DIR:-./data/inbox}:/mnt/inbox:ro
+      - ${HOST_EXPORT_DIR:-./data/exports}:/mnt/exports
+    environment:
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      - STREAMLIT_SERVER_HEADLESS=true
+      - TRANSCRIBE_DATA_DIR=/data
+      - TRANSCRIBE_PROJECTS_DIR=/mnt/projects
+      - TRANSCRIBE_INBOX_DIR=/mnt/inbox
+      - TRANSCRIBE_EXPORT_DIR=/mnt/exports
+      - TRANSCRIBE_OLLAMA_BASE_URL=${TRANSCRIBE_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - TRANSCRIBE_HOST=0.0.0.0
+      - TRANSCRIBE_PORT=8510
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Default loopback only. LAN: TRANSCRIBE_BIND_HOST=0.0.0.0
+      - "${TRANSCRIBE_BIND_HOST:-127.0.0.1}:8510:8510"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8510/_stcore/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

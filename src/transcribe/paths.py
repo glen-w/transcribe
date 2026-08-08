@@ -43,6 +43,14 @@ class ProjectPaths:
         return self.root / ".staging"
 
     @property
+    def cache_dir(self) -> Path:
+        return self.root / ".cache"
+
+    @property
+    def thumbs_dir(self) -> Path:
+        return self.cache_dir / "thumbs"
+
+    @property
     def mutation_lock(self) -> Path:
         return self.root / ".transcribe.lock"
 
@@ -58,8 +66,12 @@ class ProjectPaths:
             self.exports_dir,
             self.prompts_dir,
             self.staging_dir,
+            self.thumbs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
+
+    def thumb_path(self, page_id: str) -> Path:
+        return self.thumbs_dir / f"{page_id}.jpg"
 
     def resolve_contained(self, rel: str) -> Path:
         """Resolve a stored relative path and require it stay inside the project root."""

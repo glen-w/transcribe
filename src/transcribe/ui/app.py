@@ -5,6 +5,8 @@ JobCoordinator is owned via st.cache_resource so reruns do not drop live jobs.
 
 from __future__ import annotations
 
+import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -12,10 +14,18 @@ import streamlit as st
 
 from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
-from transcribe.providers.ollama import OllamaVisionProvider, is_loopback_host, normalize_base_url
+from transcribe.providers.ollama import (
+    OllamaVisionProvider,
+    is_local_machine_host,
+    normalize_base_url,
+)
+from transcribe.runtime_paths import build_runtime_paths
+from transcribe.services.archive import ArchiveService
 from transcribe.services.export import ExportService
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
+from transcribe.ui.page_viewer import render_page_viewer
 
 
 @st.cache_resource
@@ -57,34 +67,7 @@ def _render_job_progress(progress: JobProgress) -> None:
         )
 
 
-def main() -> None:
-    st.set_page_config(page_title="Transcribe", layout="wide")
-    st.title("Transcribe")
-    st.caption("Local-first handwritten notebook OCR via Ollama")
-
-    default_root = str(Path.cwd() / "notebook-project")
-    root = st.sidebar.text_input("Project directory", value=st.session_state.get("root", default_root))
-    st.session_state["root"] = root
-
-    col_a, col_b = st.sidebar.columns(2)
-    if col_a.button("Create"):
-        try:
-            paths = open_project_paths(Path(root))
-            ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
-            st.sidebar.success("Created")
-            st.cache_resource.clear()
-        except TranscribeError as exc:
-            st.sidebar.error(str(exc))
-    if col_b.button("Open"):
-        try:
-            paths, projects, ingest = _services(root)
-            ingest.cleanup_staging()
-            projects.load(reconcile=True)
-            st.sidebar.success("Opened")
-            st.cache_resource.clear()
-        except TranscribeError as exc:
-            st.sidebar.error(str(exc))
-
+def _render_workflow(runtime, root: str) -> None:
     try:
         paths, projects, ingest = _services(root)
         project = projects.load(reconcile=True)
@@ -93,14 +76,26 @@ def main() -> None:
         st.caption(str(exc))
         return
 
+    if st.session_state.get("show_page_viewer") and st.session_state.get("view_page_id"):
+        page_ids = st.session_state.get("view_page_ids") or [p.page_id for p in project.pages]
+        render_page_viewer(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=st.session_state["view_page_id"],
+            page_ids=page_ids,
+            highlight_query=st.session_state.get("view_highlight", ""),
+            back_label="Back to workflow",
+        )
+        return
+
     coord = get_coordinator(str(paths.root))
     live = coord.get_progress()
-    # Track running→done so a fragment can trigger one full rerun to re-enable buttons.
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
 
-    tab_import, tab_run, tab_review, tab_export = st.tabs(
-        ["Import", "Run", "Review", "Export"]
+    tab_import, tab_run, tab_pages, tab_export = st.tabs(
+        ["Import", "Run", "Pages", "Export"]
     )
 
     with tab_import:
@@ -121,12 +116,18 @@ def main() -> None:
                     st.error(f"{f.name}: {exc}")
             st.rerun()
         st.write(f"Pages in project: **{len(project.pages)}**")
+        tags_in = st.text_input("Notebook tags (comma-separated)", value=", ".join(project.tags))
+        if st.button("Save notebook tags"):
+            project = projects.update_notebook_metadata(
+                tags=[t for t in tags_in.split(",")]
+            )
+            st.success("Tags saved")
 
     with tab_run:
         base_url = st.text_input("Ollama base URL", value=project.settings.base_url)
         try:
             normalized = normalize_base_url(base_url)
-            remote = not is_loopback_host(normalized)
+            remote = not is_local_machine_host(normalized)
         except Exception as exc:
             st.error(str(exc))
             normalized = project.settings.base_url
@@ -165,7 +166,9 @@ def main() -> None:
                 st.write(", ".join(unknown))
 
         prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
-        custom = st.text_area("Custom prompt override (optional)", value=project.settings.custom_prompt or "")
+        custom = st.text_area(
+            "Custom prompt override (optional)", value=project.settings.custom_prompt or ""
+        )
         preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
         workers = st.selectbox("Workers", [1, 2], index=0)
         force = st.checkbox("Force re-run (ignore matching fingerprints)")
@@ -184,7 +187,6 @@ def main() -> None:
             coord.provider = OllamaVisionProvider(normalized)
             st.success("Settings saved")
 
-        # Fragment auto-refreshes progress without full-app sleep/rerun (no icon flicker).
         poll = timedelta(seconds=2) if live.status == "running" or was_running else None
 
         @st.fragment(run_every=poll)
@@ -225,40 +227,34 @@ def main() -> None:
             coord.request_cancel()
             st.info("Stopping after current page…")
 
-    with tab_review:
+    with tab_pages:
         if not project.pages:
             st.info("No pages yet.")
         else:
-            idx = st.number_input(
-                "Page number", min_value=1, max_value=len(project.pages), value=1
+            page_ids = [p.page_id for p in project.pages]
+            default_id = st.session_state.get("view_page_id") or page_ids[0]
+            if default_id not in page_ids:
+                default_id = page_ids[0]
+            st.session_state["view_page_id"] = default_id
+            st.session_state["view_page_ids"] = page_ids
+            project = render_page_viewer(
+                paths=paths,
+                projects=projects,
+                project=project,
+                page_id=default_id,
+                page_ids=page_ids,
+                highlight_query="",
+                show_back=False,
             )
-            page = project.pages[int(idx) - 1]
-            render = project.renders[page.active_render_id]
-            img_path = paths.resolve_contained(render.image_relpath)
-            result = projects.load_page_result(page.page_id)
-            left, right = st.columns(2)
-            with left:
-                st.image(str(img_path), width="stretch")
-            with right:
-                status = result.status if result else "pending"
-                st.write(f"Status: **{status}**")
-                attempt = result.active_attempt() if result else None
-                raw = attempt.raw_text if attempt else ""
-                edited = result.edited_text if result else None
-                if edited is not None and attempt and attempt.raw_text is not None:
-                    st.caption("An edit is active. New OCR raw text is preserved separately.")
-                    if st.button("Use new transcription"):
-                        projects.adopt_raw_as_edit(page.page_id)
-                        st.rerun()
-                default_text = edited if edited is not None else (raw or "")
-                text = st.text_area("Transcription", value=default_text, height=400)
-                if st.button("Save edit"):
-                    projects.save_user_edit(page.page_id, text)
-                    st.success("Saved")
 
     with tab_export:
+        export_dest = st.text_input(
+            "Export directory",
+            value=str(runtime.export_dir / Path(root).name),
+        )
         if st.button("Export"):
-            written = ExportService(paths, projects).export_all(project)
+            dest = Path(export_dest) if export_dest.strip() else None
+            written = ExportService(paths, projects).export_all(project, dest)
             for kind, path in written.items():
                 st.write(f"**{kind}:** `{path}`")
             st.download_button(
@@ -268,8 +264,114 @@ def main() -> None:
             )
 
 
+def main() -> None:
+    st.set_page_config(page_title="Transcribe", layout="wide")
+    st.title("Transcribe")
+    st.caption("Local-first handwritten notebook OCR via Ollama")
+
+    runtime = build_runtime_paths()
+    runtime.ensure_layout()
+    default_root = str(runtime.default_project_dir())
+    root = st.sidebar.text_input(
+        "Project directory", value=st.session_state.get("root", default_root)
+    )
+    st.session_state["root"] = root
+    st.sidebar.caption(f"Projects root: `{runtime.projects_dir}`")
+    st.sidebar.caption(f"Inbox: `{runtime.inbox_dir}`")
+    st.sidebar.caption(f"Exports: `{runtime.export_dir}`")
+
+    col_a, col_b = st.sidebar.columns(2)
+    if col_a.button("Create"):
+        try:
+            paths = open_project_paths(Path(root))
+            ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
+            st.sidebar.success("Created")
+            st.cache_resource.clear()
+        except TranscribeError as exc:
+            st.sidebar.error(str(exc))
+    if col_b.button("Open"):
+        try:
+            paths, projects, ingest = _services(root)
+            ingest.cleanup_staging()
+            projects.load(reconcile=True)
+            st.sidebar.success("Opened")
+            st.cache_resource.clear()
+            st.session_state["ui_mode"] = "Workflow"
+        except TranscribeError as exc:
+            st.sidebar.error(str(exc))
+
+    mode = st.sidebar.radio(
+        "Mode",
+        ["Archive", "Notebooks", "Search", "Workflow"],
+        index=["Archive", "Notebooks", "Search", "Workflow"].index(
+            st.session_state.get("ui_mode", "Archive")
+        )
+        if st.session_state.get("ui_mode", "Archive")
+        in ["Archive", "Notebooks", "Search", "Workflow"]
+        else 0,
+    )
+    st.session_state["ui_mode"] = mode
+
+    archive = ArchiveService(runtime)
+
+    # Page viewer overlay when navigated from Archive/Search/Notebooks.
+    if (
+        mode != "Workflow"
+        and st.session_state.get("show_page_viewer")
+        and st.session_state.get("view_page_id")
+        and st.session_state.get("root")
+    ):
+        try:
+            paths, projects, _ingest = _services(st.session_state["root"])
+            project = projects.load(reconcile=False)
+            page_ids = st.session_state.get("view_page_ids") or [
+                p.page_id for p in project.pages
+            ]
+            return_mode = st.session_state.get("page_return_mode", mode)
+            render_page_viewer(
+                paths=paths,
+                projects=projects,
+                project=project,
+                page_id=st.session_state["view_page_id"],
+                page_ids=page_ids,
+                highlight_query=st.session_state.get("view_highlight", ""),
+                back_label=f"Back to {return_mode}",
+            )
+            return
+        except TranscribeError as exc:
+            st.error(str(exc))
+            st.session_state["show_page_viewer"] = False
+
+    if mode == "Archive":
+        render_archive(runtime, archive)
+    elif mode == "Notebooks":
+        render_notebooks(runtime, archive)
+    elif mode == "Search":
+        render_search(runtime, archive)
+    else:
+        _render_workflow(runtime, root)
+
+
 def path_read(path: Path) -> bytes:
     return Path(path).read_bytes()
+
+
+def cli_main() -> None:
+    """Console entry: ``transcribe-ui`` → Streamlit on port 8510 by default."""
+    app_path = str(Path(__file__).resolve())
+    port = os.getenv("TRANSCRIBE_PORT", "8510")
+    address = os.getenv("TRANSCRIBE_HOST", "127.0.0.1")
+    sys.argv = [
+        "streamlit",
+        "run",
+        app_path,
+        f"--server.port={port}",
+        f"--server.address={address}",
+        "--browser.gatherUsageStats=false",
+    ]
+    from streamlit.web import cli as stcli
+
+    raise SystemExit(stcli.main())
 
 
 if __name__ == "__main__":

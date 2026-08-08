@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from transcribe.domain.dates import ApproximateDate, normalize_tags
 from transcribe.domain.models import (
     MAX_ATTEMPTS_RETAINED,
     OCRAttempt,
@@ -17,6 +18,9 @@ from transcribe.persistence.atomic import read_json, write_json_atomic
 from transcribe.persistence.locks import job_lock_held, mutation_lock
 from transcribe.persistence.schema import require_format
 from transcribe.ports import Clock, IdGenerator, to_iso
+from transcribe.runtime_paths import default_ollama_base_url
+
+_UNSET = object()
 
 
 class ProjectService:
@@ -41,7 +45,7 @@ class ProjectService:
             title=title,
             created_at=now,
             updated_at=now,
-            settings=OCRSettings(),
+            settings=OCRSettings(base_url=default_ollama_base_url()),
         )
         with mutation_lock(self.paths.mutation_lock):
             write_json_atomic(self.paths.manifest, project.as_dict())
@@ -72,6 +76,64 @@ class ProjectService:
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
             current.settings = settings
+            current.updated_at = to_iso(self.clock.now())
+            write_json_atomic(self.paths.manifest, current.as_dict())
+            return current
+
+    def update_page_metadata(
+        self,
+        page_id: str,
+        *,
+        date: ApproximateDate | None | object = _UNSET,
+        tags: list[str] | object = _UNSET,
+    ) -> Project:
+        """Update user-owned page date/tags. Omit a kwarg (or pass sentinel) to leave it."""
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            found = False
+            for page in current.pages:
+                if page.page_id != page_id:
+                    continue
+                found = True
+                if date is not _UNSET:
+                    page.date = date  # type: ignore[assignment]
+                if tags is not _UNSET:
+                    page.tags = normalize_tags(tags)  # type: ignore[arg-type]
+                break
+            if not found:
+                raise ProjectError(f"unknown page_id: {page_id}")
+            current.updated_at = to_iso(self.clock.now())
+            write_json_atomic(self.paths.manifest, current.as_dict())
+            return current
+
+    def update_notebook_metadata(
+        self,
+        *,
+        title: str | object = _UNSET,
+        tags: list[str] | object = _UNSET,
+        cover_page_id: str | None | object = _UNSET,
+        date_start: ApproximateDate | None | object = _UNSET,
+        date_end: ApproximateDate | None | object = _UNSET,
+    ) -> Project:
+        """Update notebook-level user metadata. Omit kwargs to leave fields unchanged."""
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            if title is not _UNSET:
+                current.title = str(title)
+            if tags is not _UNSET:
+                current.tags = normalize_tags(tags)  # type: ignore[arg-type]
+            if cover_page_id is not _UNSET:
+                if cover_page_id is not None and not any(
+                    p.page_id == cover_page_id for p in current.pages
+                ):
+                    raise ProjectError(f"unknown cover_page_id: {cover_page_id}")
+                current.cover_page_id = cover_page_id  # type: ignore[assignment]
+            if date_start is not _UNSET:
+                current.date_start = date_start  # type: ignore[assignment]
+            if date_end is not _UNSET:
+                current.date_end = date_end  # type: ignore[assignment]
             current.updated_at = to_iso(self.clock.now())
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current

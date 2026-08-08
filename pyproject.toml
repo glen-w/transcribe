@@ -21,6 +21,7 @@ dev = ["pytest>=8.0.0", "streamlit>=1.32.0"]
 
 [project.scripts]
 transcribe = "transcribe.__main__:main"
+transcribe-ui = "transcribe.ui.app:cli_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
