@@ -24,7 +24,7 @@ def test_ingest_fixture_png_and_pdf(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_path(project, FIXTURES / "mini_page.png")
+    project = ingest.import_path(FIXTURES / "mini_page.png")
     assert len(project.pages) == 1
     render = project.renders[project.pages[0].active_render_id]
     # Versioned render path: pages/<source_id>/<page_index>/<render_id>.png
@@ -34,7 +34,7 @@ def test_ingest_fixture_png_and_pdf(tmp_path: Path):
     assert parts[2] == "0000"
     assert parts[3].endswith(".png")
 
-    project = ingest.import_path(project, FIXTURES / "mini_notebook.pdf", render_dpi=100)
+    project = ingest.import_path(FIXTURES / "mini_notebook.pdf", render_dpi=100)
     assert len(project.pages) == 1 + 3
     assert project.sources[-1].page_count == 3
 
@@ -93,7 +93,7 @@ def test_cooperative_cancel_stops_scheduling(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_path(project, FIXTURES / "mini_notebook.pdf", render_dpi=72)
+    project = ingest.import_path(FIXTURES / "mini_notebook.pdf", render_dpi=72)
     settings = project.settings
     settings.model_name = "fake-vision"
     settings.max_workers = 1
@@ -124,7 +124,7 @@ def test_digest_missing_still_allows_generation(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_path(project, FIXTURES / "mini_page.png")
+    project = ingest.import_path(FIXTURES / "mini_page.png")
     settings = project.settings
     settings.model_name = "manual-override"
     projects.save_settings(project, settings)
@@ -147,8 +147,8 @@ def test_versioned_render_paths_stable_across_sources(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_path(project, FIXTURES / "mini_page.png")
-    project = ingest.import_path(project, FIXTURES / "mini_page.jpg")
+    project = ingest.import_path(FIXTURES / "mini_page.png")
+    project = ingest.import_path(FIXTURES / "mini_page.jpg")
     rels = [project.renders[p.active_render_id].image_relpath for p in project.pages]
     assert all("/0000/" in r for r in rels)
     assert rels[0] != rels[1]

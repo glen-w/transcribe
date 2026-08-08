@@ -22,7 +22,7 @@ def _project_with_pages(tmp_path: Path, n: int = 2):
     ingest = IngestService(paths, clock=clock, ids=ids)
     for i in range(n):
         project = ingest.import_bytes(
-            project, f"p{i}.png", _png_bytes(color=(i * 10, 20, 30))
+            f"p{i}.png", _png_bytes(color=(i * 10, 20, 30))
         )
     settings = project.settings
     settings.model_name = "fake-vision"

@@ -46,7 +46,7 @@ def _make_notebook(
     project = projects.create(title)
     ingest = IngestService(paths, clock=clock, ids=ids)
     for i, spec in enumerate(page_specs):
-        project = ingest.import_bytes(project, f"p{i}.png", _png_bytes())
+        project = ingest.import_bytes(f"p{i}.png", _png_bytes())
         page = project.pages[-1]
         if spec.get("text"):
             write_json_atomic(
@@ -466,3 +466,20 @@ def test_ensure_index_skips_when_fingerprint_unchanged(tmp_path: Path):
     archive.ensure_index()
     archive.ensure_index()
     assert archive._ensure_calls == calls
+
+
+def test_corrupt_archive_cache_deletes_and_rebuilds(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "rebuild",
+        title="Rebuild",
+        page_specs=[{"date": ApproximateDate(2021, 1, 1), "text": "hello"}],
+    )
+    archive = ArchiveService(runtime)
+    archive.ensure_index(force=True)
+    archive.index_path.write_bytes(b"not a sqlite database")
+    archive._validated_at = None
+    archive.ensure_index(force=True)
+    result = archive.search("hello")
+    assert result.total_matched >= 1

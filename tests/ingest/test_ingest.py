@@ -36,7 +36,7 @@ def test_import_bytes_png(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes(project, "note.png", _png_bytes())
+    project = ingest.import_bytes("note.png", _png_bytes())
     assert len(project.pages) == 1
     assert project.pages[0].page_id.startswith("id")
     render = project.renders[project.pages[0].active_render_id]
@@ -51,7 +51,7 @@ def test_import_pdf(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes(project, "scan.pdf", _pdf_bytes(3), render_dpi=100)
+    project = ingest.import_bytes("scan.pdf", _pdf_bytes(3), render_dpi=100)
     assert len(project.pages) == 3
     assert project.pages[0].page_index == 0
     assert "pages/" in project.renders[project.pages[0].active_render_id].image_relpath
@@ -66,7 +66,7 @@ def test_import_path_does_not_modify_user_file(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    ingest.import_path(project, user)
+    ingest.import_path(user)
     assert user.read_bytes() == before
 
 
@@ -76,7 +76,7 @@ def test_rejects_escape_filename_traversal(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes(project, "../../evil.png", _png_bytes())
+    project = ingest.import_bytes("../../evil.png", _png_bytes())
     stored = project.sources[0].stored_relpath
     assert ".." not in stored
     assert stored.startswith("sources/")
@@ -92,4 +92,4 @@ def test_oversized_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
     with pytest.raises(IngestError):
-        ingest.import_bytes(project, "big.png", _png_bytes())
+        ingest.import_bytes("big.png", _png_bytes())

@@ -43,6 +43,10 @@ class ProjectPaths:
         return self.root / ".staging"
 
     @property
+    def jobs_dir(self) -> Path:
+        return self.root / "jobs"
+
+    @property
     def cache_dir(self) -> Path:
         return self.root / ".cache"
 
@@ -58,6 +62,10 @@ class ProjectPaths:
     def job_lock(self) -> Path:
         return self.root / ".transcribe.job.lock"
 
+    @property
+    def ingest_journal(self) -> Path:
+        return self.root / ".ingest-journal.json"
+
     def ensure_layout(self) -> None:
         for path in (
             self.sources_dir,
@@ -66,6 +74,7 @@ class ProjectPaths:
             self.exports_dir,
             self.prompts_dir,
             self.staging_dir,
+            self.jobs_dir,
             self.thumbs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)

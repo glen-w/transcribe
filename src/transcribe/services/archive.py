@@ -1,6 +1,9 @@
 """Workspace archive queries: timeline, notebook summaries, and search.
 
-Index is derived (SQLite FTS). User identity remains page_id / project.id on disk.
+Index is disposable derived state (SQLite FTS cache). User identity and
+authority remain page_id / project.id / project.json on disk. Project
+signatures use mtime rollups intentionally — acceptable only because this
+layer is a rebuildable cache, never a source of truth.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from transcribe.domain.dates import (
 )
 from transcribe.domain.models import Project
 from transcribe.errors import ProjectError
+from transcribe.persistence.locks import FileLock
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.project import ProjectService, open_project_paths
@@ -33,6 +37,8 @@ PeriodKind = Literal["all", "year", "range"]
 
 _INDEX_TTL_S = 2.0
 _FTS_SCHEMA_VERSION = 2
+_CACHE_SCHEMA_VERSION = 1
+_BUSY_TIMEOUT_MS = 5000
 
 
 @dataclass(frozen=True)
@@ -205,15 +211,32 @@ class ArchiveService:
         self.runtime.ensure_layout()
         self.index_path = self.runtime.data_dir / "cache" / "archive.sqlite"
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
+        self._rebuild_lock_path = self.index_path.with_suffix(".sqlite.lock")
         self._validated_at: float | None = None
         self._workspace_fp: str | None = None
         self._ensure_calls = 0  # test counter
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.index_path))
+        conn = sqlite3.connect(str(self.index_path), timeout=_BUSY_TIMEOUT_MS / 1000.0)
         conn.row_factory = sqlite3.Row
+        conn.execute(f"PRAGMA busy_timeout = {_BUSY_TIMEOUT_MS}")
         conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
         return conn
+
+    def _delete_cache(self) -> None:
+        for path in (
+            self.index_path,
+            Path(str(self.index_path) + "-wal"),
+            Path(str(self.index_path) + "-shm"),
+        ):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        self._validated_at = None
+        self._workspace_fp = None
 
     def _ensure_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -252,6 +275,15 @@ class ArchiveService:
             """
         )
         row = conn.execute(
+            "SELECT value FROM meta WHERE key = 'cache_schema_version'"
+        ).fetchone()
+        if row is not None:
+            cache_version = int(row["value"])
+            if cache_version != _CACHE_SCHEMA_VERSION:
+                raise sqlite3.DatabaseError(
+                    f"incompatible archive cache schema {cache_version}"
+                )
+        row = conn.execute(
             "SELECT value FROM meta WHERE key = 'fts_schema_version'"
         ).fetchone()
         current = int(row["value"]) if row else 0
@@ -274,7 +306,10 @@ class ArchiveService:
             )
             # Force full reindex of notebooks by clearing signatures.
             conn.execute("UPDATE notebooks SET signature = ''")
-
+        conn.execute(
+            "INSERT OR REPLACE INTO meta(key, value) VALUES ('cache_schema_version', ?)",
+            (str(_CACHE_SCHEMA_VERSION),),
+        )
     def _workspace_fingerprint(self) -> str:
         """Cheap mtime rollup used to skip ensure_index when nothing changed."""
         parts: list[str] = []
@@ -312,44 +347,77 @@ class ArchiveService:
             and (now - self._validated_at) < _INDEX_TTL_S
         ):
             return
-        self._ensure_calls += 1
+        with FileLock(self._rebuild_lock_path, timeout=60.0):
+            # Re-check TTL after acquiring the cross-process rebuild lock.
+            now = time.monotonic()
+            fp = self._workspace_fingerprint()
+            if (
+                not force
+                and self._validated_at is not None
+                and self._workspace_fp == fp
+                and (now - self._validated_at) < _INDEX_TTL_S
+            ):
+                return
+            self._ensure_calls += 1
+            self._ensure_index_locked(force=force)
+
+    def _ensure_index_locked(self, *, force: bool = False) -> None:
         roots = discover_project_roots(self.runtime.projects_dir)
-        with self._connect() as conn:
-            self._ensure_schema(conn)
-            # Ensure project_tags_json column exists on older DBs.
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(pages)")}
-            if "project_tags_json" not in cols:
-                conn.execute(
-                    "ALTER TABLE pages ADD COLUMN project_tags_json TEXT NOT NULL DEFAULT '[]'"
-                )
-            known = {
-                row["project_id"]: row["signature"]
-                for row in conn.execute("SELECT project_id, signature FROM notebooks")
-            }
-            seen: set[str] = set()
-            for root in roots:
-                try:
-                    paths = open_project_paths(root)
-                    projects = ProjectService(
-                        paths, clock=SystemClock(), ids=UuidGenerator()
-                    )
-                    project = projects.load(reconcile=False)
-                except (ProjectError, OSError, ValueError):
-                    continue
-                sig = self._project_signature(root, project)
-                seen.add(project.id)
-                if known.get(project.id) == sig:
-                    continue
-                self._reindex_project(conn, root, project, projects, sig)
-            stale = set(known) - seen
-            for project_id in stale:
-                conn.execute("DELETE FROM pages_fts WHERE project_id = ?", (project_id,))
-                conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
-                conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
-            conn.commit()
+        for attempt in range(2):
+            try:
+                with self._connect() as conn:
+                    # Quick corruption probe
+                    conn.execute("PRAGMA quick_check").fetchone()
+                    self._ensure_schema(conn)
+                    # Ensure project_tags_json column exists on older DBs.
+                    cols = {r[1] for r in conn.execute("PRAGMA table_info(pages)")}
+                    if "project_tags_json" not in cols:
+                        conn.execute(
+                            "ALTER TABLE pages ADD COLUMN project_tags_json "
+                            "TEXT NOT NULL DEFAULT '[]'"
+                        )
+                    known = {
+                        row["project_id"]: row["signature"]
+                        for row in conn.execute(
+                            "SELECT project_id, signature FROM notebooks"
+                        )
+                    }
+                    seen: set[str] = set()
+                    for root in roots:
+                        try:
+                            paths = open_project_paths(root)
+                            projects = ProjectService(
+                                paths, clock=SystemClock(), ids=UuidGenerator()
+                            )
+                            project = projects.load(reconcile=False)
+                        except (ProjectError, OSError, ValueError):
+                            continue
+                        sig = self._project_signature(root, project)
+                        seen.add(project.id)
+                        if not force and known.get(project.id) == sig:
+                            continue
+                        self._reindex_project(conn, root, project, projects, sig)
+                    stale = set(known) - seen
+                    for project_id in stale:
+                        conn.execute(
+                            "DELETE FROM pages_fts WHERE project_id = ?", (project_id,)
+                        )
+                        conn.execute(
+                            "DELETE FROM pages WHERE project_id = ?", (project_id,)
+                        )
+                        conn.execute(
+                            "DELETE FROM notebooks WHERE project_id = ?", (project_id,)
+                        )
+                    conn.commit()
+                self._validated_at = time.monotonic()
+                self._workspace_fp = self._workspace_fingerprint()
+                return
+            except sqlite3.DatabaseError:
+                self._delete_cache()
+                if attempt == 1:
+                    raise
         self._validated_at = time.monotonic()
         self._workspace_fp = self._workspace_fingerprint()
-
     def invalidate(self, project_id: str) -> None:
         with self._connect() as conn:
             self._ensure_schema(conn)

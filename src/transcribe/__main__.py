@@ -53,6 +53,14 @@ def main(argv: list[str] | None = None) -> int:
     p_status = sub.add_parser("status", help="Show project page statuses")
     p_status.add_argument("project", type=Path)
 
+    p_doctor = sub.add_parser("doctor", help="Validate project integrity")
+    p_doctor.add_argument("project", type=Path)
+    p_doctor.add_argument(
+        "--deep",
+        action="store_true",
+        help="Hash source/render files and verify against the manifest",
+    )
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
@@ -92,8 +100,8 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         if args.cmd == "import":
-            project = projects.load()
-            project = ingest.import_path(project, args.source, render_dpi=args.dpi)
+            projects.load()
+            project = ingest.import_path(args.source, render_dpi=args.dpi)
             print(f"Imported {args.source.name}: {project.pages[-1].page_index + 1 if project.pages else 0} page(s); total pages={len(project.pages)}")
             return 0
 
@@ -105,6 +113,18 @@ def main(argv: list[str] | None = None) -> int:
                 edited = " edited" if result and result.edited_text is not None else ""
                 print(f"{i:04d}  {page.page_id}  {status}{edited}")
             return 0
+
+        if args.cmd == "doctor":
+            from transcribe.services.doctor import DoctorService
+
+            report = DoctorService(paths, projects).run(deep=args.deep)
+            for finding in report.findings:
+                print(f"{finding.severity}: [{finding.code}] {finding.message}")
+            if report.ok and not report.findings:
+                print("ok: project integrity checks passed")
+            elif report.ok:
+                print("ok: no errors (warnings above)")
+            return 0 if report.ok else 1
 
         if args.cmd == "run":
             project = projects.load()
@@ -123,9 +143,6 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             settings.allow_non_loopback = bool(args.allow_remote_ollama)
             project = projects.save_settings(project, settings)
-            # Rebuild provider with updated URL
-            from transcribe.providers.ollama import OllamaVisionProvider
-
             coord.provider = OllamaVisionProvider(settings.base_url)
 
             progress = coord.run_blocking(force=args.force)

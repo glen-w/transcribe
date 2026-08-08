@@ -223,6 +223,8 @@ class Project:
             cover_page_id=data.get("cover_page_id"),
             date_start=ApproximateDate.from_dict(data.get("date_start")),
             date_end=ApproximateDate.from_dict(data.get("date_end")),
+            format=str(data.get("format", "transcribe.project")),
+            schema_version=int(data.get("schema_version", 1)),
         )
 
     def global_index_for(self, page_id: str) -> int:
@@ -396,6 +398,8 @@ class PageResult:
             edited_text=data.get("edited_text"),
             attempts=[OCRAttempt.from_dict(a) for a in data.get("attempts") or []],
             updated_at=data.get("updated_at", ""),
+            format=str(data.get("format", "transcribe.page-result")),
+            schema_version=int(data.get("schema_version", 1)),
         )
         # Derived status must match active attempt when present.
         _ = result.status

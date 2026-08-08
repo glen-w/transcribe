@@ -12,6 +12,7 @@ from transcribe.domain.models import (
     PageResult,
     Project,
 )
+from transcribe.domain.validation import validate_page_result, validate_project
 from transcribe.errors import ProjectError
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
@@ -47,29 +48,31 @@ class ProjectService:
             updated_at=now,
             settings=OCRSettings(base_url=default_ollama_base_url()),
         )
+        validate_project(project)
         with mutation_lock(self.paths.mutation_lock):
             write_json_atomic(self.paths.manifest, project.as_dict())
         return project
 
-    def load(self, *, reconcile: bool = True) -> Project:
+    def _load_unlocked(self, *, reconcile: bool = True) -> Project:
         if not self.paths.manifest.exists():
             raise ProjectError(f"no project.json at {self.paths.root}")
+        payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+        project = Project.from_dict(payload)
+        validate_project(project, paths=self.paths, deep=False)
+        if reconcile:
+            self._reconcile_interrupted_locked()
+        return project
+
+    def load(self, *, reconcile: bool = True) -> Project:
+        # Finish or roll back a crash-interrupted ingest before trusting the manifest.
+        if self.paths.ingest_journal.exists():
+            from transcribe.ingest import IngestService
+
+            IngestService(
+                self.paths, clock=self.clock, ids=self.ids
+            ).recover_incomplete_ingest()
         with mutation_lock(self.paths.mutation_lock):
-            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
-            project = Project.from_dict(payload)
-            for page in project.pages:
-                # Validate stored render path containment via renders map
-                render = project.renders.get(page.active_render_id)
-                if render is None:
-                    raise ProjectError(
-                        f"page {page.page_id} missing render {page.active_render_id}"
-                    )
-                self.paths.resolve_contained(render.image_relpath)
-            for source in project.sources:
-                self.paths.resolve_contained(source.stored_relpath)
-            if reconcile:
-                self._reconcile_interrupted_locked()
-            return project
+            return self._load_unlocked(reconcile=reconcile)
 
     def save_settings(self, project: Project, settings: OCRSettings) -> Project:
         with mutation_lock(self.paths.mutation_lock):
@@ -77,6 +80,7 @@ class ProjectService:
             current = Project.from_dict(payload)
             current.settings = settings
             current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current
 
@@ -104,6 +108,7 @@ class ProjectService:
             if not found:
                 raise ProjectError(f"unknown page_id: {page_id}")
             current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current
 
@@ -135,21 +140,27 @@ class ProjectService:
             if date_end is not _UNSET:
                 current.date_end = date_end  # type: ignore[assignment]
             current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current
 
-    def load_page_result(self, page_id: str) -> PageResult | None:
+    def _load_page_result_unlocked(self, page_id: str) -> PageResult | None:
         path = self.paths.result_path(page_id)
         if not path.exists():
             return None
         payload = require_format(read_json(path), "transcribe.page-result")
-        # Ignore payload["status"] if present — authority is active_attempt.status
-        # via PageResult.status. Writers always persist the derived value via as_dict().
-        return PageResult.from_dict(payload)
+        result = PageResult.from_dict(payload)
+        validate_page_result(result, expected_page_id=page_id)
+        return result
+
+    def load_page_result(self, page_id: str) -> PageResult | None:
+        return self._load_page_result_unlocked(page_id)
 
     def record_generation(self, page_id: str, attempt: OCRAttempt) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
-            existing = self.load_page_result(page_id) or PageResult(page_id=page_id)
+            existing = self._load_page_result_unlocked(page_id) or PageResult(
+                page_id=page_id
+            )
             # Replace same attempt_id if updating running→terminal; else append.
             replaced = False
             for i, old in enumerate(existing.attempts):
@@ -175,17 +186,18 @@ class ProjectService:
                             kept.append(a)
                 existing.attempts = list(reversed(kept))
             existing.updated_at = to_iso(self.clock.now())
-            # Persist with derived status field
+            validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
             return existing
 
     def save_user_edit(self, page_id: str, edited_text: str | None) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
-            existing = self.load_page_result(page_id)
+            existing = self._load_page_result_unlocked(page_id)
             if existing is None:
                 existing = PageResult(page_id=page_id)
             existing.edited_text = edited_text
             existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
             return existing
 
@@ -199,9 +211,10 @@ class ProjectService:
         for path in self.paths.results_dir.glob("*.json"):
             try:
                 payload = require_format(read_json(path), "transcribe.page-result")
+                result = PageResult.from_dict(payload)
+                validate_page_result(result, expected_page_id=path.stem)
             except Exception:
                 continue
-            result = PageResult.from_dict(payload)
             changed = False
             for attempt in result.attempts:
                 if attempt.status == "running":

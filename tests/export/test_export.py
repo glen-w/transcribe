@@ -17,7 +17,7 @@ def test_export_portable_no_absolute_paths(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("Notebook")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes(project, "a.png", _png_bytes())
+    project = ingest.import_bytes("a.png", _png_bytes())
     settings = project.settings
     settings.model_name = "fake-vision"
     project = projects.save_settings(project, settings)
@@ -26,7 +26,10 @@ def test_export_portable_no_absolute_paths(tmp_path: Path):
     )
     coord.run_blocking()
     projects.save_user_edit(project.pages[0].page_id, "edited page")
-    notebook = ExportService(paths, projects).build_notebook(projects.load())
+    export = ExportService(paths, projects)
+    written = export.export_all(dest_dir=tmp_path / "out")
+    assert written["manifest"].exists()
+    notebook = export.build_notebook(projects.load())
     assert notebook["format"] == "transcribe.notebook"
     blob = str(notebook)
     assert str(paths.root) not in blob

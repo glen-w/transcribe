@@ -38,7 +38,7 @@ def test_page_and_notebook_metadata_roundtrip(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     project = projects.create("Meta")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes(project, "a.png", _png_bytes())
+    project = ingest.import_bytes("a.png", _png_bytes())
     page_id = project.pages[0].page_id
     project = projects.update_page_metadata(
         page_id,

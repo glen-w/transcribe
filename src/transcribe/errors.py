@@ -22,5 +22,9 @@ class ProjectError(TranscribeError):
     pass
 
 
+class ValidationError(ProjectError):
+    """Persisted model or on-disk integrity failed validation."""
+
+
 class JobConflictError(TranscribeError):
     pass

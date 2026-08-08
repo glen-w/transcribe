@@ -110,7 +110,7 @@ def _render_workflow(runtime, root: str) -> None:
             for f in uploaded:
                 try:
                     project = ingest.import_bytes(
-                        project, f.name, f.getvalue(), render_dpi=int(dpi)
+                        f.name, f.getvalue(), render_dpi=int(dpi)
                     )
                     st.success(f"Imported {f.name}")
                 except TranscribeError as exc:
@@ -175,6 +175,11 @@ def _render_workflow(runtime, root: str) -> None:
         force = st.checkbox("Force re-run (ignore matching fingerprints)")
 
         if st.button("Save settings"):
+            if live.status == "running":
+                st.warning(
+                    "A job is running; settings will apply to the next job only "
+                    "(the active JobPlan is frozen)."
+                )
             settings = project.settings
             settings.base_url = normalized
             settings.model_name = model
@@ -185,7 +190,8 @@ def _render_workflow(runtime, root: str) -> None:
             settings.allow_non_loopback = allow_remote
             settings.generation_options.temperature = 0.0
             project = projects.save_settings(project, settings)
-            coord.provider = OllamaVisionProvider(normalized)
+            if live.status != "running":
+                coord.provider = OllamaVisionProvider(normalized)
             st.success("Settings saved")
 
         poll = timedelta(seconds=2) if live.status == "running" or was_running else None

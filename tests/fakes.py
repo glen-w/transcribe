@@ -43,8 +43,12 @@ class FakeVisionOCRProvider:
     def resolve_model_identity(self, model_name: str) -> tuple[str | None, bool]:
         for m in self.models:
             if m.name == model_name:
-                return m.digest, bool(m.digest)
-        return self.digest, self.verified
+                if m.digest and self.verified:
+                    return m.digest, True
+                return m.digest, False
+        if self.digest and self.verified:
+            return self.digest, True
+        return self.digest, False
 
     def transcribe_image(
         self,
