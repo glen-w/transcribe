@@ -177,17 +177,22 @@ def test_optional_parent_ignore_matrix(tmp_path: Path):
             },
         )
 
+    baseline = runner.run_module("wordclouds")
+    assert baseline["outcome"] == "success"
+    assert baseline["parents"] == []
+    assert baseline["payload"]["enrichment_mode"] == "baseline"
+    id_absent = baseline["cache_identity"]
+
     for outcome in ("failed", "insufficient_data", "success"):
         _write_keyphrases(outcome)
         parents = resolve_optional_parents(
             "wordclouds", enrichment_mode="baseline", storage=storage
         )
         assert parents == []
-
-    env = runner.run_module("wordclouds")
-    assert env["outcome"] == "success"
-    assert env["parents"] == []
-    assert env["payload"]["enrichment_mode"] == "baseline"
+        again = runner.run_module("wordclouds")
+        assert again["parents"] == []
+        assert again["cache_identity"] == id_absent
+        assert again["attempt_id"] == baseline["attempt_id"]
 
 
 def test_config_change_changes_cache_identity(tmp_path: Path):
@@ -222,12 +227,13 @@ def test_config_change_changes_cache_identity(tmp_path: Path):
     assert base != other
 
 
-def test_edit_exclude_invalidate_metadata_keeps(tmp_path: Path):
+def test_edit_exclude_blank_invalidate_metadata_keeps(tmp_path: Path):
     projects, runner = _project_with_pages(
         tmp_path,
         [
             "Alpha gardens topic one with flowers.",
             "Beta gardens topic two with petals.",
+            "Gamma gardens topic three with leaves.",
         ],
     )
     first = runner.run_module("wordclouds")
@@ -243,6 +249,94 @@ def test_edit_exclude_invalidate_metadata_keeps(tmp_path: Path):
     projects.save_user_edit(project.pages[0].page_id, "Completely different edited text here.")
     third = runner.run_module("wordclouds")
     assert third["cache_identity"] != id1
+
+    # Exclude a contributing page → identity must change
+    from transcribe.domain.models import Project
+    from transcribe.persistence.atomic import read_json, write_json_atomic as wja
+    from transcribe.persistence.locks import mutation_lock
+    from transcribe.persistence.schema import require_format
+
+    id_after_edit = third["cache_identity"]
+    with mutation_lock(projects.paths.mutation_lock):
+        payload = require_format(read_json(projects.paths.manifest), "transcribe.project")
+        current = Project.from_dict(payload)
+        current.pages[1].analysis_excluded = True
+        wja(projects.paths.manifest, current.as_dict())
+    fourth = runner.run_module("wordclouds")
+    assert fourth["cache_identity"] != id_after_edit
+
+    # Blank a remaining page → identity must change again
+    project = projects.load()
+    remaining = [p for p in project.pages if not p.analysis_excluded]
+    assert remaining
+    projects.save_user_edit(remaining[0].page_id, "   ")
+    fifth = runner.run_module("wordclouds")
+    assert fifth["cache_identity"] != fourth["cache_identity"]
+
+
+def test_max_tokens_truncation_preserves_pretruncation_weights():
+    # 120 unique eligible letter-only tokens (digits are not TOKEN_RE matches).
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+    names = []
+    for i in range(120):
+        # base-26 style unique labels: aa, ab, ... 
+        a, b = divmod(i, 26)
+        names.append(f"zz{alphabet[a]}{alphabet[b]}")
+    parts = []
+    for i, tok in enumerate(names):
+        parts.extend([tok] * (i + 1))
+    text = " ".join(parts)
+    payload = build_token_payload(text)
+    assert payload is not None
+    tokens = payload["tokens"]
+    assert len(tokens) == 100
+    assert tokens[0]["token"] == names[119]
+    assert tokens[0]["count"] == 120
+    assert tokens[0]["weight"] == 1.0
+    last = tokens[-1]
+    assert last["token"] == names[20]
+    assert last["count"] == 21
+    assert last["weight"] == round(21 / 120, 6)
+    assert all(t["token"] != names[19] for t in tokens)
+    assert max(t["weight"] for t in tokens) == 1.0
+
+
+def test_three_page_fixture_exact_payload(tmp_path: Path):
+    projects, runner = _project_with_pages(
+        tmp_path,
+        [
+            "The quick brown fox jumps over the lazy dog again and again.",
+            "Another page with enough tokens for diversity metrics to run well.",
+            "A third page keeps the notebook corpus non-trivial for readability.",
+        ],
+    )
+    env = runner.run_module("wordclouds")
+    assert env["outcome"] == "success"
+    payload = env["payload"]
+    assert payload["schema"] == "wordclouds_payload_v1"
+    assert payload["tokenization_version"] == "wordclouds_tokens_v1"
+    assert payload["enrichment_mode"] == "baseline"
+    assert payload["algorithm_version"] == "1"
+    tokens = payload["tokens"]
+    assert tokens
+    assert all(set(t) >= {"token", "count", "weight"} for t in tokens)
+    # Deterministic: top token should be stable content word (stopwords stripped)
+    assert tokens[0]["weight"] == 1.0
+    assert tokens[0]["count"] >= tokens[-1]["count"]
+    # Lexical tie-break within equal counts
+    for i in range(len(tokens) - 1):
+        a, b = tokens[i], tokens[i + 1]
+        if a["count"] == b["count"]:
+            assert a["token"] <= b["token"]
+
+
+def test_unknown_module_raises(tmp_path: Path):
+    projects, runner = _project_with_pages(tmp_path, ["Some notebook text here."])
+    try:
+        runner.run_module("not_a_real_module")
+        raise AssertionError("expected KeyError")
+    except KeyError as exc:
+        assert "not_a_real_module" in str(exc)
 
 
 def test_provenance_matches_pin_n_a_adaptation():

@@ -74,7 +74,7 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 | `stats` | Foundations | Port early | 1.1 | Page/notebook length, token counts, distributions over units |
 | `lexical_diversity` | Language & Meaning | Port early | 1.1 | Diversity metrics over notebook vocabulary |
 | `understandability` | Language & Meaning | Port early | 1.1 | Readability / complexity of transcribed text |
-| `wordclouds` | Visualisations | Port early | 1.2 | Wordclouds from effective/edited text |
+| `wordclouds` | Visualisations | Port early | 1.2 | Baseline token cloud from `AnalysisDocument.text` (`enrichment_mode: baseline`); keyphrase enrichment deferred to deliberate later mode/`module_version` transition |
 | `ner` | Language & Meaning | Port early | 1b | Entities across pages; evidence via `source_ref` |
 | `sentiment` | Language & Meaning | Port early | 1b | Unit-level polarity; chronology via order/date |
 | `entity_sentiment` | Language & Meaning | Port early | 1b | Needs `ner` + `sentiment` |
