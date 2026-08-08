@@ -85,6 +85,7 @@ By default Transcribe talks to `http://localhost:11434` (native) or `http://host
 - Portable interchange export (`transcribe.notebook`) with no required absolute paths
 - Content fingerprints for skip/resume; immutable OCR attempts; human edits in `edited_text`
 - No cloud providers; no TranscriptX dependency (future seam documented in `docs/INTEGRATION_SEAM.md`)
+- Planned analysis ports from TranscriptX: [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/analysis_module_porting.md](docs/analysis_module_porting.md)
 
 ## License
 
