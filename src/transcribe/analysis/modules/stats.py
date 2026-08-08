@@ -22,7 +22,7 @@ class StatsModule:
     def run(self, document: AnalysisDocument) -> dict[str, Any]:
         if not document.units:
             return {
-                "outcome": "insufficient_input",
+                "outcome": "insufficient_data",
                 "payload": {},
                 "warnings": [],
                 "partial": False,

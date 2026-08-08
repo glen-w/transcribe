@@ -106,7 +106,8 @@ class AnalysisRunner:
             cache_identity=planned_identity,
             content_fingerprint=content_fp,
             attempt_state="running",
-            outcome="failed",  # placeholder until terminal
+            # Placeholder outcome until terminal write; never published while running.
+            outcome="insufficient_data",
             payload={},
             provenance=_module_provenance(module),
             config_fingerprint=cfg_fp,
@@ -125,11 +126,7 @@ class AnalysisRunner:
             warnings = result.get("warnings") or []
             partial = bool(result.get("partial"))
             capability_reason = result.get("capability_reason")
-            attempt_state = "succeeded" if outcome != "failed" else "failed"
-            if outcome == "failed":
-                attempt_state = "failed"
-            else:
-                attempt_state = "succeeded"
+            attempt_state = "failed" if outcome == "failed" else "succeeded"
         except Exception as exc:  # noqa: BLE001 — isolate module failures
             outcome = "failed"
             payload = {"error": {"code": "module_exception", "message": str(exc)}}
@@ -239,7 +236,7 @@ class AnalysisRunner:
             cache_identity=identity,
             content_fingerprint=empty_fp,
             attempt_state="succeeded",
-            outcome="insufficient_input",
+            outcome="insufficient_data",
             payload={"error": {"code": code, "message": message}},
             provenance=_module_provenance(module),
             config_fingerprint=empty_fp,

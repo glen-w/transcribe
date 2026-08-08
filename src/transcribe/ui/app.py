@@ -95,8 +95,8 @@ def _render_workflow(runtime, root: str) -> None:
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
 
-    tab_import, tab_run, tab_pages, tab_export = st.tabs(
-        ["Import", "Run", "Pages", "Export"]
+    tab_import, tab_run, tab_pages, tab_export, tab_overview = st.tabs(
+        ["Import", "Run", "Pages", "Export", "Overview"]
     )
 
     with tab_import:
@@ -269,6 +269,82 @@ def _render_workflow(runtime, root: str) -> None:
                 data=path_read(written["notebook"]),
                 file_name="notebook.transcribe.json",
             )
+
+    with tab_overview:
+        from transcribe.analysis.adapter import build_page_v1_document
+        from transcribe.analysis.cache_identity import (
+            build_cache_identity_object,
+            cache_identity_hex,
+        )
+        from transcribe.analysis.document import AnalysisDocumentError
+        from transcribe.analysis.modules import get_wave11_modules
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+
+        st.subheader("Overview")
+        st.caption(
+            "Read-model of validated published analysis results "
+            "(stats, lexical diversity, understandability)."
+        )
+        runner = AnalysisRunner(
+            projects, clock=SystemClock(), ids=UuidGenerator()
+        )
+        if st.button("Run Wave 1.1 analysis"):
+            with st.spinner("Running analysis modules…"):
+                results = runner.run_batch()
+            for mid, env in results.items():
+                st.write(
+                    f"**{mid}:** outcome=`{env.get('outcome')}` "
+                    f"capability=`{env.get('capability')}`"
+                )
+            st.rerun()
+
+        storage = AnalysisStorage(paths)
+        current_identity: dict[str, str | None] = {}
+        try:
+            doc = build_page_v1_document(project, projects)
+            for mid, module in get_wave11_modules().items():
+                current_identity[mid] = cache_identity_hex(
+                    build_cache_identity_object(
+                        project_id=project.id,
+                        module_id=module.module_id,
+                        module_version=module.module_version,
+                        document=doc,
+                    )
+                )
+        except AnalysisDocumentError:
+            for mid in get_wave11_modules():
+                current_identity[mid] = None
+
+        for mid in ("stats", "lexical_diversity", "understandability"):
+            model = load_published_read_model(
+                storage, mid, current_cache_identity=current_identity.get(mid)
+            )
+            status = model["status"]
+            env = model.get("envelope")
+            if status == "unavailable":
+                st.warning(f"**{mid}:** unavailable (no validated published result)")
+            elif status == "stale":
+                st.warning(
+                    f"**{mid}:** stale relative to current notebook text "
+                    f"(last outcome `{env.get('outcome') if env else '?'}`)"
+                )
+            elif env is not None:
+                cap = env.get("capability")
+                outcome = env.get("outcome")
+                if outcome == "failed":
+                    st.error(f"**{mid}:** failed")
+                elif outcome == "insufficient_data":
+                    st.info(f"**{mid}:** insufficient_data")
+                elif cap == "partial":
+                    st.success(f"**{mid}:** success (partial)")
+                else:
+                    st.success(f"**{mid}:** success")
+                with st.expander(f"{mid} payload"):
+                    st.json(env.get("payload") or {})
+            else:
+                st.warning(f"**{mid}:** unavailable")
 
 
 def main() -> None:

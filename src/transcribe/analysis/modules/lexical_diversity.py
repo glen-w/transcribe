@@ -30,7 +30,7 @@ class LexicalDiversityModule:
         token_count = int(doc_metrics["token_count"])
         if token_count < 1:
             return {
-                "outcome": "insufficient_input",
+                "outcome": "insufficient_data",
                 "payload": {"document": doc_metrics, "metadata": build_metadata()},
                 "warnings": [],
                 "partial": False,

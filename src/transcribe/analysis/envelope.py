@@ -14,7 +14,7 @@ OUTCOMES = frozenset(
         "success",
         "skipped_not_applicable",
         "unavailable_dependency",
-        "insufficient_input",
+        "insufficient_data",
         "failed",
     }
 )
@@ -26,7 +26,7 @@ CACHEABLE_OUTCOMES = frozenset(
         "success",
         "skipped_not_applicable",
         "unavailable_dependency",
-        "insufficient_input",
+        "insufficient_data",
     }
 )
 
@@ -51,8 +51,8 @@ def derive_capability(
 ) -> str:
     if outcome == "success":
         return "partial" if partial else "success"
-    if outcome == "insufficient_input":
-        return "insufficient_input" if reason != "invalid_document" else "invalid_input"
+    if outcome == "insufficient_data":
+        return "insufficient_data" if reason != "invalid_document" else "invalid_input"
     if outcome == "unavailable_dependency":
         return "unavailable_dependency"
     if outcome == "skipped_not_applicable":

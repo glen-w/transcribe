@@ -89,7 +89,7 @@ class UnderstandabilityModule:
         metrics = compute_readability(document.text)
         if metrics.get("insufficient"):
             return {
-                "outcome": "insufficient_input",
+                "outcome": "insufficient_data",
                 "payload": {
                     "document": {
                         "word_count": metrics["word_count"],

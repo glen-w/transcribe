@@ -19,9 +19,9 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 
 | module_id | TX commit/tag | source paths | sha256 (per file) | semantic_class | recorded_date |
 |-----------|---------------|--------------|-------------------|----------------|---------------|
-| `lexical_diversity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/utils/lexical_diversity.py` (landed as `modules/_tx_lexical_diversity.py`) | `a26acfcd923b32d8b2dc834f06dd6b2dae7064148621bce802e7bc04c0750f3e` | `adaptation` | 2026-08-09 |
-| `stats` | n/a (notebook-native adaptation; no TX file copy) | — | — | `adaptation` | 2026-08-09 |
-| `understandability` | n/a (notebook-native readability wrap; no TX file copy yet) | — | — | `adaptation` | 2026-08-09 |
+| `stats` | n/a (notebook-native adaptation) | — | — | adaptation | 2026-08-09 |
+| `lexical_diversity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/utils/lexical_diversity.py` → `transcribe/analysis/modules/_tx_lexical_diversity.py` | `a26acfcd923b32d8b2dc834f06dd6b2dae7064148621bce802e7bc04c0750f3e` | adaptation | 2026-08-09 |
+| `understandability` | n/a (notebook-native pure-Python adaptation; TX uses nltk/textstat) | — | — | adaptation | 2026-08-09 |
 
 ## Implementation gate
 

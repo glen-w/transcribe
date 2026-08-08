@@ -188,25 +188,34 @@ UI must distinguish capability states from [analysis-result.md](contracts/analys
 
 ## 4. Phased delivery (sub-waves)
 
-Ship in ordered slices. **No next slice starts while unresolved architectural exceptions remain** (see [§10 exit criteria](#10-per-slice-exit-criteria)).
+Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice starts while unresolved architectural exceptions remain** (see [§10 exit criteria](#10-per-slice-exit-criteria)).
 
-**Before 1a coding:** contracts indexed and frozen for document + envelope + storage + eligibility ([§9](#9-implementation-gate)).
+### Wave 1.1 — Infrastructure + first three modules (ship first)
+
+| | |
+|--|--|
+| **Modules** | `stats`, `lexical_diversity`, `understandability` |
+| **Also ship** | `page_v1` adapter, result envelope, project-local `analysis/` storage (lock-free compute + atomic publish), reopen reconcile, cache validation, `notebook_eligibility_v1` library (**not** on these modules’ runtime path), pin rows, compat fixtures, minimal Overview read-model |
+| **Out** | `wordclouds` → **1.2**; `paragraph_v1`; eligibility-gated modules |
+| **Unlocks** | Overview counts / diversity / readability |
+| **Exit** | §10 + Wave 1.1 plan locks (stale publish, batch isolation, crash-boundary, ungated regression) |
+
+### Wave 1.2 — Wordclouds (remainder of 1a)
+
+| | |
+|--|--|
+| **Modules** | `wordclouds` (baseline; keyphrase enrichment after 1b) |
+| **Depends on** | 1.1 infra |
+
+### Wave 1a — Foundations (thematic; delivered as 1.1 + 1.2)
+
+Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slices above for delivery tracking.
+
+**Before 1.1 coding:** contracts indexed and frozen for document + envelope + storage + eligibility ([§9](#9-implementation-gate)).
 
 **Before 1d/1e coding:** `paragraph_v1` splitter + stable span IDs proven ([analysis-document](contracts/analysis-document.md)); evidence render/stale rules exercised.
 
 **Before 1e coding:** bounded-context / chunking policy ids defined for LLM modules ([analysis-result](contracts/analysis-result.md) + cache `llm` object in [analysis-run-storage](contracts/analysis-run-storage.md)); Ollama capability degradation wired.
-
-### Wave 1a — Foundations + adapter
-
-| | |
-|--|--|
-| **Modules** | `stats`, `lexical_diversity`, `understandability`, `wordclouds` |
-| **Also ship** | Adapter producing contract-valid `AnalysisDocument`; result writer under `analysis/`; pin registry rows; first compatibility-corpus fixtures |
-| **Depends on** | Stable effective/edited page text; frozen analysis-document + analysis-result schemas |
-| **Unlocks** | **Overview** (counts, diversity, readability); wordcloud viz |
-| **Risk** | Low. `wordclouds` keyphrase enrichment waits for optional parent from 1b ([notebook-eligibility](contracts/notebook-eligibility.md) / run-storage optional table) |
-| **TX note** | Drop speaker-gated assumptions; treat notebook as one “voice” → `adaptation` |
-| **Semantic class** | `adaptation` (speaker-stripped) |
 
 ### Wave 1b — Language
 
@@ -255,7 +264,8 @@ Ship in ordered slices. **No next slice starts while unresolved architectural ex
 ### Suggested ship order (summary)
 
 ```text
-1a adapter + stats/lex/readability/clouds
+1.1 infra + stats/lex/readability
+ → 1.2 wordclouds
  → 1b ner/sentiment/keyphrases/epistemic
  → 1c topics/similarity/shift
  → 1d emotion family + affect_tension + moments

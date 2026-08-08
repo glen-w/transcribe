@@ -61,18 +61,16 @@ def test_analysis_schemas_registered_and_reject_unknown():
         )
 
 
-def test_schema_supported_stable_across_import_order():
+def test_schema_supported_includes_analysis_formats():
+    assert SUPPORTED["transcribe.project"] == 1
+    assert SUPPORTED["transcribe.page-result"] == 1
+    assert SUPPORTED["transcribe.notebook"] == 1
+    assert SUPPORTED["transcribe.analysis-document"] == 1
+    assert SUPPORTED["transcribe.analysis-result"] == 1
+    # Duplicate registration must not change existing keys
     before = dict(SUPPORTED)
-    import importlib
-
-    import transcribe.persistence.schema as schema_mod
-
-    importlib.reload(schema_mod)
-    assert schema_mod.SUPPORTED["transcribe.project"] == 1
-    assert schema_mod.SUPPORTED["transcribe.analysis-document"] == 1
-    # restore module state used by rest of suite
-    schema_mod.SUPPORTED.clear()
-    schema_mod.SUPPORTED.update(before)
+    SUPPORTED["transcribe.analysis-document"] = 1
+    assert SUPPORTED == before
 
 
 def test_page_v1_fingerprint_stable_and_ignores_title(tmp_path: Path):

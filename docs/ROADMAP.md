@@ -27,7 +27,8 @@ Direct ports of language, topic, emotion, and synthesis modules. Delivered in su
 
 | Sub-wave | Modules | Unlocks |
 |----------|---------|---------|
-| **1a** Foundations + adapter | `stats`, `lexical_diversity`, `understandability`, `wordclouds` (+ contracts already published; adapter, project-local `analysis/` storage, pin registry, compat corpus stub) | Overview (counts / diversity / readability), wordclouds |
+| **1.1** Infra + first metrics | `stats`, `lexical_diversity`, `understandability` (+ adapter, `analysis/` storage, pins, Overview read-model) | Overview (counts / diversity / readability) |
+| **1.2** Wordclouds | `wordclouds` | Wordcloud viz |
 | **1b** Language | `ner`, `sentiment`, `entity_sentiment`, `keyphrases`, `epistemic_markers` | People & places; Overview entities; hedging |
 | **1c** Topics & similarity | `topic_modeling`, `bertopic` (optional), `semantic_similarity`, `topic_shift` | Themes; chronology shifts; Patterns (partial) |
 | **1d** Emotion & salience | `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `moments` | Mood & tone; Moments |
@@ -39,10 +40,10 @@ TX hard deps out of Wave 1: `insight_eligibility` → sole policy [`notebook_eli
 
 | Module | Sub-wave | Notes |
 |--------|----------|--------|
-| `stats` | 1a | Unit/notebook distributions |
-| `lexical_diversity` | 1a | Vocabulary diversity |
-| `understandability` | 1a | Readability / complexity |
-| `wordclouds` | 1a | From effective/edited text |
+| `stats` | 1.1 | Unit/notebook distributions |
+| `lexical_diversity` | 1.1 | Vocabulary diversity |
+| `understandability` | 1.1 | Readability / complexity |
+| `wordclouds` | 1.2 | From effective/edited text |
 | `ner` | 1b | Entities with `source_ref` evidence |
 | `sentiment` | 1b | Polarity vs page order/date |
 | `entity_sentiment` | 1b | Needs ner + sentiment |

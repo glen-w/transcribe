@@ -71,10 +71,10 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 | Module | TX UI group | Disposition | Wave | Notebook notes |
 |--------|-------------|-------------|------|----------------|
-| `stats` | Foundations | Port early | 1a | Page/notebook length, token counts, distributions over units |
-| `lexical_diversity` | Language & Meaning | Port early | 1a | Diversity metrics over notebook vocabulary |
-| `understandability` | Language & Meaning | Port early | 1a | Readability / complexity of transcribed text |
-| `wordclouds` | Visualisations | Port early | 1a | Wordclouds from effective/edited text |
+| `stats` | Foundations | Port early | 1.1 | Page/notebook length, token counts, distributions over units |
+| `lexical_diversity` | Language & Meaning | Port early | 1.1 | Diversity metrics over notebook vocabulary |
+| `understandability` | Language & Meaning | Port early | 1.1 | Readability / complexity of transcribed text |
+| `wordclouds` | Visualisations | Port early | 1.2 | Wordclouds from effective/edited text |
 | `ner` | Language & Meaning | Port early | 1b | Entities across pages; evidence via `source_ref` |
 | `sentiment` | Language & Meaning | Port early | 1b | Unit-level polarity; chronology via order/date |
 | `entity_sentiment` | Language & Meaning | Port early | 1b | Needs `ner` + `sentiment` |
