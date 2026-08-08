@@ -22,6 +22,7 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `stats` | n/a (notebook-native adaptation) | — | — | adaptation | 2026-08-09 |
 | `lexical_diversity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/utils/lexical_diversity.py` → `transcribe/analysis/modules/_tx_lexical_diversity.py` | `a26acfcd923b32d8b2dc834f06dd6b2dae7064148621bce802e7bc04c0750f3e` | adaptation | 2026-08-09 |
 | `understandability` | n/a (notebook-native pure-Python adaptation; TX uses nltk/textstat) | — | — | adaptation | 2026-08-09 |
+| `wordclouds` | n/a (notebook-native adaptation; TX wordclouds uses spaCy/speaker/viz stack — baseline frequency path only) | — | stopwords digest `59b09014b432830d8fc50e4421fd984602d17fb5b0900f4ddce3e2bbe3fa04e6` (`wordclouds_stopwords_v1`) | adaptation | 2026-08-09 |
 
 ## Implementation gate
 

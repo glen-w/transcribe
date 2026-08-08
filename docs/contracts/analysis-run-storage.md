@@ -153,9 +153,11 @@ On failure → commit reusable terminal with `outcome: unavailable_dependency` w
 
 These parents **enrich** payloads when present and compatible; absence must not fail the consumer. When consumed, their `{module_id, cache_identity, outcome}` enter `parents` and thus cache identity. When absent, the consumer runs its documented baseline path (never an ad-hoc stub).
 
+Optional-parent **resolution must precede** `cache_identity` construction and cache lookup. Only parents **actually consumed** enter `parents`. Wave 1.2 locks `wordclouds` to `enrichment_mode: "baseline"`: `keyphrases` is never consumed even when a compatible published `success` exists (absent / incompatible / failed / non-success / success → all ignored). Enrichment requires a deliberate later mode/`module_version` transition so installing 1b cannot silently change baseline identity or outputs.
+
 | Consumer | Optional parent | Baseline when absent |
 |----------|-----------------|----------------------|
-| `wordclouds` | `keyphrases` | Token/frequency cloud from document text only |
+| `wordclouds` | `keyphrases` | Token/frequency cloud from document text only (`enrichment_mode: "baseline"` in Wave 1.2 always takes this path) |
 | `topic_modeling` | `keyphrases` | Model without keyphrase prior/seed enrichment |
 | `bertopic` | `keyphrases` | BERTopic without keyphrase enrichment |
 | `contextual_emotion` | neighbouring-unit window only | N/A (no parent module; window is config) |

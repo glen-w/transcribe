@@ -43,7 +43,7 @@ TX hard deps out of Wave 1: `insight_eligibility` → sole policy [`notebook_eli
 | `stats` | 1.1 | Unit/notebook distributions |
 | `lexical_diversity` | 1.1 | Vocabulary diversity |
 | `understandability` | 1.1 | Readability / complexity |
-| `wordclouds` | 1.2 | From effective/edited text |
+| `wordclouds` | 1.2 | Baseline token cloud from `AnalysisDocument.text`; keyphrase enrichment deferred |
 | `ner` | 1b | Entities with `source_ref` evidence |
 | `sentiment` | 1b | Polarity vs page order/date |
 | `entity_sentiment` | 1b | Needs ner + sentiment |

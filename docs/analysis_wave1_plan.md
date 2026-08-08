@@ -204,8 +204,12 @@ Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice st
 
 | | |
 |--|--|
-| **Modules** | `wordclouds` (baseline; keyphrase enrichment after 1b) |
-| **Depends on** | 1.1 infra |
+| **Modules** | `wordclouds` locked to `enrichment_mode: "baseline"` (keyphrase enrichment only after deliberate 1b+ transition) |
+| **Depends on** | 1.1 infra (runner/storage/envelope/Overview); mechanical pytest gate before coding |
+| **Input** | Solely `AnalysisDocument.text` via `wordclouds_tokens_v1` (shared `TOKEN_RE` + pinned `wordclouds_stopwords_v1`) |
+| **Payload** | `wordclouds_payload_v1` token weights; zero eligible tokens → `insufficient_data` |
+| **Also ship** | Registry extension beyond `get_wave11_modules`; resolve-parents-before-identity (baseline → empty); Overview token-weight chart/table (PNG optional presentation only); pin row + provenance match |
+| **Exit** | §10 + baseline ignore-matrix + 1.1 three-module non-regression + reopen/corrupt Overview bars |
 
 ### Wave 1a — Foundations (thematic; delivered as 1.1 + 1.2)
 

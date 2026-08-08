@@ -12,25 +12,62 @@ from transcribe.analysis.cache_identity import (
 )
 from transcribe.analysis.document import AnalysisDocumentError
 from transcribe.analysis.envelope import build_envelope
-from transcribe.analysis.modules import get_wave11_modules
+from transcribe.analysis.modules import get_registered_modules
+from transcribe.analysis.parents import resolve_optional_parents
 from transcribe.analysis.storage import AnalysisStorage
 from transcribe.persistence.locks import mutation_lock
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
 
 
+def _module_config(module: Any) -> dict[str, Any]:
+    fn = getattr(module, "cache_config", None)
+    if callable(fn):
+        return dict(fn())
+    # Prefer module-level wordclouds_config when present.
+    mid = getattr(module, "module_id", "")
+    if mid == "wordclouds":
+        from transcribe.analysis.modules import wordclouds as wc
+
+        return wc.wordclouds_config()
+    return {}
+
+
+def _module_lexicon(module: Any) -> Any:
+    mid = getattr(module, "module_id", "")
+    if mid == "wordclouds":
+        from transcribe.analysis.modules import wordclouds as wc
+
+        return wc.wordclouds_lexicon_or_model()
+    return None
+
+
+def _module_enrichment_mode(module: Any) -> str:
+    mid = getattr(module, "module_id", "")
+    if mid == "wordclouds":
+        from transcribe.analysis.modules import wordclouds as wc
+
+        return wc.ENRICHMENT_MODE
+    return "none"
+
+
 def _module_provenance(module: Any) -> dict[str, Any]:
     from transcribe.analysis.modules import lexical_diversity as ld
     from transcribe.analysis.modules import stats as st
     from transcribe.analysis.modules import understandability as un
+    from transcribe.analysis.modules import wordclouds as wc
 
     files_fn = {
         "stats": st.provenance_files,
         "lexical_diversity": ld.provenance_files,
         "understandability": un.provenance_files,
+        "wordclouds": wc.provenance_files,
     }.get(module.module_id, lambda: [])
     files = files_fn()
-    commit = "50a0ede8e7acd03bbd9125a5a5237049f3291304" if files else "n/a"
+    # Prefer explicit TX commit attribute when present; else pin-compatible defaults.
+    commit = getattr(module, "ported_from_commit", None)
+    if commit is None:
+        commit = "50a0ede8e7acd03bbd9125a5a5237049f3291304" if files else "n/a"
     return {
         "ported_from": {
             "repo": "TranscriptX",
@@ -40,6 +77,18 @@ def _module_provenance(module: Any) -> dict[str, Any]:
         },
         "semantic_class": getattr(module, "semantic_class", "adaptation"),
         "semantic_delta": getattr(module, "semantic_delta", ""),
+    }
+
+
+def _identity_kwargs(module: Any, *, project_id: str, document: Any, parents: list) -> dict[str, Any]:
+    return {
+        "project_id": project_id,
+        "module_id": module.module_id,
+        "module_version": module.module_version,
+        "document": document,
+        "config": _module_config(module),
+        "parents": parents,
+        "lexicon_or_model": _module_lexicon(module),
     }
 
 
@@ -61,7 +110,7 @@ class AnalysisRunner:
         return self.storage.reconcile_interrupted()
 
     def run_module(self, module_id: str) -> dict[str, Any]:
-        modules = get_wave11_modules()
+        modules = get_registered_modules()
         module = modules.get(module_id)
         if module is None:
             raise KeyError(f"unknown module_id: {module_id}")
@@ -79,12 +128,15 @@ class AnalysisRunner:
                 message=str(exc),
             )
 
+        parents = resolve_optional_parents(
+            module.module_id,
+            enrichment_mode=_module_enrichment_mode(module),
+            storage=self.storage,
+        )
         planned_identity_obj = build_cache_identity_object(
-            project_id=project.id,
-            module_id=module.module_id,
-            module_version=module.module_version,
-            document=document,
-            config={},
+            **_identity_kwargs(
+                module, project_id=project.id, document=document, parents=parents
+            )
         )
         planned_identity = cache_identity_hex(planned_identity_obj)
         content_fp = planned_identity_obj["content_fingerprint"]
@@ -111,8 +163,10 @@ class AnalysisRunner:
             payload={},
             provenance=_module_provenance(module),
             config_fingerprint=cfg_fp,
+            parents=parents,
             attempt_id=attempt_id,
             published=False,
+            lexicon_or_model=_module_lexicon(module),
         )
         # Short lock: persist running
         with mutation_lock(self.paths.mutation_lock):
@@ -149,8 +203,10 @@ class AnalysisRunner:
             warnings=warnings,
             partial=partial,
             capability_reason=capability_reason,
+            parents=parents,
             attempt_id=attempt_id,
             published=False,
+            lexicon_or_model=_module_lexicon(module),
         )
         with mutation_lock(self.paths.mutation_lock):
             self.storage.write_attempt(module.module_id, terminal)
@@ -158,13 +214,19 @@ class AnalysisRunner:
             project_now = self.project_service._load_unlocked(reconcile=False)
             try:
                 doc_now = build_page_v1_document(project_now, self.project_service)
+                parents_now = resolve_optional_parents(
+                    module.module_id,
+                    enrichment_mode=_module_enrichment_mode(module),
+                    storage=self.storage,
+                )
                 identity_now = cache_identity_hex(
                     build_cache_identity_object(
-                        project_id=project_now.id,
-                        module_id=module.module_id,
-                        module_version=module.module_version,
-                        document=doc_now,
-                        config={},
+                        **_identity_kwargs(
+                            module,
+                            project_id=project_now.id,
+                            document=doc_now,
+                            parents=parents_now,
+                        )
                     )
                 )
             except AnalysisDocumentError:
@@ -182,7 +244,7 @@ class AnalysisRunner:
             return self.storage.read_attempt(module.module_id, attempt_id) or terminal
 
     def run_batch(self, module_ids: list[str] | None = None) -> dict[str, dict[str, Any]]:
-        ids = module_ids or list(get_wave11_modules().keys())
+        ids = module_ids or list(get_registered_modules().keys())
         results: dict[str, dict[str, Any]] = {}
         for mid in ids:
             try:
@@ -219,7 +281,7 @@ class AnalysisRunner:
             "eligibility_policy_id": None,
             "eligibility_policy_version": None,
             "granularity_version": "page_v1",
-            "lexicon_or_model": None,
+            "lexicon_or_model": _module_lexicon(module),
             "llm": None,
             "module_id": module.module_id,
             "module_version": module.module_version,
@@ -242,8 +304,10 @@ class AnalysisRunner:
             config_fingerprint=empty_fp,
             warnings=[{"code": code, "message": message}],
             capability_reason="invalid_document",
+            parents=[],
             attempt_id=attempt_id,
             published=False,
+            lexicon_or_model=_module_lexicon(module),
         )
         with mutation_lock(self.paths.mutation_lock):
             self.storage.write_attempt(module.module_id, envelope)

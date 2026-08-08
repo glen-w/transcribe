@@ -77,3 +77,17 @@ def test_run_storage_binds_project_id_and_owns_dependency_table():
 def test_analysis_formats_registered_in_supported():
     assert SUPPORTED.get("transcribe.analysis-document") == 1
     assert SUPPORTED.get("transcribe.analysis-result") == 1
+
+
+def test_analysis_result_wordclouds_zero_token_contract():
+    text = (CONTRACTS / "analysis-result.md").read_text(encoding="utf-8")
+    assert "wordclouds_tokens_v1" in text
+    assert "wordclouds_payload_v1" in text
+    assert "zero eligible tokens" in text
+    assert "insufficient_input" not in text
+
+
+def test_pin_registry_includes_wordclouds():
+    text = (DOCS / "dev" / "analysis_port_pins.md").read_text(encoding="utf-8")
+    assert "`wordclouds`" in text
+    assert "wordclouds_stopwords_v1" in text

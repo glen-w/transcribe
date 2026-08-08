@@ -277,7 +277,9 @@ def _render_workflow(runtime, root: str) -> None:
             cache_identity_hex,
         )
         from transcribe.analysis.document import AnalysisDocumentError
-        from transcribe.analysis.modules import get_wave11_modules
+        from transcribe.analysis.modules import get_registered_modules
+        from transcribe.analysis.modules import wordclouds as wordclouds_mod
+        from transcribe.analysis.parents import resolve_optional_parents
         from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
@@ -285,12 +287,12 @@ def _render_workflow(runtime, root: str) -> None:
         st.subheader("Overview")
         st.caption(
             "Read-model of validated published analysis results "
-            "(stats, lexical diversity, understandability)."
+            "(stats, lexical diversity, understandability, wordclouds)."
         )
         runner = AnalysisRunner(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-        if st.button("Run Wave 1.1 analysis"):
+        if st.button("Run analysis (Wave 1.1 + 1.2)"):
             with st.spinner("Running analysis modules…"):
                 results = runner.run_batch()
             for mid, env in results.items():
@@ -301,23 +303,37 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         storage = AnalysisStorage(paths)
+        modules = get_registered_modules()
         current_identity: dict[str, str | None] = {}
         try:
             doc = build_page_v1_document(project, projects)
-            for mid, module in get_wave11_modules().items():
+            for mid, module in modules.items():
+                config: dict = {}
+                lexicon = None
+                enrichment = "none"
+                if mid == "wordclouds":
+                    config = wordclouds_mod.wordclouds_config()
+                    lexicon = wordclouds_mod.wordclouds_lexicon_or_model()
+                    enrichment = wordclouds_mod.ENRICHMENT_MODE
+                parents = resolve_optional_parents(
+                    mid, enrichment_mode=enrichment, storage=storage
+                )
                 current_identity[mid] = cache_identity_hex(
                     build_cache_identity_object(
                         project_id=project.id,
                         module_id=module.module_id,
                         module_version=module.module_version,
                         document=doc,
+                        config=config,
+                        parents=parents,
+                        lexicon_or_model=lexicon,
                     )
                 )
         except AnalysisDocumentError:
-            for mid in get_wave11_modules():
+            for mid in modules:
                 current_identity[mid] = None
 
-        for mid in ("stats", "lexical_diversity", "understandability"):
+        for mid in modules:
             model = load_published_read_model(
                 storage, mid, current_cache_identity=current_identity.get(mid)
             )
@@ -341,11 +357,24 @@ def _render_workflow(runtime, root: str) -> None:
                     st.success(f"**{mid}:** success (partial)")
                 else:
                     st.success(f"**{mid}:** success")
+                payload = env.get("payload") or {}
+                if mid == "wordclouds" and outcome == "success":
+                    tokens = payload.get("tokens") or []
+                    if isinstance(tokens, list) and tokens:
+                        # Guaranteed render path: ranked bar chart (no optional PNG dep).
+                        chart_rows = {
+                            "token": [t.get("token", "") for t in tokens[:40]],
+                            "weight": [float(t.get("weight") or 0) for t in tokens[:40]],
+                        }
+                        st.bar_chart(chart_rows, x="token", y="weight")
+                    else:
+                        st.warning(
+                            f"**{mid}:** published success but token list missing/empty"
+                        )
                 with st.expander(f"{mid} payload"):
-                    st.json(env.get("payload") or {})
+                    st.json(payload)
             else:
                 st.warning(f"**{mid}:** unavailable")
-
 
 def main() -> None:
     st.set_page_config(page_title="Transcribe", layout="wide")

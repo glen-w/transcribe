@@ -128,8 +128,9 @@ def test_run_three_modules_and_cache_hit(tmp_path: Path):
         ],
     )
     first = runner.run_batch()
-    assert set(first) == {"stats", "lexical_diversity", "understandability"}
-    for mid, env in first.items():
+    assert {"stats", "lexical_diversity", "understandability"}.issubset(set(first))
+    for mid in ("stats", "lexical_diversity", "understandability"):
+        env = first[mid]
         assert env["attempt_state"] == "succeeded"
         assert env["outcome"] == "success"
         assert env.get("published") is True

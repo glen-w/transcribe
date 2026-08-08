@@ -181,12 +181,29 @@ Shared 1.1 tokenizer for lexical metrics unless a module documents otherwise: ma
 
 Float metrics in canonical payloads round to **6** decimal places for goldens.
 
+### `wordclouds` baseline (`wordclouds_tokens_v1` / `wordclouds_payload_v1`)
+
+Normative for Wave 1.2 baseline mode (`enrichment_mode: "baseline"`). Sole analytical input is `AnalysisDocument.text` (never `units[]` tokenization).
+
+| Rule | Policy |
+|------|--------|
+| Base tokens | Shared 1.1 `TOKEN_RE` + casefold + min length ≥ 2 |
+| Stopwords | Pinned list id `wordclouds_stopwords_v1` (in-repo; digest in config/`lexicon_or_model`) — no runtime download |
+| Stem/lemma | None |
+| Numbers / punctuation | Not tokens (except internal apostrophe/hyphen inside `TOKEN_RE`) |
+| Eligible token | Survives tokenize + stopword filter |
+| Success payload | `wordclouds_payload_v1`: `tokens[]` of `{token, count, weight}` — `count` raw int ≥ 1; `weight = count / max_count` over all eligible types before truncation, range `(0, 1]`, 6 dp; emit at most 100 types sorted by `count` desc then `token` asc; empty `tokens` forbidden on `success` |
+| Zero eligible tokens | Non-empty `text` that yields zero eligible tokens → `outcome: insufficient_data` (not empty success) |
+| Enrichment | Baseline never consumes optional parent `keyphrases`; enrichment requires a deliberate later `enrichment_mode` / `module_version` transition |
+
+Compatibility is judged on **analytical payload semantics**; rendered pixels / PNG bit identity are non-contractual.
+
 | Module | `insufficient_data` when | `success` when | Notes |
 |--------|--------------------------|----------------|-------|
 | `stats` | zero emitted units | ≥1 unit | zero sub-metric counts allowed |
 | `lexical_diversity` | `n_tokens < 1` | `n_tokens ≥ 1` | MTLD only if `n_tokens ≥ 50`; else omit `mtld`, `partial: true`, warning `below_mtld_threshold` |
 | `understandability` | `n_words < 3` or `n_sentences < 1` | otherwise | non-finite scores → `failed` |
-| `wordclouds` | empty document | non-empty text | |
+| `wordclouds` | empty document **or** zero eligible tokens after `wordclouds_tokens_v1` | ≥1 eligible token | baseline only in Wave 1.2; see section above |
 | `ner`, `sentiment`, `emotion`, `epistemic_markers` | empty document | possibly empty labels | |
 | `entity_sentiment`, `affect_tension` | parents / empty join | per parents | hard parents |
 | `keyphrases`, `topic_modeling`, `bertopic`, `highlights`, `insights` | eligibility / algorithm mins | | |

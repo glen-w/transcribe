@@ -21,6 +21,8 @@ exports/
 notebook-project/
 notebook-test/
 data/
+!src/transcribe/analysis/data/
+!src/transcribe/analysis/data/**
 .env
 .env.*
 !.env.example
