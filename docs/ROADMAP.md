@@ -1,5 +1,5 @@
 Type: PRODUCT
-Authority: Product roadmap and analysis-porting delivery waves. Does not define runtime contracts or shipped schemas.
+Authority: Product roadmap and analysis-porting delivery waves. Does not define runtime contracts or shipped schemas. Wave 1 detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 # Transcribe roadmap
 
@@ -7,6 +7,7 @@ Authority: Product roadmap and analysis-porting delivery waves. Does not define 
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Analysis porting map:** [analysis_module_porting.md](analysis_module_porting.md)  
+**Wave 1 delivery plan:** [analysis_wave1_plan.md](analysis_wave1_plan.md)  
 **Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
@@ -14,39 +15,55 @@ Authority: Product roadmap and analysis-porting delivery waves. Does not define 
 
 Analysis modules below are **planned ports / reinterpretations** from TranscriptX ideas. They are not shipped Transcribe features until explicitly implemented. Waves follow the porting dispositions in the map.
 
+**Architecture (chosen):** verbatim-ish analytical cores + thin notebook adapters over canonical `AnalysisDocument` units — see [analysis_wave1_plan.md](analysis_wave1_plan.md). Do not rewrite modules for `Page` objects; UI is notebook surfaces (Overview, Themes, People & places, Mood & tone, Patterns, Moments, Ask notebook, Summaries), not a TX module-picker clone. Durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)).
+
+**Implementation gate:** no Wave 1 module lands until analysis contracts are indexed, `notebook_eligibility_v1` has CONTRACT ownership, and the module has an exact TX pin + semantic class ([analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate), [dev/analysis_port_pins.md](dev/analysis_port_pins.md)).
+
 ---
 
 ## Wave 1 — Strong fits (port early)
 
-Direct ports of language, topic, emotion, and synthesis modules that work on notebook text with a page/notebook unit of analysis.
+Direct ports of language, topic, emotion, and synthesis modules. Delivered in sub-waves **1a–1e** (detail + checklists in [analysis_wave1_plan.md](analysis_wave1_plan.md)).
 
-| Module | Notes |
-|--------|--------|
-| `stats` | Page/notebook distributions |
-| `ner` | Entities with page-span evidence |
-| `sentiment` | Polarity on notebook text |
-| `entity_sentiment` | Sentiment toward entities |
-| `keyphrases` | Phrases by page / notebook |
-| `epistemic_markers` | Hedging / certainty |
-| `understandability` | Readability / complexity |
-| `lexical_diversity` | Vocabulary diversity |
-| `wordclouds` | From effective/edited text |
-| `semantic_similarity` | Across pages or notebooks |
-| `topic_modeling` | Topics over page corpus |
-| `bertopic` | Optional BERTopic path |
-| `topic_shift` | Change along page order |
-| `emotion` | Emotion on text |
-| `contextual_emotion` | Context over surrounding pages/spans |
-| `fine_grained_emotion` | Finer emotion taxonomy |
-| `affect_tension` | Along notebook chronology |
-| `moments` | Salient pages/spans |
-| `highlights` | Highlight extraction |
-| `summary` | Deterministic / hybrid summary |
-| `insights` | Structured insights |
-| `llm_summary` | Optional local LLM summary |
-| `llm_action_items` | Tasks / decisions / open questions |
-| `llm_custom_qa` | Custom Q&A over notebook text |
-| `narrative_summary` | Narrative rollup |
+| Sub-wave | Modules | Unlocks |
+|----------|---------|---------|
+| **1a** Foundations + adapter | `stats`, `lexical_diversity`, `understandability`, `wordclouds` (+ contracts already published; adapter, project-local `analysis/` storage, pin registry, compat corpus stub) | Overview (counts / diversity / readability), wordclouds |
+| **1b** Language | `ner`, `sentiment`, `entity_sentiment`, `keyphrases`, `epistemic_markers` | People & places; Overview entities; hedging |
+| **1c** Topics & similarity | `topic_modeling`, `bertopic` (optional), `semantic_similarity`, `topic_shift` | Themes; chronology shifts; Patterns (partial) |
+| **1d** Emotion & salience | `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `moments` | Mood & tone; Moments |
+| **1e** Synthesis & LLM | `highlights`, `summary`, `insights`, `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` | Summaries; Ask notebook |
+
+LLM modules stay in Wave 1 but are **optional at runtime** (local Ollama); deterministic `highlights` → `summary` → `insights` must work offline. `llm_custom_qa` requires grounded unit evidence.
+
+TX hard deps out of Wave 1: `insight_eligibility` → sole policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) (no ad-hoc stubs); `momentum` → `moments` notebook salience fork. Do not pull Wave 2–3 modules early. Outcome/cache/DAG gates: [analysis-result](contracts/analysis-result.md) · [analysis-run-storage](contracts/analysis-run-storage.md). Detail: [analysis_wave1_plan.md](analysis_wave1_plan.md). `ocr_quality` stays Wave 2.
+
+| Module | Sub-wave | Notes |
+|--------|----------|--------|
+| `stats` | 1a | Unit/notebook distributions |
+| `lexical_diversity` | 1a | Vocabulary diversity |
+| `understandability` | 1a | Readability / complexity |
+| `wordclouds` | 1a | From effective/edited text |
+| `ner` | 1b | Entities with `source_ref` evidence |
+| `sentiment` | 1b | Polarity vs page order/date |
+| `entity_sentiment` | 1b | Needs ner + sentiment |
+| `keyphrases` | 1b | [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
+| `epistemic_markers` | 1b | Hedging / certainty |
+| `topic_modeling` | 1c | Topics over page corpus |
+| `bertopic` | 1c | Optional extra |
+| `semantic_similarity` | 1c | No multi-speaker gate |
+| `topic_shift` | 1c | Along order/date, not timestamps |
+| `emotion` | 1d | Emotion on text |
+| `contextual_emotion` | 1d | Neighbouring units |
+| `fine_grained_emotion` | 1d | Finer taxonomy |
+| `affect_tension` | 1d | Needs emotion + sentiment |
+| `moments` | 1d | Notebook salience (no momentum) |
+| `highlights` | 1e | Quote-forward spans |
+| `summary` | 1e | From highlights |
+| `insights` | 1e | Highlights + topics |
+| `llm_summary` | 1e | Optional local LLM |
+| `llm_action_items` | 1e | Tasks / decisions / open questions |
+| `llm_custom_qa` | 1e | Grounded Ask notebook |
+| `narrative_summary` | 1e | From deterministic summary |
 
 ---
 

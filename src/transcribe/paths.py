@@ -55,6 +55,15 @@ class ProjectPaths:
         return self.cache_dir / "thumbs"
 
     @property
+    def analysis_dir(self) -> Path:
+        """Durable analysis artifacts; create on first write only."""
+        return self.root / "analysis"
+
+    @property
+    def analysis_cache_dir(self) -> Path:
+        return self.cache_dir / "analysis"
+
+    @property
     def mutation_lock(self) -> Path:
         return self.root / ".transcribe.lock"
 

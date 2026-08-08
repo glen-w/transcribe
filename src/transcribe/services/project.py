@@ -72,7 +72,12 @@ class ProjectService:
                 self.paths, clock=self.clock, ids=self.ids
             ).recover_incomplete_ingest()
         with mutation_lock(self.paths.mutation_lock):
-            return self._load_unlocked(reconcile=reconcile)
+            project = self._load_unlocked(reconcile=reconcile)
+        if reconcile:
+            from transcribe.analysis.storage import AnalysisStorage
+
+            AnalysisStorage(self.paths).reconcile_interrupted()
+        return project
 
     def save_settings(self, project: Project, settings: OCRSettings) -> Project:
         with mutation_lock(self.paths.mutation_lock):

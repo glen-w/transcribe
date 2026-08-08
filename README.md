@@ -81,7 +81,7 @@ File-shaped authoritative storage (project + per-page results), OCR behind a pro
 
 ## Direction
 
-Stabilise the OCR notebook core (import → run → review → export) before analysis-module ports. Planned ports from TranscriptX ideas: [ROADMAP.md](docs/ROADMAP.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+Stabilise the OCR notebook core (import → run → review → export) before analysis-module ports. Planned ports from TranscriptX ideas: [ROADMAP.md](docs/ROADMAP.md) · [Wave 1 plan](docs/analysis_wave1_plan.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

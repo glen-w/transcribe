@@ -48,7 +48,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 
 ## Honesty
 
-See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, and privacy caveats. Long-horizon analysis ports: [ROADMAP.md](ROADMAP.md).
+See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, and privacy caveats. Long-horizon analysis ports: [ROADMAP.md](ROADMAP.md) · [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Related
 

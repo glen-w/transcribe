@@ -15,7 +15,8 @@ CLI ──────────────────┘              │
                     on-disk project (authority)
                     ├── project.json
                     ├── sources/ + pages/ renders
-                    └── results/<page_id>.json
+                    ├── results/<page_id>.json
+                    └── analysis/   (optional until first analysis artifact)
                                      │
                      workspace archive.sqlite (cache only)
 ```
@@ -26,6 +27,7 @@ CLI ──────────────────┘              │
 |---------|-------|
 | Durable notebook state | Project directory — [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
+| Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
 | OCR HTTP | `VisionOCRProvider` (Ollama implementation) |
 | UI widgets | `transcribe.ui` only — must not invent OCR/persistence rules |

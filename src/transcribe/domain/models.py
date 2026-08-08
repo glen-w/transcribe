@@ -145,6 +145,7 @@ class PageIndex:
     height: int
     date: ApproximateDate | None = None
     tags: list[str] = field(default_factory=list)
+    analysis_excluded: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -156,6 +157,7 @@ class PageIndex:
             "height": self.height,
             "date": self.date.as_dict() if self.date else None,
             "tags": list(self.tags),
+            "analysis_excluded": bool(self.analysis_excluded),
         }
 
     @classmethod
@@ -169,6 +171,7 @@ class PageIndex:
             height=int(data["height"]),
             date=ApproximateDate.from_dict(data.get("date")),
             tags=normalize_tags(data.get("tags")),
+            analysis_excluded=bool(data.get("analysis_excluded", False)),
         )
 
 
