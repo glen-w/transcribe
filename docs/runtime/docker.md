@@ -6,6 +6,8 @@ Authority: operational Docker / Compose layout only — does not define project-
 Recommended way to run Transcribe without installing Python packages on the host.
 Ollama stays on the host (or another service); the container only runs the app + Streamlit UI.
 
+Native install alternative: [installation.md](installation.md). Product entry: [../PRODUCT.md](../PRODUCT.md).
+
 ## Quick start
 
 1. Copy env templates:
@@ -30,7 +32,7 @@ HOST_EXPORT_DIR=/Users/you/Documents/transcribe-exports
 docker compose up --build transcribe-web
 ```
 
-Open http://127.0.0.1:8510.
+Open http://127.0.0.1:8510 (Transcribe uses **8510**, not 8501).
 
 ## Path pattern (same idea as TranscriptX)
 
@@ -45,12 +47,14 @@ Separate `HOST_*` vs `TRANSCRIBE_*` names avoid Compose `.env` vs `environment:`
 
 Prefer absolute host paths **outside the git clone** for projects, inbox, and exports so wiping the repo never deletes notebook work.
 
+Project folder internals: [../contracts/project-on-disk.md](../contracts/project-on-disk.md).
+
 ## Ollama
 
 Compose defaults `TRANSCRIBE_OLLAMA_BASE_URL` to `http://host.docker.internal:11434`.
 `extra_hosts: host.docker.internal:host-gateway` covers Linux Docker Engine.
 
-Ensure a vision-capable model is already pulled on the host Ollama instance.
+Ensure a vision-capable model is already pulled on the host Ollama instance. Privacy caveats: [../known_limitations.md](../known_limitations.md).
 
 ## Local override
 
@@ -79,3 +83,8 @@ Service runs as `${UID:-1000}:${GID:-1000}`. On macOS/Linux, export matching ids
 export UID="$(id -u)"
 export GID="$(id -g)"
 ```
+
+## Related
+
+- Surfaces: [../public_surfaces.md](../public_surfaces.md)
+- User flows: [../user_guide.md](../user_guide.md)

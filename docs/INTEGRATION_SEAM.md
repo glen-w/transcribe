@@ -1,7 +1,9 @@
+Type: PRODUCT
+Authority: future handoff intent only — not shipped behaviour; export schema owned by contracts/notebook-export.md
+
 # Future TranscriptX integration seam
 
-Transcribe does **not** depend on TranscriptX and must not be integrated into
-TranscriptX before its 1.0 release.
+Transcribe does **not** depend on TranscriptX and must not be integrated into TranscriptX before its 1.0 release.
 
 ## Handoff
 
@@ -13,17 +15,21 @@ future pure adapter (post–TranscriptX 1.0)
 whatever TranscriptX's post-1.0 document/import contract requires
 ```
 
+Portable export rules: [contracts/notebook-export.md](contracts/notebook-export.md).
+
 ## Non-goals for this seam document
 
 - Do **not** lock synthetic timestamps (e.g. page `i` → `[i, i+1)`).
 - Do **not** lock fake speaker labels (e.g. `PAGE` / `NOTEBOOK`).
-- Those may be *one* future compatibility strategy among others, but synthetic
-  timing/speakers can leak into timing-, interaction-, or speaker-based analysis
-  as plausible nonsense.
+- Those may be *one* future compatibility strategy among others, but synthetic timing/speakers can leak into timing-, interaction-, or speaker-based analysis as plausible nonsense.
 
-## What Transcribe guarantees
+## What Transcribe guarantees (export)
 
-- Portable `format: "transcribe.notebook"` interchange with page order,
-  effective/raw/edited text, content fingerprints, and provenance.
-- No required absolute filesystem paths in the export.
-- Page-first domain (not timed speaker segments).
+- Portable `format: "transcribe.notebook"` interchange with page order, effective/raw/edited text, content fingerprints, and provenance
+- No required absolute filesystem paths in the export
+- Page-first domain (not timed speaker segments)
+
+## Related
+
+- Product boundaries: [PRODUCT.md](PRODUCT.md)
+- Analysis port planning: [ROADMAP.md](ROADMAP.md) · [analysis_module_porting.md](analysis_module_porting.md)

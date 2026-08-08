@@ -1,18 +1,17 @@
 # Transcribe
 
-Local-first handwritten notebook OCR using [Ollama](https://ollama.com) vision models.
+**Transcribe** is a local-first handwritten notebook OCR workbench.
 
-Import JPEG/PNG/PDF pages into a project directory, transcribe with a locally hosted vision model, review and correct side-by-side, then export Markdown/plain text plus a portable `transcribe.notebook` JSON artifact.
+Import JPEG/PNG/PDF pages into a project on your machine, transcribe them with a locally hosted [Ollama](https://ollama.com) vision model, review and correct page text side-by-side, then export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact — without sending your pages to a cloud OCR SaaS.
 
-## Requirements
+Product definition (authoritative): [docs/PRODUCT.md](docs/PRODUCT.md).  
+Known limits: [docs/known_limitations.md](docs/known_limitations.md).
 
-- Python 3.10+ **or** Docker
-- A running Ollama server with at least one vision-capable model
-- Optional: Streamlit UI (included via `.[ui]` / Docker image)
+## Get started
 
-## Local venv (recommended on the host)
+### Local venv (recommended on the host)
 
-Dependencies stay inside `.venv` so they do not collide with other projects' pinned stacks.
+Python 3.10+. Dependencies stay in `.venv`.
 
 ```bash
 cd /path/to/transcribe
@@ -22,15 +21,7 @@ chmod +x transcribe.sh
 ./transcribe.sh ui            # → http://127.0.0.1:8510/
 ```
 
-Manual equivalent:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[ui]'        # or '.[dev]' for pytest
-```
-
-Point workspace dirs outside the clone when you want durable data (same env names as Docker):
+Point durable workspace dirs outside the clone when you want data to survive repo wipes:
 
 ```bash
 # in .env
@@ -39,9 +30,7 @@ TRANSCRIBE_INBOX_DIR=/Users/you/Documents/notebook-scans
 TRANSCRIBE_EXPORT_DIR=/Users/you/Documents/transcribe-exports
 ```
 
-## Docker (no host Python packages)
-
-Follows the TranscriptX pattern: host dirs outside the repo, `HOST_*` mounts, `TRANSCRIBE_*` app paths, optional `docker-compose.override.yml`.
+### Docker (no host Python packages)
 
 ```bash
 cp .env.example .env
@@ -50,43 +39,58 @@ docker compose up --build transcribe-web
 # → http://127.0.0.1:8510/
 ```
 
-Details: [docs/runtime/docker.md](docs/runtime/docker.md).
+Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/installation.md](docs/runtime/installation.md).
 
-## CLI quick start
+### Prerequisites
 
-```bash
-./transcribe.sh init "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
-./transcribe.sh import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./page.jpg
-./transcribe.sh models
-./transcribe.sh run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model llama3.2-vision
-./transcribe.sh export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
-```
+- A running Ollama server (`http://localhost:11434` by default)
+- At least one **vision-capable** model (e.g. `gemma3:4b`, `llava:7b`, `qwen3-vl:8b`)
 
-Or with an activated venv: `python -m transcribe …` / `transcribe …`.
+## How you use it
 
-## Streamlit UI
-
-Runs on **port 8510** by default (`.streamlit/config.toml` / `TRANSCRIBE_PORT`) so it does not collide with TranscriptX on 8501.
+| Surface | Role |
+|---------|------|
+| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Archive, Notebooks, Search, Workflow |
+| **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor |
+| **Services API** | Shared by UI and CLI (`transcribe.services`) |
 
 ```bash
-./transcribe.sh ui
-# or: transcribe-ui
-# or: streamlit run src/transcribe/ui/app.py
+./transcribe.sh cli init "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
+./transcribe.sh cli import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./page.jpg
+./transcribe.sh cli models
+./transcribe.sh cli run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model gemma3:4b
+./transcribe.sh cli export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
+./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 ```
+
+More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces.md).
+
+## What it does today
+
+- Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
+- Local Ollama vision OCR with content fingerprints for skip/resume
+- Immutable OCR attempts; human edits live in `edited_text`
+- Workspace Archive / Notebooks / Search over your projects directory
+- Portable export (`transcribe.notebook` JSON + Markdown + plain text)
+
+Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
+
+## Architecture (brief)
+
+File-shaped authoritative storage (project + per-page results), OCR behind a provider boundary, rebuildable archive SQLite cache, CLI and Streamlit sharing the same services. See [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Direction
+
+Stabilise the OCR notebook core (import → run → review → export) before analysis-module ports. Planned ports from TranscriptX ideas: [ROADMAP.md](docs/ROADMAP.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 
-By default Transcribe talks to `http://localhost:11434` (native) or `http://host.docker.internal:11434` (Docker → host Ollama). Configuring a non-local Ollama host means page images leave this machine; the UI/CLI will warn and require acknowledgement.
+By default Transcribe talks to `http://localhost:11434` (native) or `http://host.docker.internal:11434` (Docker → host Ollama). A non-local Ollama host means page images leave this machine; UI/CLI warn and require acknowledgement.
 
-## Design notes
+## Links
 
-- Page-preserving project format (`transcribe.project` + per-page `transcribe.page-result`)
-- Workspace **Archive / Notebooks / Search** modes over `TRANSCRIBE_PROJECTS_DIR`, with a shared page viewer
-- Portable interchange export (`transcribe.notebook`) with no required absolute paths
-- Content fingerprints for skip/resume; immutable OCR attempts; human edits in `edited_text`
-- No cloud providers; no TranscriptX dependency (future seam documented in `docs/INTEGRATION_SEAM.md`)
-- Planned analysis ports from TranscriptX: [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/analysis_module_porting.md](docs/analysis_module_porting.md)
-
-## License
-
-MIT. See `NOTICE` for third-party attributions.
+- [Product](docs/PRODUCT.md) · [User index](docs/USER_INDEX.md) · [Developer index](docs/DEV_INDEX.md) · [Contract index](docs/CONTRACT_INDEX.md)
+- [User guide](docs/user_guide.md) · [Developer quickstart](docs/developer_quickstart.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Installation](docs/runtime/installation.md) · [Docker](docs/runtime/docker.md)
+- [Known limitations](docs/known_limitations.md) · [Roadmap](docs/ROADMAP.md) · [Terms](docs/TERMS.md)
+- License: MIT · Third-party: [NOTICE](NOTICE)

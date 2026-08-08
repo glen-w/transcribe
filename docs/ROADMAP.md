@@ -5,8 +5,10 @@ Authority: Product roadmap and analysis-porting delivery waves. Does not define 
 
 **Product focus today:** local-first handwritten notebook OCR (import → run → review → export).
 
+**Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Analysis porting map:** [analysis_module_porting.md](analysis_module_porting.md)  
-**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)
+**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  
+**Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
 > **Status legend:** [ ] planned · [~] in progress · [x] done
 

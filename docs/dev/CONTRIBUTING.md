@@ -1,0 +1,47 @@
+Type: GUIDE
+Authority: documentation authority model and maintainer checklist for doc changes
+
+# Contributing (docs and code orientation)
+
+## Documentation layers
+
+| Type | Owns | Must not |
+|------|------|----------|
+| **CONTRACT** | Invariants, schemas, support policy | Duplicate the same rule in a second contract |
+| **GUIDE** | Flows and examples | Invent “must/required/invariant” rules |
+| **ARCHITECTURE** | Shape and boundaries | Define persisted schemas or support policy |
+| **PRODUCT** | Vision, roadmap, status | Own on-disk schema details |
+
+Every live doc starts with:
+
+```text
+Type: CONTRACT | GUIDE | ARCHITECTURE | PRODUCT
+Authority: …
+```
+
+Exception: root `README.md` stays a lightweight entry guide (no Type/Authority banner) and links out.
+
+## Indexes
+
+- Users: [../USER_INDEX.md](../USER_INDEX.md)
+- Developers: [../DEV_INDEX.md](../DEV_INDEX.md)
+- Contracts: [../CONTRACT_INDEX.md](../CONTRACT_INDEX.md)
+
+## When code changes
+
+Update the **owning** doc:
+
+| Change | Update |
+|--------|--------|
+| Project layout / journal / locks | [contracts/project-on-disk.md](../contracts/project-on-disk.md) |
+| Page-result / fingerprint fields | [contracts/page-result.md](../contracts/page-result.md) |
+| Export files / notebook JSON | [contracts/notebook-export.md](../contracts/notebook-export.md) |
+| CLI/UI entrypoints | [public_surfaces.md](../public_surfaces.md) + README links |
+| Ownership / component shape | [ARCHITECTURE.md](../ARCHITECTURE.md) |
+| Vision / roadmap | [PRODUCT.md](../PRODUCT.md) / [ROADMAP.md](../ROADMAP.md) |
+
+Then skim guides for stale summaries (replace normative drift with a one-line summary + link).
+
+## Code orientation
+
+See [developer_quickstart.md](../developer_quickstart.md). Prefer tests that stay offline. Do not add a TranscriptX dependency.
