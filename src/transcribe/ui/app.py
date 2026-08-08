@@ -77,13 +77,14 @@ def _render_workflow(runtime, root: str) -> None:
         return
 
     if st.session_state.get("show_page_viewer") and st.session_state.get("view_page_id"):
-        page_ids = st.session_state.get("view_page_ids") or [p.page_id for p in project.pages]
         render_page_viewer(
             paths=paths,
             projects=projects,
             project=project,
             page_id=st.session_state["view_page_id"],
-            page_ids=page_ids,
+            page_ids=st.session_state.get("view_page_ids")
+            or [p.page_id for p in project.pages],
+            view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
             back_label="Back to workflow",
         )
@@ -313,6 +314,7 @@ def main() -> None:
     st.session_state["ui_mode"] = mode
 
     archive = ArchiveService(runtime)
+    archive.ensure_index()
 
     # Page viewer overlay when navigated from Archive/Search/Notebooks.
     if (
@@ -322,18 +324,11 @@ def main() -> None:
         and st.session_state.get("root")
     ):
         try:
-            paths, projects, _ingest = _services(st.session_state["root"])
-            project = projects.load(reconcile=False)
-            page_ids = st.session_state.get("view_page_ids") or [
-                p.page_id for p in project.pages
-            ]
             return_mode = st.session_state.get("page_return_mode", mode)
             render_page_viewer(
-                paths=paths,
-                projects=projects,
-                project=project,
                 page_id=st.session_state["view_page_id"],
-                page_ids=page_ids,
+                page_ids=st.session_state.get("view_page_ids"),
+                view_entries=st.session_state.get("view_entries"),
                 highlight_query=st.session_state.get("view_highlight", ""),
                 back_label=f"Back to {return_mode}",
             )

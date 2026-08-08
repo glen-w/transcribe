@@ -203,7 +203,7 @@ def test_notebook_bounds_and_pages_per_day(tmp_path: Path):
     assert nb.pages_per_day == 0.38
     assert nb.activity  # dated activity only
 
-    # Explicit override
+    # Explicit override both sides
     projects.update_notebook_metadata(
         date_start=ApproximateDate(2015, 1, 1),
         date_end=ApproximateDate(2015, 1, 10),
@@ -212,6 +212,16 @@ def test_notebook_bounds_and_pages_per_day(tmp_path: Path):
     nb2 = archive.list_notebooks()[0]
     assert nb2.date_start == ApproximateDate(2015, 1, 1)
     assert nb2.date_end == ApproximateDate(2015, 1, 10)
+
+    # Start-only override still derives end from pages
+    projects.update_notebook_metadata(
+        date_start=ApproximateDate(2014, 6, 1),
+        date_end=None,
+    )
+    archive.invalidate(projects.load(reconcile=False).id)
+    nb3 = archive.list_notebooks()[0]
+    assert nb3.date_start == ApproximateDate(2014, 6, 1)
+    assert nb3.date_end is not None and nb3.date_end.year == 2016
 
     # Incomplete dates → no invented precision
     assert pages_per_day(10, None, ApproximateDate(2020, 1, 1)) is None
@@ -361,3 +371,98 @@ def test_approximate_date_helpers():
         "13/11/2016"
     )
     assert pages_per_day(20, ApproximateDate(2015, 12, 30), ApproximateDate(2016, 1, 6)) == 2.5
+
+
+def test_filled_timeline_preserves_gaps(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "gaps",
+        title="Gaps",
+        page_specs=[
+            {"date": ApproximateDate(2017, 1, 15), "text": "burst a"},
+            {"date": ApproximateDate(2022, 1, 10), "text": "burst b"},
+        ],
+    )
+    archive = ArchiveService(runtime)
+    tl = archive.timeline()
+    keys = [b.key for b in tl.bins]
+    assert "2017-01" in keys or any(k.startswith("2017") for k in keys)
+    assert "2022-01" in keys or any(k.startswith("2022") for k in keys)
+    # Intervening months/years present as zeros
+    assert any(b.count == 0 for b in tl.bins)
+    assert len(tl.bins) > 2
+
+
+def test_year_filter_hides_unrelated_notebooks(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "y2018",
+        title="Y2018",
+        page_specs=[{"date": ApproximateDate(2018, 5, 1), "text": "in year"}],
+    )
+    _make_notebook(
+        runtime,
+        "y2020",
+        title="Y2020",
+        page_specs=[{"date": ApproximateDate(2020, 5, 1), "text": "other"}],
+    )
+    archive = ArchiveService(runtime)
+    nbs = archive.list_notebooks(filters=ArchiveFilters(period="year", year=2018))
+    assert [n.title for n in nbs] == ["Y2018"]
+
+
+def test_project_tags_are_or(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "dreams",
+        title="Dreams",
+        page_specs=[{"date": ApproximateDate(2019, 1, 1), "text": "d"}],
+        tags=["dreams"],
+    )
+    _make_notebook(
+        runtime,
+        "notes",
+        title="Notes",
+        page_specs=[{"date": ApproximateDate(2019, 2, 1), "text": "n"}],
+        tags=["notes"],
+    )
+    archive = ArchiveService(runtime)
+    both = archive.timeline(ArchiveFilters(project_tags=("dreams", "notes")))
+    assert both.showing == 2
+    only = archive.timeline(ArchiveFilters(project_tags=("dreams",)))
+    assert only.showing == 1
+
+
+def test_search_pagination(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    specs = [
+        {"date": ApproximateDate(2020, 1, i + 1), "text": f"page token {i}"}
+        for i in range(5)
+    ]
+    _make_notebook(runtime, "pages", title="Pages", page_specs=specs)
+    archive = ArchiveService(runtime)
+    page1 = archive.search("token", limit=2, offset=0)
+    assert page1.showing == 2
+    assert page1.total_matched == 5
+    page2 = archive.search("token", limit=2, offset=2)
+    assert page2.showing == 2
+    assert {h.page_id for h in page1.hits}.isdisjoint({h.page_id for h in page2.hits})
+
+
+def test_ensure_index_skips_when_fingerprint_unchanged(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "ttl",
+        title="TTL",
+        page_specs=[{"date": ApproximateDate(2021, 1, 1), "text": "hello"}],
+    )
+    archive = ArchiveService(runtime)
+    archive.ensure_index(force=True)
+    calls = archive._ensure_calls
+    archive.ensure_index()
+    archive.ensure_index()
+    assert archive._ensure_calls == calls

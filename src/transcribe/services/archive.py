@@ -8,12 +8,14 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 from transcribe.domain.dates import (
     ApproximateDate,
+    fill_bin_series,
     max_date,
     min_date,
     normalize_tags,
@@ -28,6 +30,9 @@ from transcribe.services.project import ProjectService, open_project_paths
 NotebookOrder = Literal["oldest", "newest", "most_pages"]
 SearchOrder = Literal["oldest", "newest"]
 PeriodKind = Literal["all", "year", "range"]
+
+_INDEX_TTL_S = 2.0
+_FTS_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -108,7 +113,10 @@ class SearchHit:
 class SearchResult:
     hits: list[SearchHit]
     showing: int
+    total_matched: int
     total_indexed: int
+    offset: int
+    limit: int
 
 
 def discover_project_roots(projects_dir: Path) -> list[Path]:
@@ -124,7 +132,6 @@ def discover_project_roots(projects_dir: Path) -> list[Path]:
 def _source_media_type(project: Project, source_id: str) -> str:
     for source in project.sources:
         if source.source_id == source_id:
-            # Normalize common MIME / short labels into stable filter keys.
             mt = (source.media_type or "").lower()
             if "pdf" in mt:
                 return "pdf"
@@ -135,15 +142,15 @@ def _source_media_type(project: Project, source_id: str) -> str:
 
 
 def _notebook_bounds(project: Project) -> tuple[ApproximateDate | None, ApproximateDate | None]:
-    if project.date_start is not None or project.date_end is not None:
-        return project.date_start, project.date_end
     dated = [p.date for p in project.pages if p.date is not None]
-    return min_date(dated), max_date(dated)  # type: ignore[arg-type]
+    derived_start, derived_end = min_date(dated), max_date(dated)  # type: ignore[arg-type]
+    start = project.date_start if project.date_start is not None else derived_start
+    end = project.date_end if project.date_end is not None else derived_end
+    return start, end
 
 
 def _page_in_period(page_date: ApproximateDate | None, filters: ArchiveFilters) -> bool:
     if page_date is None:
-        # Undated pages only appear when browsing the full archive with the toggle on.
         if filters.period != "all":
             return False
         return filters.include_undated
@@ -151,7 +158,6 @@ def _page_in_period(page_date: ApproximateDate | None, filters: ArchiveFilters) 
         return True
     if filters.period == "year":
         return filters.year is not None and page_date.year == filters.year
-    # range
     if filters.range_start is not None and page_date.sort_key() < filters.range_start.sort_key():
         return False
     if filters.range_end is not None and page_date.sort_key() > filters.range_end.sort_key():
@@ -171,12 +177,37 @@ def _choose_grain(dates: list[ApproximateDate]) -> str:
     return "month"
 
 
+def _period_active(filters: ArchiveFilters) -> bool:
+    return filters.period != "all"
+
+
+def _filters_active_for_notebooks(filters: ArchiveFilters) -> bool:
+    return bool(
+        _period_active(filters)
+        or filters.query
+        or filters.tags
+        or filters.media_types
+        or filters.project_tags
+    )
+
+
+def _fts_match_query(raw: str) -> str | None:
+    """Build an FTS5 MATCH expression (AND of quoted tokens), or None if empty."""
+    tokens = re.findall(r"[A-Za-z0-9_]+", raw.lower())
+    if not tokens:
+        return None
+    return " AND ".join(f'"{t}"' for t in tokens)
+
+
 class ArchiveService:
     def __init__(self, runtime: RuntimePaths) -> None:
         self.runtime = runtime
         self.runtime.ensure_layout()
         self.index_path = self.runtime.data_dir / "cache" / "archive.sqlite"
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
+        self._validated_at: float | None = None
+        self._workspace_fp: str | None = None
+        self._ensure_calls = 0  # test counter
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.index_path))
@@ -187,6 +218,10 @@ class ArchiveService:
     def _ensure_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
             """
+            CREATE TABLE IF NOT EXISTS meta (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS notebooks (
               project_id TEXT PRIMARY KEY,
               title TEXT NOT NULL,
@@ -208,21 +243,56 @@ class ArchiveService:
               date_json TEXT,
               sort_key TEXT,
               tags_json TEXT NOT NULL,
+              project_tags_json TEXT NOT NULL DEFAULT '[]',
               text TEXT NOT NULL,
               FOREIGN KEY(project_id) REFERENCES notebooks(project_id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_pages_project ON pages(project_id);
             CREATE INDEX IF NOT EXISTS idx_pages_sort ON pages(sort_key);
-            CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
-              page_id UNINDEXED,
-              project_id UNINDEXED,
-              text,
-              tags,
-              title,
-              content=''
-            );
             """
         )
+        row = conn.execute(
+            "SELECT value FROM meta WHERE key = 'fts_schema_version'"
+        ).fetchone()
+        current = int(row["value"]) if row else 0
+        if current < _FTS_SCHEMA_VERSION:
+            conn.execute("DROP TABLE IF EXISTS pages_fts")
+            conn.execute(
+                """
+                CREATE VIRTUAL TABLE pages_fts USING fts5(
+                  page_id UNINDEXED,
+                  project_id UNINDEXED,
+                  text,
+                  tags,
+                  title
+                )
+                """
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO meta(key, value) VALUES ('fts_schema_version', ?)",
+                (str(_FTS_SCHEMA_VERSION),),
+            )
+            # Force full reindex of notebooks by clearing signatures.
+            conn.execute("UPDATE notebooks SET signature = ''")
+
+    def _workspace_fingerprint(self) -> str:
+        """Cheap mtime rollup used to skip ensure_index when nothing changed."""
+        parts: list[str] = []
+        for root in discover_project_roots(self.runtime.projects_dir):
+            manifest = root / "project.json"
+            try:
+                parts.append(f"{root.name}:{manifest.stat().st_mtime_ns}")
+            except OSError:
+                continue
+            results = root / "results"
+            if results.exists():
+                try:
+                    parts.append(
+                        str(sum(p.stat().st_mtime_ns for p in results.glob("*.json")))
+                    )
+                except OSError:
+                    pass
+        return "|".join(parts)
 
     def _project_signature(self, root: Path, project: Project) -> str:
         parts = [project.updated_at, str(len(project.pages))]
@@ -232,10 +302,26 @@ class ArchiveService:
             parts.extend(mtimes)
         return "|".join(parts)
 
-    def ensure_index(self) -> None:
+    def ensure_index(self, *, force: bool = False) -> None:
+        now = time.monotonic()
+        fp = self._workspace_fingerprint()
+        if (
+            not force
+            and self._validated_at is not None
+            and self._workspace_fp == fp
+            and (now - self._validated_at) < _INDEX_TTL_S
+        ):
+            return
+        self._ensure_calls += 1
         roots = discover_project_roots(self.runtime.projects_dir)
         with self._connect() as conn:
             self._ensure_schema(conn)
+            # Ensure project_tags_json column exists on older DBs.
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(pages)")}
+            if "project_tags_json" not in cols:
+                conn.execute(
+                    "ALTER TABLE pages ADD COLUMN project_tags_json TEXT NOT NULL DEFAULT '[]'"
+                )
             known = {
                 row["project_id"]: row["signature"]
                 for row in conn.execute("SELECT project_id, signature FROM notebooks")
@@ -257,18 +343,22 @@ class ArchiveService:
                 self._reindex_project(conn, root, project, projects, sig)
             stale = set(known) - seen
             for project_id in stale:
-                conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
-                conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
                 conn.execute("DELETE FROM pages_fts WHERE project_id = ?", (project_id,))
+                conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
+                conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
             conn.commit()
+        self._validated_at = time.monotonic()
+        self._workspace_fp = self._workspace_fingerprint()
 
     def invalidate(self, project_id: str) -> None:
         with self._connect() as conn:
             self._ensure_schema(conn)
-            conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
-            conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
             conn.execute("DELETE FROM pages_fts WHERE project_id = ?", (project_id,))
+            conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
+            conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
             conn.commit()
+        self._validated_at = None
+        self._workspace_fp = None
 
     def _reindex_project(
         self,
@@ -313,13 +403,14 @@ class ArchiveService:
                 if page.date
                 else None
             )
-            tags = normalize_tags([*project.tags, *page.tags])
+            page_tags = normalize_tags(page.tags)
+            combined_tags = normalize_tags([*project.tags, *page_tags])
             conn.execute(
                 """
                 INSERT INTO pages(
                   page_id, project_id, page_ord, source_id, media_type,
-                  date_json, sort_key, tags_json, text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  date_json, sort_key, tags_json, project_tags_json, text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     page.page_id,
@@ -329,7 +420,8 @@ class ArchiveService:
                     media,
                     date_json,
                     sort_key,
-                    json.dumps(tags),
+                    json.dumps(combined_tags),
+                    json.dumps(project.tags),
                     text,
                 ),
             )
@@ -342,27 +434,31 @@ class ArchiveService:
                     page.page_id,
                     project.id,
                     text,
-                    " ".join(tags),
+                    " ".join(combined_tags),
                     project.title,
                 ),
             )
+
+    def _parse_date(self, raw: str | None) -> ApproximateDate | None:
+        if not raw:
+            return None
+        return ApproximateDate.from_dict(json.loads(raw))
 
     def _load_page_rows(self, conn: sqlite3.Connection) -> list[sqlite3.Row]:
         return list(
             conn.execute(
                 """
                 SELECT p.*, n.title AS project_title, n.root AS project_root,
-                       n.tags_json AS project_tags_json, n.page_count AS notebook_page_count
+                       n.page_count AS notebook_page_count,
+                       n.date_start_json AS nb_date_start_json,
+                       n.date_end_json AS nb_date_end_json,
+                       n.tags_json AS notebook_tags_json,
+                       n.cover_page_id AS notebook_cover_page_id
                 FROM pages p
                 JOIN notebooks n ON n.project_id = p.project_id
                 """
             )
         )
-
-    def _parse_date(self, raw: str | None) -> ApproximateDate | None:
-        if not raw:
-            return None
-        return ApproximateDate.from_dict(json.loads(raw))
 
     def _row_matches(self, row: sqlite3.Row, filters: ArchiveFilters) -> bool:
         page_date = self._parse_date(row["date_json"])
@@ -376,7 +472,8 @@ class ArchiveService:
         project_tags = set(json.loads(row["project_tags_json"] or "[]"))
         if filters.tags and not set(filters.tags).issubset(tags):
             return False
-        if filters.project_tags and not set(filters.project_tags).issubset(project_tags):
+        # Category toggles are OR: any selected project tag may match.
+        if filters.project_tags and not (set(filters.project_tags) & project_tags):
             return False
         q = filters.query.strip().lower()
         if q:
@@ -384,6 +481,45 @@ class ArchiveService:
             if q not in hay:
                 return False
         return True
+
+    def _type_counts_from_rows(
+        self, rows: list[sqlite3.Row], base_filters: ArchiveFilters
+    ) -> list[TypeCount]:
+        """Totals over all rows; selected under base_filters (types unconstrained)."""
+        media_totals: dict[str, int] = {}
+        media_sel: dict[str, int] = {}
+        tag_totals: dict[str, int] = {}
+        tag_sel: dict[str, int] = {}
+        for row in rows:
+            mt = row["media_type"]
+            media_totals[mt] = media_totals.get(mt, 0) + 1
+            project_tags = json.loads(row["project_tags_json"] or "[]")
+            for t in project_tags:
+                tag_totals[t] = tag_totals.get(t, 0) + 1
+            if self._row_matches(row, base_filters):
+                media_sel[mt] = media_sel.get(mt, 0) + 1
+                for t in project_tags:
+                    tag_sel[t] = tag_sel.get(t, 0) + 1
+        out: list[TypeCount] = []
+        for key in sorted(media_totals):
+            out.append(
+                TypeCount(
+                    key=key,
+                    kind="media_type",
+                    total=media_totals[key],
+                    selected=media_sel.get(key, 0),
+                )
+            )
+        for key in sorted(tag_totals):
+            out.append(
+                TypeCount(
+                    key=key,
+                    kind="project_tag",
+                    total=tag_totals[key],
+                    selected=tag_sel.get(key, 0),
+                )
+            )
+        return out
 
     def available_years(self) -> list[int]:
         self.ensure_index()
@@ -398,41 +534,19 @@ class ArchiveService:
     def type_inventory(self, filters: ArchiveFilters | None = None) -> list[TypeCount]:
         self.ensure_index()
         filters = filters or ArchiveFilters()
+        # Unconstrain types so selected reflects other active filters only.
+        base = ArchiveFilters(
+            period=filters.period,
+            year=filters.year,
+            range_start=filters.range_start,
+            range_end=filters.range_end,
+            query=filters.query,
+            tags=filters.tags,
+            notebook_ids=filters.notebook_ids,
+            include_undated=filters.include_undated,
+        )
         with self._connect() as conn:
-            rows = self._load_page_rows(conn)
-            media_totals: dict[str, int] = {}
-            media_sel: dict[str, int] = {}
-            tag_totals: dict[str, int] = {}
-            tag_sel: dict[str, int] = {}
-            for row in rows:
-                mt = row["media_type"]
-                media_totals[mt] = media_totals.get(mt, 0) + 1
-                for t in json.loads(row["project_tags_json"] or "[]"):
-                    tag_totals[t] = tag_totals.get(t, 0) + 1
-                if self._row_matches(row, filters):
-                    media_sel[mt] = media_sel.get(mt, 0) + 1
-                    for t in json.loads(row["project_tags_json"] or "[]"):
-                        tag_sel[t] = tag_sel.get(t, 0) + 1
-            out: list[TypeCount] = []
-            for key in sorted(media_totals):
-                out.append(
-                    TypeCount(
-                        key=key,
-                        kind="media_type",
-                        total=media_totals[key],
-                        selected=media_sel.get(key, 0),
-                    )
-                )
-            for key in sorted(tag_totals):
-                out.append(
-                    TypeCount(
-                        key=key,
-                        kind="project_tag",
-                        total=tag_totals[key],
-                        selected=tag_sel.get(key, 0),
-                    )
-                )
-            return out
+            return self._type_counts_from_rows(self._load_page_rows(conn), base)
 
     def timeline(self, filters: ArchiveFilters | None = None) -> TimelineResult:
         self.ensure_index()
@@ -454,9 +568,23 @@ class ArchiveService:
             for d in dated_dates:
                 key = d.bin_key(grain)
                 counts[key] = counts.get(key, 0) + 1
-            bins = [TimelineBin(key=k, count=counts[k]) for k in sorted(counts)]
-            # Type counts relative to current non-type filters for the UI strip.
-            type_filters = ArchiveFilters(
+            if dated_dates:
+                span_start = min_date(dated_dates)
+                span_end = max_date(dated_dates)
+                assert span_start is not None and span_end is not None
+                if filters.period == "year" and filters.year is not None:
+                    span_start = ApproximateDate(filters.year, 1, 1)
+                    span_end = ApproximateDate(filters.year, 12, 31)
+                elif filters.period == "range":
+                    if filters.range_start is not None:
+                        span_start = filters.range_start
+                    if filters.range_end is not None:
+                        span_end = filters.range_end
+                filled = fill_bin_series(grain, span_start, span_end, counts)
+                bins = [TimelineBin(key=k, count=c) for k, c in filled]
+            else:
+                bins = []
+            type_base = ArchiveFilters(
                 period=filters.period,
                 year=filters.year,
                 range_start=filters.range_start,
@@ -472,7 +600,7 @@ class ArchiveService:
                 total=total,
                 undated_count=undated,
                 dated_count=len(dated_dates),
-                type_counts=self.type_inventory(type_filters),
+                type_counts=self._type_counts_from_rows(rows, type_base),
                 grain=grain,
             )
 
@@ -495,28 +623,45 @@ class ArchiveService:
             for nb in notebooks:
                 proj_pages = by_project.get(nb["project_id"], [])
                 matched = [r for r in proj_pages if self._row_matches(r, filters)]
-                if filters.query or filters.tags or filters.media_types or filters.project_tags:
-                    if not matched and proj_pages:
-                        # Hide notebooks with zero matching pages under active filters.
+                if _filters_active_for_notebooks(filters):
+                    if not matched:
                         continue
                 elif filters.notebook_ids and nb["project_id"] not in filters.notebook_ids:
                     continue
 
-                dated = [self._parse_date(r["date_json"]) for r in matched]
-                dated_only = [d for d in dated if d is not None]
-                start = self._parse_date(nb["date_start_json"])
-                end = self._parse_date(nb["date_end_json"])
-                if start is None and end is None:
-                    start, end = min_date(dated_only), max_date(dated_only)
+                dated_only = [
+                    d
+                    for d in (self._parse_date(r["date_json"]) for r in matched)
+                    if d is not None
+                ]
+                stored_start = self._parse_date(nb["date_start_json"])
+                stored_end = self._parse_date(nb["date_end_json"])
+                # Prefer stored overrides from reindex (_notebook_bounds already independent).
+                # When filters shrink the view, activity uses matched dates; bounds stay notebook-level.
+                start = stored_start
+                end = stored_end
+                if start is None or end is None:
+                    d_start, d_end = min_date(dated_only), max_date(dated_only)
+                    if start is None:
+                        start = d_start
+                    if end is None:
+                        end = d_end
 
                 grain = _choose_grain(dated_only) if dated_only else "month"
                 activity_counts: dict[str, int] = {}
                 for d in dated_only:
                     key = d.bin_key(grain)
                     activity_counts[key] = activity_counts.get(key, 0) + 1
-                activity = [
-                    ActivityBin(key=k, count=activity_counts[k]) for k in sorted(activity_counts)
-                ]
+                if dated_only:
+                    filled = fill_bin_series(
+                        grain,
+                        min_date(dated_only),  # type: ignore[arg-type]
+                        max_date(dated_only),  # type: ignore[arg-type]
+                        activity_counts,
+                    )
+                    activity = [ActivityBin(key=k, count=c) for k, c in filled]
+                else:
+                    activity = []
                 media = sorted({r["media_type"] for r in proj_pages})
                 cover = nb["cover_page_id"]
                 if not cover and proj_pages:
@@ -562,10 +707,11 @@ class ArchiveService:
         *,
         order: SearchOrder = "oldest",
         filters: ArchiveFilters | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> SearchResult:
         self.ensure_index()
         base = filters or ArchiveFilters()
-        # Merge free-text into filters for consistent matching.
         merged = ArchiveFilters(
             period=base.period,
             year=base.year,
@@ -578,27 +724,136 @@ class ArchiveService:
             notebook_ids=base.notebook_ids,
             include_undated=base.include_undated,
         )
+        limit = max(1, min(int(limit), 500))
+        offset = max(0, int(offset))
+
         with self._connect() as conn:
-            rows = self._load_page_rows(conn)
-            total = len(rows)
-            matched = [r for r in rows if self._row_matches(r, merged)]
+            total_indexed = conn.execute("SELECT COUNT(*) AS c FROM pages").fetchone()["c"]
+            where: list[str] = ["1=1"]
+            params: list[object] = []
 
-            def hit_sort_key(row: sqlite3.Row) -> tuple:
-                d = self._parse_date(row["date_json"])
-                if d is None:
-                    key = (9999, 99, 99)
-                else:
-                    key = d.sort_key()
-                if order == "newest":
-                    return (-key[0], -key[1], -key[2], row["page_ord"])
-                return (*key, row["page_ord"])
+            match_expr = _fts_match_query(merged.query) if merged.query.strip() else None
+            join_fts = ""
+            if match_expr is not None:
+                join_fts = "JOIN pages_fts ON pages_fts.page_id = p.page_id"
+                where.append("pages_fts MATCH ?")
+                params.append(match_expr)
 
-            matched.sort(key=hit_sort_key)
+            if merged.notebook_ids:
+                placeholders = ",".join("?" * len(merged.notebook_ids))
+                where.append(f"p.project_id IN ({placeholders})")
+                params.extend(merged.notebook_ids)
+            if merged.media_types:
+                placeholders = ",".join("?" * len(merged.media_types))
+                where.append(f"p.media_type IN ({placeholders})")
+                params.extend(merged.media_types)
+            if merged.period == "year" and merged.year is not None:
+                where.append("p.date_json IS NOT NULL AND p.date_json LIKE ?")
+                params.append(f'%"y": {merged.year}%')
+                # JSON may be compact without space — also try without space
+                # Better: use sort_key range
+                where.pop()
+                params.pop()
+                where.append("p.sort_key IS NOT NULL AND p.sort_key >= ? AND p.sort_key < ?")
+                params.append(f"{merged.year:04d}-00-00")
+                params.append(f"{merged.year + 1:04d}-00-00")
+            elif merged.period == "range":
+                where.append("p.sort_key IS NOT NULL")
+                if merged.range_start is not None:
+                    sk = merged.range_start.sort_key()
+                    where.append("p.sort_key >= ?")
+                    params.append(f"{sk[0]:04d}-{sk[1]:02d}-{sk[2]:02d}")
+                if merged.range_end is not None:
+                    sk = merged.range_end.sort_key()
+                    where.append("p.sort_key <= ?")
+                    params.append(f"{sk[0]:04d}-{sk[1]:02d}-{sk[2]:02d}")
+            elif merged.period == "all" and not merged.include_undated:
+                where.append("p.sort_key IS NOT NULL")
+
+            # Page tags AND: each required tag must appear in tags_json.
+            for tag in merged.tags:
+                where.append("p.tags_json LIKE ?")
+                params.append(f'%"{tag}"%')
+
+            # Project category tags OR.
+            if merged.project_tags:
+                ors = " OR ".join("p.project_tags_json LIKE ?" for _ in merged.project_tags)
+                where.append(f"({ors})")
+                params.extend(f'%"{t}"%' for t in merged.project_tags)
+
+            where_sql = " AND ".join(where)
+            order_sql = (
+                "p.sort_key DESC NULLS LAST, p.page_ord DESC"
+                if order == "newest"
+                else "p.sort_key ASC NULLS LAST, p.page_ord ASC"
+            )
+            # SQLite before 3.30 may lack NULLS LAST — use CASE.
+            if order == "newest":
+                order_sql = (
+                    "CASE WHEN p.sort_key IS NULL THEN 1 ELSE 0 END, "
+                    "p.sort_key DESC, p.page_ord DESC"
+                )
+            else:
+                order_sql = (
+                    "CASE WHEN p.sort_key IS NULL THEN 1 ELSE 0 END, "
+                    "p.sort_key ASC, p.page_ord ASC"
+                )
+
+            count_sql = f"""
+                SELECT COUNT(*) AS c
+                FROM pages p
+                JOIN notebooks n ON n.project_id = p.project_id
+                {join_fts}
+                WHERE {where_sql}
+            """
+            total_matched = conn.execute(count_sql, params).fetchone()["c"]
+
+            data_sql = f"""
+                SELECT p.*, n.title AS project_title, n.root AS project_root,
+                       n.page_count AS notebook_page_count
+                FROM pages p
+                JOIN notebooks n ON n.project_id = p.project_id
+                {join_fts}
+                WHERE {where_sql}
+                ORDER BY {order_sql}
+                LIMIT ? OFFSET ?
+            """
+            rows = list(conn.execute(data_sql, [*params, limit, offset]))
+
+            # Fallback: if FTS returned nothing but query looks like a phrase substring,
+            # and MATCH was used, also try substring path for OCR quirks.
+            if match_expr is not None and total_matched == 0 and merged.query.strip():
+                # Substring fallback without FTS join.
+                sub = ArchiveFilters(
+                    period=merged.period,
+                    year=merged.year,
+                    range_start=merged.range_start,
+                    range_end=merged.range_end,
+                    query=merged.query,
+                    tags=merged.tags,
+                    media_types=merged.media_types,
+                    project_tags=merged.project_tags,
+                    notebook_ids=merged.notebook_ids,
+                    include_undated=merged.include_undated,
+                )
+                all_rows = self._load_page_rows(conn)
+                matched = [r for r in all_rows if self._row_matches(r, sub)]
+
+                def hit_sort_key(row: sqlite3.Row) -> tuple:
+                    d = self._parse_date(row["date_json"])
+                    key = d.sort_key() if d else (9999, 99, 99)
+                    if order == "newest":
+                        return (-key[0], -key[1], -key[2], row["page_ord"])
+                    return (*key, row["page_ord"])
+
+                matched.sort(key=hit_sort_key)
+                total_matched = len(matched)
+                rows = matched[offset : offset + limit]
+
             q = merged.query.strip()
             hits: list[SearchHit] = []
-            for row in matched:
+            for row in rows:
                 text = row["text"] or ""
-                snippet = _snippet(text, q)
                 hits.append(
                     SearchHit(
                         page_id=row["page_id"],
@@ -609,11 +864,18 @@ class ArchiveService:
                         notebook_page_count=int(row["notebook_page_count"]),
                         date=self._parse_date(row["date_json"]),
                         tags=json.loads(row["tags_json"] or "[]"),
-                        snippet=snippet,
+                        snippet=_snippet(text, q),
                         media_type=row["media_type"],
                     )
                 )
-            return SearchResult(hits=hits, showing=len(hits), total_indexed=total)
+            return SearchResult(
+                hits=hits,
+                showing=len(hits),
+                total_matched=total_matched,
+                total_indexed=int(total_indexed),
+                offset=offset,
+                limit=limit,
+            )
 
 
 _WORD_RE = re.compile(r"\s+")
@@ -629,7 +891,12 @@ def _snippet(text: str, query: str, radius: int = 80) -> str:
     q = query.lower()
     idx = lower.find(q)
     if idx < 0:
-        return compact[: radius * 2] + ("…" if len(compact) > radius * 2 else "")
+        # try first token
+        tok = re.findall(r"[A-Za-z0-9_]+", q)
+        if tok:
+            idx = lower.find(tok[0])
+        if idx < 0:
+            return compact[: radius * 2] + ("…" if len(compact) > radius * 2 else "")
     start = max(0, idx - radius)
     end = min(len(compact), idx + len(query) + radius)
     prefix = "…" if start > 0 else ""
@@ -638,7 +905,6 @@ def _snippet(text: str, query: str, radius: int = 80) -> str:
 
 
 def highlight_terms(text: str, query: str) -> str:
-    """Return markdown-ish highlighted text for Streamlit display (simple case-insensitive)."""
     if not query.strip() or not text:
         return text
     pattern = re.compile(re.escape(query.strip()), re.IGNORECASE)

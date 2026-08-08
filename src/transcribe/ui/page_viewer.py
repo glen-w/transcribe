@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -10,8 +11,9 @@ from transcribe.domain.dates import ApproximateDate, normalize_tags
 from transcribe.domain.models import Project
 from transcribe.errors import TranscribeError
 from transcribe.paths import ProjectPaths
+from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.services.archive import highlight_terms
-from transcribe.services.project import ProjectService
+from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
 
 
@@ -25,43 +27,86 @@ def _parse_date_input(raw: str) -> ApproximateDate | None:
             return ApproximateDate(year=int(parts[0]))
         if len(parts) == 2:
             a, b = int(parts[0]), int(parts[1])
-            # Accept YYYY-MM or MM-YYYY
             if a > 31:
                 return ApproximateDate(year=a, month=b)
             return ApproximateDate(year=b, month=a)
         if len(parts) == 3:
             a, b, c = int(parts[0]), int(parts[1]), int(parts[2])
-            if a > 31:  # YYYY-MM-DD
+            if a > 31:
                 return ApproximateDate(year=a, month=b, day=c)
-            # DD-MM-YYYY
             return ApproximateDate(year=c, month=b, day=a)
     except ValueError as exc:
         raise ValueError(f"Unrecognized date: {raw!r}") from exc
     raise ValueError(f"Unrecognized date: {raw!r}")
 
 
+def _normalize_entries(
+    *,
+    page_ids: list[str] | None,
+    project_root: str | Path | None,
+    view_entries: list[dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    if view_entries:
+        out: list[dict[str, str]] = []
+        for e in view_entries:
+            pid = str(e.get("page_id") or "")
+            root = str(e.get("project_root") or project_root or "")
+            if pid and root:
+                out.append({"page_id": pid, "project_root": root})
+        return out
+    root = str(project_root or "")
+    return [{"page_id": pid, "project_root": root} for pid in (page_ids or []) if pid and root]
+
+
 def render_page_viewer(
     *,
-    paths: ProjectPaths,
-    projects: ProjectService,
-    project: Project,
+    paths: ProjectPaths | None = None,
+    projects: ProjectService | None = None,
+    project: Project | None = None,
     page_id: str,
-    page_ids: list[str],
+    page_ids: list[str] | None = None,
     highlight_query: str = "",
     back_label: str = "Back",
     show_back: bool = True,
-) -> Project:
-    """Render scan + OCR + metadata for one page; returns possibly updated project."""
-    if not page_ids:
+    view_entries: list[dict[str, Any]] | None = None,
+) -> Project | None:
+    """Render scan + OCR + metadata for one page.
+
+    When ``view_entries`` spans multiple notebooks, Prev/Next switches project roots.
+    """
+    entries = view_entries or st.session_state.get("view_entries")
+    if not entries:
+        entries = _normalize_entries(
+            page_ids=page_ids or st.session_state.get("view_page_ids"),
+            project_root=st.session_state.get("root"),
+            view_entries=None,
+        )
+    if not entries:
         st.info("No pages in this context.")
         return project
 
-    if page_id not in page_ids:
-        page_id = page_ids[0]
+    st.session_state["view_entries"] = entries
+    page_ids_flat = [e["page_id"] for e in entries]
+    if page_id not in page_ids_flat:
+        page_id = page_ids_flat[0]
         st.session_state["view_page_id"] = page_id
 
-    idx = page_ids.index(page_id)
-    page = next(p for p in project.pages if p.page_id == page_id)
+    idx = page_ids_flat.index(page_id)
+    entry = entries[idx]
+    root = entry["project_root"]
+    st.session_state["root"] = root
+    st.session_state["view_page_id"] = page_id
+
+    if paths is None or projects is None or project is None or str(paths.root) != str(Path(root).resolve()):
+        paths = open_project_paths(Path(root))
+        projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+        project = projects.load(reconcile=False)
+
+    page = next((p for p in project.pages if p.page_id == page_id), None)
+    if page is None:
+        st.error(f"Page {page_id[:8]}… not found in {project.title}")
+        return project
+
     render = project.renders[page.active_render_id]
     img_path = paths.resolve_contained(render.image_relpath)
     result = projects.load_page_result(page.page_id)
@@ -71,6 +116,7 @@ def render_page_viewer(
         if top[0].button(back_label):
             st.session_state.pop("view_page_id", None)
             st.session_state.pop("view_page_ids", None)
+            st.session_state.pop("view_entries", None)
             st.session_state.pop("view_highlight", None)
             st.session_state["show_page_viewer"] = False
             return_mode = st.session_state.pop("page_return_mode", None)
@@ -80,14 +126,18 @@ def render_page_viewer(
     else:
         top[0].write("")
     if top[1].button("Previous", disabled=idx <= 0):
-        st.session_state["view_page_id"] = page_ids[idx - 1]
+        prev = entries[idx - 1]
+        st.session_state["view_page_id"] = prev["page_id"]
+        st.session_state["root"] = prev["project_root"]
         st.rerun()
     top[2].markdown(
-        f"**{project.title}** · page {idx + 1} / {len(page_ids)}"
+        f"**{project.title}** · {idx + 1} / {len(entries)}"
         + (f" · {page.date.format_display()}" if page.date else " · Undated")
     )
-    if top[3].button("Next", disabled=idx >= len(page_ids) - 1):
-        st.session_state["view_page_id"] = page_ids[idx + 1]
+    if top[3].button("Next", disabled=idx >= len(entries) - 1):
+        nxt = entries[idx + 1]
+        st.session_state["view_page_id"] = nxt["page_id"]
+        st.session_state["root"] = nxt["project_root"]
         st.rerun()
     top[4].caption(f"`{page.page_id[:8]}…`")
 
@@ -162,10 +212,17 @@ def open_page_context(
     project_root: str | Path,
     highlight: str = "",
     return_mode: str | None = None,
+    view_entries: list[dict[str, Any]] | None = None,
 ) -> None:
+    entries = _normalize_entries(
+        page_ids=page_ids,
+        project_root=project_root,
+        view_entries=view_entries,
+    )
     st.session_state["root"] = str(project_root)
     st.session_state["view_page_id"] = page_id
-    st.session_state["view_page_ids"] = page_ids
+    st.session_state["view_page_ids"] = [e["page_id"] for e in entries]
+    st.session_state["view_entries"] = entries
     st.session_state["view_highlight"] = highlight
     st.session_state["show_page_viewer"] = True
     if return_mode:

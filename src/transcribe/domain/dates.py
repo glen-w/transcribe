@@ -138,3 +138,69 @@ def max_date(dates: list[ApproximateDate]) -> ApproximateDate | None:
     if not dates:
         return None
     return max(dates, key=lambda d: d.sort_key())
+
+
+def _bin_key_for_date(d: date, grain: str) -> str:
+    if grain == "year":
+        return f"{d.year:04d}"
+    if grain == "month":
+        return f"{d.year:04d}-{d.month:02d}"
+    if grain == "week":
+        iso = d.isocalendar()
+        return f"{iso.year:04d}-W{iso.week:02d}"
+    return d.isoformat()
+
+
+def bin_key_to_date(key: str, grain: str) -> date:
+    """Parse a bin key into a representative start date for charting."""
+    if grain == "year":
+        return date(int(key), 1, 1)
+    if grain == "month":
+        y, m = key.split("-", 1)
+        return date(int(y), int(m), 1)
+    if grain == "week":
+        y, w = key.split("-W", 1)
+        return date.fromisocalendar(int(y), int(w), 1)
+    return date.fromisoformat(key)
+
+
+def _advance_bin_start(d: date, grain: str) -> date:
+    if grain == "year":
+        return date(d.year + 1, 1, 1)
+    if grain == "month":
+        if d.month == 12:
+            return date(d.year + 1, 1, 1)
+        return date(d.year, d.month + 1, 1)
+    if grain == "week":
+        return d + timedelta(days=7)
+    return d + timedelta(days=1)
+
+
+def fill_bin_series(
+    grain: str,
+    span_start: date | ApproximateDate,
+    span_end: date | ApproximateDate,
+    counts: dict[str, int],
+) -> list[tuple[str, int]]:
+    """Return a complete calendar sequence of (bin_key, count), including zeros.
+
+    Gaps between sparse activity become explicit zero bins so dormant periods
+    remain visible on charts.
+    """
+    start = span_start.to_date_start() if isinstance(span_start, ApproximateDate) else span_start
+    end = span_end.to_date_end() if isinstance(span_end, ApproximateDate) else span_end
+    if end < start:
+        return []
+    # Align cursor to the start of the bin that contains ``start``.
+    cursor = bin_key_to_date(_bin_key_for_date(start, grain), grain)
+    end_key = _bin_key_for_date(end, grain)
+    out: list[tuple[str, int]] = []
+    # Safety cap for pathological spans (e.g. day grain over decades).
+    max_bins = 4000
+    while len(out) < max_bins:
+        key = _bin_key_for_date(cursor, grain)
+        out.append((key, int(counts.get(key, 0))))
+        if key >= end_key:
+            break
+        cursor = _advance_bin_start(cursor, grain)
+    return out
