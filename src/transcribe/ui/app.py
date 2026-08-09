@@ -424,7 +424,6 @@ def _render_workflow(runtime, root: str) -> None:
                 if evidence and mid in {"ner", "epistemic_markers"}:
                     from transcribe.analysis.document import content_fingerprint as cfp
 
-                    cur_fp = current_identity.get(mid) and None
                     try:
                         cur_fp = cfp(build_page_v1_document(project, projects))
                     except Exception:  # noqa: BLE001
