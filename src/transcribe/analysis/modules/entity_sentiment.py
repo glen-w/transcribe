@@ -56,9 +56,11 @@ class EntitySentimentModule:
                 continue
             unit_id = ent.get("unit_id")
             sent = by_unit_sent.get(unit_id) or {}
+            # NER payload uses ``surface``; accept ``text`` for compatibility.
+            surface = ent.get("text") if ent.get("text") is not None else ent.get("surface")
             joined.append(
                 {
-                    "text": ent.get("text"),
+                    "text": surface,
                     "label": ent.get("label"),
                     "unit_id": unit_id,
                     "sentiment": {

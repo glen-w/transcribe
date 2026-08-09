@@ -65,22 +65,53 @@ TEXTS = [
 ]
 
 
+def _fake_ner_extract(text: str):
+    out = []
+    for name, label in (("Alice", "PERSON"), ("Bob", "PERSON"), ("Paris", "GPE"), ("Carol", "PERSON"), ("Dana", "PERSON")):
+        if name in text:
+            i = text.index(name)
+            out.append((name, label, i, i + len(name)))
+    return out
+
+
+def _with_injected_ner():
+    """Patch registry so NER succeeds offline without spaCy."""
+    import transcribe.analysis.runner as runner_mod
+    from transcribe.analysis.modules.ner import NERModule
+
+    original = runner_mod.get_registered_modules
+
+    def patched(*, wave: str | None = None):
+        mods = original(wave=wave)
+        mods["ner"] = NERModule(extract_fn=_fake_ner_extract)
+        return mods
+
+    runner_mod.get_registered_modules = patched  # type: ignore[assignment]
+    return original
+
+
 def test_stale_hard_parents_unavailable_dependency(tmp_path: Path):
     projects, runner = _project_with_pages(tmp_path, TEXTS)
-    assert runner.run_module("ner")["outcome"] == "success"
-    assert runner.run_module("sentiment")["outcome"] == "success"
-    assert runner.run_module("entity_sentiment")["outcome"] == "success"
+    import transcribe.analysis.runner as runner_mod
 
-    page0 = projects.load().pages[0].page_id
-    projects.save_user_edit(page0, "Completely rewritten page about astronomy and moons.")
+    original = _with_injected_ner()
+    try:
+        assert runner.run_module("ner")["outcome"] == "success"
+        assert runner.run_module("sentiment")["outcome"] == "success"
+        assert runner.run_module("entity_sentiment")["outcome"] == "success"
 
-    env = runner.run_module("entity_sentiment")
-    assert env["outcome"] == "unavailable_dependency"
-    assert env["capability"] == "unavailable_dependency"
-    err = (env.get("payload") or {}).get("error") or {}
-    assert "ner" in (err.get("stale_parents") or []) or "sentiment" in (
-        err.get("stale_parents") or []
-    )
+        page0 = projects.load().pages[0].page_id
+        projects.save_user_edit(page0, "Completely rewritten page about astronomy and moons.")
+
+        env = runner.run_module("entity_sentiment")
+        assert env["outcome"] == "unavailable_dependency"
+        assert env["capability"] == "unavailable_dependency"
+        err = (env.get("payload") or {}).get("error") or {}
+        assert "ner" in (err.get("stale_parents") or []) or "sentiment" in (
+            err.get("stale_parents") or []
+        )
+    finally:
+        runner_mod.get_registered_modules = original  # type: ignore[assignment]
 
 
 def test_stale_highlights_blocks_summary(tmp_path: Path):
@@ -254,19 +285,25 @@ def test_filter_live_evidence_and_read_model(tmp_path: Path):
     assert live[0]["quote"] == "a"
 
     projects, runner = _project_with_pages(tmp_path, TEXTS)
-    env = runner.run_module("ner")
-    assert env["outcome"] == "success"
-    storage = AnalysisStorage(projects.paths)
-    identity = runner.planned_cache_identity("ner")
-    rm = load_published_read_model(
-        storage, "ner", current_cache_identity=identity
-    )
-    assert rm["status"] == "ok"
-    stale = load_published_read_model(
-        storage, "ner", current_cache_identity="deadbeef"
-    )
-    assert stale["status"] == "stale"
-    assert stale["live_evidence"] == []
+    import transcribe.analysis.runner as runner_mod
+
+    original = _with_injected_ner()
+    try:
+        env = runner.run_module("ner")
+        assert env["outcome"] == "success"
+        storage = AnalysisStorage(projects.paths)
+        identity = runner.planned_cache_identity("ner")
+        rm = load_published_read_model(
+            storage, "ner", current_cache_identity=identity
+        )
+        assert rm["status"] == "ok"
+        stale = load_published_read_model(
+            storage, "ner", current_cache_identity="deadbeef"
+        )
+        assert stale["status"] == "stale"
+        assert stale["live_evidence"] == []
+    finally:
+        runner_mod.get_registered_modules = original  # type: ignore[assignment]
 
 
 def test_page_span_length_must_match_unit_text():
