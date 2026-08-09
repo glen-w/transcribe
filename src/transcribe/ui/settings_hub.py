@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from transcribe.config.apply_ocr import preview_apply_ocr, apply_ocr_patch
-from transcribe.config.defaults import builtin_names_for, is_builtin_profile
+from transcribe.config.defaults import builtin_names_for
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.gui_support import COMMON_SETTINGS_SCHEMA
@@ -20,7 +20,6 @@ from transcribe.config.profiles import (
 )
 from transcribe.config.reset import (
     reset_profile_activation,
-    reset_subtree,
     reset_whole_workspace,
 )
 from transcribe.ports import SystemClock, UuidGenerator

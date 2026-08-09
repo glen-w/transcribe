@@ -32,12 +32,6 @@ def generation_settings() -> dict[str, Any]:
     return llm_generation_options(require_operation_config())
 
 
-# Back-compat name for imports that still reference the dict shape at call sites
-# that already go through generation_settings() — do not use as a runtime authority.
-def _default_generation_settings_for_tests() -> dict[str, float | int]:
-    return {"temperature": 0.0, "num_predict": 1024}
-
-
 def require_llm_ctx(llm_ctx: TextLLMContext | None) -> dict[str, Any] | TextLLMContext:
     if llm_ctx is None:
         return unavailable_model_result()

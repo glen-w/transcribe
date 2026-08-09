@@ -11,7 +11,6 @@ from transcribe.analysis.module_catalog import (
     is_heavy_module,
     list_catalog_modules,
 )
-from transcribe.config.defaults import builtin_names_for
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.models import (
@@ -20,7 +19,6 @@ from transcribe.config.models import (
     deep_merge_dict,
 )
 from transcribe.config.persistence import load_workspace_settings, save_workspace_settings
-from transcribe.config.profiles import load_profile_overlay
 from transcribe.config.reset import reset_subtree
 
 _PRESET_KEYS = ("quick", "balanced", "thorough")
