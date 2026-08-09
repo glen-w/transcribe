@@ -23,6 +23,9 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `lexical_diversity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/utils/lexical_diversity.py` → `transcribe/analysis/modules/_tx_lexical_diversity.py` | `a26acfcd923b32d8b2dc834f06dd6b2dae7064148621bce802e7bc04c0750f3e` | adaptation | 2026-08-09 |
 | `understandability` | n/a (notebook-native pure-Python adaptation; TX uses nltk/textstat) | — | — | adaptation | 2026-08-09 |
 | `wordclouds` | n/a (notebook-native adaptation; TX wordclouds uses spaCy/speaker/viz stack — baseline frequency path only) | — | stopwords digest `59b09014b432830d8fc50e4421fd984602d17fb5b0900f4ddce3e2bbe3fa04e6` (`wordclouds_stopwords_v1`) | adaptation | 2026-08-09 |
+| `ner` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/ner/__init__.py` | `ec0fc4cce47da61023b3c040ce524fe26b762666445ba3a52e2a1f37432ca99a` | adaptation | 2026-08-09 |
+| `sentiment` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/sentiment/__init__.py` | `94070e07c0ac03844a370ab044a47849312b8e2c9c3b145cf8f48a3ab036272c` | adaptation | 2026-08-09 |
+| `epistemic_markers` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/preprocessing/lexicons/epistemic_markers_en.json`; `src/transcriptx/core/analysis/lexicon_markers/__init__.py` | lexicon `eb260297c1880ee04fdf4ed3167ce5c59e91e20ee95b7aed1fe93355a2f31a34`; markers `85879f6d34591c90403b0f25ccadc5581ce76d84c70bd378a41e5e86cfa67a9d` | adaptation | 2026-08-09 |
 
 ## Implementation gate
 

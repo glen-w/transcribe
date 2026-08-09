@@ -24,12 +24,23 @@ def _module_config(module: Any) -> dict[str, Any]:
     fn = getattr(module, "cache_config", None)
     if callable(fn):
         return dict(fn())
-    # Prefer module-level wordclouds_config when present.
     mid = getattr(module, "module_id", "")
     if mid == "wordclouds":
         from transcribe.analysis.modules import wordclouds as wc
 
         return wc.wordclouds_config()
+    if mid == "ner":
+        from transcribe.analysis.modules import ner as ner_mod
+
+        return ner_mod.ner_config()
+    if mid == "sentiment":
+        from transcribe.analysis.modules import sentiment as sent_mod
+
+        return sent_mod.sentiment_config()
+    if mid == "epistemic_markers":
+        from transcribe.analysis.modules import epistemic_markers as epi_mod
+
+        return epi_mod.epistemic_config()
     return {}
 
 
@@ -39,6 +50,18 @@ def _module_lexicon(module: Any) -> Any:
         from transcribe.analysis.modules import wordclouds as wc
 
         return wc.wordclouds_lexicon_or_model()
+    if mid == "ner":
+        from transcribe.analysis.modules import ner as ner_mod
+
+        return ner_mod.ner_lexicon_or_model()
+    if mid == "sentiment":
+        from transcribe.analysis.modules import sentiment as sent_mod
+
+        return sent_mod.sentiment_lexicon_or_model()
+    if mid == "epistemic_markers":
+        from transcribe.analysis.modules import epistemic_markers as epi_mod
+
+        return epi_mod.epistemic_lexicon_or_model()
     return None
 
 
@@ -52,7 +75,10 @@ def _module_enrichment_mode(module: Any) -> str:
 
 
 def _module_provenance(module: Any) -> dict[str, Any]:
+    from transcribe.analysis.modules import epistemic_markers as epi
     from transcribe.analysis.modules import lexical_diversity as ld
+    from transcribe.analysis.modules import ner as ner_mod
+    from transcribe.analysis.modules import sentiment as sent
     from transcribe.analysis.modules import stats as st
     from transcribe.analysis.modules import understandability as un
     from transcribe.analysis.modules import wordclouds as wc
@@ -62,6 +88,9 @@ def _module_provenance(module: Any) -> dict[str, Any]:
         "lexical_diversity": ld.provenance_files,
         "understandability": un.provenance_files,
         "wordclouds": wc.provenance_files,
+        "ner": ner_mod.provenance_files,
+        "sentiment": sent.provenance_files,
+        "epistemic_markers": epi.provenance_files,
     }.get(module.module_id, lambda: [])
     files = files_fn()
     # Prefer explicit TX commit attribute when present; else pin-compatible defaults.
@@ -173,6 +202,7 @@ class AnalysisRunner:
             self.storage.write_attempt(module.module_id, running)
 
         # Unlocked compute
+        evidence = None
         try:
             result = module.run(document)
             outcome = result["outcome"]
@@ -180,6 +210,7 @@ class AnalysisRunner:
             warnings = result.get("warnings") or []
             partial = bool(result.get("partial"))
             capability_reason = result.get("capability_reason")
+            evidence = result.get("evidence")
             attempt_state = "failed" if outcome == "failed" else "succeeded"
         except Exception as exc:  # noqa: BLE001 — isolate module failures
             outcome = "failed"
@@ -207,6 +238,7 @@ class AnalysisRunner:
             attempt_id=attempt_id,
             published=False,
             lexicon_or_model=_module_lexicon(module),
+            evidence=evidence,
         )
         with mutation_lock(self.paths.mutation_lock):
             self.storage.write_attempt(module.module_id, terminal)

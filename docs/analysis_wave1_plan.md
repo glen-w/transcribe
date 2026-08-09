@@ -211,6 +211,24 @@ Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice st
 | **Also ship** | Registry extension beyond `get_wave11_modules`; resolve-parents-before-identity (baseline → empty); Overview token-weight chart/table (PNG optional presentation only); pin row + provenance match |
 | **Exit** | §10 + baseline ignore-matrix + 1.1 three-module non-regression + reopen/corrupt Overview bars |
 
+### Wave 1.3 — Language foundations (start of 1b)
+
+| | |
+|--|--|
+| **Modules** | `ner`, `sentiment`, `epistemic_markers` (ungated; no hard parents) |
+| **Depends on** | 1.2 exit; `page_v1` chronology via unit `order` / optional `date` |
+| **Payloads** | `ner_payload_v1`, `sentiment_payload_v1`, `epistemic_markers_payload_v1` |
+| **Also ship** | NER → envelope `evidence[]`; spaCy optional → `unavailable_extra`; Overview entity + sentiment + hedging strips; pin rows; ungated regression |
+| **Out** | `entity_sentiment`, `keyphrases` → **1.4**; `paragraph_v1`; Themes / full People & places |
+| **Exit** | §10 + evidence/stale + 1.1/1.2 non-regression + no eligibility/hard-parent runtime path |
+
+### Wave 1.4 — Language dependents (remainder of 1b)
+
+| | |
+|--|--|
+| **Modules** | `entity_sentiment` (hard parents `ner`+`sentiment`), `keyphrases` (`notebook_eligibility_v1`) |
+| **Depends on** | 1.3 exit; hard-parent resolver before identity |
+
 ### Wave 1a — Foundations (thematic; delivered as 1.1 + 1.2)
 
 Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slices above for delivery tracking.
@@ -270,7 +288,8 @@ Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slice
 ```text
 1.1 infra + stats/lex/readability
  → 1.2 wordclouds
- → 1b ner/sentiment/keyphrases/epistemic
+ → 1.3 ner/sentiment/epistemic_markers
+ → 1.4 entity_sentiment/keyphrases
  → 1c topics/similarity/shift
  → 1d emotion family + affect_tension + moments
  → 1e highlights/summary/insights + LLM suite

@@ -287,12 +287,13 @@ def _render_workflow(runtime, root: str) -> None:
         st.subheader("Overview")
         st.caption(
             "Read-model of validated published analysis results "
-            "(stats, lexical diversity, understandability, wordclouds)."
+            "(stats, lexical diversity, understandability, wordclouds, "
+            "ner, sentiment, epistemic markers)."
         )
         runner = AnalysisRunner(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-        if st.button("Run analysis (Wave 1.1 + 1.2)"):
+        if st.button("Run analysis (through Wave 1.3)"):
             with st.spinner("Running analysis modules…"):
                 results = runner.run_batch()
             for mid, env in results.items():
@@ -311,10 +312,25 @@ def _render_workflow(runtime, root: str) -> None:
                 config: dict = {}
                 lexicon = None
                 enrichment = "none"
+                cache_fn = getattr(module, "cache_config", None)
+                if callable(cache_fn):
+                    config = dict(cache_fn())
                 if mid == "wordclouds":
                     config = wordclouds_mod.wordclouds_config()
                     lexicon = wordclouds_mod.wordclouds_lexicon_or_model()
                     enrichment = wordclouds_mod.ENRICHMENT_MODE
+                elif mid == "ner":
+                    from transcribe.analysis.modules import ner as ner_mod
+
+                    lexicon = ner_mod.ner_lexicon_or_model()
+                elif mid == "sentiment":
+                    from transcribe.analysis.modules import sentiment as sent_mod
+
+                    lexicon = sent_mod.sentiment_lexicon_or_model()
+                elif mid == "epistemic_markers":
+                    from transcribe.analysis.modules import epistemic_markers as epi_mod
+
+                    lexicon = epi_mod.epistemic_lexicon_or_model()
                 parents = resolve_optional_parents(
                     mid, enrichment_mode=enrichment, storage=storage
                 )
@@ -353,15 +369,16 @@ def _render_workflow(runtime, root: str) -> None:
                     st.error(f"**{mid}:** failed")
                 elif outcome == "insufficient_data":
                     st.info(f"**{mid}:** insufficient_data")
+                elif cap in {"unavailable_extra", "unavailable_model"}:
+                    st.warning(f"**{mid}:** {cap}")
                 elif cap == "partial":
                     st.success(f"**{mid}:** success (partial)")
                 else:
-                    st.success(f"**{mid}:** success")
+                    st.success(f"**{mid}:** success ({cap})")
                 payload = env.get("payload") or {}
                 if mid == "wordclouds" and outcome == "success":
                     tokens = payload.get("tokens") or []
                     if isinstance(tokens, list) and tokens:
-                        # Guaranteed render path: ranked bar chart (no optional PNG dep).
                         chart_rows = {
                             "token": [t.get("token", "") for t in tokens[:40]],
                             "weight": [float(t.get("weight") or 0) for t in tokens[:40]],
@@ -370,6 +387,57 @@ def _render_workflow(runtime, root: str) -> None:
                     else:
                         st.warning(
                             f"**{mid}:** published success but token list missing/empty"
+                        )
+                if mid == "ner" and outcome == "success":
+                    counts = payload.get("entity_counts") or {}
+                    if counts:
+                        items = list(counts.items())[:20]
+                        st.bar_chart(
+                            {
+                                "entity": [k for k, _ in items],
+                                "count": [int(v) for _, v in items],
+                            },
+                            x="entity",
+                            y="count",
+                        )
+                    else:
+                        st.caption("No named entities found.")
+                if mid == "sentiment" and outcome == "success":
+                    units = payload.get("units") or []
+                    if units:
+                        st.line_chart(
+                            {
+                                "order": [u.get("order") for u in units],
+                                "compound": [float(u.get("compound") or 0) for u in units],
+                            },
+                            x="order",
+                            y="compound",
+                        )
+                if mid == "epistemic_markers" and outcome == "success":
+                    g = payload.get("global_stats") or {}
+                    st.caption(
+                        f"hedge_share={g.get('hedge_share')} "
+                        f"booster_share={g.get('booster_share')} "
+                        f"hits={g.get('total_marker_hits')}"
+                    )
+                evidence = env.get("evidence") or []
+                if evidence and mid in {"ner", "epistemic_markers"}:
+                    from transcribe.analysis.document import content_fingerprint as cfp
+
+                    cur_fp = current_identity.get(mid) and None
+                    try:
+                        cur_fp = cfp(build_page_v1_document(project, projects))
+                    except Exception:  # noqa: BLE001
+                        cur_fp = env.get("content_fingerprint")
+                    live = [
+                        e
+                        for e in evidence
+                        if cur_fp is None or e.get("content_fingerprint") == cur_fp
+                    ]
+                    stale_n = len(evidence) - len(live)
+                    if stale_n:
+                        st.warning(
+                            f"**{mid}:** {stale_n} stale evidence citation(s) hidden"
                         )
                 with st.expander(f"{mid} payload"):
                     st.json(payload)

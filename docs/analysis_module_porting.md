@@ -75,11 +75,11 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 | `lexical_diversity` | Language & Meaning | Port early | 1.1 | Diversity metrics over notebook vocabulary |
 | `understandability` | Language & Meaning | Port early | 1.1 | Readability / complexity of transcribed text |
 | `wordclouds` | Visualisations | Port early | 1.2 | Baseline token cloud from `AnalysisDocument.text` (`enrichment_mode: baseline`); keyphrase enrichment deferred to deliberate later mode/`module_version` transition |
-| `ner` | Language & Meaning | Port early | 1b | Entities across pages; evidence via `source_ref` |
-| `sentiment` | Language & Meaning | Port early | 1b | Unit-level polarity; chronology via order/date |
-| `entity_sentiment` | Language & Meaning | Port early | 1b | Needs `ner` + `sentiment` |
-| `keyphrases` | Language & Meaning | Port early | 1b | Use [`notebook_eligibility_v1`](contracts/notebook-eligibility.md); do not pull TX `insight_eligibility` |
-| `epistemic_markers` | Language & Meaning | Port early | 1b | Hedging / certainty markers in handwritten prose |
+| `ner` | Language & Meaning | Port early | 1.3 | Entities across pages; evidence via `source_ref`; spaCy optional |
+| `sentiment` | Language & Meaning | Port early | 1.3 | Unit-level polarity; chronology via order/date |
+| `epistemic_markers` | Language & Meaning | Port early | 1.3 | Hedging / certainty markers in handwritten prose |
+| `entity_sentiment` | Language & Meaning | Port early | 1.4 | Needs `ner` + `sentiment` |
+| `keyphrases` | Language & Meaning | Port early | 1.4 | Use [`notebook_eligibility_v1`](contracts/notebook-eligibility.md); do not pull TX `insight_eligibility` |
 | `topic_modeling` | Language & Meaning | Port early | 1c | Topics over page corpus; [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
 | `bertopic` | Language & Meaning | Port early | 1c | Optional BERTopic extra |
 | `semantic_similarity` | Language & Meaning | Port early | 1c | Across pages; no multi-speaker gate |

@@ -207,6 +207,19 @@ Compatibility is judged on **analytical payload semantics**; rendered pixels / P
 | `ner`, `sentiment`, `emotion`, `epistemic_markers` | empty document | possibly empty labels | |
 | `entity_sentiment`, `affect_tension` | parents / empty join | per parents | hard parents |
 | `keyphrases`, `topic_modeling`, `bertopic`, `highlights`, `insights` | eligibility / algorithm mins | | |
+
+### Language foundations payloads (Wave 1.3)
+
+| Module | Payload id | Notes |
+|--------|------------|-------|
+| `ner` | `ner_payload_v1` | `entities[]` + `entity_counts` / `label_counts` / per-unit rows; zero entities → `success` + empty lists; missing spaCy → `skipped_not_applicable` + capability `unavailable_extra` |
+| `sentiment` | `sentiment_payload_v1` | Per-unit `compound`/`pos`/`neu`/`neg` + `label` ordered by `order` (optional `date`); `global_stats` means + distribution; no speaker keys |
+| `epistemic_markers` | `epistemic_markers_payload_v1` | Lexicon `epistemic_markers_en` + `lexicon_markers_v1` matching; `global_stats` / per-unit rates; optional evidence spans for hits |
+
+Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do not invent wall-clock timestamps. Wave 1.3 modules are **ungated** relative to `notebook_eligibility_v1`.
+
+| Module | `insufficient_data` when | `success` when | Notes |
+|--------|--------------------------|----------------|-------|
 | `semantic_similarity`, `topic_shift` | `< 2` units | ≥2 units | |
 | `moments` | empty document | ranked list (maybe length 1) | |
 | LLM suite | empty / unavailable model | abstain rules | see LLM section |

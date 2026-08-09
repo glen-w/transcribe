@@ -29,7 +29,9 @@ Direct ports of language, topic, emotion, and synthesis modules. Delivered in su
 |----------|---------|---------|
 | **1.1** Infra + first metrics | `stats`, `lexical_diversity`, `understandability` (+ adapter, `analysis/` storage, pins, Overview read-model) | Overview (counts / diversity / readability) |
 | **1.2** Wordclouds | `wordclouds` | Wordcloud viz |
-| **1b** Language | `ner`, `sentiment`, `entity_sentiment`, `keyphrases`, `epistemic_markers` | People & places; Overview entities; hedging |
+| **1.3** Language foundations | `ner`, `sentiment`, `epistemic_markers` | Overview entities; sentiment chronology; Mood hedging |
+| **1.4** Language dependents | `entity_sentiment`, `keyphrases` | People & places; Themes keyphrases; hard-parent + eligibility |
+| **1b** Language (thematic) | 1.3 + 1.4 | People & places; Overview entities; hedging |
 | **1c** Topics & similarity | `topic_modeling`, `bertopic` (optional), `semantic_similarity`, `topic_shift` | Themes; chronology shifts; Patterns (partial) |
 | **1d** Emotion & salience | `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `moments` | Mood & tone; Moments |
 | **1e** Synthesis & LLM | `highlights`, `summary`, `insights`, `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` | Summaries; Ask notebook |
@@ -44,11 +46,11 @@ TX hard deps out of Wave 1: `insight_eligibility` → sole policy [`notebook_eli
 | `lexical_diversity` | 1.1 | Vocabulary diversity |
 | `understandability` | 1.1 | Readability / complexity |
 | `wordclouds` | 1.2 | Baseline token cloud from `AnalysisDocument.text`; keyphrase enrichment deferred |
-| `ner` | 1b | Entities with `source_ref` evidence |
-| `sentiment` | 1b | Polarity vs page order/date |
-| `entity_sentiment` | 1b | Needs ner + sentiment |
-| `keyphrases` | 1b | [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
-| `epistemic_markers` | 1b | Hedging / certainty |
+| `ner` | 1.3 | Entities with `source_ref` evidence; spaCy optional |
+| `sentiment` | 1.3 | Polarity vs page order/date |
+| `epistemic_markers` | 1.3 | Hedging / certainty |
+| `entity_sentiment` | 1.4 | Needs ner + sentiment |
+| `keyphrases` | 1.4 | [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
 | `topic_modeling` | 1c | Topics over page corpus |
 | `bertopic` | 1c | Optional extra |
 | `semantic_similarity` | 1c | No multi-speaker gate |
