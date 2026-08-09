@@ -35,6 +35,9 @@ Direct ports of language, topic, emotion, and synthesis modules. Delivered in su
 | **1c** Topics & similarity | `topic_modeling`, `bertopic` (optional), `semantic_similarity`, `topic_shift` | Themes; chronology shifts; Patterns (partial) |
 | **1d** Emotion & salience | `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `moments` | Mood & tone; Moments |
 | **1e** Synthesis & LLM | `highlights`, `summary`, `insights`, `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` | Summaries; Ask notebook |
+| **1e.0** LLM prerequisites | `paragraph_v1` adapter; `notebook_chunks_units_v1`; text Ollama client; `unavailable_model` wiring | Unlocks 1e.1/1e.2 |
+| **1e.1** Deterministic synthesis | `highlights`, `summary`, `insights` (+ 1.4/1c parents) | Summaries offline |
+| **1e.2** LLM suite | `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` | Ask notebook; honesty labels |
 
 LLM modules stay in Wave 1 but are **optional at runtime** (local Ollama); deterministic `highlights` → `summary` → `insights` must work offline. `llm_custom_qa` requires grounded unit evidence.
 

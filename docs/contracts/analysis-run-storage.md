@@ -127,6 +127,13 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 | `resolved_model_digest` | yes when model resolved; else null (preflight → unavailable_model) |
 | `input_fingerprint` | yes (document content fingerprint or explicit reduction fingerprint) |
 
+**Frozen Wave 1e policy ids** (must match [analysis-result.md](analysis-result.md)):
+
+| Field | Allowed Wave 1e values |
+|-------|------------------------|
+| `chunking_policy_id` | `notebook_chunks_units_v1` |
+| `grounding_strategy_id` | `ground_doc_chunks_v1` \| `ground_highlights_summary_v1` |
+
 ## Dependency compatibility (sole normative hard DAG)
 
 PRODUCT docs may list human-readable relationships including soft enrichments. **This contract owns hard-parent compatibility.** Consumers must not silently reuse stale or differently configured parents.

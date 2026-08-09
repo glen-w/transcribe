@@ -86,7 +86,8 @@ def test_registry_wave_slices():
     w13 = get_wave13_modules()
     assert {"ner", "sentiment", "epistemic_markers"}.issubset(set(w13))
     assert set(w12).issubset(set(w13))
-    assert set(get_registered_modules()) == set(w13)
+    assert set(get_registered_modules()) >= set(w13)
+    assert set(w13).issubset(set(get_registered_modules()))
 
 
 def test_sentiment_golden_and_order():

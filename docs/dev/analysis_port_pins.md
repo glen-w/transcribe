@@ -26,6 +26,16 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `ner` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/ner/__init__.py` | `ec0fc4cce47da61023b3c040ce524fe26b762666445ba3a52e2a1f37432ca99a` | adaptation | 2026-08-09 |
 | `sentiment` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/sentiment/__init__.py` | `94070e07c0ac03844a370ab044a47849312b8e2c9c3b145cf8f48a3ab036272c` | adaptation | 2026-08-09 |
 | `epistemic_markers` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/preprocessing/lexicons/epistemic_markers_en.json`; `src/transcriptx/core/analysis/lexicon_markers/__init__.py` | lexicon `eb260297c1880ee04fdf4ed3167ce5c59e91e20ee95b7aed1fe93355a2f31a34`; markers `85879f6d34591c90403b0f25ccadc5581ce76d84c70bd378a41e5e86cfa67a9d` | adaptation | 2026-08-09 |
+| `keyphrases` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/keyphrases/` (scoring idea) | n/a notebook TF-IDF adaptation | adaptation | 2026-08-09 |
+| `entity_sentiment` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/entity_sentiment/` | n/a join adaptation | adaptation | 2026-08-09 |
+| `topic_modeling` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/topic_modeling/` | n/a seed-bucket adaptation (no sklearn) | adaptation | 2026-08-09 |
+| `highlights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/highlights/` | n/a notebook salience adaptation | adaptation | 2026-08-09 |
+| `summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/summary/` | n/a from-highlights adaptation | adaptation | 2026-08-09 |
+| `insights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/insights/` | n/a; eligibility via `notebook_eligibility_v1` | adaptation | 2026-08-09 |
+| `llm_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_summary.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
+| `llm_action_items` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_action_items.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
+| `llm_custom_qa` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_custom_qa/` | n/a grounded QA adaptation | adaptation | 2026-08-09 |
+| `narrative_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/narrative_summary.py` | n/a; deterministic fallback when LLM offline | adaptation | 2026-08-09 |
 
 ## Implementation gate
 

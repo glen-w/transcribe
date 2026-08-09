@@ -95,8 +95,8 @@ def _render_workflow(runtime, root: str) -> None:
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
 
-    tab_import, tab_run, tab_pages, tab_export, tab_overview = st.tabs(
-        ["Import", "Run", "Pages", "Export", "Overview"]
+    tab_import, tab_run, tab_pages, tab_export, tab_overview, tab_summaries, tab_ask = st.tabs(
+        ["Import", "Run", "Pages", "Export", "Overview", "Summaries", "Ask notebook"]
     )
 
     with tab_import:
@@ -277,7 +277,7 @@ def _render_workflow(runtime, root: str) -> None:
             cache_identity_hex,
         )
         from transcribe.analysis.document import AnalysisDocumentError
-        from transcribe.analysis.modules import get_registered_modules
+        from transcribe.analysis.modules import get_wave13_modules
         from transcribe.analysis.modules import wordclouds as wordclouds_mod
         from transcribe.analysis.parents import resolve_optional_parents
         from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
@@ -295,7 +295,9 @@ def _render_workflow(runtime, root: str) -> None:
         )
         if st.button("Run analysis (through Wave 1.3)"):
             with st.spinner("Running analysis modules…"):
-                results = runner.run_batch()
+                from transcribe.analysis.modules import get_wave13_modules
+
+                results = runner.run_batch(list(get_wave13_modules().keys()))
             for mid, env in results.items():
                 st.write(
                     f"**{mid}:** outcome=`{env.get('outcome')}` "
@@ -304,7 +306,9 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         storage = AnalysisStorage(paths)
-        modules = get_registered_modules()
+        from transcribe.analysis.modules import get_wave13_modules
+
+        modules = get_wave13_modules()
         current_identity: dict[str, str | None] = {}
         try:
             doc = build_page_v1_document(project, projects)
@@ -442,6 +446,128 @@ def _render_workflow(runtime, root: str) -> None:
                     st.json(payload)
             else:
                 st.warning(f"**{mid}:** unavailable")
+
+    with tab_summaries:
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+
+        st.subheader("Summaries")
+        st.caption(
+            "Deterministic highlights → summary → insights, plus optional LLM "
+            "outputs (honesty-labeled). Works offline when Ollama is down."
+        )
+        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+        storage = AnalysisStorage(paths)
+        synth_ids = [
+            "topic_modeling",
+            "highlights",
+            "summary",
+            "insights",
+            "llm_summary",
+            "llm_action_items",
+            "narrative_summary",
+        ]
+        if st.button("Run synthesis & LLM suite"):
+            ordered = [
+                "ner",
+                "sentiment",
+                "keyphrases",
+                "topic_modeling",
+                "highlights",
+                "summary",
+                "insights",
+                "llm_summary",
+                "llm_action_items",
+                "narrative_summary",
+            ]
+            with st.spinner("Running synthesis modules…"):
+                results = runner.run_batch(ordered)
+            for mid in synth_ids:
+                env = results.get(mid) or {}
+                label = ""
+                payload = env.get("payload") or {}
+                if payload.get("honesty_label"):
+                    label = f" honesty=`{payload['honesty_label']}`"
+                st.write(
+                    f"**{mid}:** outcome=`{env.get('outcome')}` "
+                    f"capability=`{env.get('capability')}`{label}"
+                )
+            st.rerun()
+
+        for mid in synth_ids:
+            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            env = rm.get("envelope")
+            if not env:
+                st.info(f"**{mid}:** unavailable — run synthesis first")
+                continue
+            cap = env.get("capability")
+            payload = env.get("payload") or {}
+            honesty = payload.get("honesty_label")
+            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
+            if honesty:
+                banner += f" — _{honesty}_"
+            if cap == "unavailable_model":
+                st.warning(banner + " (LLM offline)")
+            else:
+                st.markdown(banner)
+            with st.expander(f"{mid} payload"):
+                st.json(payload)
+
+    with tab_ask:
+        from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
+        from transcribe.analysis.runner import AnalysisRunner
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+        import transcribe.analysis.runner as runner_mod
+
+        st.subheader("Ask notebook")
+        st.caption(
+            "Grounded QA with unit evidence. Unsupported answers abstain — "
+            "no fabricated citations."
+        )
+        question = st.text_input("Question", key="ask_notebook_question")
+        if st.button("Ask", disabled=not (question or "").strip()):
+            runner = AnalysisRunner(
+                projects, clock=SystemClock(), ids=UuidGenerator()
+            )
+            original = runner_mod.get_registered_modules
+
+            def patched(*, wave: str | None = None):
+                mods = original(wave=wave)
+                mods["llm_custom_qa"] = LLMCustomQAModule(
+                    question_text=question.strip()
+                )
+                return mods
+
+            runner_mod.get_registered_modules = patched  # type: ignore[assignment]
+            try:
+                with st.spinner("Asking notebook…"):
+                    env = runner.run_module("llm_custom_qa")
+            finally:
+                runner_mod.get_registered_modules = original  # type: ignore[assignment]
+            st.write(
+                f"outcome=`{env.get('outcome')}` capability=`{env.get('capability')}`"
+            )
+            payload = env.get("payload") or {}
+            if payload.get("honesty_label"):
+                st.caption(f"Honesty: {payload['honesty_label']}")
+            if payload.get("answer"):
+                st.markdown(payload["answer"])
+            if env.get("evidence"):
+                st.json(env["evidence"])
+            for w in env.get("warnings") or []:
+                st.warning(w.get("message") or w.get("code"))
+            with st.expander("Raw payload"):
+                st.json(payload)
+
+        storage = AnalysisStorage(paths)
+        published = storage.read_published("llm_custom_qa")
+        if published:
+            st.divider()
+            st.caption("Last published Ask notebook result")
+            st.json(published.get("payload") or {})
+
 
 def main() -> None:
     st.set_page_config(page_title="Transcribe", layout="wide")

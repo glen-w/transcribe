@@ -4,20 +4,52 @@ from __future__ import annotations
 
 from typing import Any
 
-from transcribe.analysis.adapter import build_page_v1_document
+from transcribe.analysis.adapter import build_page_v1_document, build_paragraph_v1_document
 from transcribe.analysis.cache_identity import (
     build_cache_identity_object,
     cache_identity_hex,
     config_fingerprint,
 )
-from transcribe.analysis.document import AnalysisDocumentError
+from transcribe.analysis.chunking import (
+    CHUNKING_UNITS_V1,
+    GROUND_DOC_CHUNKS_V1,
+    GROUND_HIGHLIGHTS_SUMMARY_V1,
+    chunks_fingerprint,
+    pack_units_v1,
+)
+from transcribe.analysis.document import (
+    AnalysisDocument,
+    AnalysisDocumentError,
+    concatenate_document_text,
+    validate_analysis_document,
+)
+from transcribe.analysis.eligibility import (
+    POLICY_ID,
+    POLICY_VERSION,
+    eligibility_fingerprint,
+    evaluate_notebook_eligibility_v1,
+)
 from transcribe.analysis.envelope import build_envelope
 from transcribe.analysis.modules import get_registered_modules
-from transcribe.analysis.parents import resolve_optional_parents
+from transcribe.analysis.modules._llm_common import GENERATION_SETTINGS, PROMPT_VERSION
+from transcribe.analysis.parents import (
+    batch_module_order,
+    parent_payloads,
+    resolve_hard_parents,
+    resolve_optional_parents,
+)
 from transcribe.analysis.storage import AnalysisStorage
 from transcribe.persistence.locks import mutation_lock
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
+
+ELIGIBILITY_REQUIRED = frozenset(
+    {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
+)
+PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa"})
+LLM_MODULES = frozenset(
+    {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
+)
 
 
 def _module_config(module: Any) -> dict[str, Any]:
@@ -29,40 +61,22 @@ def _module_config(module: Any) -> dict[str, Any]:
         from transcribe.analysis.modules import wordclouds as wc
 
         return wc.wordclouds_config()
-    if mid == "ner":
-        from transcribe.analysis.modules import ner as ner_mod
-
-        return ner_mod.ner_config()
-    if mid == "sentiment":
-        from transcribe.analysis.modules import sentiment as sent_mod
-
-        return sent_mod.sentiment_config()
-    if mid == "epistemic_markers":
-        from transcribe.analysis.modules import epistemic_markers as epi_mod
-
-        return epi_mod.epistemic_config()
     return {}
 
 
 def _module_lexicon(module: Any) -> Any:
     mid = getattr(module, "module_id", "")
-    if mid == "wordclouds":
-        from transcribe.analysis.modules import wordclouds as wc
-
-        return wc.wordclouds_lexicon_or_model()
-    if mid == "ner":
-        from transcribe.analysis.modules import ner as ner_mod
-
-        return ner_mod.ner_lexicon_or_model()
-    if mid == "sentiment":
-        from transcribe.analysis.modules import sentiment as sent_mod
-
-        return sent_mod.sentiment_lexicon_or_model()
-    if mid == "epistemic_markers":
-        from transcribe.analysis.modules import epistemic_markers as epi_mod
-
-        return epi_mod.epistemic_lexicon_or_model()
-    return None
+    loaders = {
+        "wordclouds": "wordclouds_lexicon_or_model",
+        "ner": "ner_lexicon_or_model",
+        "sentiment": "sentiment_lexicon_or_model",
+        "epistemic_markers": "epistemic_lexicon_or_model",
+    }
+    attr = loaders.get(mid)
+    if not attr:
+        return None
+    mod = __import__(f"transcribe.analysis.modules.{mid}", fromlist=[attr])
+    return getattr(mod, attr)()
 
 
 def _module_enrichment_mode(module: Any) -> str:
@@ -75,25 +89,13 @@ def _module_enrichment_mode(module: Any) -> str:
 
 
 def _module_provenance(module: Any) -> dict[str, Any]:
-    from transcribe.analysis.modules import epistemic_markers as epi
-    from transcribe.analysis.modules import lexical_diversity as ld
-    from transcribe.analysis.modules import ner as ner_mod
-    from transcribe.analysis.modules import sentiment as sent
-    from transcribe.analysis.modules import stats as st
-    from transcribe.analysis.modules import understandability as un
-    from transcribe.analysis.modules import wordclouds as wc
-
-    files_fn = {
-        "stats": st.provenance_files,
-        "lexical_diversity": ld.provenance_files,
-        "understandability": un.provenance_files,
-        "wordclouds": wc.provenance_files,
-        "ner": ner_mod.provenance_files,
-        "sentiment": sent.provenance_files,
-        "epistemic_markers": epi.provenance_files,
-    }.get(module.module_id, lambda: [])
-    files = files_fn()
-    # Prefer explicit TX commit attribute when present; else pin-compatible defaults.
+    mid = module.module_id
+    try:
+        mod = __import__(f"transcribe.analysis.modules.{mid}", fromlist=["provenance_files"])
+        files_fn = getattr(mod, "provenance_files", lambda: [])
+        files = files_fn()
+    except Exception:  # noqa: BLE001
+        files = []
     commit = getattr(module, "ported_from_commit", None)
     if commit is None:
         commit = "50a0ede8e7acd03bbd9125a5a5237049f3291304" if files else "n/a"
@@ -109,7 +111,94 @@ def _module_provenance(module: Any) -> dict[str, Any]:
     }
 
 
-def _identity_kwargs(module: Any, *, project_id: str, document: Any, parents: list) -> dict[str, Any]:
+def _build_document(project: Any, project_service: ProjectService, module_id: str) -> AnalysisDocument:
+    if module_id in PARAGRAPH_PREFERRED:
+        try:
+            return build_paragraph_v1_document(project, project_service)
+        except AnalysisDocumentError:
+            # Fall back to page units if paragraph split yields nothing useful.
+            return build_page_v1_document(project, project_service)
+    return build_page_v1_document(project, project_service)
+
+
+def _apply_eligibility(
+    document: AnalysisDocument,
+) -> tuple[AnalysisDocument | None, dict[str, Any] | None, dict[str, Any]]:
+    """Return (filtered_doc_or_None, skip_result, eligibility_meta)."""
+    elig = evaluate_notebook_eligibility_v1(document.units)
+    meta = {
+        "eligibility_policy_id": POLICY_ID,
+        "eligibility_policy_version": POLICY_VERSION,
+        "eligibility_fingerprint": eligibility_fingerprint(elig),
+        "eligibility": elig,
+    }
+    eligible_ids = set(elig["eligible_unit_ids"])
+    if not eligible_ids:
+        return (
+            None,
+            {
+                "outcome": "skipped_not_applicable",
+                "payload": {},
+                "warnings": [
+                    {
+                        "code": "no_eligible_units",
+                        "message": "notebook_eligibility_v1 produced empty set",
+                    }
+                ],
+            },
+            meta,
+        )
+    units = [u for u in document.units if u.unit_id in eligible_ids]
+    filtered = AnalysisDocument(
+        document_id=document.document_id,
+        text=concatenate_document_text(units),
+        units=units,
+        granularity_version=document.granularity_version,
+        split_profile=document.split_profile,
+    )
+    return validate_analysis_document(filtered), None, meta
+
+
+def _llm_fields(module: Any, document: AnalysisDocument) -> dict[str, Any]:
+    if module.module_id not in LLM_MODULES:
+        return {"llm": None, "resolved_model_digest": None}
+    from transcribe.analysis.llm_runtime import get_text_llm_client
+
+    client = get_text_llm_client()
+    model = client.resolve_model() if client.healthcheck() else None
+    digest = client.model_digest(model) if model else None
+    question = getattr(module, "question_text", None) or None
+    grounding = (
+        GROUND_HIGHLIGHTS_SUMMARY_V1
+        if module.module_id == "narrative_summary"
+        else GROUND_DOC_CHUNKS_V1
+    )
+    chunks = pack_units_v1(document)
+    return {
+        "resolved_model_digest": digest,
+        "llm": {
+            "prompt_or_template_version": PROMPT_VERSION,
+            "generation_settings": dict(GENERATION_SETTINGS),
+            "grounding_strategy_id": grounding,
+            "chunking_policy_id": CHUNKING_UNITS_V1,
+            "question_text": question if module.module_id == "llm_custom_qa" else None,
+            "resolved_model_digest": digest,
+            "input_fingerprint": chunks_fingerprint(chunks),
+            "model_name": model,
+        },
+    }
+
+
+def _identity_kwargs(
+    module: Any,
+    *,
+    project_id: str,
+    document: AnalysisDocument,
+    parents: list,
+    eligibility_meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    elig = eligibility_meta or {}
+    llm_bits = _llm_fields(module, document)
     return {
         "project_id": project_id,
         "module_id": module.module_id,
@@ -118,6 +207,11 @@ def _identity_kwargs(module: Any, *, project_id: str, document: Any, parents: li
         "config": _module_config(module),
         "parents": parents,
         "lexicon_or_model": _module_lexicon(module),
+        "eligibility_policy_id": elig.get("eligibility_policy_id"),
+        "eligibility_policy_version": elig.get("eligibility_policy_version"),
+        "eligibility_fingerprint": elig.get("eligibility_fingerprint"),
+        "resolved_model_digest": llm_bits.get("resolved_model_digest"),
+        "llm": llm_bits.get("llm"),
     }
 
 
@@ -148,7 +242,7 @@ class AnalysisRunner:
         self.reconcile()
 
         try:
-            document = build_page_v1_document(project, self.project_service)
+            document = _build_document(project, self.project_service, module.module_id)
         except AnalysisDocumentError as exc:
             return self._publish_preflight_insufficient(
                 project_id=project.id,
@@ -157,19 +251,57 @@ class AnalysisRunner:
                 message=str(exc),
             )
 
-        parents = resolve_optional_parents(
+        eligibility_meta: dict[str, Any] | None = None
+        if module.module_id in ELIGIBILITY_REQUIRED:
+            filtered, skip, eligibility_meta = _apply_eligibility(document)
+            if skip is not None:
+                return self._publish_terminal_from_result(
+                    project_id=project.id,
+                    module=module,
+                    document=document,
+                    parents=[],
+                    result=skip,
+                    eligibility_meta=eligibility_meta,
+                )
+            assert filtered is not None
+            document = filtered
+
+        ok, hard_parents, hard_fail = resolve_hard_parents(
+            module.module_id, storage=self.storage
+        )
+        if not ok and hard_fail is not None:
+            return self._publish_terminal_from_result(
+                project_id=project.id,
+                module=module,
+                document=document,
+                parents=[],
+                result=hard_fail,
+                eligibility_meta=eligibility_meta,
+            )
+
+        optional = resolve_optional_parents(
             module.module_id,
             enrichment_mode=_module_enrichment_mode(module),
             storage=self.storage,
         )
+        # Prefer hard parents; merge optional not already present.
+        seen = {p["module_id"] for p in hard_parents}
+        parents = list(hard_parents) + [p for p in optional if p["module_id"] not in seen]
+
         planned_identity_obj = build_cache_identity_object(
             **_identity_kwargs(
-                module, project_id=project.id, document=document, parents=parents
+                module,
+                project_id=project.id,
+                document=document,
+                parents=parents,
+                eligibility_meta=eligibility_meta,
             )
         )
         planned_identity = cache_identity_hex(planned_identity_obj)
         content_fp = planned_identity_obj["content_fingerprint"]
         cfg_fp = planned_identity_obj["config_fingerprint"]
+        llm_obj = planned_identity_obj.get("llm")
+        resolved_digest = planned_identity_obj.get("resolved_model_digest")
 
         cached = self.storage.validate_cache_hit(
             module_id=module.module_id,
@@ -187,7 +319,6 @@ class AnalysisRunner:
             cache_identity=planned_identity,
             content_fingerprint=content_fp,
             attempt_state="running",
-            # Placeholder outcome until terminal write; never published while running.
             outcome="insufficient_data",
             payload={},
             provenance=_module_provenance(module),
@@ -196,15 +327,20 @@ class AnalysisRunner:
             attempt_id=attempt_id,
             published=False,
             lexicon_or_model=_module_lexicon(module),
+            resolved_model_digest=resolved_digest,
+            llm=llm_obj,
         )
-        # Short lock: persist running
         with mutation_lock(self.paths.mutation_lock):
             self.storage.write_attempt(module.module_id, running)
 
-        # Unlocked compute
         evidence = None
         try:
-            result = module.run(document)
+            payloads = parent_payloads(self.storage, parents)
+            run_fn = module.run
+            try:
+                result = run_fn(document, parents=payloads)
+            except TypeError:
+                result = run_fn(document)
             outcome = result["outcome"]
             payload = result.get("payload") or {}
             warnings = result.get("warnings") or []
@@ -212,7 +348,7 @@ class AnalysisRunner:
             capability_reason = result.get("capability_reason")
             evidence = result.get("evidence")
             attempt_state = "failed" if outcome == "failed" else "succeeded"
-        except Exception as exc:  # noqa: BLE001 — isolate module failures
+        except Exception as exc:  # noqa: BLE001
             outcome = "failed"
             payload = {"error": {"code": "module_exception", "message": str(exc)}}
             warnings = [{"code": "module_exception", "message": str(exc)}]
@@ -238,19 +374,35 @@ class AnalysisRunner:
             attempt_id=attempt_id,
             published=False,
             lexicon_or_model=_module_lexicon(module),
+            resolved_model_digest=resolved_digest,
+            llm=llm_obj,
             evidence=evidence,
         )
         with mutation_lock(self.paths.mutation_lock):
             self.storage.write_attempt(module.module_id, terminal)
-            # Re-check identity under lock
             project_now = self.project_service._load_unlocked(reconcile=False)
             try:
-                doc_now = build_page_v1_document(project_now, self.project_service)
-                parents_now = resolve_optional_parents(
+                doc_now = _build_document(
+                    project_now, self.project_service, module.module_id
+                )
+                elig_now = eligibility_meta
+                if module.module_id in ELIGIBILITY_REQUIRED:
+                    filtered_now, skip_now, elig_now = _apply_eligibility(doc_now)
+                    if skip_now is None and filtered_now is not None:
+                        doc_now = filtered_now
+                ok_now, hard_now, _ = resolve_hard_parents(
+                    module.module_id, storage=self.storage
+                )
+                parents_now = hard_now if ok_now else []
+                opt_now = resolve_optional_parents(
                     module.module_id,
                     enrichment_mode=_module_enrichment_mode(module),
                     storage=self.storage,
                 )
+                seen = {p["module_id"] for p in parents_now}
+                parents_now = parents_now + [
+                    p for p in opt_now if p["module_id"] not in seen
+                ]
                 identity_now = cache_identity_hex(
                     build_cache_identity_object(
                         **_identity_kwargs(
@@ -258,6 +410,7 @@ class AnalysisRunner:
                             project_id=project_now.id,
                             document=doc_now,
                             parents=parents_now,
+                            eligibility_meta=elig_now,
                         )
                     )
                 )
@@ -272,11 +425,11 @@ class AnalysisRunner:
             if published:
                 out = self.storage.read_published(module.module_id)
                 return out or terminal
-            # reload attempt (may have stale flag)
             return self.storage.read_attempt(module.module_id, attempt_id) or terminal
 
     def run_batch(self, module_ids: list[str] | None = None) -> dict[str, dict[str, Any]]:
         ids = module_ids or list(get_registered_modules().keys())
+        ids = batch_module_order(ids)
         results: dict[str, dict[str, Any]] = {}
         for mid in ids:
             try:
@@ -291,6 +444,58 @@ class AnalysisRunner:
                 }
         return results
 
+    def _publish_terminal_from_result(
+        self,
+        *,
+        project_id: str,
+        module: Any,
+        document: AnalysisDocument,
+        parents: list,
+        result: dict[str, Any],
+        eligibility_meta: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        planned_identity_obj = build_cache_identity_object(
+            **_identity_kwargs(
+                module,
+                project_id=project_id,
+                document=document,
+                parents=parents,
+                eligibility_meta=eligibility_meta,
+            )
+        )
+        planned_identity = cache_identity_hex(planned_identity_obj)
+        attempt_id = self.ids.new_id()
+        envelope = build_envelope(
+            project_id=project_id,
+            module_id=module.module_id,
+            module_version=module.module_version,
+            cache_identity=planned_identity,
+            content_fingerprint=planned_identity_obj["content_fingerprint"],
+            attempt_state="succeeded",
+            outcome=result["outcome"],
+            payload=result.get("payload") or {},
+            provenance=_module_provenance(module),
+            config_fingerprint=planned_identity_obj["config_fingerprint"],
+            warnings=result.get("warnings") or [],
+            partial=bool(result.get("partial")),
+            capability_reason=result.get("capability_reason"),
+            parents=parents,
+            attempt_id=attempt_id,
+            published=False,
+            lexicon_or_model=_module_lexicon(module),
+            resolved_model_digest=planned_identity_obj.get("resolved_model_digest"),
+            llm=planned_identity_obj.get("llm"),
+        )
+        with mutation_lock(self.paths.mutation_lock):
+            self.storage.write_attempt(module.module_id, envelope)
+            self.storage.publish_if_current(
+                module_id=module.module_id,
+                envelope=envelope,
+                expected_cache_identity=planned_identity,
+                current_cache_identity=planned_identity,
+            )
+            return self.storage.read_published(module.module_id) or envelope
+
     def _publish_preflight_insufficient(
         self,
         *,
@@ -300,8 +505,6 @@ class AnalysisRunner:
         message: str,
     ) -> dict[str, Any]:
         attempt_id = self.ids.new_id()
-        # Empty document: use a synthetic identity from project_id + module only is forbidden;
-        # use explicit empty fingerprint marker via config.
         empty_fp = config_fingerprint({"empty": True, "code": code})
         identity_obj = {
             "adapter_version": "1",

@@ -224,7 +224,7 @@ Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do
 | `moments` | empty document | ranked list (maybe length 1) | |
 | LLM suite | empty / unavailable model | abstain rules | see LLM section |
 
-## LLM evidence, cache identity contribution, and refusal (before Wave 1e)
+## LLM evidence, cache identity contribution, and refusal (Wave 1e)
 
 Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary`:
 
@@ -232,5 +232,23 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 - Evidence must resolve to **current** compatible units/spans under the current content fingerprint and split profile
 - Stale evidence after relevant text or splitting changes is **not reusable**
 - Bounded input: deterministic chunking / section aggregation; forbid dumping an unbounded whole-notebook string when it exceeds the configured max context policy (policy id is part of cache identity)
+- **Frozen Wave 1e policy ids:**
+  - `chunking_policy_id`: `notebook_chunks_units_v1` (pack units by `order` up to a char budget)
+  - `grounding_strategy_id`: `ground_doc_chunks_v1` (document chunks) or `ground_highlights_summary_v1` (`narrative_summary`)
 - Cache identity **must** include (via analysis-run-storage `llm` object): resolved model digest, prompt/template version, generation settings, grounding strategy id, question text when applicable, input/dependency identities, chunking policy id
 - Recorded test doubles must exercise the **same** result validation and abstention path as live Ollama (no separate “stub success” shape)
+
+### Synthesis & LLM payloads (Wave 1e)
+
+| Module | Payload id | Notes |
+|--------|------------|-------|
+| `keyphrases` | `keyphrases_payload_v1` | Eligibility required |
+| `entity_sentiment` | `entity_sentiment_payload_v1` | Hard parents `ner`+`sentiment` |
+| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics |
+| `highlights` | `highlights_payload_v1` | Eligibility; prefer `paragraph_v1` |
+| `summary` | `summary_payload_v1` | Hard parent `highlights` |
+| `insights` | `insights_payload_v1` | Hard parents `highlights`+`topic_modeling`; eligibility |
+| `llm_summary` | `llm_summary_payload_v1` | Optional Ollama; `honesty_label` |
+| `llm_action_items` | `llm_action_items_payload_v1` | Optional Ollama |
+| `llm_custom_qa` | `llm_custom_qa_payload_v1` | Grounded `unit_ids`; abstain if ungrounded |
+| `narrative_summary` | `narrative_summary_payload_v1` | Hard parent `summary`; deterministic fallback when LLM offline |

@@ -282,6 +282,7 @@ Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slice
 | **Risk** | LLM flakiness / groundedness; keep deterministic path offline |
 | **TX note** | `highlights` / `insights` use `notebook_eligibility_v1`. LLM modules optional behind capability checks |
 | **LLM delivery rules** | Follow [analysis-result](contracts/analysis-result.md) abstention/evidence/stale rules and [analysis-run-storage](contracts/analysis-run-storage.md) `llm` cache fields; recorded doubles use the same validation path as live Ollama |
+| **Decimals** | **1e.0** `paragraph_v1` + `notebook_chunks_units_v1` + text Ollama; **1e.1** deterministic synthesis (+ 1.4/`topic_modeling` parents); **1e.2** LLM suite |
 
 ### Suggested ship order (summary)
 

@@ -12,9 +12,11 @@ from transcribe.domain.fingerprint import canonical_json_bytes
 from transcribe.persistence.schema import require_format
 
 SPLIT_PAGE = "page"
+SPLIT_PARAGRAPH_V1 = "paragraph_v1"
 GRANULARITY_PAGE_V1 = "page_v1"
+GRANULARITY_PARAGRAPH_V1 = "paragraph_v1"
 CONTENT_FINGERPRINT_VERSION = 1
-SUPPORTED_SPLIT_PROFILES = frozenset({SPLIT_PAGE})
+SUPPORTED_SPLIT_PROFILES = frozenset({SPLIT_PAGE, SPLIT_PARAGRAPH_V1})
 
 _SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
 
