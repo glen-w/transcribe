@@ -1,0 +1,20 @@
+{
+  "name": "Transcribe",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "ollama",
+      "command": "ollama serve",
+      "description": "Local Ollama vision-model server (http://localhost:11434) that powers OCR. gemma3:4b is preloaded by install."
+    },
+    {
+      "name": "transcribe-ui",
+      "command": "cd /workspace && source .venv/bin/activate && transcribe-ui",
+      "description": "Transcribe Streamlit UI on http://localhost:8510 (Notebooks + Workflow: Transcribe/Analyse/Export)."
+    }
+  ],
+  "ports": [
+    { "name": "streamlit-ui", "port": 8510 },
+    { "name": "ollama", "port": 11434 }
+  ]
+}
