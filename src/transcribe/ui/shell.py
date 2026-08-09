@@ -11,7 +11,9 @@ import streamlit as st
 _NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive")
 # Workflow section
 _WORKFLOW_MODES: tuple[str, ...] = ("Transcribe", "Analyse", "Export")
-_MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES)
+# App settings (global prefs, not project OCR settings)
+_SETTINGS_MODES: tuple[str, ...] = ("Settings",)
+_MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES, *_SETTINGS_MODES)
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Notebooks": "View",
@@ -21,7 +23,9 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Run Analysis": "Analyse",
 }
 
-_LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.png"
+_ASSETS = Path(__file__).resolve().parent / "assets"
+_LOGO_PATH = _ASSETS / "logo.png"
+_FAVICON_PATH = _ASSETS / "favicon.png"
 
 
 def logo_path() -> Path | None:
@@ -29,9 +33,16 @@ def logo_path() -> Path | None:
     return _LOGO_PATH if _LOGO_PATH.is_file() else None
 
 
+def favicon_path() -> Path | None:
+    """Icon-only mark for browser tab / page icon."""
+    if _FAVICON_PATH.is_file():
+        return _FAVICON_PATH
+    return logo_path()
+
+
 def configure_streamlit_page() -> None:
     """``st.set_page_config`` must run before other Streamlit commands."""
-    icon: str | Path = logo_path() or "📓"
+    icon: str | Path = favicon_path() or "📓"
     st.set_page_config(
         page_title="Transcribe",
         page_icon=icon,
@@ -75,15 +86,6 @@ def inject_global_styles() -> None:
         font-weight: 700;
         color: #1f77b4;
         letter-spacing: 0.01em;
-    }
-    .tx-sidebar-brand-sub {
-        display: block;
-        margin-top: 0.35rem;
-        margin-bottom: 0.65rem;
-        font-size: 0.72rem;
-        font-weight: 500;
-        color: #8a9ab0;
-        letter-spacing: 0.02em;
     }
     section[data-testid="stSidebar"] [data-testid="stImage"] {
         margin: 0 0 0.15rem 0 !important;
@@ -207,6 +209,106 @@ def inject_global_styles() -> None:
         margin: 0 0 0.75rem 0;
         max-width: 52rem;
     }
+    /* Review modules — compact rows; reveal ✕ on hover / keyboard focus */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"]) {
+        gap: 0.25rem !important;
+        align-items: center !important;
+        margin: 0 !important;
+        padding: 0.05rem 0.2rem;
+        border-radius: 0.35rem;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"]):hover {
+        background: rgba(120, 130, 145, 0.08);
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"])
+        [data-testid="stColumn"] {
+        padding: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"])
+        [data-testid="stMarkdownContainer"] {
+        margin: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"])
+        [data-testid="stMarkdownContainer"] p {
+        margin: 0 !important;
+        line-height: 1.35;
+    }
+    [class*="st-key-"][class*="_review_rm_"] [data-testid="stButton"] {
+        margin: 0 !important;
+    }
+    [class*="st-key-"][class*="_review_rm_"] [data-testid="stButton"] > button,
+    [class*="st-key-"][class*="_review_rm_"] button {
+        min-height: unset !important;
+        height: 1.5rem !important;
+        padding: 0 0.35rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+        color: #c9a0a0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"]):hover
+        [class*="_review_rm_"] button,
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-"][class*="_review_rm_"]):focus-within
+        [class*="_review_rm_"] button,
+    [class*="st-key-"][class*="_review_rm_"] button:focus-visible {
+        opacity: 1;
+    }
+    [class*="st-key-"][class*="_review_rm_"] [data-testid="stButton"] > button:hover,
+    [class*="st-key-"][class*="_review_rm_"] button:hover {
+        color: #e8b4b4 !important;
+        background: rgba(180, 90, 90, 0.12) !important;
+    }
+    /* Compact tertiary action links (Archive / View notebook strips) */
+    [class*="st-key-tr_al_"] [data-testid="stButton"] {
+        margin: 0 !important;
+    }
+    [class*="st-key-tr_al_"] [data-testid="stButton"] > button,
+    [class*="st-key-tr_al_"] > button {
+        min-height: unset !important;
+        height: auto !important;
+        padding: 0.1rem 0.15rem !important;
+        font-size: 0.85rem !important;
+        color: #1f77b4 !important;
+        gap: 0.28rem !important;
+    }
+    [class*="st-key-tr_al_"] [data-testid="stButton"] > button span[data-testid="stIconMaterial"],
+    [class*="st-key-tr_al_"] [data-testid="stButton"] > button [data-testid="stIconMaterial"],
+    [class*="st-key-tr_al_"] > button span[data-testid="stIconMaterial"],
+    [class*="st-key-tr_al_"] > button [data-testid="stIconMaterial"] {
+        font-size: 0.95rem !important;
+        color: inherit !important;
+        opacity: 0.9;
+    }
+    [class*="st-key-tr_al_"] [data-testid="stButton"] > button:hover,
+    [class*="st-key-tr_al_"] > button:hover {
+        color: #0d5a8c !important;
+        text-decoration: underline;
+        background: transparent !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]) {
+        gap: 0 !important;
+        justify-content: flex-start !important;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 0.15rem 0 0.55rem 0;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"])
+        [data-testid="stColumn"] {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: fit-content !important;
+        display: flex !important;
+        align-items: center;
+    }
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"])
+        [data-testid="stColumn"]:not(:last-child)::after {
+        content: "|";
+        color: rgba(90, 107, 125, 0.45);
+        margin: 0 0.2rem;
+        font-size: 0.8rem;
+        line-height: 1;
+    }
 </style>
 """,
         unsafe_allow_html=True,
@@ -218,14 +320,9 @@ def render_brand() -> None:
     path = logo_path()
     if path is not None:
         st.image(str(path), width="stretch")
-        st.markdown(
-            '<span class="tx-sidebar-brand-sub">Notebook OCR</span>',
-            unsafe_allow_html=True,
-        )
         return
     st.markdown(
-        '<div class="tx-sidebar-brand"><span class="tx-sidebar-brand-text">Transcribe</span>'
-        '<span class="tx-sidebar-brand-sub">Notebook OCR</span></div>',
+        '<div class="tx-sidebar-brand"><span class="tx-sidebar-brand-text">Transcribe</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -295,6 +392,10 @@ def render_mode_nav(current: str) -> str:
             current=current,
             key_prefix="nav",
         )
+
+    render_nav_section("App")
+    for mode in _SETTINGS_MODES:
+        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
     return current
 
 

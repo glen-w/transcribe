@@ -12,20 +12,25 @@ Streamlit UI (8510) ──┐
                       ├──► services (project, ingest, job, export, archive, doctor)
 CLI ──────────────────┘              │
                                      ▼
-                    on-disk project (authority)
-                    ├── project.json
-                    ├── sources/ + pages/ renders
-                    ├── results/<page_id>.json
-                    └── analysis/   (optional until first analysis artifact)
-                                     │
-                     workspace archive.sqlite (cache only)
+                    workspace (data/)
+                    ├── corpus/          # prospective: corpus-index + import-runs
+                    ├── projects/<…>/    # one managed notebook directory each
+                    │     ├── project.json
+                    │     ├── sources/ + pages/ renders
+                    │     ├── results/<page_id>.json
+                    │     └── analysis/   (optional until first analysis artifact)
+                    └── cache/archive.sqlite   (disposable)
 ```
 
 ## Ownership boundaries
 
 | Concern | Owner |
 |---------|-------|
-| Durable notebook state | Project directory — [contracts/project-on-disk.md](contracts/project-on-disk.md) |
+| Corpus identity, notebook order, workspace locks (prospective) | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
+| Managed originals, fingerprints, duplicates (prospective) | [contracts/source-asset.md](contracts/source-asset.md) |
+| Bulk ImportRun / plan / resume (prospective) | [contracts/import-run.md](contracts/import-run.md) |
+| Corpus/notebook integrity + bulk-import acceptance gate (prospective) | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+| Durable notebook directory layout + per-notebook journal | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
 | Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
@@ -40,7 +45,8 @@ CLI ──────────────────┘              │
 - **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
-- **DoctorService** — structural integrity (+ optional deep hashing)
+- **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
+- **CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
 - **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities)
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 

@@ -216,12 +216,33 @@ class SourceDocument:
     page_count: int
     imported_at: str
     render_dpi: int
+    # Optional additive v1 fields (bulk-import generation); absence is legacy-conformant
+    original_path: str | None = None
+    source_size_bytes: int | None = None
+    import_run_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = {
+            "source_id": self.source_id,
+            "original_filename": self.original_filename,
+            "stored_relpath": self.stored_relpath,
+            "media_type": self.media_type,
+            "sha256": self.sha256,
+            "page_count": self.page_count,
+            "imported_at": self.imported_at,
+            "render_dpi": self.render_dpi,
+        }
+        if self.original_path is not None:
+            payload["original_path"] = self.original_path
+        if self.source_size_bytes is not None:
+            payload["source_size_bytes"] = self.source_size_bytes
+        if self.import_run_id is not None:
+            payload["import_run_id"] = self.import_run_id
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SourceDocument:
+        size = data.get("source_size_bytes")
         return cls(
             source_id=data["source_id"],
             original_filename=data["original_filename"],
@@ -231,6 +252,9 @@ class SourceDocument:
             page_count=int(data["page_count"]),
             imported_at=data["imported_at"],
             render_dpi=int(data.get("render_dpi", 200)),
+            original_path=data.get("original_path"),
+            source_size_bytes=int(size) if size is not None else None,
+            import_run_id=data.get("import_run_id"),
         )
 
 

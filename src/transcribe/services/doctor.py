@@ -57,6 +57,14 @@ class DoctorService:
                 "incomplete ingest journal present; open/cleanup will recover or roll back",
             )
 
+        for corrupt in sorted(self.paths.root.glob(".ingest-journal.json.*")):
+            if corrupt.is_file():
+                report.add(
+                    "error",
+                    "ingest_journal_quarantined",
+                    f"quarantined ingest journal requires operator review: {corrupt.name}",
+                )
+
         for page in project.pages:
             path = self.paths.result_path(page.page_id)
             if not path.exists():

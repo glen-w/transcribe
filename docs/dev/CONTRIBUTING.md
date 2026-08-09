@@ -33,6 +33,10 @@ Update the **owning** doc:
 
 | Change | Update |
 |--------|--------|
+| Corpus index / notebook identity / workspace locks | [contracts/notebook-corpus.md](../contracts/notebook-corpus.md) |
+| Source fingerprints / duplicates / source-render invariants | [contracts/source-asset.md](../contracts/source-asset.md) |
+| ImportRun / ImportPlan / bulk resume | [contracts/import-run.md](../contracts/import-run.md) |
+| Corpus doctor / bulk-import acceptance gate | [contracts/corpus-integrity.md](../contracts/corpus-integrity.md) |
 | Project layout / journal / locks / optional `analysis/` | [contracts/project-on-disk.md](../contracts/project-on-disk.md) |
 | Page-result / fingerprint fields | [contracts/page-result.md](../contracts/page-result.md) |
 | Analysis document / result / run storage / eligibility | [contracts/analysis-document.md](../contracts/analysis-document.md) · [analysis-result.md](../contracts/analysis-result.md) · [analysis-run-storage.md](../contracts/analysis-run-storage.md) · [notebook-eligibility.md](../contracts/notebook-eligibility.md) |

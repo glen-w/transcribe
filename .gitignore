@@ -29,6 +29,7 @@ data/
 docker-compose.override.yml
 *.png
 !tests/fixtures/*.png
+!src/transcribe/ui/assets/*.png
 *.jpg
 !tests/fixtures/*.jpg
 *.jpeg

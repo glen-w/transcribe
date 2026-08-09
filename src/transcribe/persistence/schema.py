@@ -10,6 +10,10 @@ SUPPORTED: dict[str, int] = {
     "transcribe.notebook": 1,
     "transcribe.analysis-document": 1,
     "transcribe.analysis-result": 1,
+    # Bulk-import generation (prospective until activation gate)
+    "transcribe.corpus-index": 1,
+    "transcribe.import-run": 1,
+    "transcribe.ingest-journal": 1,
 }
 
 

@@ -35,7 +35,13 @@ class RuntimePaths:
     export_dir: Path
 
     def ensure_layout(self) -> None:
-        for path in (self.data_dir, self.projects_dir, self.inbox_dir, self.export_dir):
+        for path in (
+            self.data_dir,
+            self.projects_dir,
+            self.inbox_dir,
+            self.export_dir,
+            self.data_dir / "config",
+        ):
             path.mkdir(parents=True, exist_ok=True)
 
     def default_project_dir(self, name: str = "notebook-project") -> Path:

@@ -45,6 +45,23 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 ---
 
+## Next — Notebook corpus / bulk import — [ ] planned (contracts first)
+
+Prospective **bulk-import generation** contracts are written; runtime remains `transcribe.project` v1 until the activation gate.
+
+| Gate | Authority |
+|------|-----------|
+| Corpus identity, index, locks | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
+| Managed originals / duplicates | [contracts/source-asset.md](contracts/source-asset.md) |
+| ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
+| Doctor + executable acceptance suite | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+
+**Do not** ship bulk-import UI/CLI as supported until the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green (crash-injection, idempotency, duplicate policy, corpus-index recovery, deep doctor on a synthetic multi-notebook corpus).
+
+Suggested implementation order after activation work starts: corpus index → ImportRun/plan → duplicate policy on commit → corpus doctor → synthetic suite → only then bulk UI.
+
+---
+
 ## Next — Product workflow improvements
 
 Candidate priorities to rank **after** the hardening exit gate. Not ordered; not committed.
@@ -126,6 +143,7 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 Still active product scope — often more central to Transcribe than speculative analysis work:
 
 - **OCR pipeline** — import, vision OCR, optional second-pass cleanup
+- **Notebook corpus / bulk import** — contracts first; activation gated — [notebook-corpus](contracts/notebook-corpus.md) · [corpus-integrity](contracts/corpus-integrity.md)
 - **Review UX** — page correction, dates, approval
 - **Archive / search** — workspace index and timeline
 - **Export** — notebook readability and sharing (`transcribe.notebook`)

@@ -1,9 +1,13 @@
 Type: CONTRACT
-Authority: self — on-disk project layout, `project.json` identity, ingest durability, and locks. Sole authority for top-level managed-project paths.
+Authority: self — on-disk project layout, `project.json` wire fields, per-notebook ingest durability, and per-notebook locks. Sole authority for top-level managed-notebook directory paths. Corpus identity, workspace ordering, ImportRun orchestration, and cross-notebook integrity are owned by the prospective bulk-import contracts: [notebook-corpus.md](notebook-corpus.md), [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md).
 
 # Project on-disk format
 
-This contract owns the durable project directory layout. Page-result JSON details: [page-result.md](page-result.md). Export interchange: [notebook-export.md](notebook-export.md). Analysis artifact rules under `analysis/`: [analysis-run-storage.md](analysis-run-storage.md).
+This contract owns the durable **per-notebook** directory layout. Page-result JSON details: [page-result.md](page-result.md). Export interchange: [notebook-export.md](notebook-export.md). Analysis artifact rules under `analysis/`: [analysis-run-storage.md](analysis-run-storage.md).
+
+**Conformance:** `transcribe.project` schema_version `1` remains fully conformant without a corpus index or ImportRun support. Bulk-import generation must not invalidate existing notebooks; see the [activation gate](notebook-corpus.md#activation-gate).
+
+**Filesystem layout is non-contractual for identity.** Directory names are implementation locators. Durable notebook identity is `project.id` (`notebook_id` in corpus domain language). After bulk-import activation, the corpus index supplies the mutable `managed_relpath` locator ([notebook-corpus.md](notebook-corpus.md)).
 
 Transcribe is a **managed-library** application: importing a notebook copies source bytes into a canonical project directory. External originals remain untouched and outside Transcribe ownership. After ingest, runtime authority is stable `project_id` / `source_id` / `page_id` (+ renders) and canonical metadata — not original external paths or filenames.
 
@@ -43,8 +47,10 @@ Other contracts (including analysis-run-storage) **reference** these paths and m
 - `format` must be `"transcribe.project"`
 - `schema_version` must be `1` for this build
 - Owns notebook metadata (title, tags, cover page, date range), OCR settings, `sources`, ordered `pages`, and `renders`
-- Canonical notebook identity is `project_id` (stable across moves of the project directory)
+- Canonical notebook identity is `project_id` / `id` (stable across moves of the project directory); domain alias `notebook_id ≡ project.id`
+- **Page order** within the notebook is the `pages` array order (authoritative; not filename lexicography)
 - Source and page identity is by ID (`source_id`, `page_id`, `render_id`), not by filename alone
+- `page_index` is within-source only; it is not the notebook global order
 - Page diary dates may be auto-suggested (`date_source: extracted|inherited`) or human-approved. Invariants: `date=null` ⇒ `date_approved=true` and `date_source=null`; approved dates have `date_source=null`; unapproved dates require a source. Legacy manifests without these keys load as approved.
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
@@ -53,8 +59,10 @@ Writers load → modify → validate → atomically replace `project.json` under
 
 Ingest stages bytes under `.staging/{attempt_id}/`, writes `.ingest-journal.json`, promotes files with same-filesystem replace, then commits `project.json`, then clears the journal.
 
-- If the journal is present on open/load/cleanup, Transcribe finishes a coherent pending commit or rolls back uncommitted finals and staging
+- If the journal is present on open/load/cleanup, Transcribe finishes a coherent pending commit or rolls back uncommitted finals and staging **when the journal is well-formed**
 - Format identity for the journal payload: `transcribe.ingest-journal` / schema version `1`
+- **At most one active ingest transaction per notebook** (single `.ingest-journal.json`). Bulk orchestration must enforce this — no intra-notebook parallel commits ([import-run.md](import-run.md))
+- Malformed/corrupt journals must be **reported and quarantined**, not silently discarded (bulk-import generation requirement; see [import-run.md](import-run.md) and [corpus-integrity.md](corpus-integrity.md))
 
 Defensive limits (implementation-enforced): source byte cap, PDF page cap, rendered-byte budget, free-disk headroom. Exact numeric limits live in `transcribe.ingest` and may change; behaviour is “fail closed with `IngestError`”.
 
@@ -64,6 +72,8 @@ Defensive limits (implementation-enforced): source byte cap, PDF page cap, rende
 |------|-------|
 | `.transcribe.lock` | Short critical sections for manifest/result/analysis RMW |
 | `.transcribe.job.lock` | At most one OCR job per project across processes |
+
+Workspace corpus lock and **corpus → notebook** lock order are defined in [notebook-corpus.md](notebook-corpus.md) (prospective until activation).
 
 ## Non-authority
 

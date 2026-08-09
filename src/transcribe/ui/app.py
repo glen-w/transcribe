@@ -30,6 +30,7 @@ from transcribe.services.export import ExportService
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
+from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.shell import (
@@ -863,6 +864,10 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
         "Export",
         "Export notebook JSON, Markdown, and plain text.",
     ),
+    "Settings": (
+        "Settings",
+        "Customise interface action menus and other app preferences.",
+    ),
 }
 
 
@@ -943,6 +948,8 @@ def main() -> None:
         render_notebooks(runtime, archive)
     elif mode == "Search":
         render_search(runtime, archive)
+    elif mode == "Settings":
+        render_settings_page()
     elif mode in ("Transcribe", "Analyse", "Export"):
         _render_workflow(runtime, root, section=mode)
 

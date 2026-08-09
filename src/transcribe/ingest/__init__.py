@@ -20,6 +20,7 @@ from transcribe.errors import IngestError, ProjectError, ValidationError
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_bytes_atomic, write_json_atomic
 from transcribe.persistence.locks import mutation_lock
+from transcribe.persistence.quarantine import quarantine_path
 from transcribe.persistence.schema import require_format
 from transcribe.ports import Clock, IdGenerator, to_iso
 
@@ -430,10 +431,15 @@ class IngestService:
             try:
                 journal = read_json(journal_path)
             except Exception:
-                journal_path.unlink(missing_ok=True)
+                quarantine_path(journal_path, reason="unreadable")
                 return
             if journal.get("format") != JOURNAL_FORMAT:
-                journal_path.unlink(missing_ok=True)
+                quarantine_path(journal_path, reason="bad_format")
+                return
+            try:
+                require_format(journal, JOURNAL_FORMAT)
+            except Exception:
+                quarantine_path(journal_path, reason="bad_schema")
                 return
 
             state = journal.get("state")

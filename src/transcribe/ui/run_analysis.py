@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 import streamlit as st
 
@@ -27,6 +27,7 @@ from transcribe.analysis.runner import AnalysisRunner
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
 from transcribe.services.project import ProjectService
+from transcribe.ui.module_ui_groups import group_modules_for_ui
 from transcribe.ui.shell import render_page_shell
 
 _PRESET_KEY = "run_analysis_preset"
@@ -34,12 +35,98 @@ _CUSTOM_KEY = "run_analysis_custom_modules"
 _CUSTOM_WIDGET_KEY = "run_analysis_custom_modules_widget"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
+_CUSTOM_QA_MODULE = "llm_custom_qa"
+_REVIEW_KEEP_OPEN_KEY = "run_analysis_review_modules_keep_open"
+_PENDING_REVIEW_REMOVAL_KEY = "run_analysis_pending_review_removal"
+_KEY_PREFIX = "run_analysis"
+
+
+def apply_pending_review_module_removal(session_state: Any) -> None:
+    """Apply a Review-modules removal queued after widgets already ran last tick."""
+    pending = session_state.pop(_PENDING_REVIEW_REMOVAL_KEY, None)
+    if not isinstance(pending, dict):
+        return
+    remaining = pending.get("remaining")
+    if not isinstance(remaining, list) or not remaining:
+        return
+    session_state[_PRESET_KEY] = "Custom"
+    session_state[_CUSTOM_KEY] = list(remaining)
+    # Drop the multiselect widget key so it re-seeds from custom_modules
+    # (filtered to picker options) before the widget is created.
+    session_state.pop(_CUSTOM_WIDGET_KEY, None)
+    if pending.get("clear_qa"):
+        session_state[_QA_ENABLE_KEY] = False
+        session_state[_QA_TEXT_KEY] = ""
+
+
+def apply_review_module_removal(
+    session_state: Any,
+    *,
+    module_ids: Sequence[str],
+    remove_id: str,
+) -> bool:
+    """
+    Queue dropping ``remove_id`` from the run (Custom + remainder).
+
+    Returns False when the module is absent or would leave the plan empty.
+    Removing ``llm_custom_qa`` also clears Ask-notebook intent on apply.
+    """
+    if remove_id not in module_ids:
+        return False
+    remaining = [m for m in module_ids if m != remove_id]
+    if not remaining:
+        return False
+
+    payload: dict[str, Any] = {"remaining": list(remaining)}
+    if remove_id == _CUSTOM_QA_MODULE:
+        payload["clear_qa"] = True
+    session_state[_PENDING_REVIEW_REMOVAL_KEY] = payload
+    session_state[_REVIEW_KEEP_OPEN_KEY] = True
+    return True
+
+
+def _render_review_module_row(
+    module_id: str,
+    *,
+    module_ids: Sequence[str],
+    can_remove: bool,
+) -> None:
+    label = format_module_label(module_id)
+    if not can_remove:
+        st.markdown(f"- {label}")
+        return
+    label_col, remove_col = st.columns([20, 1], vertical_alignment="center")
+    with label_col:
+        st.markdown(f"- {label}")
+    with remove_col:
+        if st.button(
+            "✕",
+            key=f"{_KEY_PREFIX}_review_rm_{module_id}",
+            help=f"Remove from run: {label}",
+            type="tertiary",
+        ):
+            if apply_review_module_removal(
+                st.session_state,
+                module_ids=module_ids,
+                remove_id=module_id,
+            ):
+                st.rerun()
+            else:
+                st.toast("Keep at least one module in the run.")
 
 
 def _render_module_review(module_ids: tuple[str, ...]) -> None:
-    with st.expander("Review modules", expanded=False):
-        for mid in module_ids:
-            st.markdown(f"- {format_module_label(mid)}")
+    expanded = bool(st.session_state.pop(_REVIEW_KEEP_OPEN_KEY, False))
+    with st.expander("Review modules", expanded=expanded):
+        can_remove = len(module_ids) > 1
+        for title, rows in group_modules_for_ui(module_ids):
+            st.markdown(f"**{title}**")
+            for mid in rows:
+                _render_review_module_row(
+                    mid,
+                    module_ids=module_ids,
+                    can_remove=can_remove,
+                )
 
 
 def render_run_analysis_form(
@@ -53,6 +140,8 @@ def render_run_analysis_form(
         "Choose an analysis preset (or custom modules), optional Ask-notebook "
         "question, then run.",
     )
+
+    apply_pending_review_module_removal(st.session_state)
 
     suitable = list(suitable_module_ids())
     options = [PRESET_LABELS[p] for p in VALID_PRESETS]

@@ -9,13 +9,15 @@ Authority: self — product definition and audience; does not own schemas or run
 
 On your machine you can:
 
-1. Import JPEG/PNG/PDF pages into a durable project directory
+1. Import JPEG/PNG/PDF pages into a durable managed notebook directory
 2. Run local vision OCR via Ollama
 3. Review and correct text page by page
 4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook)
 5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
 
 without requiring a cloud OCR provider or a TranscriptX dependency.
+
+Transcribe’s product direction is a **durable notebook corpus** (identity, managed originals, and human edits survive renames and re-OCR). OCR is one derived process over that corpus. Bulk multi-notebook import is gated on prospective contracts: [notebook-corpus](contracts/notebook-corpus.md), [source-asset](contracts/source-asset.md), [import-run](contracts/import-run.md), [corpus-integrity](contracts/corpus-integrity.md).
 
 ## Audience
 

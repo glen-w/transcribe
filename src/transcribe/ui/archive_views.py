@@ -16,6 +16,9 @@ from transcribe.services.archive import (
 )
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
+from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, SectionId
+from transcribe.ui.action_menus.nav import load_live_notebook_context
+from transcribe.ui.action_menus.render import render_configured_actions
 from transcribe.ui.page_viewer import open_page_context
 
 
@@ -193,7 +196,11 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
     cols = st.columns(min(6, max(1, len(strip))))
     for i, nb in enumerate(strip):
         with cols[i % len(cols)]:
-            _notebook_card(nb, return_mode="Archive")
+            _notebook_card(
+                nb,
+                projects_dir=runtime.projects_dir,
+                return_mode=ReturnMode.ARCHIVE,
+            )
     if show_n < len(notebooks):
         if st.button(f"Show more notebooks ({len(notebooks) - show_n} remaining)"):
             st.session_state["archive_strip_n"] = show_n + 12
@@ -204,20 +211,40 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
             st.rerun()
 
 
-def _notebook_card(nb: NotebookSummary, *, return_mode: str) -> None:
-    paths = open_project_paths(nb.root)
-    projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+def _notebook_card(
+    nb: NotebookSummary,
+    *,
+    projects_dir,
+    return_mode: ReturnMode,
+) -> None:
     try:
+        paths = open_project_paths(nb.root)
+        projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
         project = projects.load(reconcile=False)
     except Exception as exc:  # noqa: BLE001
         st.caption(f"{nb.title}: {exc}")
+        try:
+            ctx = load_live_notebook_context(
+                project_id=nb.project_id,
+                project_root=nb.root,
+                projects_dir=projects_dir,
+                return_mode=return_mode,
+                nav_style=NavStyle.CLICK_RERUN,
+                instance_prefix="archive",
+            )
+            render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+        except Exception:  # noqa: BLE001
+            st.caption("Actions unavailable.")
         return
+
     thumbs = ThumbnailService(paths)
     cover_id = thumbs.cover_page_id(project)
     if cover_id:
         thumb = thumbs.ensure_thumb(project, cover_id)
         if thumb and thumb.exists():
-            st.image(str(thumb), width="stretch")
+            img_col, _ = st.columns([1, 3])
+            with img_col:
+                st.image(str(thumb), width="stretch")
     date_label = "Undated"
     if nb.date_start or nb.date_end:
         a = nb.date_start.format_display() if nb.date_start else "?"
@@ -227,26 +254,21 @@ def _notebook_card(nb: NotebookSummary, *, return_mode: str) -> None:
     st.caption(date_label)
     rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
     st.caption(f"{nb.page_count} pages · {rate}")
-    page_ids = [p.page_id for p in project.pages]
-    open_id = cover_id or (page_ids[0] if page_ids else None)
-    if open_id and st.button("Open", key=f"open_nb_{nb.project_id}_{return_mode}"):
-        open_page_context(
-            page_id=open_id,
-            page_ids=page_ids,
+    try:
+        ctx = load_live_notebook_context(
+            project_id=nb.project_id,
             project_root=nb.root,
+            projects_dir=projects_dir,
             return_mode=return_mode,
+            nav_style=NavStyle.CLICK_RERUN,
+            instance_prefix="archive",
         )
-        st.session_state["ui_mode"] = return_mode
-        st.rerun()
-    if st.button("Transcribe", key=f"wf_nb_{nb.project_id}_{return_mode}"):
-        st.session_state["root"] = str(nb.root)
-        st.session_state["ui_mode"] = "Transcribe"
-        st.session_state["show_page_viewer"] = False
-        st.rerun()
+        render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+    except Exception:  # noqa: BLE001
+        st.caption("Actions unavailable.")
 
 
 def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
-    del runtime
     archive.ensure_index()
     order = st.selectbox(
         "Order",
@@ -300,20 +322,18 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 elif nb.activity and len(nb.activity[0].key) == 10:
                     grain = "day"
                 _activity_chart(nb.activity, grain, height=120)
-            b1, b2 = st.columns(2)
-            if project and b1.button("Browse pages", key=f"nb_browse_{nb.project_id}"):
-                page_ids = [p.page_id for p in project.pages]
-                open_page_context(
-                    page_id=page_ids[0],
-                    page_ids=page_ids,
+            try:
+                ctx = load_live_notebook_context(
+                    project_id=nb.project_id,
                     project_root=nb.root,
-                    return_mode="View",
+                    projects_dir=runtime.projects_dir,
+                    return_mode=ReturnMode.VIEW,
+                    nav_style=NavStyle.CLICK_RERUN,
+                    instance_prefix="view",
                 )
-                st.rerun()
-            if b2.button("Open Transcribe", key=f"nb_open_{nb.project_id}"):
-                st.session_state["root"] = str(nb.root)
-                st.session_state["ui_mode"] = "Transcribe"
-                st.rerun()
+                render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
+            except Exception:  # noqa: BLE001
+                st.caption("Actions unavailable.")
         st.divider()
 
 

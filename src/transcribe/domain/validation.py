@@ -123,7 +123,10 @@ def validate_project(
         _require_nonempty_str(render.renderer, "render.renderer")
 
     page_ids: set[str] = set()
-    pages_per_source: dict[str, int] = {}
+    pages_per_source: dict[str, list[int]] = {}
+    active_render_ids: set[str] = set()
+    sources_by_id = {s.source_id: s for s in project.sources}
+
     for page in project.pages:
         pid = _require_nonempty_str(page.page_id, "page.page_id")
         if pid in page_ids:
@@ -141,15 +144,62 @@ def validate_project(
             raise ValidationError(f"page {pid} has negative page_index")
         _require_positive_int(page.width, "page.width")
         _require_positive_int(page.height, "page.height")
-        pages_per_source[page.source_id] = pages_per_source.get(page.source_id, 0) + 1
+
+        indices = pages_per_source.setdefault(page.source_id, [])
+        if page.page_index in indices:
+            raise ValidationError(
+                f"duplicate (source_id, page_index)=({page.source_id!r}, {page.page_index})"
+            )
+        indices.append(page.page_index)
+        active_render_ids.add(page.active_render_id)
+
+        render = project.renders[page.active_render_id]
+        source = sources_by_id[page.source_id]
+        if render.source_sha256 != source.sha256:
+            raise ValidationError(
+                f"page {pid} active render source_sha256 does not match source {source.source_id}"
+            )
+        if page.width != render.width or page.height != render.height:
+            raise ValidationError(
+                f"page {pid} dimensions do not match active render {render.render_id}"
+            )
+        expected_dir = f"pages/{page.source_id}/{page.page_index:04d}/"
+        if not render.image_relpath.startswith(expected_dir):
+            raise ValidationError(
+                f"page {pid} active render path {render.image_relpath!r} "
+                f"does not belong to source/page_index under {expected_dir!r}"
+            )
+        if source.media_type == "application/pdf":
+            if render.pdf_page_index is not None and render.pdf_page_index != page.page_index:
+                raise ValidationError(
+                    f"page {pid} pdf_page_index {render.pdf_page_index} != page_index {page.page_index}"
+                )
+        elif render.pdf_page_index is not None:
+            raise ValidationError(
+                f"page {pid} non-PDF source must not set pdf_page_index on render"
+            )
 
     for source in project.sources:
-        counted = pages_per_source.get(source.source_id, 0)
+        indices = sorted(pages_per_source.get(source.source_id, []))
+        counted = len(indices)
         if counted != source.page_count:
             raise ValidationError(
                 f"source {source.source_id} page_count={source.page_count} "
                 f"but {counted} page(s) reference it"
             )
+        expected = list(range(source.page_count))
+        if indices != expected:
+            raise ValidationError(
+                f"source {source.source_id} page_index set {indices} must equal {expected}"
+            )
+        if counted == 0:
+            raise ValidationError(
+                f"unreferenced source {source.source_id} (page_count=0 not permitted with no pages)"
+            )
+
+    for rid in project.renders:
+        if rid not in active_render_ids:
+            raise ValidationError(f"unreferenced render: {rid}")
 
     if project.cover_page_id is not None and project.cover_page_id not in page_ids:
         raise ValidationError(f"cover_page_id not in pages: {project.cover_page_id}")
