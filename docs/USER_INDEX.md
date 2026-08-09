@@ -13,7 +13,7 @@ Authority: curated navigation only — does not own product rules or contracts
 | [public_surfaces.md](public_surfaces.md) | Supported CLI / UI / scripts |
 | [CONTRACT_INDEX.md](CONTRACT_INDEX.md) | Where invariants live |
 | [TERMS.md](TERMS.md) | Glossary pointing at contracts |
-| [ROADMAP.md](ROADMAP.md) | Shipped core modules; robustness/UX focus; deferred reinterpretations |
+| [ROADMAP.md](ROADMAP.md) | Product priorities: hardening now, workflow next; deferred analysis unscheduled |
 | [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core analysis delivery history (internal; shipped) |
 
 Start here if you are new: [../README.md](../README.md) → [user_guide.md](user_guide.md).

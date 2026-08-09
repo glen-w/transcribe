@@ -50,4 +50,4 @@ CLI ──────────────────┘              │
 - Introducing a task queue or multi-process worker fleet for v1
 - Coupling to TranscriptX libraries
 
-Shipped core analysis + deferred / later / out-of-scope disposition rows: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).
+Shipped core analysis + deferred / future / out-of-scope dispositions: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).

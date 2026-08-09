@@ -45,6 +45,7 @@ Other contracts (including analysis-run-storage) **reference** these paths and m
 - Owns notebook metadata (title, tags, cover page, date range), OCR settings, `sources`, ordered `pages`, and `renders`
 - Canonical notebook identity is `project_id` (stable across moves of the project directory)
 - Source and page identity is by ID (`source_id`, `page_id`, `render_id`), not by filename alone
+- Page diary dates may be auto-suggested (`date_source: extracted|inherited`) or human-approved. Invariants: `date=null` ⇒ `date_approved=true` and `date_source=null`; approved dates have `date_source=null`; unapproved dates require a source. Legacy manifests without these keys load as approved.
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
 

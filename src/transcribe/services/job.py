@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,12 +27,15 @@ from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.preprocess import PREPROCESS_VERSION, apply_preprocess
 from transcribe.prompts import render_prompt
 from transcribe.providers.base import VisionOCRProvider
+from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.ocr_cleanup import (
     CleanupPlanConfig,
     resolve_cleanup_plan_config,
     run_ocr_cleanup,
 )
 from transcribe.services.project import ProjectService
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -119,6 +123,7 @@ class JobCoordinator:
         clock: Clock,
         ids: IdGenerator,
         cleanup_client: Any | None = None,
+        archive_runtime: RuntimePaths | None = None,
     ) -> None:
         self.paths = paths
         self.projects = project_service
@@ -126,6 +131,7 @@ class JobCoordinator:
         self.clock = clock
         self.ids = ids
         self.cleanup_client = cleanup_client
+        self.archive_runtime = archive_runtime
         self._lock = threading.Lock()
         self._job: JobState | None = None
         self._job_file_lock = JobLock(paths.job_lock)
@@ -482,6 +488,7 @@ class JobCoordinator:
                     message="Done",
                     current_page_ids=[],
                 )
+            self._best_effort_fill_page_dates()
             self._persist_job_record(state, terminal=True)
         except Exception as exc:  # noqa: BLE001
             self._update_progress(
@@ -492,6 +499,28 @@ class JobCoordinator:
                 current_page_ids=[],
             )
             self._persist_job_record(state, terminal=True)
+
+    def _best_effort_fill_page_dates(self) -> None:
+        try:
+            changed = self.projects.fill_page_dates_ordered()
+            if changed:
+                self._bump_archive_if_configured()
+        except Exception:  # noqa: BLE001
+            _log.exception("post-job page date fill failed")
+
+    def _bump_archive_if_configured(self) -> None:
+        if self.archive_runtime is None:
+            return
+        from transcribe.services.archive import bump_archive_generation
+
+        bump_archive_generation(self.archive_runtime)
+
+    def _best_effort_suggest_page_date(self, page_id: str) -> None:
+        try:
+            if self.projects.suggest_page_date(page_id):
+                self._bump_archive_if_configured()
+        except Exception:  # noqa: BLE001
+            _log.exception("page date suggestion failed for %s", page_id)
 
     def _should_skip(self, project: Project, page_id: str, plan: JobPlan) -> bool:
         # Unverified model identity is non-cacheable for skip purposes.
@@ -617,6 +646,7 @@ class JobCoordinator:
                 running.input_fingerprint = fp2
                 running.fingerprint_payload = payload2
             self.projects.record_generation(page_id, running)
+            self._best_effort_suggest_page_date(page_id)
             return "succeeded"
         except ProviderError as exc:
             running.status = "failed"
@@ -642,6 +672,7 @@ def build_coordinator(
     clock: Clock,
     ids: IdGenerator,
     provider: VisionOCRProvider | None = None,
+    archive_runtime: RuntimePaths | None = None,
 ) -> tuple[ProjectPaths, ProjectService, JobCoordinator, IngestService]:
     from pathlib import Path
 
@@ -662,5 +693,12 @@ def build_coordinator(
     prov = provider or OllamaVisionProvider(base_url)
     ingest = IngestService(paths, clock=clock, ids=ids)
     ingest.cleanup_staging()
-    coord = JobCoordinator(paths, projects, prov, clock=clock, ids=ids)
+    coord = JobCoordinator(
+        paths,
+        projects,
+        prov,
+        clock=clock,
+        ids=ids,
+        archive_runtime=archive_runtime,
+    )
     return paths, projects, coord, ingest

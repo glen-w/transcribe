@@ -29,6 +29,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 
 - Workspace search/timeline depends on a rebuildable SQLite cache. Corrupt or incompatible caches are deleted and rebuilt
 - Cheap `ensure_index` short-circuit uses an explicit **mutation generation** token (`data/cache/archive.generation`), bumped after import/OCR/edit/metadata — not directory mtimes (in-place result edits do not reliably change dir mtime). Per-project rebuild signatures still use result file mtimes inside a rebuild
+- Auto-suggested / inherited page dates (unapproved) still index in the archive timeline; approval status is not a filter
 - Ollama model discovery metadata is cached by base URL + transport timeout; **Refresh** invalidates. Execution clients stay lightweight
 
 ## Privacy

@@ -66,7 +66,7 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
             )
             .properties(height=height)
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
     except Exception:
         st.bar_chart(
             {"bin": [b.key for b in bins], "pages": [b.count for b in bins]},
@@ -77,7 +77,7 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
 
 
 def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
-    from transcribe.ui.page_viewer import _parse_date_input
+    from transcribe.domain.dates import parse_date_input
 
     del runtime
     archive.ensure_index()
@@ -96,8 +96,8 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         start_raw = c1.text_input("From (YYYY / YYYY-MM / YYYY-MM-DD)", value="")
         end_raw = c2.text_input("To (YYYY / YYYY-MM / YYYY-MM-DD)", value="")
         try:
-            range_start = _parse_date_input(start_raw) if start_raw.strip() else None
-            range_end = _parse_date_input(end_raw) if end_raw.strip() else None
+            range_start = parse_date_input(start_raw) if start_raw.strip() else None
+            range_end = parse_date_input(end_raw) if end_raw.strip() else None
         except ValueError as exc:
             st.error(str(exc))
             return

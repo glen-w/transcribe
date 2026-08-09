@@ -10,15 +10,45 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 from transcribe.errors import ProviderError
 from transcribe.providers.base import DiscoveryResult, ModelInfo, ProviderResult
 
 _DISCOVERY_TTL_S = 45.0
-_MAX_RETRIES = 3
+DEFAULT_MAX_RETRIES = 3
+_RETRY_BASE_DELAY_S = 0.5
+
+T = TypeVar("T")
+
+
+def call_with_retries(
+    op: Callable[[], T],
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[T, int]:
+    """Run ``op``, retrying retriable :class:`ProviderError`s with exponential backoff.
+
+    Defaults: 3 attempts, delays 0.5s / 1s between retries. Returns
+    ``(result, attempt_index)`` where ``attempt_index`` is 0 on first-try success.
+    """
+    if max_retries < 1:
+        raise ValueError("max_retries must be >= 1")
+    last_error: ProviderError | None = None
+    for attempt in range(max_retries):
+        try:
+            return op(), attempt
+        except ProviderError as exc:
+            last_error = exc
+            if not exc.retriable or attempt + 1 >= max_retries:
+                raise
+            sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+    assert last_error is not None
+    raise last_error
 
 _discovery_lock = threading.Lock()
 _discovery_cache: dict[str, "_DiscoveryEntry"] = {}
@@ -149,10 +179,12 @@ class OllamaVisionProvider:
         *,
         request_timeout: float = 300.0,
         discovery_ttl: float = _DISCOVERY_TTL_S,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ) -> None:
         self.base_url = normalize_base_url(base_url)
         self.request_timeout = request_timeout
         self.discovery_ttl = discovery_ttl
+        self.max_retries = max_retries
 
     def healthcheck(self) -> None:
         self._http_get("/api/tags", timeout=min(10.0, self.request_timeout))
@@ -196,37 +228,32 @@ class OllamaVisionProvider:
             "options": options,
         }
         digest, verified = self.resolve_model_identity(model)
-        last_error: ProviderError | None = None
-        for attempt in range(_MAX_RETRIES):
-            try:
-                payload = self._http_post(
-                    "/api/generate", body, timeout=self.request_timeout
+
+        def once() -> dict[str, Any]:
+            payload = self._http_post(
+                "/api/generate", body, timeout=self.request_timeout
+            )
+            if not isinstance(payload, dict):
+                raise ProviderError(
+                    "Ollama returned a non-object JSON response",
+                    code="bad_response",
                 )
-                if not isinstance(payload, dict):
-                    raise ProviderError(
-                        "Ollama returned a non-object JSON response",
-                        code="bad_response",
-                    )
-                text = payload.get("response")
-                if not isinstance(text, str):
-                    raise ProviderError(
-                        "Ollama response missing text field",
-                        code="bad_response",
-                    )
-                return ProviderResult(
-                    text=text,
-                    model=model,
-                    model_digest=digest,
-                    model_identity_verified=verified,
-                    provider_metadata=_allowlisted_metadata(payload, retry_count=attempt),
+            text = payload.get("response")
+            if not isinstance(text, str):
+                raise ProviderError(
+                    "Ollama response missing text field",
+                    code="bad_response",
                 )
-            except ProviderError as exc:
-                last_error = exc
-                if not exc.retriable or attempt + 1 >= _MAX_RETRIES:
-                    raise
-                time.sleep(0.5 * (2**attempt))
-        assert last_error is not None
-        raise last_error
+            return payload
+
+        payload, attempt = call_with_retries(once, max_retries=self.max_retries)
+        return ProviderResult(
+            text=str(payload["response"]),
+            model=model,
+            model_digest=digest,
+            model_identity_verified=verified,
+            provider_metadata=_allowlisted_metadata(payload, retry_count=attempt),
+        )
 
     def _discover(self, *, refresh: bool) -> tuple[list[ModelInfo], str | None]:
         def fetch() -> tuple[list[ModelInfo], str | None]:

@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from transcribe.domain.dates import ApproximateDate, normalize_tags
+from transcribe.domain.dates import (
+    ApproximateDate,
+    canonicalize_page_date_state,
+    normalize_tags,
+    page_date_fields_from_dict,
+)
 
 PROVIDER_METADATA_ALLOWLIST = frozenset(
     {
@@ -238,10 +243,15 @@ class PageIndex:
     width: int
     height: int
     date: ApproximateDate | None = None
+    date_approved: bool = True
+    date_source: str | None = None
     tags: list[str] = field(default_factory=list)
     analysis_excluded: bool = False
 
     def as_dict(self) -> dict[str, Any]:
+        date, approved, source = canonicalize_page_date_state(
+            self.date, self.date_approved, self.date_source
+        )
         return {
             "page_id": self.page_id,
             "source_id": self.source_id,
@@ -249,13 +259,16 @@ class PageIndex:
             "active_render_id": self.active_render_id,
             "width": self.width,
             "height": self.height,
-            "date": self.date.as_dict() if self.date else None,
+            "date": date.as_dict() if date else None,
+            "date_approved": approved,
+            "date_source": source,
             "tags": list(self.tags),
             "analysis_excluded": bool(self.analysis_excluded),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PageIndex:
+        date, approved, source = page_date_fields_from_dict(data)
         return cls(
             page_id=data["page_id"],
             source_id=data["source_id"],
@@ -263,10 +276,24 @@ class PageIndex:
             active_render_id=data["active_render_id"],
             width=int(data["width"]),
             height=int(data["height"]),
-            date=ApproximateDate.from_dict(data.get("date")),
+            date=date,
+            date_approved=approved,
+            date_source=source,
             tags=normalize_tags(data.get("tags")),
             analysis_excluded=bool(data.get("analysis_excluded", False)),
         )
+
+    def set_date_state(
+        self,
+        date: ApproximateDate | None,
+        *,
+        approved: bool,
+        source: str | None,
+    ) -> None:
+        d, a, s = canonicalize_page_date_state(date, approved, source)
+        self.date = d
+        self.date_approved = a
+        self.date_source = s
 
 
 @dataclass

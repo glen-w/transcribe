@@ -163,7 +163,7 @@ def render_run_analysis_form(
         "Run analysis",
         type="primary",
         disabled=run_disabled,
-        use_container_width=True,
+        width="stretch",
         key="run_analysis_launch",
     ):
         runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())

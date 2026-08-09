@@ -19,7 +19,7 @@ Transcribe is page-first OCR text, not timed speaker segments. Modules that assu
 | **Do not port** | Intrinsically transcript/audio/interpersonal; out of scope |
 | **New (special case)** | Notebook analogue of a TranscriptX idea; implement fresh, do not port the TX code |
 
-**Slice** column uses internal delivery ids matching [ROADMAP.md](ROADMAP.md) / [analysis_wave1_plan.md](analysis_wave1_plan.md). The core set was delivered as slices **1a–1e**.
+**Slice** column uses internal delivery ids from [analysis_wave1_plan.md](analysis_wave1_plan.md). The core set was delivered as slices **1a–1e**. Product sequencing: [ROADMAP.md](ROADMAP.md).
 
 ---
 

@@ -70,11 +70,12 @@ def _make_notebook(
                     updated_at="2026-01-01T00:00:01.000Z",
                 ).as_dict(),
             )
-        project = projects.update_page_metadata(
-            page.page_id,
-            date=spec.get("date"),
-            tags=spec.get("tags", []),
-        )
+        project, _ = projects.approve_page_date(page.page_id, spec.get("date"))
+        if spec.get("tags") is not None:
+            project = projects.update_page_metadata(
+                page.page_id,
+                tags=spec.get("tags", []),
+            )
     if tags:
         projects.update_notebook_metadata(tags=tags)
     return root, projects
@@ -312,6 +313,31 @@ def test_date_range_filter(tmp_path: Path):
     )
     assert filtered.showing == 1
     assert filtered.dated_count == 1
+
+
+def test_archive_range_filters_via_parse_date_input(tmp_path: Path):
+    """Regression: archive UI parsers live in domain.dates, not page_viewer."""
+    from transcribe.domain.dates import parse_date_input
+
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "parse-range",
+        title="ParseRange",
+        page_specs=[
+            {"date": ApproximateDate(2018, 6, 1), "text": "mid"},
+            {"date": ApproximateDate(2019, 12, 1), "text": "late"},
+        ],
+    )
+    archive = ArchiveService(runtime)
+    start = parse_date_input("2018")
+    end = parse_date_input("2018-12-31")
+    filtered = archive.timeline(
+        ArchiveFilters(period="range", range_start=start, range_end=end, include_undated=False)
+    )
+    assert filtered.showing == 1
+    # Compact diary form also parses for filters.
+    assert parse_date_input("180601") == ApproximateDate(2018, 6, 1)
 
 
 def test_partial_date_ordering(tmp_path: Path):

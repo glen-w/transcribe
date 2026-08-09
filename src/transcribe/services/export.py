@@ -123,6 +123,8 @@ class ExportService:
                     else None,
                     "provider_metadata": attempt.provider_metadata if attempt else None,
                     "date": page.date.as_dict() if page.date else None,
+                    "date_approved": page.date_approved,
+                    "date_source": page.date_source,
                     "tags": list(page.tags),
                 }
             )

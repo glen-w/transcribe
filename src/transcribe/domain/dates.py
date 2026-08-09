@@ -2,9 +2,28 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
+
+DATE_SOURCE_EXTRACTED = "extracted"
+DATE_SOURCE_INHERITED = "inherited"
+DATE_SOURCES = frozenset({DATE_SOURCE_EXTRACTED, DATE_SOURCE_INHERITED})
+
+# Compact YYMMDD / bare YYYY only considered in this early window.
+_EARLY_TEXT_MAX_CHARS = 280
+_EARLY_TEXT_MAX_LINES = 5
+
+_PRECISION_RANK = {"day": 3, "month": 2, "year": 1}
+
+# pattern_id used only as final tie-break (lower wins).
+_PAT_YYMMDD = 0
+_PAT_YMD = 1
+_PAT_DMY = 2
+_PAT_YM = 3
+_PAT_MY = 4
+_PAT_YEAR = 5
 
 
 @dataclass(frozen=True)
@@ -92,6 +111,198 @@ class ApproximateDate:
             iso = start.isocalendar()
             return f"{iso.year:04d}-W{iso.week:02d}"
         return start.isoformat()
+
+
+def expand_yy(yy: int) -> int:
+    """Century pivot: YY >= 70 → 19YY, else 20YY."""
+    if yy < 0 or yy > 99:
+        raise ValueError(f"invalid YY: {yy}")
+    return 1900 + yy if yy >= 70 else 2000 + yy
+
+
+def canonicalize_page_date_state(
+    date: ApproximateDate | None,
+    date_approved: bool,
+    date_source: str | None,
+) -> tuple[ApproximateDate | None, bool, str | None]:
+    """Enforce date / approved / source invariants; raise on illegal combinations."""
+    if date is None:
+        if date_source is not None:
+            raise ValueError("date_source must be null when date is null")
+        return None, True, None
+    if date_approved:
+        if date_source is not None:
+            raise ValueError("approved date must have date_source null")
+        return date, True, None
+    if date_source not in DATE_SOURCES:
+        raise ValueError(
+            "unapproved date requires date_source 'extracted' or 'inherited'"
+        )
+    return date, False, date_source
+
+
+def page_date_fields_from_dict(
+    data: dict[str, Any],
+) -> tuple[ApproximateDate | None, bool, str | None]:
+    """Load page date triple from persisted JSON; reject malformed values."""
+    date = ApproximateDate.from_dict(data.get("date"))
+    has_approved = "date_approved" in data
+    has_source = "date_source" in data
+
+    if not has_approved and not has_source:
+        # Legacy manifests: dated or undated → human-approved, no source.
+        return canonicalize_page_date_state(date, True, None)
+
+    if has_approved:
+        raw_approved = data["date_approved"]
+        if type(raw_approved) is not bool:
+            raise ValueError("date_approved must be a boolean")
+        approved = raw_approved
+    else:
+        raise ValueError("date_source requires date_approved")
+
+    if has_source:
+        raw_source = data["date_source"]
+        if raw_source is not None and raw_source not in DATE_SOURCES:
+            raise ValueError(f"invalid date_source: {raw_source!r}")
+        source = raw_source
+    else:
+        if date is None or approved:
+            source = None
+        else:
+            raise ValueError("unapproved date requires date_source")
+
+    return canonicalize_page_date_state(date, approved, source)
+
+
+def parse_date_input(raw: str) -> ApproximateDate | None:
+    """Parse UI / filter date strings. Empty → None. Raises ValueError if unrecognized."""
+    text = raw.strip()
+    if not text:
+        return None
+
+    compact = re.fullmatch(
+        r"(\d{6})(?:[ \t]+(\d{4}|\d{1,2}:\d{2}))?",
+        text,
+    )
+    if compact:
+        try:
+            return _parse_yymmdd(compact.group(1))
+        except ValueError as exc:
+            raise ValueError(f"Unrecognized date: {raw!r}") from exc
+
+    parts = text.replace("/", "-").split("-")
+    try:
+        if len(parts) == 1:
+            year = int(parts[0])
+            if len(parts[0]) == 6:
+                return _parse_yymmdd(parts[0])
+            return ApproximateDate(year=year)
+        if len(parts) == 2:
+            a, b = int(parts[0]), int(parts[1])
+            if a > 31:
+                return ApproximateDate(year=a, month=b)
+            return ApproximateDate(year=b, month=a)
+        if len(parts) == 3:
+            a, b, c = int(parts[0]), int(parts[1]), int(parts[2])
+            if a > 31:
+                return ApproximateDate(year=a, month=b, day=c)
+            return ApproximateDate(year=c, month=b, day=a)
+    except ValueError as exc:
+        raise ValueError(f"Unrecognized date: {raw!r}") from exc
+    raise ValueError(f"Unrecognized date: {raw!r}")
+
+
+def extract_page_date(text: str | None) -> ApproximateDate | None:
+    """Best diary date from transcription text, or None."""
+    if not text or not text.strip():
+        return None
+    early_end = _early_text_end(text)
+    candidates: list[tuple[ApproximateDate, int, int, int, int]] = []
+    # (date, start, precision_rank, span_len, pattern_id)
+
+    for m in re.finditer(
+        r"(?<![A-Za-z0-9])(\d{6})(?:[ \t]+(\d{4}|\d{1,2}:\d{2}))?(?![A-Za-z0-9])",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        try:
+            d = _parse_yymmdd(m.group(1))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_YYMMDD))
+
+    for m in re.finditer(
+        r"(?<!\d)(\d{4})([-./])(\d{1,2})\2(\d{1,2})(?!\d)",
+        text,
+    ):
+        try:
+            d = ApproximateDate(year=int(m.group(1)), month=int(m.group(3)), day=int(m.group(4)))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_YMD))
+
+    for m in re.finditer(
+        r"(?<!\d)(\d{1,2})([-./])(\d{1,2})\2(\d{4})(?!\d)",
+        text,
+    ):
+        try:
+            d = ApproximateDate(year=int(m.group(4)), month=int(m.group(3)), day=int(m.group(1)))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_DMY))
+
+    for m in re.finditer(r"(?<!\d)(\d{4})([-./])(\d{1,2})(?!\d)", text):
+        # Avoid matching the YYYY-MM prefix of an already-matched YYYY-MM-DD.
+        after = m.end()
+        if after < len(text) and text[after] in "-./" and after + 1 < len(text) and text[after + 1].isdigit():
+            continue
+        try:
+            d = ApproximateDate(year=int(m.group(1)), month=int(m.group(3)))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["month"], m.end() - m.start(), _PAT_YM))
+
+    for m in re.finditer(r"(?<!\d)(\d{1,2})/(\d{4})(?!\d)", text):
+        try:
+            d = ApproximateDate(year=int(m.group(2)), month=int(m.group(1)))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["month"], m.end() - m.start(), _PAT_MY))
+
+    for m in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text):
+        if m.start() >= early_end:
+            continue
+        # Skip years that are the leading part of a longer structured date.
+        rest = text[m.end() : m.end() + 1]
+        if rest in "-./":
+            continue
+        try:
+            d = ApproximateDate(year=int(m.group(1)))
+        except ValueError:
+            continue
+        candidates.append((d, m.start(), _PRECISION_RANK["year"], m.end() - m.start(), _PAT_YEAR))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda c: (c[1], -c[2], -c[3], c[4]))
+    return candidates[0][0]
+
+
+def _early_text_end(text: str) -> int:
+    lines = text.splitlines()
+    chunk = "\n".join(lines[:_EARLY_TEXT_MAX_LINES])
+    return min(len(chunk), _EARLY_TEXT_MAX_CHARS, len(text))
+
+
+def _parse_yymmdd(token: str) -> ApproximateDate:
+    if len(token) != 6 or not token.isdigit():
+        raise ValueError(f"invalid YYMMDD: {token!r}")
+    yy = int(token[0:2])
+    month = int(token[2:4])
+    day = int(token[4:6])
+    return ApproximateDate(year=expand_yy(yy), month=month, day=day)
 
 
 def normalize_tags(tags: list[str] | None) -> list[str]:

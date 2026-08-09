@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from transcribe.domain.dates import ApproximateDate, normalize_tags
+from transcribe.domain.dates import (
+    ApproximateDate,
+    DATE_SOURCE_EXTRACTED,
+    DATE_SOURCE_INHERITED,
+    extract_page_date,
+    normalize_tags,
+)
 from transcribe.domain.models import (
     MAX_ATTEMPTS_RETAINED,
     OCRAttempt,
     OCRSettings,
+    PageIndex,
     PageResult,
     Project,
 )
@@ -93,10 +100,9 @@ class ProjectService:
         self,
         page_id: str,
         *,
-        date: ApproximateDate | None | object = _UNSET,
         tags: list[str] | object = _UNSET,
     ) -> Project:
-        """Update user-owned page date/tags. Omit a kwarg (or pass sentinel) to leave it."""
+        """Merge-safe page metadata updates (tags). Date changes use approve_page_date."""
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
@@ -105,8 +111,6 @@ class ProjectService:
                 if page.page_id != page_id:
                     continue
                 found = True
-                if date is not _UNSET:
-                    page.date = date  # type: ignore[assignment]
                 if tags is not _UNSET:
                     page.tags = normalize_tags(tags)  # type: ignore[arg-type]
                 break
@@ -116,6 +120,122 @@ class ProjectService:
             validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current
+
+    def approve_page_date(
+        self,
+        page_id: str,
+        date: ApproximateDate | None,
+    ) -> tuple[Project, bool]:
+        """Atomically set human-approved date (approved=True, source=None).
+
+        Returns (project, date_value_changed).
+        """
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            page = self._require_page(current, page_id)
+            old = page.date
+            page.set_date_state(date, approved=True, source=None)
+            current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
+            write_json_atomic(self.paths.manifest, current.as_dict())
+            return current, old != page.date
+
+    def suggest_page_date(self, page_id: str) -> bool:
+        """Suggest date from effective_text or previous page. Returns True if date value changed.
+
+        Reloads on-disk project under the mutation lock (never a job-start snapshot).
+        Never overwrites an approved date.
+        """
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            page = self._require_page(current, page_id)
+            if page.date is not None and page.date_approved:
+                return False
+            idx = next(i for i, p in enumerate(current.pages) if p.page_id == page_id)
+            old_date = page.date
+            old_approved = page.date_approved
+            old_source = page.date_source
+            result = self._load_page_result_unlocked(page_id)
+            text = result.effective_text() if result else None
+            self._apply_suggestion(current.pages, idx, text)
+            page = current.pages[idx]
+            value_changed = old_date != page.date
+            state_changed = (
+                value_changed
+                or old_approved != page.date_approved
+                or old_source != page.date_source
+            )
+            if state_changed:
+                current.updated_at = to_iso(self.clock.now())
+                validate_project(current)
+                write_json_atomic(self.paths.manifest, current.as_dict())
+            return value_changed
+
+    def fill_page_dates_ordered(self) -> int:
+        """Walk pages in order; apply extract→inherit; one manifest write.
+
+        Returns number of pages whose date **value** changed.
+        """
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            value_changed = 0
+            any_change = False
+            for idx, page in enumerate(current.pages):
+                if page.date is not None and page.date_approved:
+                    continue
+                old_date = page.date
+                old_approved = page.date_approved
+                old_source = page.date_source
+                result = self._load_page_result_unlocked(page.page_id)
+                text = result.effective_text() if result else None
+                self._apply_suggestion(current.pages, idx, text)
+                page = current.pages[idx]
+                if old_date != page.date:
+                    value_changed += 1
+                if (
+                    old_date != page.date
+                    or old_approved != page.date_approved
+                    or old_source != page.date_source
+                ):
+                    any_change = True
+            if any_change:
+                current.updated_at = to_iso(self.clock.now())
+                validate_project(current)
+                write_json_atomic(self.paths.manifest, current.as_dict())
+            return value_changed
+
+    @staticmethod
+    def _require_page(project: Project, page_id: str) -> PageIndex:
+        for page in project.pages:
+            if page.page_id == page_id:
+                return page
+        raise ProjectError(f"unknown page_id: {page_id}")
+
+    def _apply_suggestion(
+        self,
+        pages: list[PageIndex],
+        idx: int,
+        text: str | None,
+    ) -> None:
+        page = pages[idx]
+        if page.date is not None and page.date_approved:
+            return
+        extracted = extract_page_date(text)
+        if extracted is not None:
+            page.set_date_state(
+                extracted, approved=False, source=DATE_SOURCE_EXTRACTED
+            )
+            return
+        for prev in reversed(pages[:idx]):
+            if prev.date is not None:
+                page.set_date_state(
+                    prev.date, approved=False, source=DATE_SOURCE_INHERITED
+                )
+                return
+        page.set_date_state(None, approved=True, source=None)
 
     def update_notebook_metadata(
         self,

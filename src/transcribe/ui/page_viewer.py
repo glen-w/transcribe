@@ -7,7 +7,12 @@ from typing import Any
 
 import streamlit as st
 
-from transcribe.domain.dates import ApproximateDate, normalize_tags
+from transcribe.domain.dates import (
+    DATE_SOURCE_EXTRACTED,
+    DATE_SOURCE_INHERITED,
+    normalize_tags,
+    parse_date_input,
+)
 from transcribe.domain.models import Project
 from transcribe.errors import TranscribeError
 from transcribe.paths import ProjectPaths
@@ -16,29 +21,6 @@ from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
-
-
-def _parse_date_input(raw: str) -> ApproximateDate | None:
-    text = raw.strip()
-    if not text:
-        return None
-    parts = text.replace("/", "-").split("-")
-    try:
-        if len(parts) == 1:
-            return ApproximateDate(year=int(parts[0]))
-        if len(parts) == 2:
-            a, b = int(parts[0]), int(parts[1])
-            if a > 31:
-                return ApproximateDate(year=a, month=b)
-            return ApproximateDate(year=b, month=a)
-        if len(parts) == 3:
-            a, b, c = int(parts[0]), int(parts[1]), int(parts[2])
-            if a > 31:
-                return ApproximateDate(year=a, month=b, day=c)
-            return ApproximateDate(year=c, month=b, day=a)
-    except ValueError as exc:
-        raise ValueError(f"Unrecognized date: {raw!r}") from exc
-    raise ValueError(f"Unrecognized date: {raw!r}")
 
 
 def _normalize_entries(
@@ -108,6 +90,16 @@ def render_page_viewer(
         st.error(f"Page {page_id[:8]}… not found in {project.title}")
         return project
 
+    # Same refresh rule as OCR / post-job: missing or unapproved → suggest.
+    if page.date is None or not page.date_approved:
+        try:
+            if projects.suggest_page_date(page.page_id):
+                bump_archive_generation(build_runtime_paths())
+            project = projects.load(reconcile=False)
+            page = next((p for p in project.pages if p.page_id == page_id), page)
+        except TranscribeError:
+            pass
+
     render = project.renders[page.active_render_id]
     img_path = paths.resolve_contained(render.image_relpath)
     result = projects.load_page_result(page.page_id)
@@ -126,7 +118,7 @@ def render_page_viewer(
             st.rerun()
     else:
         top[0].write("")
-    if top[1].button("Previous", disabled=idx <= 0):
+    if top[1].button("←", disabled=idx <= 0, help="Previous page"):
         prev = entries[idx - 1]
         st.session_state["view_page_id"] = prev["page_id"]
         st.session_state["root"] = prev["project_root"]
@@ -135,7 +127,7 @@ def render_page_viewer(
         f"**{project.title}** · {idx + 1} / {len(entries)}"
         + (f" · {page.date.format_display()}" if page.date else " · Undated")
     )
-    if top[3].button("Next", disabled=idx >= len(entries) - 1):
+    if top[3].button("→", disabled=idx >= len(entries) - 1, help="Next page"):
         nxt = entries[idx + 1]
         st.session_state["view_page_id"] = nxt["page_id"]
         st.session_state["root"] = nxt["project_root"]
@@ -199,10 +191,17 @@ def render_page_viewer(
         st.caption("Page metadata")
         date_default = page.date.format_display() if page.date else ""
         date_in = st.text_input(
-            "Date (YYYY, YYYY-MM, YYYY-MM-DD or DD/MM/YYYY)",
+            "Date (YYYY, YYYY-MM, YYYY-MM-DD, DD/MM/YYYY, or YYMMDD; time ignored)",
             value=date_default,
             key=f"date_{page.page_id}",
         )
+        if page.date is not None and not page.date_approved:
+            if page.date_source == DATE_SOURCE_EXTRACTED:
+                st.caption("Suggested from transcription — not yet approved")
+            elif page.date_source == DATE_SOURCE_INHERITED:
+                st.caption("Carried from previous page — not yet approved")
+            else:
+                st.caption("Suggested — not yet approved")
         tags_in = st.text_input(
             "Tags (comma-separated)",
             value=", ".join(page.tags),
@@ -210,13 +209,17 @@ def render_page_viewer(
         )
         if st.button("Save metadata"):
             try:
-                new_date = _parse_date_input(date_in)
+                new_date = parse_date_input(date_in)
+                project, date_changed = projects.approve_page_date(page.page_id, new_date)
                 project = projects.update_page_metadata(
                     page.page_id,
-                    date=new_date,
                     tags=normalize_tags([t for t in tags_in.split(",")]),
                 )
-                bump_archive_generation(build_runtime_paths())
+                if date_changed:
+                    bump_archive_generation(build_runtime_paths())
+                else:
+                    # tags may have changed; bump so archive tag filters refresh
+                    bump_archive_generation(build_runtime_paths())
                 st.success("Metadata saved")
                 st.rerun()
             except (ValueError, TranscribeError) as exc:

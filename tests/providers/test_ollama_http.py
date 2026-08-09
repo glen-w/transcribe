@@ -98,6 +98,77 @@ def test_invalidate_discovery_cache_by_url():
     assert not any("localhost:11434" in k for k in _discovery_cache)
 
 
+def test_call_with_retries_succeeds_after_retriable_failures():
+    sleeps: list[float] = []
+    attempts = {"n": 0}
+
+    def op():
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise ProviderError("timeout", retriable=True, code="timeout")
+        return "ok"
+
+    from transcribe.providers.ollama import call_with_retries
+
+    result, retry_count = call_with_retries(op, sleep=sleeps.append)
+    assert result == "ok"
+    assert retry_count == 2
+    assert sleeps == [0.5, 1.0]
+
+
+def test_call_with_retries_does_not_retry_non_retriable():
+    from transcribe.providers.ollama import call_with_retries
+
+    calls = {"n": 0}
+
+    def op():
+        calls["n"] += 1
+        raise ProviderError("model missing", retriable=False, code="model_missing")
+
+    with pytest.raises(ProviderError) as exc:
+        call_with_retries(op, sleep=lambda _s: None)
+    assert exc.value.code == "model_missing"
+    assert calls["n"] == 1
+
+
+def test_call_with_retries_exhausts_attempts():
+    from transcribe.providers.ollama import call_with_retries
+
+    calls = {"n": 0}
+
+    def op():
+        calls["n"] += 1
+        raise ProviderError("timeout", retriable=True, code="timeout")
+
+    with pytest.raises(ProviderError) as exc:
+        call_with_retries(op, max_retries=3, sleep=lambda _s: None)
+    assert exc.value.code == "timeout"
+    assert calls["n"] == 3
+
+
+def test_text_client_retries_timeouts():
+    from transcribe.analysis.llm_runtime import OllamaTextClient
+
+    client = OllamaTextClient(base_url="http://localhost:11434", max_retries=3)
+    calls = {"n": 0}
+
+    def fake_post(path, body, *, timeout):
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise ProviderError("Ollama request timed out", retriable=True, code="timeout")
+        return {"response": "hello", "eval_count": 4}
+
+    with (
+        patch.object(client._provider, "_http_post", side_effect=fake_post),
+        patch("transcribe.providers.ollama.time.sleep", lambda _s: None),
+    ):
+        text, meta = client.generate_with_meta(model="m", prompt="p")
+    assert text == "hello"
+    assert meta["retry_count"] == 1
+    assert meta["eval_count"] == 4
+    assert calls["n"] == 2
+
+
 def test_generate_maps_model_missing_404():
     invalidate_discovery_cache()
     import urllib.error

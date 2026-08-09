@@ -11,7 +11,12 @@ from typing import Any, Protocol
 
 from transcribe.errors import ProviderError
 from transcribe.providers.base import ModelInfo
-from transcribe.providers.ollama import OllamaVisionProvider, normalize_base_url
+from transcribe.providers.ollama import (
+    DEFAULT_MAX_RETRIES,
+    OllamaVisionProvider,
+    call_with_retries,
+    normalize_base_url,
+)
 from transcribe.runtime_paths import default_ollama_base_url
 
 _UNSUITABLE_NAME = re.compile(
@@ -79,12 +84,15 @@ class OllamaTextClient:
 
     base_url: str = ""
     timeout_s: float = 120.0
+    max_retries: int = DEFAULT_MAX_RETRIES
 
     def __post_init__(self) -> None:
         raw = (self.base_url or "").strip() or default_ollama_base_url()
         self.base_url = normalize_base_url(raw)
         self._provider = OllamaVisionProvider(
-            self.base_url, request_timeout=self.timeout_s
+            self.base_url,
+            request_timeout=self.timeout_s,
+            max_retries=self.max_retries,
         )
 
     def healthcheck(self) -> bool:
@@ -138,14 +146,19 @@ class OllamaTextClient:
             "stream": False,
             "options": options or {"temperature": 0.0, "num_predict": 1024},
         }
-        payload = self._provider._http_post(  # noqa: SLF001 — shared transport
-            "/api/generate", body, timeout=self.timeout_s
-        )
-        if not isinstance(payload, dict):
-            raise ProviderError(
-                "Ollama returned a non-object JSON response", code="bad_response"
+
+        def once() -> dict[str, Any]:
+            payload = self._provider._http_post(  # noqa: SLF001 — shared transport
+                "/api/generate", body, timeout=self.timeout_s
             )
-        meta: dict[str, Any] = {}
+            if not isinstance(payload, dict):
+                raise ProviderError(
+                    "Ollama returned a non-object JSON response", code="bad_response"
+                )
+            return payload
+
+        payload, attempt = call_with_retries(once, max_retries=self.max_retries)
+        meta: dict[str, Any] = {"retry_count": attempt}
         for key in (
             "total_duration",
             "load_duration",

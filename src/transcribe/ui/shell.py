@@ -217,7 +217,7 @@ def render_brand() -> None:
     """Sidebar brand mark."""
     path = logo_path()
     if path is not None:
-        st.image(str(path), use_container_width=True)
+        st.image(str(path), width="stretch")
         st.markdown(
             '<span class="tx-sidebar-brand-sub">Notebook OCR</span>',
             unsafe_allow_html=True,
@@ -266,7 +266,7 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
     kwargs = {
         "key": f"{key_prefix}_{mode}",
         "type": btn_type,
-        "use_container_width": True,
+        "width": "stretch",
     }
     if st.button(text, **kwargs):
         if st.session_state.get("ui_mode") != mode:

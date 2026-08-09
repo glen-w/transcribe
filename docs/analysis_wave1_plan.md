@@ -514,4 +514,4 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Which Overview widgets ship visually with 1a vs wait for 1b entities
 - Non-identity UX copy and chart aesthetics
 
-**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Core robustness & UX** (deferred reinterpretations not scheduled).
+**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Product hardening** (deferred reinterpretations not scheduled).

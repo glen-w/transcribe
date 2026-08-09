@@ -22,6 +22,8 @@ Default destination is the project `exports/` directory unless overridden (CLI d
 - `schema_version` must be `1`
 - Includes application version, project metadata, source summaries, and ordered pages
 - Per page: order (`global_index`), status, effective/raw/edited text, fingerprints, provenance, tags/dates as present
+- Page date fields are always emitted together: `date`, `date_approved`, `date_source` (canonical triples; undated ⇒ `date: null`, `date_approved: true`, `date_source: null`)
+- **Legacy readers** may ignore unknown keys (`date_approved`, `date_source`) and continue to use `date` alone
 - **Must not require absolute filesystem paths** in the interchange payload
 
 ## Snapshot semantics

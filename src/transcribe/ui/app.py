@@ -48,7 +48,10 @@ from transcribe.ui.shell import (
 @st.cache_resource
 def get_coordinator(project_root: str) -> JobCoordinator:
     _paths, _projects, coord, _ingest = build_coordinator(
-        project_root, clock=SystemClock(), ids=UuidGenerator()
+        project_root,
+        clock=SystemClock(),
+        ids=UuidGenerator(),
+        archive_runtime=build_runtime_paths(),
     )
     return coord
 
@@ -887,7 +890,7 @@ def main() -> None:
         st.caption(f"Exports: `{runtime.export_dir}`")
 
         col_a, col_b = st.columns(2)
-        if col_a.button("Create", use_container_width=True):
+        if col_a.button("Create", width="stretch"):
             try:
                 paths = open_project_paths(Path(root))
                 ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
@@ -895,7 +898,7 @@ def main() -> None:
                 st.cache_resource.clear()
             except TranscribeError as exc:
                 st.error(str(exc))
-        if col_b.button("Open", use_container_width=True):
+        if col_b.button("Open", width="stretch"):
             try:
                 paths, projects, ingest = _services(root)
                 ingest.cleanup_staging()
