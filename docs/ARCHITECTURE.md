@@ -46,7 +46,7 @@ CLI ──────────────────┘              │
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
-- **CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
+- **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
 - **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities)
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
