@@ -5,6 +5,9 @@ Policy defaults mirror TranscriptX ``AnalysisUiPresetsModel``:
 - Balanced: ``llm_summary`` only + heavy allowlist ``semantic_similarity``
 - Thorough: all suitable (LLM + heavy)
 - Custom: caller selection (seeded from Balanced when empty)
+
+Resolved policies come from ``EffectiveConfig.analysis.ui_presets`` (workspace →
+profile → defaults). Builtin ``BUILTIN_PRESET_POLICIES`` remain the model defaults.
 """
 
 from __future__ import annotations
@@ -18,6 +21,9 @@ from transcribe.analysis.module_catalog import (
     is_heavy_module,
     list_catalog_modules,
 )
+from transcribe.config.facade import require_operation_config
+from transcribe.config.models import EffectiveConfig, PresetPolicyConfig
+from transcribe.config.versions import PRESET_POLICY_VERSION
 
 AnalysisPreset = Literal["quick", "balanced", "thorough", "custom"]
 VALID_PRESETS: tuple[AnalysisPreset, ...] = (
@@ -56,30 +62,32 @@ class PresetPolicy:
     module_ids: tuple[str, ...] | None = None
 
 
-# Builtin policies — same defaults as TranscriptX ``ui_presets.py``.
+def _policy_from_config(cfg: PresetPolicyConfig) -> PresetPolicy:
+    return PresetPolicy(
+        allow_llm=cfg.allow_llm,
+        llm_module_ids=cfg.llm_module_ids,
+        allow_heavy=cfg.allow_heavy,
+        heavy_module_ids=cfg.heavy_module_ids,
+        include_excluded_from_default=cfg.include_excluded_from_default,
+        module_ids=cfg.module_ids,
+    )
+
+
+# Builtin policies — same defaults as TranscriptX ``ui_presets.py`` / model defaults.
 BUILTIN_PRESET_POLICIES: dict[str, PresetPolicy] = {
-    "quick": PresetPolicy(
-        allow_llm=False,
-        llm_module_ids=(),
-        allow_heavy=False,
-        heavy_module_ids=(),
-        include_excluded_from_default=False,
-    ),
-    "balanced": PresetPolicy(
-        allow_llm=True,
-        llm_module_ids=("llm_summary",),
-        allow_heavy=True,
-        heavy_module_ids=("semantic_similarity",),
-        include_excluded_from_default=False,
-    ),
-    "thorough": PresetPolicy(
-        allow_llm=True,
-        llm_module_ids=(),
-        allow_heavy=True,
-        heavy_module_ids=(),
-        include_excluded_from_default=True,
-    ),
+    "quick": _policy_from_config(EffectiveConfig().analysis.ui_presets.quick),
+    "balanced": _policy_from_config(EffectiveConfig().analysis.ui_presets.balanced),
+    "thorough": _policy_from_config(EffectiveConfig().analysis.ui_presets.thorough),
 }
+
+
+def policies_from_effective(cfg: EffectiveConfig) -> dict[str, PresetPolicy]:
+    presets = cfg.analysis.ui_presets
+    return {
+        "quick": _policy_from_config(presets.quick),
+        "balanced": _policy_from_config(presets.balanced),
+        "thorough": _policy_from_config(presets.thorough),
+    }
 
 
 @dataclass(frozen=True)
@@ -219,6 +227,7 @@ def resolve_analysis_preset(
     preset: AnalysisPreset | str,
     *,
     custom_modules: Sequence[str] | None = None,
+    effective: EffectiveConfig | None = None,
 ) -> ResolvedAnalysisPreset:
     """Resolve Quick / Balanced / Thorough / Custom into ordered module ids."""
     if preset not in VALID_PRESETS:
@@ -230,15 +239,20 @@ def resolve_analysis_preset(
         include_excluded_from_default=True,
     )
 
+    cfg = effective if effective is not None else require_operation_config()
+    policies = policies_from_effective(cfg)
+
     if preset_key == "custom":
         kept, _ = reconcile_custom_modules(
             list(custom_modules or ()), suitable=suitable
         )
         if not kept:
-            kept = resolve_analysis_preset("balanced").module_ids
+            kept = resolve_analysis_preset(
+                "balanced", effective=cfg
+            ).module_ids
         return ResolvedAnalysisPreset(preset="custom", module_ids=kept)
 
-    policy = BUILTIN_PRESET_POLICIES[preset_key]
+    policy = policies[preset_key]
     modules = _modules_from_policy(suitable, policy)
     return ResolvedAnalysisPreset(preset=preset_key, module_ids=modules)
 
@@ -298,6 +312,7 @@ __all__ = [
     "EffectiveModulePlan",
     "PRESET_HELP",
     "PRESET_LABELS",
+    "PRESET_POLICY_VERSION",
     "PresetPolicy",
     "ResolvedAnalysisPreset",
     "VALID_PRESETS",
@@ -306,6 +321,7 @@ __all__ = [
     "format_module_label",
     "format_preset_label",
     "label_to_preset",
+    "policies_from_effective",
     "prune_modules_with_unsatisfied_deps",
     "reconcile_custom_modules",
     "resolve_analysis_preset",

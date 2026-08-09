@@ -19,6 +19,14 @@ Only **commit** mutates the corpus (notebook entities, managed bytes, corpus ind
 
 Folder-per-notebook, naming conventions, scanner batches, PDF trees, etc. are **import adapters**. They emit one canonical `ImportPlan`. Adapter heuristics must not leak into notebook identity (`notebook_id` is always preallocated/generated—never “folder name”).
 
+### Notebook cover (folder-per-notebook / file-name heuristic)
+
+When creating or filling a notebook from imported image sources:
+
+1. If a source basename is `cover.jpg`, `cover.jpeg`, or `cover.png` (case-insensitive), and the notebook has no `cover_page_id` yet, set `cover_page_id` to that source’s page (within-source `page_index` 0).
+2. Otherwise leave `cover_page_id` unset; display/Open fall back to the **first page in notebook order** (`project.pages[0]`), not earliest dated page.
+3. Do not overwrite an existing user-set `cover_page_id`. Cover PDFs are out of scope for this heuristic.
+
 ### Ordering ambiguity
 
 Natural sort may be the **proposed** order in a plan. Ambiguous ordering (duplicate numbers, mixed PDF/image without an explicit rule, missing indices, conflicting cues) is a **validate error**. Commit is refused until the plan is resolved. Silent guessing is non-conformant.

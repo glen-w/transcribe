@@ -43,13 +43,11 @@ class ThumbnailService:
         return dest
 
     def cover_page_id(self, project: Project) -> str | None:
+        """Explicit cover if valid; otherwise first page in notebook order."""
         if project.cover_page_id and any(
             p.page_id == project.cover_page_id for p in project.pages
         ):
             return project.cover_page_id
         if not project.pages:
             return None
-        dated = [p for p in project.pages if p.date is not None]
-        if dated:
-            return min(dated, key=lambda p: p.date.sort_key()).page_id  # type: ignore[union-attr]
         return project.pages[0].page_id

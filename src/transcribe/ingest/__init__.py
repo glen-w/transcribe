@@ -44,6 +44,14 @@ def sanitize_filename(name: str) -> str:
     return base or "source"
 
 
+_COVER_FILENAMES = frozenset({"cover.jpg", "cover.jpeg", "cover.png"})
+
+
+def is_cover_filename(name: str) -> bool:
+    """True when basename is cover.jpg / cover.jpeg / cover.png (case-insensitive)."""
+    return Path(name).name.casefold() in _COVER_FILENAMES
+
+
 @dataclass
 class _StagedPage:
     page_id: str
@@ -398,6 +406,13 @@ class IngestService:
                 project.sources.append(source_doc)
                 project.pages.extend(new_pages)
                 project.renders.update(new_renders)
+                if (
+                    project.cover_page_id is None
+                    and new_pages
+                    and is_cover_filename(safe_name)
+                    and media.startswith("image/")
+                ):
+                    project.cover_page_id = new_pages[0].page_id
                 project.updated_at = now
                 validate_project(project, paths=self.paths)
                 write_json_atomic(self.paths.manifest, project.as_dict())
@@ -548,12 +563,14 @@ class IngestService:
                     height=entry["height"],
                 )
             )
+        original_filename = source["original_filename"]
+        media_type = source["media_type"]
         project.sources.append(
             SourceDocument(
                 source_id=source_id,
-                original_filename=source["original_filename"],
+                original_filename=original_filename,
                 stored_relpath=source["final_rel"],
-                media_type=source["media_type"],
+                media_type=media_type,
                 sha256=source["sha256"],
                 page_count=int(source["page_count"]),
                 imported_at=source["imported_at"],
@@ -562,6 +579,13 @@ class IngestService:
         )
         project.pages.extend(new_pages)
         project.renders.update(new_renders)
+        if (
+            project.cover_page_id is None
+            and new_pages
+            and is_cover_filename(original_filename)
+            and str(media_type).startswith("image/")
+        ):
+            project.cover_page_id = new_pages[0].page_id
         project.updated_at = to_iso(self.clock.now())
 
     def cleanup_staging(self) -> None:

@@ -93,3 +93,38 @@ def test_oversized_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     ingest = IngestService(paths, clock=clock, ids=ids)
     with pytest.raises(IngestError):
         ingest.import_bytes("big.png", _png_bytes())
+
+
+def test_cover_png_sets_cover_page_id(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("note.png", _png_bytes(color=(1, 2, 3)))
+    assert project.cover_page_id is None
+    project = ingest.import_bytes("Cover.PNG", _png_bytes(color=(200, 10, 10)))
+    assert project.cover_page_id == project.pages[1].page_id
+
+
+def test_cover_jpg_does_not_overwrite_existing_cover(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("cover.jpg", _png_bytes(color=(9, 9, 9)))
+    first_cover = project.cover_page_id
+    assert first_cover == project.pages[0].page_id
+    project = ingest.import_bytes("cover.png", _png_bytes(color=(1, 1, 1)))
+    assert project.cover_page_id == first_cover
+
+
+def test_is_cover_filename():
+    from transcribe.ingest import is_cover_filename
+
+    assert is_cover_filename("cover.jpg")
+    assert is_cover_filename("COVER.JPEG")
+    assert is_cover_filename("/tmp/scan/cover.png")
+    assert not is_cover_filename("mycover.png")
+    assert not is_cover_filename("cover.pdf")
