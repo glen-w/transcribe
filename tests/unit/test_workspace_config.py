@@ -112,6 +112,18 @@ def test_precedence_env_over_workspace(runtime: RuntimePaths, monkeypatch: pytes
     assert resolved.provenance["ocr.base_url"] == "env:TRANSCRIBE_OLLAMA_BASE_URL"
 
 
+def test_precedence_project_beats_env(runtime: RuntimePaths) -> None:
+    resolved = resolve_effective_config(
+        workspace_config={"analysis": {}, "llm": {}, "ocr": {}},
+        activations=ProfileActivations(),
+        project_settings=OCRSettings(base_url="http://project:11434"),
+        runtime=runtime,
+        environ={"TRANSCRIBE_OLLAMA_BASE_URL": "http://host.docker.internal:11434"},
+    )
+    assert resolved.effective.ocr.base_url == "http://project:11434"
+    assert resolved.provenance["ocr.base_url"] == "project"
+
+
 def test_project_override_ocr_only(runtime: RuntimePaths) -> None:
     project = OCRSettings(base_url="http://project:11434", max_workers=2)
     resolved = resolve_effective_config(

@@ -167,6 +167,22 @@ def save_workspace_settings(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     cleaned = strip_unknown_config_keys(config)
+    if set(config.keys()) - {"analysis", "llm", "ocr"}:
+        unknown = sorted(set(config.keys()) - {"analysis", "llm", "ocr"})
+        raise ConfigError(
+            SETTINGS_CORRUPT,
+            f"unknown config keys refused on save: {unknown}",
+        )
+    # Ensure activations resolve (builtin or user profile on disk)
+    from transcribe.config.profiles import load_profile_overlay
+
+    for target, name in (
+        ("workflow", activations.workflow),
+        ("ocr", activations.ocr),
+        ("llm", activations.llm),
+    ):
+        load_profile_overlay(target, name, runtime=rt)
+
     payload = workspace_document(
         config=cleaned,
         activations=activations,

@@ -17,9 +17,12 @@ Virtual builtin profiles are **not** on disk.
 
 ## Precedence (per key)
 
-`defaults → workspace → active profile overlay → project OCR allowlist → env allowlist`
+`defaults → workspace → active profile overlay → env allowlist → project OCR allowlist`
 
-Project may override only OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds **new projects only**.
+Project OCR fields win over env so notebook `project.json` settings are not
+silently overridden by `TRANSCRIBE_OLLAMA_BASE_URL`. Project may override only
+OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
+**new projects only**.
 
 ## Profiles
 

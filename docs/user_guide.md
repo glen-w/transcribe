@@ -62,6 +62,8 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 2. Optionally enable an Ask-notebook question.
 3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook.
 
+Edit what each preset includes under **App → Settings → Analysis** (workspace policies; see [contracts/workspace-settings.md](contracts/workspace-settings.md)). Models / Profiles tabs hold LLM budgets and named profile activations.
+
 | Preset | Modules |
 |--------|---------|
 | **Quick** | Light/medium only — no LLM, no heavy modules |

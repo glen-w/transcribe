@@ -1,4 +1,4 @@
-"""Per-key precedence: defaults → workspace → profile → project → env."""
+"""Per-key precedence: defaults → workspace → profile → env → project allowlist."""
 
 from __future__ import annotations
 
@@ -57,7 +57,6 @@ def _flatten_provenance(
     for key, value in layer.items():
         path = f"{prefix}.{key}" if prefix else key
         if isinstance(value, Mapping) and not isinstance(value, (str, bytes)):
-            # Skip writing provenance for intermediate dicts; leaves only
             _flatten_provenance(value, source, prefix=path, into=into)
         else:
             into[path] = source
@@ -67,7 +66,6 @@ def _project_ocr_overlay(settings: OCRSettings | None) -> dict[str, Any]:
     if settings is None:
         return {}
     raw = settings.as_dict()
-    # Only allowlisted keys; base_url empty means "not set" for override purposes
     out: dict[str, Any] = {}
     for key in PROJECT_OCR_OVERRIDE_KEYS:
         if key not in raw:
@@ -90,12 +88,15 @@ def resolve_effective_config(
     recovery_code: str | None = None,
     recovery_message: str | None = None,
 ) -> ResolvedConfig:
-    """Merge layers into an immutable EffectiveConfig + provenance map."""
+    """Merge layers into an immutable EffectiveConfig + provenance map.
+
+    Order: defaults → workspace → active profile → env allowlist → project OCR
+    allowlist. Project OCR wins over env so notebook ``project.json`` settings
+    are not silently overridden by ``TRANSCRIBE_OLLAMA_BASE_URL``.
+    """
     provenance: dict[str, str] = {}
 
-    # 1) defaults
     merged = default_effective_dict()
-    # Strip activation keys from merge body; track separately
     for act_key in (
         "active_workflow_profile",
         "active_ocr_profile",
@@ -108,7 +109,6 @@ def resolve_effective_config(
         into=provenance,
     )
 
-    # 2) workspace
     ws = {
         "analysis": dict(workspace_config.get("analysis") or {}),
         "llm": dict(workspace_config.get("llm") or {}),
@@ -118,7 +118,6 @@ def resolve_effective_config(
         merged = deep_merge_dict(merged, ws)
         _flatten_provenance(ws, "workspace", into=provenance)
 
-    # 3) active profiles (overlay; do not copy into workspace)
     for target, name in (
         ("workflow", activations.workflow),
         ("ocr", activations.ocr),
@@ -133,20 +132,17 @@ def resolve_effective_config(
                 into=provenance,
             )
 
-    # 4) project OCR allowlist
-    proj = _project_ocr_overlay(project_settings)
-    if proj:
-        merged = deep_merge_dict(merged, proj)
-        _flatten_provenance(proj, "project", into=provenance)
-
-    # 5) env allowlist
     env_overlay, env_prov = read_env_overlays(environ=environ)
     if env_overlay:
         merged = deep_merge_dict(merged, env_overlay)
         provenance.update(env_prov)
 
+    proj = _project_ocr_overlay(project_settings)
+    if proj:
+        merged = deep_merge_dict(merged, proj)
+        _flatten_provenance(proj, "project", into=provenance)
+
     effective = EffectiveConfig.from_dict({**merged, **activations.as_dict()})
-    # Activations themselves
     provenance["active_workflow_profile"] = "workspace"
     provenance["active_ocr_profile"] = "workspace"
     provenance["active_llm_profile"] = "workspace"

@@ -21,7 +21,15 @@ def _env_path(var: str) -> Path | None:
 
 
 def default_ollama_base_url() -> str:
-    return (os.getenv("TRANSCRIBE_OLLAMA_BASE_URL") or "http://localhost:11434").strip()
+    """Bootstrap Ollama URL via the typed env allowlist (validated when set)."""
+    from transcribe.config.env_allowlist import read_env_overlays
+
+    overlay, _ = read_env_overlays()
+    ocr = overlay.get("ocr") or {}
+    url = ocr.get("base_url")
+    if isinstance(url, str) and url.strip():
+        return url.strip()
+    return "http://localhost:11434"
 
 
 @dataclass(frozen=True)

@@ -373,7 +373,31 @@ class JobCoordinator:
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> None:
+        from transcribe.config.facade import bind_operation_config, snapshot_for_operation
+
         project = self.projects.load(reconcile=False)
+        snap = snapshot_for_operation(
+            project_settings=project.settings,
+            project_id=project.id,
+        )
+        with bind_operation_config(snap):
+            self._run_job_with_config(
+                state,
+                project=project,
+                page_ids=page_ids,
+                force=force,
+                on_progress=on_progress,
+            )
+
+    def _run_job_with_config(
+        self,
+        state: JobState,
+        *,
+        project: Project,
+        page_ids: list[str] | None,
+        force: bool,
+        on_progress: Callable[[JobProgress], None] | None = None,
+    ) -> None:
         # Capture provider reference at job start; later UI swaps of self.provider are ignored.
         start_provider = self.provider
         plan = self._build_plan(

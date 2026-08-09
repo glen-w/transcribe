@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Iterator
 
 from transcribe.config.models import EffectiveConfig, ProfileActivations
 from transcribe.config.persistence import load_workspace_settings
@@ -18,9 +18,9 @@ _operation_config: ContextVar[EffectiveConfig | None] = ContextVar(
     default=None,
 )
 
-_CACHE: ResolvedConfig | None = None
-_CACHE_PROJECT_ID: str | None = None
-_CACHE_RUNTIME_KEY: str | None = None
+# Workspace-only cache (never includes project OCR overlay).
+_WS_CACHE: ResolvedConfig | None = None
+_WS_CACHE_RUNTIME_KEY: str | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,25 @@ def _runtime_key(runtime: RuntimePaths) -> str:
     return str(runtime.data_dir.resolve())
 
 
+def _load_workspace_resolved(
+    *,
+    runtime: RuntimePaths,
+    environ: dict[str, str] | None = None,
+    recovery: str = "raise",
+) -> ResolvedConfig:
+    loaded = load_workspace_settings(runtime=runtime, recovery=recovery)  # type: ignore[arg-type]
+    return resolve_effective_config(
+        workspace_config=loaded.config,
+        activations=loaded.activations,
+        project_settings=None,
+        runtime=runtime,
+        environ=environ,
+        readonly_recovery=loaded.readonly_recovery,
+        recovery_code=loaded.recovery_code,
+        recovery_message=loaded.recovery_message,
+    )
+
+
 def reload_config(
     *,
     runtime: RuntimePaths | None = None,
@@ -62,23 +81,28 @@ def reload_config(
     environ: dict[str, str] | None = None,
     recovery: str = "raise",
 ) -> ConfigView:
-    """Re-read workspace settings and rebuild the process cache."""
-    global _CACHE, _CACHE_PROJECT_ID, _CACHE_RUNTIME_KEY
+    """Re-read workspace settings; optionally overlay project OCR for this view only."""
+    global _WS_CACHE, _WS_CACHE_RUNTIME_KEY
+    _ = project_id  # identity for callers; overlay is from project_settings
     rt = runtime or build_runtime_paths()
-    loaded = load_workspace_settings(runtime=rt, recovery=recovery)  # type: ignore[arg-type]
-    resolved = resolve_effective_config(
-        workspace_config=loaded.config,
-        activations=loaded.activations,
-        project_settings=project_settings,
-        runtime=rt,
-        environ=environ,
-        readonly_recovery=loaded.readonly_recovery,
-        recovery_code=loaded.recovery_code,
-        recovery_message=loaded.recovery_message,
-    )
-    _CACHE = resolved
-    _CACHE_PROJECT_ID = project_id
-    _CACHE_RUNTIME_KEY = _runtime_key(rt)
+    ws = _load_workspace_resolved(runtime=rt, environ=environ, recovery=recovery)
+    _WS_CACHE = ws
+    _WS_CACHE_RUNTIME_KEY = _runtime_key(rt)
+
+    if project_settings is not None:
+        resolved = resolve_effective_config(
+            workspace_config=ws.workspace_config,
+            activations=ws.activations,
+            project_settings=project_settings,
+            runtime=rt,
+            environ=environ,
+            readonly_recovery=ws.readonly_recovery,
+            recovery_code=ws.recovery_code,
+            recovery_message=ws.recovery_message,
+        )
+    else:
+        resolved = ws
+
     return ConfigView(
         effective=resolved.effective,
         provenance=resolved.provenance,
@@ -94,37 +118,51 @@ def get_config(
     project_settings: OCRSettings | None = None,
     project_id: str | None = None,
 ) -> ConfigView:
-    """Return cached ConfigView; reload when project or data_dir changes."""
-    global _CACHE, _CACHE_PROJECT_ID, _CACHE_RUNTIME_KEY
+    """Return config view. Process cache is workspace-only; project overlay is per-call."""
+    global _WS_CACHE, _WS_CACHE_RUNTIME_KEY
+    _ = project_id
     rt = runtime or build_runtime_paths()
     key = _runtime_key(rt)
-    if (
-        _CACHE is None
-        or _CACHE_RUNTIME_KEY != key
-        or (project_id is not None and project_id != _CACHE_PROJECT_ID)
-        or (project_settings is not None and project_id is None)
-    ):
-        # When project_settings provided without id, still reload to apply overrides
+    if _WS_CACHE is None or _WS_CACHE_RUNTIME_KEY != key:
         return reload_config(
             runtime=rt,
             project_settings=project_settings,
             project_id=project_id,
             recovery="defaults_readonly",
         )
+
+    if project_settings is not None:
+        resolved = resolve_effective_config(
+            workspace_config=_WS_CACHE.workspace_config,
+            activations=_WS_CACHE.activations,
+            project_settings=project_settings,
+            runtime=rt,
+            environ=None,
+            readonly_recovery=_WS_CACHE.readonly_recovery,
+            recovery_code=_WS_CACHE.recovery_code,
+            recovery_message=_WS_CACHE.recovery_message,
+        )
+        return ConfigView(
+            effective=resolved.effective,
+            provenance=resolved.provenance,
+            readonly_recovery=resolved.readonly_recovery,
+            recovery_code=resolved.recovery_code,
+            recovery_message=resolved.recovery_message,
+        )
+
     return ConfigView(
-        effective=_CACHE.effective,
-        provenance=_CACHE.provenance,
-        readonly_recovery=_CACHE.readonly_recovery,
-        recovery_code=_CACHE.recovery_code,
-        recovery_message=_CACHE.recovery_message,
+        effective=_WS_CACHE.effective,
+        provenance=_WS_CACHE.provenance,
+        readonly_recovery=_WS_CACHE.readonly_recovery,
+        recovery_code=_WS_CACHE.recovery_code,
+        recovery_message=_WS_CACHE.recovery_message,
     )
 
 
 def clear_config_cache() -> None:
-    global _CACHE, _CACHE_PROJECT_ID, _CACHE_RUNTIME_KEY
-    _CACHE = None
-    _CACHE_PROJECT_ID = None
-    _CACHE_RUNTIME_KEY = None
+    global _WS_CACHE, _WS_CACHE_RUNTIME_KEY
+    _WS_CACHE = None
+    _WS_CACHE_RUNTIME_KEY = None
 
 
 def snapshot_for_operation(
@@ -153,10 +191,11 @@ def bind_operation_config(cfg: EffectiveConfig) -> Iterator[EffectiveConfig]:
 
 
 def require_operation_config() -> EffectiveConfig:
-    """Config for the current operation, or process cache if none bound.
+    """Config for the current operation, or workspace cache if none bound.
 
     Modules in a batch must run under ``bind_operation_config``. Outside a run
-    (UI/tests), falls back to ``get_config().effective``.
+    (UI/tests), falls back to workspace ``get_config().effective`` (no project
+    overlay unless the caller bound a snapshot).
     """
     bound = _operation_config.get()
     if bound is not None:
