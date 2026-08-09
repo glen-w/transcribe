@@ -18,9 +18,9 @@ class PromptTemplate:
 
 FAITHFUL_MARKDOWN = PromptTemplate(
     prompt_id="faithful_markdown",
-    version="1",
+    version="2",
     body=(
-        "Extract all text content from this handwritten notebook page in {language} "
+        "Extract all text content from this handwritten notebook page "
         "**exactly as it appears**, without modification, summarization, or omission.\n"
         "Format the output in markdown:\n"
         "- Use headers (#, ##, ###) **only if they appear on the page**\n"
@@ -33,9 +33,9 @@ FAITHFUL_MARKDOWN = PromptTemplate(
 
 FAITHFUL_TEXT = PromptTemplate(
     prompt_id="faithful_text",
-    version="1",
+    version="2",
     body=(
-        "Extract all visible text from this handwritten notebook page in {language} "
+        "Extract all visible text from this handwritten notebook page "
         "**without any changes**.\n"
         "- **Do not summarize, paraphrase, or infer missing text.**\n"
         "- Retain spacing, punctuation, and line breaks as closely as possible.\n"
@@ -53,11 +53,10 @@ REGISTRY: dict[str, PromptTemplate] = {
 def render_prompt(
     *,
     prompt_id: str,
-    language: str = "en",
     custom_prompt: str | None = None,
 ) -> tuple[str, str, str]:
     """Return (prompt_id, prompt_version, exact prompt text)."""
     if custom_prompt and custom_prompt.strip():
         return "custom", "1", custom_prompt.strip()
     template = REGISTRY.get(prompt_id, FAITHFUL_MARKDOWN)
-    return template.prompt_id, template.version, template.body.format(language=language)
+    return template.prompt_id, template.version, template.body

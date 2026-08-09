@@ -142,16 +142,25 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         _render_analysis_result_tabs(paths, projects, project)
         return
 
-    back_cols = st.columns([1, 4])
-    if back_cols[0].button("← Archive", key=f"workflow_back_archive_{section}"):
-        set_ui_mode("Archive")
-    back_cols[1].caption(f"Project: `{paths.root}`")
+    if section == "Import":
+        st.caption(f"Project: `{paths.root}`")
+    else:
+        back_cols = st.columns([1, 4])
+        if back_cols[0].button("← Archive", key=f"workflow_back_archive_{section}"):
+            set_ui_mode("Archive")
+        back_cols[1].caption(f"Project: `{paths.root}`")
 
     if section == "Export":
         _render_export_panel(runtime, paths, projects, project, root)
         return
 
     if section == "Import":
+        flash = st.session_state.pop("import_flash", None)
+        if flash:
+            st.success(flash)
+        for err in st.session_state.pop("import_errors", []) or []:
+            st.error(err)
+
         uploaded = st.file_uploader(
             "JPEG / PNG / PDF",
             type=["jpg", "jpeg", "png", "pdf"],
@@ -164,15 +173,33 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             f"PDF render DPI: **{dpi}** (change under Settings → Configuration)"
         )
         if st.button("Import files") and uploaded:
-            for f in uploaded:
+            total = len(uploaded)
+            bar = st.progress(0.0, text=f"Importing 0/{total}")
+            status = st.empty()
+            ok = 0
+            errors: list[str] = []
+            for i, f in enumerate(uploaded):
+                status.caption(f"Importing `{f.name}`…")
                 try:
                     project = ingest.import_bytes(
                         f.name, f.getvalue(), render_dpi=dpi
                     )
                     bump_archive_generation(runtime)
-                    st.success(f"Imported {f.name}")
+                    ok += 1
                 except TranscribeError as exc:
-                    st.error(f"{f.name}: {exc}")
+                    errors.append(f"{f.name}: {exc}")
+                done = i + 1
+                bar.progress(
+                    min(1.0, done / total),
+                    text=f"Importing {done}/{total}",
+                )
+            if ok:
+                st.session_state["import_flash"] = (
+                    f"Imported {ok} file{'s' if ok != 1 else ''}"
+                    + (f" ({len(errors)} failed)" if errors else "")
+                )
+            if errors:
+                st.session_state["import_errors"] = errors
             st.rerun()
         st.write(f"Pages in project: **{len(project.pages)}**")
         title_key = f"import_notebook_title__{project.id}"
@@ -190,7 +217,6 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             else:
                 project = projects.update_notebook_metadata(title=cleaned)
                 bump_archive_generation(runtime)
-                st.session_state[title_key] = project.title
                 st.success("Notebook name saved")
         tags_in = st.text_input(
             "Notebook tags (comma-separated)", value=", ".join(project.tags)
@@ -272,7 +298,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             "vision/embedding — choose a text model below."
         )
     if not text_model_options:
-        st.caption("No suitable text models discovered; use manual override.")
+        st.caption("No suitable text models discovered from Ollama.")
         text_model_options = [""]
     text_model = st.selectbox(
         "Text analysis model",
@@ -284,20 +310,6 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         ),
         help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
     )
-    text_manual = st.text_input(
-        "Advanced / manual text model override",
-        value="",
-        help="Exact Ollama model name for Summaries / Ask notebook LLM modules.",
-    )
-    if text_manual.strip():
-        text_model = text_manual.strip()
-    manual = st.text_input(
-        "Advanced / manual vision model override",
-        value="",
-        help="Use when capabilities are unknown on older Ollama builds.",
-    )
-    if manual.strip():
-        model = manual.strip()
     if unknown:
         with st.expander("Models with unknown capabilities"):
             st.write(", ".join(unknown))
@@ -352,13 +364,6 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             "Falls back to the text analysis model if unset."
         ),
     )
-    cleanup_manual = st.text_input(
-        "Advanced / manual cleanup model override",
-        value="",
-        disabled=not cleanup_enabled,
-    )
-    if cleanup_manual.strip():
-        cleanup_model = cleanup_manual.strip()
 
     if st.button("Save settings"):
         if live.status == "running":

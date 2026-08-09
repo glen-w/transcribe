@@ -302,7 +302,6 @@ class JobCoordinator:
         targets = tuple(page_ids or [p.page_id for p in project.pages])
         prompt_id, prompt_version, prompt_text = render_prompt(
             prompt_id=settings.prompt_id,
-            language=settings.language,
             custom_prompt=settings.custom_prompt,
         )
         prompt_sha = sha256_text(prompt_text)

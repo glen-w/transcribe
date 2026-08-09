@@ -15,6 +15,8 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is product hardening: durable analysis execution, freshness/health semantics, provenance-aware export, and simplification of Analyse UX. No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
 
+The roadmap’s analysis surface is largely complete. **Remaining product gaps are primarily notebook-corpus and product-lifecycle concerns** (living with many notebooks over years of models and upgrades), not more analysis capability.
+
 ---
 
 ## Now — Product hardening — [~] active
@@ -60,18 +62,57 @@ Prospective **bulk-import generation** contracts are written; runtime remains `t
 
 Suggested implementation order after activation work starts: corpus index → ImportRun/plan → duplicate policy on commit → corpus doctor → synthetic suite → only then bulk UI.
 
+**Related product outcome (not just ingestion mechanics):** an **import recovery / inbox** workflow — after dumping a large scan set, show what imported, what failed, what duplicated, what needs review, and let the user continue. This may become the natural corpus home screen.
+
 ---
 
-## Next — Product workflow improvements
+## Next — Corpus & product lifecycle — [?] candidates
 
-Candidate priorities to rank **after** the hardening exit gate. Not ordered; not committed.
+Primary post-hardening product direction once corpus contracts activate. Rank after the hardening exit gate; **not ordered; not committed**. These matter more than additional analysis modules as users accumulate notebooks and OCR models improve.
 
-- **Review UX** — faster correction and approval of OCR text and dates
-- **Archive / search** — findability across notebooks and timeline
-- **Export / readability** — clearer notebooks for reading and sharing
-- **Analyse information architecture** — validate that Overview / Themes / Mood / Moments / Summaries / Ask match how people actually use analysis
-- **OCR cleanup quality** — improve second-pass cleanup / verification without a separate analysis module
-- **People & places / Patterns** — promote to dedicated surfaces only if usage justifies it
+| Outcome | Intent |
+|---------|--------|
+| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. |
+| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. |
+| **Re-OCR / reprocessing** | Explicit “rerun this page/notebook with a better model / prompt / cleanup setting”; compare attempts; preserve human edits; safely promote a new result. |
+| **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. |
+| **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. |
+| **Backup / restore / portability** | Product commitment that the whole corpus can be backed up, moved, restored, and verified without application-specific archaeology. |
+| **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. |
+| **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. |
+| **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. |
+| **Prompt management UI** | Browse/edit versioned OCR and analysis prompts (project `prompts/` reserved); beyond today’s per-job pick + optional override. |
+| **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
+| **Review UX** | Faster correction and approval of OCR text and dates. |
+| **Export / readability** | Clearer notebooks for reading and sharing outside the app. |
+| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
+| **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
+| **People & places / Patterns** | Dedicated surfaces only if usage justifies it. |
+
+---
+
+## Next — Release / onboarding / operability — [?] candidates
+
+Small dedicated track so Docker/runtime docs do not stand in for end-user experience:
+
+- Installation and first-run
+- First notebook + model setup
+- Demo / sample notebook
+- Upgrades (paired with data longevity above)
+- Diagnostics, doctor, and recovery paths users can follow without digging in contracts
+
+---
+
+## Later candidates — uncommitted — [?]
+
+Worth recording without scheduling:
+
+- Cross-notebook links / related pages
+- Corpus-level Analyse / search
+- Bookmarks / favourites
+- Annotations distinct from OCR corrections
+- Batch metadata editing
+- Image-only / non-OCR page handling
 
 ---
 
@@ -140,14 +181,17 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 ## Product scope beyond analysis modules
 
-Still active product scope — often more central to Transcribe than speculative analysis work:
+Still the more central product surface than speculative analysis work. Detail and sequencing live in the **corpus / bulk import**, **corpus & product lifecycle**, and **release / onboarding** sections above.
 
-- **OCR pipeline** — import, vision OCR, optional second-pass cleanup
-- **Notebook corpus / bulk import** — contracts first; activation gated — [notebook-corpus](contracts/notebook-corpus.md) · [corpus-integrity](contracts/corpus-integrity.md)
-- **Review UX** — page correction, dates, approval
-- **Archive / search** — workspace index and timeline
+Summary:
+
+- **OCR pipeline** — import, vision OCR, optional second-pass cleanup; eventual re-OCR / reprocessing
+- **Notebook corpus** — contracts first; bulk import gated; import recovery / inbox as the user-facing continuation
+- **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX
+- **Longevity** — backup/restore/portability; upgrade/migration story; archive readable without Transcribe where feasible
+- **Operability** — model/runtime management UX; release/onboarding/diagnostics; prompt management; local quality/evaluation loop (thumbs + fixtures)
 - **Export** — notebook readability and sharing (`transcribe.notebook`)
-- **Runtime** — Docker / local Ollama operations — [runtime/docker.md](runtime/docker.md)
+- **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
 - **Future TranscriptX import adapter** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
 
 ---
