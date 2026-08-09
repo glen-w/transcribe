@@ -7,22 +7,24 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
 from transcribe.analysis.modules.wordclouds import _load_stopwords
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "highlights"
 MODULE_VERSION = "1e.1.0"
 PAYLOAD_SCHEMA = "highlights_payload_v1"
 ALGORITHM_VERSION = "highlights_salience_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-TOP_N = 12
 
 
 def highlights_config() -> dict[str, Any]:
     from transcribe.analysis.modules.wordclouds import STOPWORDS_ID, stopwords_digest
 
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "top_n": TOP_N,
+        **module_knob_dict(cfg, MODULE_ID),
         "stopwords_id": STOPWORDS_ID,
         "stopwords_digest": stopwords_digest(),
     }
@@ -68,6 +70,7 @@ class HighlightsModule:
         question_text: str | None = None,
     ) -> dict[str, Any]:
         _ = parents, llm_ctx, question_text
+        top_n = require_operation_config().analysis.highlights.top_n
         if not document.units:
             return {"outcome": "insufficient_data", "payload": {}}
         stop, _ = _load_stopwords()
@@ -79,7 +82,7 @@ class HighlightsModule:
         ranked.sort(key=lambda row: (-row[0], row[1].unit_id))
         quotes = []
         evidence = []
-        for score, unit in ranked[:TOP_N]:
+        for score, unit in ranked[:top_n]:
             quote_id = f"q:{unit.unit_id}"
             quotes.append(
                 {

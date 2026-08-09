@@ -9,20 +9,22 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
 from transcribe.analysis.modules.wordclouds import _load_stopwords
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "keyphrases"
 MODULE_VERSION = "1.4.0"
 PAYLOAD_SCHEMA = "keyphrases_payload_v1"
 ALGORITHM_VERSION = "keyphrases_tfidf_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-TOP_N = 25
 
 
 def keyphrases_config() -> dict[str, Any]:
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "top_n": TOP_N,
+        **module_knob_dict(cfg, MODULE_ID),
     }
 
 
@@ -55,6 +57,7 @@ class KeyphrasesModule:
         question_text: str | None = None,
     ) -> dict[str, Any]:
         _ = parents, llm_ctx, question_text
+        top_n = require_operation_config().analysis.keyphrases.top_n
         if not document.units or not document.text.strip():
             return {
                 "outcome": "insufficient_data",
@@ -80,7 +83,7 @@ class KeyphrasesModule:
         scored.sort(key=lambda row: (-row[0], row[1]))
         phrases = [
             {"phrase": phrase, "score": round(score, 6)}
-            for score, phrase in scored[:TOP_N]
+            for score, phrase in scored[:top_n]
         ]
         return {
             "outcome": "success",
