@@ -469,17 +469,9 @@ def _render_workflow(runtime, root: str) -> None:
                     )
                 evidence = env.get("evidence") or []
                 if evidence and mid in {"ner", "epistemic_markers"}:
-                    from transcribe.analysis.document import content_fingerprint as cfp
-
-                    try:
-                        cur_fp = cfp(build_page_v1_document(project, projects))
-                    except Exception:  # noqa: BLE001
-                        cur_fp = env.get("content_fingerprint")
-                    live = [
-                        e
-                        for e in evidence
-                        if cur_fp is None or e.get("content_fingerprint") == cur_fp
-                    ]
+                    live = model.get("live_evidence") or []
+                    if not live and model.get("status") != "ok":
+                        live = []
                     stale_n = len(evidence) - len(live)
                     if stale_n:
                         st.warning(
@@ -524,10 +516,18 @@ def _render_workflow(runtime, root: str) -> None:
         w1c = get_wave1c_modules()
         assert set(theme_ids).issubset(set(w1c))
         for mid in theme_ids:
-            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            identity = runner.planned_cache_identity(mid)
+            rm = load_published_read_model(
+                storage, mid, current_cache_identity=identity
+            )
             env = rm.get("envelope")
             if not env:
                 st.info(f"**{mid}:** unavailable — run Themes analysis first")
+                continue
+            if rm.get("status") == "stale":
+                st.warning(
+                    f"**{mid}:** stale relative to current notebook — re-run Themes"
+                )
                 continue
             cap = env.get("capability")
             banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
@@ -603,10 +603,18 @@ def _render_workflow(runtime, root: str) -> None:
 
         storage = AnalysisStorage(paths)
         for mid in mood_ids:
-            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            identity = runner.planned_cache_identity(mid)
+            rm = load_published_read_model(
+                storage, mid, current_cache_identity=identity
+            )
             env = rm.get("envelope")
             if not env:
                 st.info(f"**{mid}:** unavailable — run Mood analysis first")
+                continue
+            if rm.get("status") == "stale":
+                st.warning(
+                    f"**{mid}:** stale relative to current notebook — re-run Mood"
+                )
                 continue
             cap = env.get("capability")
             banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
@@ -659,10 +667,15 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         storage = AnalysisStorage(paths)
-        rm = load_published_read_model(storage, "moments", current_cache_identity=None)
+        identity = runner.planned_cache_identity("moments")
+        rm = load_published_read_model(
+            storage, "moments", current_cache_identity=identity
+        )
         env = rm.get("envelope")
         if not env:
             st.info("**moments:** unavailable — run Moments analysis first")
+        elif rm.get("status") == "stale":
+            st.warning("**moments:** stale relative to current notebook — re-run Moments")
         else:
             cap = env.get("capability")
             st.markdown(
@@ -727,16 +740,19 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         for mid in synth_ids:
-            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            identity = runner.planned_cache_identity(mid)
+            rm = load_published_read_model(
+                storage, mid, current_cache_identity=identity
+            )
             env = rm.get("envelope")
             if not env:
                 st.info(f"**{mid}:** unavailable — run synthesis first")
                 continue
             if rm.get("status") == "stale":
                 st.warning(
-                    f"**{mid}:** published result not verified current "
-                    "(pass a live cache identity before treating evidence as fresh)"
+                    f"**{mid}:** stale relative to current notebook — re-run synthesis"
                 )
+                continue
             cap = env.get("capability")
             payload = env.get("payload") or {}
             honesty = payload.get("honesty_label")
@@ -747,6 +763,9 @@ def _render_workflow(runtime, root: str) -> None:
                 st.warning(banner + " (LLM offline)")
             else:
                 st.markdown(banner)
+            live = rm.get("live_evidence") or []
+            if live:
+                st.caption(f"{len(live)} live evidence citation(s)")
             with st.expander(f"{mid} payload"):
                 st.json(payload)
 
@@ -778,26 +797,40 @@ def _render_workflow(runtime, root: str) -> None:
             if payload.get("answer"):
                 st.markdown(payload["answer"])
             evidence = env.get("evidence") or []
-            if evidence and env.get("published"):
-                st.json(evidence)
+            from transcribe.analysis.envelope import filter_live_evidence
+
+            live = filter_live_evidence(
+                evidence,
+                current_content_fingerprint=env.get("content_fingerprint"),
+            )
+            if live and env.get("published"):
+                st.json(live)
+            elif evidence and env.get("published"):
+                st.caption("Evidence citations omitted (fingerprint mismatch)")
             for w in env.get("warnings") or []:
                 st.warning(w.get("message") or w.get("code"))
             with st.expander("Raw payload"):
                 st.json(payload)
 
         storage = AnalysisStorage(paths)
+        ask_runner = AnalysisRunner(
+            projects, clock=SystemClock(), ids=UuidGenerator()
+        )
+        identity = ask_runner.planned_cache_identity("llm_custom_qa")
         rm = load_published_read_model(
-            storage, "llm_custom_qa", current_cache_identity=None
+            storage, "llm_custom_qa", current_cache_identity=identity
         )
         if rm.get("envelope"):
             st.divider()
             if rm.get("status") == "stale":
                 st.caption(
-                    "Last published Ask notebook result (not verified current — "
-                    "re-ask to refresh)"
+                    "Last published Ask notebook result is stale — re-ask to refresh"
                 )
             else:
                 st.caption("Last published Ask notebook result")
+                live = rm.get("live_evidence") or []
+                if live:
+                    st.json(live)
             st.json((rm["envelope"] or {}).get("payload") or {})
 
 

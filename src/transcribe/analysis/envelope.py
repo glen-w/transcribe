@@ -43,6 +43,22 @@ def round_floats(obj: Any, ndigits: int = 6) -> Any:
     return obj
 
 
+CAPABILITIES = frozenset(
+    {
+        "available",
+        "success",
+        "partial",
+        "unavailable_extra",
+        "unavailable_model",
+        "skipped_not_applicable",
+        "invalid_input",
+        "insufficient_data",
+        "unavailable_dependency",
+        "failed",
+    }
+)
+
+
 def derive_capability(
     *,
     outcome: str,
@@ -64,6 +80,27 @@ def derive_capability(
     if outcome == "failed":
         return "failed"
     return outcome
+
+
+def filter_live_evidence(
+    evidence: list[dict[str, Any]] | None,
+    *,
+    current_content_fingerprint: str | None,
+) -> list[dict[str, Any]]:
+    """Return only evidence citations matching the current document fingerprint.
+
+    Missing ``current_content_fingerprint`` → treat all citations as stale (empty).
+    """
+    if not evidence:
+        return []
+    if current_content_fingerprint is None:
+        return []
+    return [
+        e
+        for e in evidence
+        if isinstance(e, dict)
+        and e.get("content_fingerprint") == current_content_fingerprint
+    ]
 
 
 def build_envelope(

@@ -29,7 +29,7 @@ from transcribe.analysis.eligibility import (
     eligibility_fingerprint,
     evaluate_notebook_eligibility_v1,
 )
-from transcribe.analysis.envelope import build_envelope
+from transcribe.analysis.envelope import build_envelope, filter_live_evidence
 from transcribe.analysis.llm_runtime import TextLLMContext, bind_text_llm_context
 from transcribe.analysis.modules import get_registered_modules
 from transcribe.analysis.modules._llm_common import build_llm_object, prepared_excerpts
@@ -49,7 +49,7 @@ from transcribe.services.project import ProjectService
 ELIGIBILITY_REQUIRED = frozenset(
     {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
 )
-PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa"})
+PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa", "moments"})
 LLM_MODULES = frozenset(
     {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
 )
@@ -74,12 +74,16 @@ def _module_lexicon(module: Any) -> Any:
         "ner": "ner_lexicon_or_model",
         "sentiment": "sentiment_lexicon_or_model",
         "epistemic_markers": "epistemic_lexicon_or_model",
+        "emotion": "emotion_lexicon_or_model",
+        "contextual_emotion": "emotion_lexicon_or_model",
         "highlights": "highlights_lexicon_or_model",
     }
     attr = loaders.get(mid)
     if not attr:
         return None
-    mod = __import__(f"transcribe.analysis.modules.{mid}", fromlist=[attr])
+    # contextual_emotion reuses emotion lexicon helpers
+    mod_name = "emotion" if mid == "contextual_emotion" else mid
+    mod = __import__(f"transcribe.analysis.modules.{mod_name}", fromlist=[attr])
     return getattr(mod, attr)()
 
 
@@ -274,6 +278,110 @@ class AnalysisRunner:
     def reconcile(self) -> list[str]:
         return self.storage.reconcile_interrupted()
 
+    def planned_cache_identity(
+        self,
+        module_id: str,
+        *,
+        question_text: str | None = None,
+        project: Any | None = None,
+        llm_ctx: TextLLMContext | None = None,
+        _stack: frozenset[str] | None = None,
+    ) -> str | None:
+        """Compute the cache identity this module would plan against the current project.
+
+        Returns None when the document cannot be built (empty / invalid). Used for
+        UI freshness and hard-parent stale detection.
+        """
+        modules = get_registered_modules()
+        module = modules.get(module_id)
+        if module is None:
+            raise KeyError(f"unknown module_id: {module_id}")
+        stack = _stack or frozenset()
+        if module_id in stack:
+            return None
+        project = project or self.project_service.load(reconcile=True)
+
+        if module.module_id in LLM_MODULES and llm_ctx is None:
+            llm_ctx = bind_text_llm_context(
+                text_model_name=getattr(project.settings, "text_model_name", None),
+                base_url=getattr(project.settings, "base_url", None),
+            )
+
+        def expected_identity(parent_id: str) -> str | None:
+            return self.planned_cache_identity(
+                parent_id,
+                project=project,
+                llm_ctx=None,
+                _stack=stack | {module_id},
+            )
+
+        try:
+            document = _build_document(project, self.project_service, module.module_id)
+        except AnalysisDocumentError:
+            return None
+
+        eligibility_meta: dict[str, Any] | None = None
+        if module.module_id in ELIGIBILITY_REQUIRED:
+            filtered, skip, eligibility_meta = _apply_eligibility(document)
+            if skip is not None:
+                # Identity for skip path still binds to the pre-filter document.
+                llm_bits = _llm_fields_from_context(
+                    module,
+                    document,
+                    llm_ctx=llm_ctx,
+                    question_text=question_text,
+                    parent_payload_map={},
+                )
+                return cache_identity_hex(
+                    build_cache_identity_object(
+                        **_identity_kwargs(
+                            module,
+                            project_id=project.id,
+                            document=document,
+                            parents=[],
+                            eligibility_meta=eligibility_meta,
+                            llm_bits=llm_bits,
+                        )
+                    )
+                )
+            assert filtered is not None
+            document = filtered
+
+        ok, hard_parents, _ = resolve_hard_parents(
+            module.module_id,
+            storage=self.storage,
+            expected_identity=expected_identity,
+        )
+        parents = hard_parents if ok else []
+        optional = resolve_optional_parents(
+            module.module_id,
+            enrichment_mode=_module_enrichment_mode(module),
+            storage=self.storage,
+            expected_identity=expected_identity,
+        )
+        seen = {p["module_id"] for p in parents}
+        parents = list(parents) + [p for p in optional if p["module_id"] not in seen]
+        payloads = parent_payloads(parents)
+        llm_bits = _llm_fields_from_context(
+            module,
+            document,
+            llm_ctx=llm_ctx,
+            question_text=question_text,
+            parent_payload_map=payloads,
+        )
+        return cache_identity_hex(
+            build_cache_identity_object(
+                **_identity_kwargs(
+                    module,
+                    project_id=project.id,
+                    document=document,
+                    parents=parents,
+                    eligibility_meta=eligibility_meta,
+                    llm_bits=llm_bits,
+                )
+            )
+        )
+
     def run_module(
         self,
         module_id: str,
@@ -293,6 +401,13 @@ class AnalysisRunner:
             llm_ctx = bind_text_llm_context(
                 text_model_name=getattr(project.settings, "text_model_name", None),
                 base_url=getattr(project.settings, "base_url", None),
+            )
+
+        def expected_identity(parent_id: str) -> str | None:
+            return self.planned_cache_identity(
+                parent_id,
+                project=project,
+                llm_ctx=None,
             )
 
         try:
@@ -334,7 +449,9 @@ class AnalysisRunner:
             document = filtered
 
         ok, hard_parents, hard_fail = resolve_hard_parents(
-            module.module_id, storage=self.storage
+            module.module_id,
+            storage=self.storage,
+            expected_identity=expected_identity,
         )
         if not ok and hard_fail is not None:
             return self._publish_with_revalidation(
@@ -352,6 +469,7 @@ class AnalysisRunner:
             module.module_id,
             enrichment_mode=_module_enrichment_mode(module),
             storage=self.storage,
+            expected_identity=expected_identity,
         )
         seen = {p["module_id"] for p in hard_parents}
         parents = list(hard_parents) + [p for p in optional if p["module_id"] not in seen]
@@ -502,6 +620,14 @@ class AnalysisRunner:
         """Rebuild identity under lock using planned LLM bits (no network)."""
         _ = planned_identity
         project_now = self.project_service._load_unlocked(reconcile=False)
+
+        def expected_identity(parent_id: str) -> str | None:
+            return self.planned_cache_identity(
+                parent_id,
+                project=project_now,
+                llm_ctx=None,
+            )
+
         try:
             doc_now = _build_document(
                 project_now, self.project_service, module.module_id
@@ -512,13 +638,16 @@ class AnalysisRunner:
                 if skip_now is None and filtered_now is not None:
                     doc_now = filtered_now
             ok_now, hard_now, _ = resolve_hard_parents(
-                module.module_id, storage=self.storage
+                module.module_id,
+                storage=self.storage,
+                expected_identity=expected_identity,
             )
             parents_now = hard_now if ok_now else []
             opt_now = resolve_optional_parents(
                 module.module_id,
                 enrichment_mode=_module_enrichment_mode(module),
                 storage=self.storage,
+                expected_identity=expected_identity,
             )
             seen = {p["module_id"] for p in parents_now}
             parents_now = parents_now + [p for p in opt_now if p["module_id"] not in seen]
@@ -711,11 +840,13 @@ def load_published_read_model(
     module_id: str,
     *,
     current_cache_identity: str | None,
+    current_content_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """UI read-model: validated published only; classify stale/unavailable.
 
     When ``current_cache_identity`` is None, results are classified as ``stale``
-    (not safely current).
+    (not safely current). Live evidence is filtered against
+    ``current_content_fingerprint`` when status is ``ok``.
     """
     published = storage.read_published(module_id)
     if published is None:
@@ -723,23 +854,33 @@ def load_published_read_model(
             "status": "unavailable",
             "module_id": module_id,
             "envelope": None,
+            "live_evidence": [],
         }
     if current_cache_identity is None:
         return {
             "status": "stale",
             "module_id": module_id,
             "envelope": published,
+            "live_evidence": [],
         }
     if published.get("cache_identity") != current_cache_identity:
         return {
             "status": "stale",
             "module_id": module_id,
             "envelope": published,
+            "live_evidence": [],
         }
+    fp = current_content_fingerprint
+    if fp is None:
+        fp = published.get("content_fingerprint")
     return {
         "status": "ok",
         "module_id": module_id,
         "envelope": published,
         "capability": published.get("capability"),
         "outcome": published.get("outcome"),
+        "live_evidence": filter_live_evidence(
+            published.get("evidence"),
+            current_content_fingerprint=fp,
+        ),
     }

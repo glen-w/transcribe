@@ -14,6 +14,7 @@ Authority: curated maintainer navigation only — does not own contracts
 | [ROADMAP.md](ROADMAP.md) | Analysis-porting waves (PRODUCT) |
 | [analysis_module_porting.md](analysis_module_porting.md) | TX → Transcribe dispositions |
 | [analysis_wave1_plan.md](analysis_wave1_plan.md) | Wave 1 architecture + sub-waves (PRODUCT; shipped) |
+| [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Post-ship hardening checklist for analysis infra |
 | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
 

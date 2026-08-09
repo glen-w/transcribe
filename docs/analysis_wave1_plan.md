@@ -511,3 +511,5 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Exact filenames / staging names under `analysis/` (illustrative pattern in analysis-run-storage)
 - Which Overview widgets ship visually with 1a vs wait for 1b entities
 - Non-identity UX copy and chart aesthetics
+
+**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas).

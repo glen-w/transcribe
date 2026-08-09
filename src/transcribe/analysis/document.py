@@ -136,7 +136,7 @@ def validate_analysis_document(doc: AnalysisDocument) -> AnalysisDocument:
                 raise AnalysisDocumentError(
                     "invalid_date", f"invalid date: {unit.date!r}"
                 )
-        _validate_source_ref(unit.source_ref)
+        _validate_source_ref(unit.source_ref, unit_text=unit.text)
 
     sorted_units = sorted(doc.units, key=lambda u: (u.order, u.unit_id))
     if [u.unit_id for u in doc.units] != [u.unit_id for u in sorted_units]:
@@ -151,7 +151,9 @@ def validate_analysis_document(doc: AnalysisDocument) -> AnalysisDocument:
     return doc
 
 
-def _validate_source_ref(ref: dict[str, Any]) -> None:
+def _validate_source_ref(
+    ref: dict[str, Any], *, unit_text: str | None = None
+) -> None:
     kind = ref.get("kind")
     if kind == "page":
         if set(ref.keys()) - {"kind", "page_id"}:
@@ -170,6 +172,12 @@ def _validate_source_ref(ref: dict[str, Any]) -> None:
             raise AnalysisDocumentError("invalid_source_ref", "offsets must be int")
         if start < 0 or end < start:
             raise AnalysisDocumentError("invalid_source_ref", "invalid span offsets")
+        # Without page text, require span length to match unit substring text.
+        if unit_text is not None and (end - start) != len(unit_text):
+            raise AnalysisDocumentError(
+                "invalid_source_ref",
+                "page_span length must equal unit text length",
+            )
         return
     raise AnalysisDocumentError("invalid_source_ref", f"unknown kind: {kind!r}")
 

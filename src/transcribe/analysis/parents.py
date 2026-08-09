@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from transcribe.analysis.storage import AnalysisStorage
@@ -24,6 +25,8 @@ HARD_PARENTS: dict[str, list[tuple[str, frozenset[str]]]] = {
     ],
     "narrative_summary": [("summary", frozenset({"success"}))],
 }
+
+ExpectedIdentityFn = Callable[[str], str | None]
 
 
 def _snapshot_row(parent_id: str, pub: dict[str, Any]) -> dict[str, Any]:
@@ -48,13 +51,33 @@ def parents_for_identity(parents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _parent_fresh(
+    parent_id: str,
+    pub: dict[str, Any],
+    *,
+    expected_identity: ExpectedIdentityFn | None,
+) -> bool:
+    """Published parent matches the identity that parent would have now."""
+    if expected_identity is None:
+        return True
+    expected = expected_identity(parent_id)
+    if expected is None:
+        return False
+    return pub.get("cache_identity") == expected
+
+
 def resolve_optional_parents(
     module_id: str,
     *,
     enrichment_mode: str,
     storage: AnalysisStorage,
+    expected_identity: ExpectedIdentityFn | None = None,
 ) -> list[dict[str, Any]]:
-    """Return optional parents actually consumed for identity + compute."""
+    """Return optional parents actually consumed for identity + compute.
+
+    Soft parents whose published identity is stale vs current project are omitted
+    (non-blocking) — never silently joined.
+    """
     if module_id in _BASELINE_NEVER_CONSUME and enrichment_mode in {
         "baseline",
         "none",
@@ -69,6 +92,10 @@ def resolve_optional_parents(
         for mid in ("emotion", "sentiment", "topic_shift"):
             pub = storage.read_published(mid)
             if pub and pub.get("outcome") == "success":
+                if not _parent_fresh(
+                    mid, pub, expected_identity=expected_identity
+                ):
+                    continue
                 consumed.append(_snapshot_row(mid, pub))
     return consumed
 
@@ -77,6 +104,7 @@ def resolve_hard_parents(
     module_id: str,
     *,
     storage: AnalysisStorage,
+    expected_identity: ExpectedIdentityFn | None = None,
 ) -> tuple[bool, list[dict[str, Any]], dict[str, Any] | None]:
     specs = HARD_PARENTS.get(module_id)
     if not specs:
@@ -84,13 +112,24 @@ def resolve_hard_parents(
 
     parents: list[dict[str, Any]] = []
     missing: list[str] = []
+    mismatched: list[str] = []
     for parent_id, acceptable in specs:
         pub = storage.read_published(parent_id)
         if pub is None or pub.get("outcome") not in acceptable:
             missing.append(parent_id)
             continue
+        if not _parent_fresh(parent_id, pub, expected_identity=expected_identity):
+            mismatched.append(parent_id)
+            continue
         parents.append(_snapshot_row(parent_id, pub))
-    if missing:
+    bad = missing + mismatched
+    if bad:
+        parts: list[str] = []
+        if missing:
+            parts.append(f"missing hard parents: {', '.join(missing)}")
+        if mismatched:
+            parts.append(f"stale hard parents: {', '.join(mismatched)}")
+        message = "; ".join(parts)
         return (
             False,
             [],
@@ -99,14 +138,15 @@ def resolve_hard_parents(
                 "payload": {
                     "error": {
                         "code": "unavailable_dependency",
-                        "message": f"missing hard parents: {', '.join(missing)}",
+                        "message": message,
                         "missing_parents": missing,
+                        "stale_parents": mismatched,
                     }
                 },
                 "warnings": [
                     {
                         "code": "unavailable_dependency",
-                        "message": f"missing hard parents: {', '.join(missing)}",
+                        "message": message,
                     }
                 ],
                 "capability_reason": "unavailable_dependency",

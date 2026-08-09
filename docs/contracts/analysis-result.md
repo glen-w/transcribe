@@ -91,6 +91,7 @@ A **published reusable** artifact for `(project_id, module_id)` may be written o
 | `partial` | Completed with intentionally incomplete payload; warnings explain gaps | `success` with `partial: true` |
 | `unavailable_extra` | Optional Python/extra package not installed (e.g. BERTopic) | `skipped_not_applicable` |
 | `unavailable_model` | Required local model/runtime missing (e.g. Ollama model, transformer weights) | `skipped_not_applicable` |
+| `skipped_not_applicable` | Policy/corpus gate skipped the module without error (e.g. zero eligible units after `notebook_eligibility_v1`) | `skipped_not_applicable` |
 | `invalid_input` | Document failed validation before the core ran | `insufficient_data` |
 | `insufficient_data` | Valid document but too little / wrong-shaped corpus for the algorithm | `insufficient_data` |
 | `unavailable_dependency` | Hard parent missing, mismatched, or non-acceptable outcome | `unavailable_dependency` |
