@@ -866,7 +866,7 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     ),
     "Settings": (
         "Settings",
-        "Customise interface action menus and other app preferences.",
+        "Workspace knobs: analysis presets, models, profiles, and interface menus.",
     ),
 }
 

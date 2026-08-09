@@ -10,6 +10,8 @@ from typing import Any
 
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 from transcribe.domain.fingerprint import sha256_bytes
 
 MODULE_ID = "wordclouds"
@@ -18,8 +20,6 @@ ALGORITHM_VERSION = "1"
 TOKENIZATION_VERSION = "wordclouds_tokens_v1"
 PAYLOAD_SCHEMA = "wordclouds_payload_v1"
 ENRICHMENT_MODE = "baseline"
-MAX_TOKENS = 100
-MIN_TOKEN_LENGTH = 2
 WEIGHTING_POLICY = "count_over_max_v1"
 STEM_LEMMA_POLICY = "none"
 STOPWORDS_ID = "wordclouds_stopwords_v1"
@@ -53,16 +53,20 @@ def stopwords_digest() -> str:
 
 def wordclouds_config() -> dict[str, Any]:
     _, digest = _load_stopwords()
+    cfg = require_operation_config()
+    knobs = module_knob_dict(cfg, MODULE_ID)
     return {
         "tokenization_version": TOKENIZATION_VERSION,
         "enrichment_mode": ENRICHMENT_MODE,
         "payload_schema": PAYLOAD_SCHEMA,
-        "max_tokens": MAX_TOKENS,
-        "min_token_length": MIN_TOKEN_LENGTH,
+        "max_tokens": knobs["max_tokens"],
+        "min_token_length": knobs["min_token_length"],
         "stem_lemma_policy": STEM_LEMMA_POLICY,
         "weighting_policy": WEIGHTING_POLICY,
         "stopwords_id": STOPWORDS_ID,
         "stopwords_digest": digest,
+        "analysis_config_version": knobs["analysis_config_version"],
+        "preset_policy_version": knobs["preset_policy_version"],
     }
 
 
@@ -76,7 +80,8 @@ def wordclouds_lexicon_or_model() -> dict[str, Any]:
 def eligible_tokens(text: str) -> list[str]:
     """Tokenize document text then drop stopwords (wordclouds_tokens_v1)."""
     stopwords, _ = _load_stopwords()
-    return [t for t in tokenize(text) if t not in stopwords]
+    min_len = require_operation_config().analysis.wordclouds.min_token_length
+    return [t for t in tokenize(text) if t not in stopwords and len(t) >= min_len]
 
 
 def build_token_payload(text: str) -> dict[str, Any] | None:
@@ -86,8 +91,9 @@ def build_token_payload(text: str) -> dict[str, Any] | None:
     counts = Counter(tokens)
     max_count = max(counts.values())
     ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    max_tokens = require_operation_config().analysis.wordclouds.max_tokens
     emitted = []
-    for token, count in ranked[:MAX_TOKENS]:
+    for token, count in ranked[:max_tokens]:
         weight = round(count / max_count, 6)
         emitted.append({"token": token, "count": count, "weight": weight})
     return {

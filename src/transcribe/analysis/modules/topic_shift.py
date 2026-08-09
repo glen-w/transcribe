@@ -52,6 +52,7 @@ class TopicShiftModule:
     ) -> dict[str, Any]:
         _ = llm_ctx, question_text
         _ = parents
+        shift_threshold = require_operation_config().analysis.topic_shift.shift_threshold
         if len(document.units) < 2:
             return {
                 "outcome": "insufficient_data",
@@ -78,7 +79,7 @@ class TopicShiftModule:
                 "from_date": units[i].date,
                 "to_date": units[i + 1].date,
                 "similarity": sim,
-                "is_shift": sim < SHIFT_THRESHOLD,
+                "is_shift": sim < shift_threshold,
             }
             consecutive.append(row)
             if row["is_shift"]:
@@ -96,7 +97,7 @@ class TopicShiftModule:
             "payload": {
                 "schema": PAYLOAD_SCHEMA,
                 "algorithm_version": ALGORITHM_VERSION,
-                "shift_threshold": SHIFT_THRESHOLD,
+                "shift_threshold": shift_threshold,
                 "consecutive": consecutive,
                 "shifts": shifts,
                 "n_shifts": len(shifts),

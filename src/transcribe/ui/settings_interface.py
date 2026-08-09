@@ -228,6 +228,25 @@ def render_interface_panel() -> None:
 
 
 def render_settings_page() -> None:
-    """Top-level Settings page shell."""
-    st.markdown("### Interface")
-    render_interface_panel()
+    """Top-level Settings hub (TX-shaped tabs, Transcribe-scoped)."""
+    from transcribe.ui.settings_analysis import render_analysis_presets_panel
+    from transcribe.ui.settings_hub import (
+        render_configuration_panel,
+        render_models_panel,
+        render_profiles_panel,
+    )
+
+    tabs = st.tabs(
+        ["Configuration", "Analysis", "Models", "Profiles", "Interface"]
+    )
+    with tabs[0]:
+        render_configuration_panel()
+    with tabs[1]:
+        render_analysis_presets_panel()
+    with tabs[2]:
+        render_models_panel()
+    with tabs[3]:
+        render_profiles_panel()
+    with tabs[4]:
+        st.markdown("### Interface")
+        render_interface_panel()

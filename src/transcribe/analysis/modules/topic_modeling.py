@@ -50,6 +50,9 @@ class TopicModelingModule:
         question_text: str | None = None,
     ) -> dict[str, Any]:
         _ = parents, llm_ctx, question_text
+        tm = require_operation_config().analysis.topic_modeling
+        n_topics = tm.n_topics
+        terms_per_topic = tm.terms_per_topic
         if len(document.units) < 1:
             return {"outcome": "insufficient_data", "payload": {}}
         stop, _ = _load_stopwords()
@@ -66,7 +69,7 @@ class TopicModelingModule:
                 "capability_reason": None,
                 "warnings": [{"code": "no_tokens", "message": "no eligible tokens"}],
             }
-        seeds = [t for t, _ in global_tf.most_common(N_TOPICS)]
+        seeds = [t for t, _ in global_tf.most_common(n_topics)]
         if not seeds:
             return {"outcome": "insufficient_data", "payload": {}}
 
@@ -88,9 +91,9 @@ class TopicModelingModule:
 
         topics = []
         for i, seed in enumerate(seeds):
-            terms = [t for t, _ in topic_term_counts[i].most_common(TERMS_PER_TOPIC)]
+            terms = [t for t, _ in topic_term_counts[i].most_common(terms_per_topic)]
             if seed not in terms:
-                terms = [seed] + [t for t in terms if t != seed][: TERMS_PER_TOPIC - 1]
+                terms = [seed] + [t for t in terms if t != seed][: terms_per_topic - 1]
             topics.append(
                 {
                     "topic_id": f"topic_{i}",

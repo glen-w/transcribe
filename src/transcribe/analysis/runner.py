@@ -42,6 +42,7 @@ from transcribe.analysis.parents import (
     resolve_optional_parents,
 )
 from transcribe.analysis.storage import AnalysisStorage
+from transcribe.config.facade import bind_operation_config, snapshot_for_operation
 from transcribe.persistence.locks import mutation_lock
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
@@ -395,7 +396,24 @@ class AnalysisRunner:
 
         project = self.project_service.load(reconcile=True)
         self.reconcile()
+        snap = snapshot_for_operation(
+            project_settings=project.settings,
+            project_id=project.id,
+        )
+        with bind_operation_config(snap):
+            return self._run_module_unlocked(
+                module,
+                project=project,
+                question_text=question_text,
+            )
 
+    def _run_module_unlocked(
+        self,
+        module: Any,
+        *,
+        project: Any,
+        question_text: str | None,
+    ) -> dict[str, Any]:
         llm_ctx: TextLLMContext | None = None
         if module.module_id in LLM_MODULES:
             llm_ctx = bind_text_llm_context(
@@ -594,18 +612,33 @@ class AnalysisRunner:
     def run_batch(self, module_ids: list[str] | None = None) -> dict[str, dict[str, Any]]:
         ids = module_ids or list(get_registered_modules().keys())
         ids = batch_module_order(ids)
+        project = self.project_service.load(reconcile=True)
+        self.reconcile()
+        snap = snapshot_for_operation(
+            project_settings=project.settings,
+            project_id=project.id,
+        )
+        modules = get_registered_modules()
         results: dict[str, dict[str, Any]] = {}
-        for mid in ids:
-            try:
-                results[mid] = self.run_module(mid)
-            except Exception as exc:  # noqa: BLE001
-                results[mid] = {
-                    "module_id": mid,
-                    "attempt_state": "failed",
-                    "outcome": "failed",
-                    "capability": "failed",
-                    "payload": {"error": {"message": str(exc)}},
-                }
+        with bind_operation_config(snap):
+            for mid in ids:
+                try:
+                    module = modules.get(mid)
+                    if module is None:
+                        raise KeyError(f"unknown module_id: {mid}")
+                    results[mid] = self._run_module_unlocked(
+                        module,
+                        project=project,
+                        question_text=None,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    results[mid] = {
+                        "module_id": mid,
+                        "attempt_state": "failed",
+                        "outcome": "failed",
+                        "capability": "failed",
+                        "payload": {"error": {"message": str(exc)}},
+                    }
         return results
 
     def _revalidate_identity(

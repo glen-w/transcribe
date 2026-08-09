@@ -6,7 +6,6 @@ from typing import Any
 
 from transcribe.analysis.chunking import (
     CHUNKING_UNITS_V1,
-    DEFAULT_TOTAL_PROMPT_TOKENS,
     GROUND_DOC_CHUNKS_V1,
     GROUND_HIGHLIGHTS_SUMMARY_V1,
     REDUCTION_MAP_REDUCE_V1,
@@ -23,9 +22,20 @@ from transcribe.analysis.llm_runtime import (
     parse_json_object,
     unavailable_model_result,
 )
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import llm_generation_options
 
 PROMPT_VERSION = "1e.0"
-GENERATION_SETTINGS = {"temperature": 0.0, "num_predict": 1024}
+
+
+def generation_settings() -> dict[str, Any]:
+    return llm_generation_options(require_operation_config())
+
+
+# Back-compat name for imports that still reference the dict shape at call sites
+# that already go through generation_settings() — do not use as a runtime authority.
+def _default_generation_settings_for_tests() -> dict[str, float | int]:
+    return {"temperature": 0.0, "num_predict": 1024}
 
 
 def require_llm_ctx(llm_ctx: TextLLMContext | None) -> dict[str, Any] | TextLLMContext:
@@ -37,9 +47,11 @@ def require_llm_ctx(llm_ctx: TextLLMContext | None) -> dict[str, Any] | TextLLMC
 def prepared_excerpts(
     document: AnalysisDocument,
     *,
-    total_token_budget: int = DEFAULT_TOTAL_PROMPT_TOKENS,
+    total_token_budget: int | None = None,
 ) -> dict[str, Any]:
     """Pack + select excerpts actually supplied to the model (map-reduce aware)."""
+    if total_token_budget is None:
+        total_token_budget = require_operation_config().llm.max_prompt_tokens
     all_chunks = pack_units_v1(document)
     selected, remainder = select_chunks_for_prompt(
         all_chunks, total_token_budget=total_token_budget
@@ -76,7 +88,7 @@ def build_llm_object(
 ) -> dict[str, Any]:
     return {
         "prompt_or_template_version": PROMPT_VERSION,
-        "generation_settings": dict(GENERATION_SETTINGS),
+        "generation_settings": generation_settings(),
         "grounding_strategy_id": grounding_strategy_id,
         "chunking_policy_id": CHUNKING_UNITS_V1,
         "reduction_policy_id": reduction_policy_id,
@@ -100,7 +112,7 @@ def map_reduce_generate(
     meta = prepared_excerpts(document)
     client = llm_ctx.client
     model = llm_ctx.model_name
-    options = GENERATION_SETTINGS
+    options = generation_settings()
 
     if not meta["needs_map_reduce"]:
         prompt = f"{meta['excerpt_text']}\n\n{user_suffix}"
@@ -144,7 +156,7 @@ def as_bool(value: Any) -> bool | None:
 
 __all__ = [
     "PROMPT_VERSION",
-    "GENERATION_SETTINGS",
+    "generation_settings",
     "CHUNKING_UNITS_V1",
     "REDUCTION_MAP_REDUCE_V1",
     "GROUND_DOC_CHUNKS_V1",

@@ -28,6 +28,28 @@ from transcribe.persistence.schema import require_format
 from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.runtime_paths import default_ollama_base_url
 
+
+def _seed_ocr_settings() -> OCRSettings:
+    """Seed new-project OCR from workspace defaults (one-shot; then project-owned)."""
+    from transcribe.config.facade import get_config
+
+    view = get_config()
+    ocr = view.effective.ocr
+    base = (ocr.base_url or "").strip() or default_ollama_base_url()
+    data = {
+        "base_url": base,
+        "prompt_id": ocr.prompt_id,
+        "language": ocr.language,
+        "preprocess_profile": ocr.preprocess_profile,
+        "max_workers": ocr.max_workers,
+        "cleanup_enabled": ocr.cleanup_enabled,
+        "cleanup_mode": ocr.cleanup_mode,
+        "cleanup_model_name": ocr.cleanup_model_name,
+        "text_model_name": ocr.text_model_name,
+    }
+    return OCRSettings.from_dict(data)
+
+
 _UNSET = object()
 
 
@@ -53,7 +75,7 @@ class ProjectService:
             title=title,
             created_at=now,
             updated_at=now,
-            settings=OCRSettings(base_url=default_ollama_base_url()),
+            settings=_seed_ocr_settings(),
         )
         validate_project(project)
         with mutation_lock(self.paths.mutation_lock):

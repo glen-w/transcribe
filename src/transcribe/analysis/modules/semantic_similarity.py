@@ -115,6 +115,9 @@ class SemanticSimilarityModule:
     ) -> dict[str, Any]:
         _ = llm_ctx, question_text
         _ = parents
+        knobs = require_operation_config().analysis.semantic_similarity
+        motif_threshold = knobs.motif_threshold
+        max_motifs = knobs.max_motifs
         if len(document.units) < 2:
             return {
                 "outcome": "insufficient_data",
@@ -133,7 +136,7 @@ class SemanticSimilarityModule:
         for i in range(len(unit_ids)):
             for j in range(i + 1, len(unit_ids)):
                 sim = matrix[i][j]
-                if sim >= MOTIF_THRESHOLD:
+                if sim >= motif_threshold:
                     motifs.append(
                         {
                             "unit_id_a": unit_ids[i],
@@ -142,7 +145,7 @@ class SemanticSimilarityModule:
                         }
                     )
         motifs.sort(key=lambda row: (-row["similarity"], row["unit_id_a"], row["unit_id_b"]))
-        motifs = motifs[:MAX_MOTIFS]
+        motifs = motifs[:max_motifs]
         return {
             "outcome": "success",
             "payload": {
@@ -151,7 +154,7 @@ class SemanticSimilarityModule:
                 "unit_ids": unit_ids,
                 "matrix": matrix,
                 "motifs": motifs,
-                "motif_threshold": MOTIF_THRESHOLD,
+                "motif_threshold": motif_threshold,
                 "n_units": len(unit_ids),
             },
         }

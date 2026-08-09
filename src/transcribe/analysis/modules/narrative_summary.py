@@ -8,7 +8,7 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.llm_runtime import TextLLMContext
 from transcribe.analysis.modules._llm_common import (
-    GENERATION_SETTINGS,
+    generation_settings,
     GROUND_HIGHLIGHTS_SUMMARY_V1,
     PROMPT_VERSION,
     parse_json_object,
@@ -92,7 +92,7 @@ class NarrativeSummaryModule:
                 model=ctx.model_name,
                 prompt=prompt,
                 system=SYSTEM,
-                options=GENERATION_SETTINGS,
+                options=generation_settings(),
             )
         except Exception as exc:  # noqa: BLE001
             return {

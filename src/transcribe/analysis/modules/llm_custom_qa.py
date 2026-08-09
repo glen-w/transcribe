@@ -8,7 +8,7 @@ from transcribe.analysis.chunking import format_chunk_excerpts, resolve_span_quo
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.llm_runtime import TextLLMContext
 from transcribe.analysis.modules._llm_common import (
-    GENERATION_SETTINGS,
+    generation_settings,
     GROUND_DOC_CHUNKS_V1,
     PROMPT_VERSION,
     as_bool,
@@ -96,7 +96,7 @@ class LLMCustomQAModule:
                 model=ctx.model_name,
                 prompt=prompt,
                 system=SYSTEM,
-                options=GENERATION_SETTINGS,
+                options=generation_settings(),
             )
         except Exception as exc:  # noqa: BLE001
             return {
@@ -124,7 +124,7 @@ class LLMCustomQAModule:
                     model=ctx.model_name,
                     prompt=prompt,
                     system=SYSTEM,
-                    options=GENERATION_SETTINGS,
+                    options=generation_settings(),
                 )
             except Exception as exc:  # noqa: BLE001
                 return {
