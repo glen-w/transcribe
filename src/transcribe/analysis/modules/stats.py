@@ -19,7 +19,15 @@ class StatsModule:
     semantic_class = "adaptation"
     semantic_delta = "speaker rollups removed; unit/page distributions only"
 
-    def run(self, document: AnalysisDocument) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         if not document.units:
             return {
                 "outcome": "insufficient_data",

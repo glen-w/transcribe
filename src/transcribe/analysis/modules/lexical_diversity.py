@@ -25,7 +25,15 @@ class LexicalDiversityModule:
     semantic_class = "adaptation"
     semantic_delta = "speaker timelines removed; document + per-unit metrics"
 
-    def run(self, document: AnalysisDocument) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         doc_metrics = compute_lexical_diversity_metrics(document.text)
         token_count = int(doc_metrics["token_count"])
         if token_count < 1:

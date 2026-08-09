@@ -66,7 +66,15 @@ class NERModule:
     def cache_config(self) -> dict[str, Any]:
         return ner_config()
 
-    def run(self, document: AnalysisDocument) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         if not document.units or not document.text.strip():
             return {
                 "outcome": "insufficient_data",

@@ -6,10 +6,8 @@ from typing import Any
 
 from transcribe.analysis.storage import AnalysisStorage
 
-# Wave 1.2: wordclouds baseline never consumes keyphrases.
 _BASELINE_NEVER_CONSUME = frozenset({"wordclouds", "topic_modeling", "bertopic"})
 
-# Hard parents: consumer → ordered list of (parent_id, acceptable outcomes)
 HARD_PARENTS: dict[str, list[tuple[str, frozenset[str]]]] = {
     "entity_sentiment": [
         ("ner", frozenset({"success"})),
@@ -27,10 +25,27 @@ HARD_PARENTS: dict[str, list[tuple[str, frozenset[str]]]] = {
     "narrative_summary": [("summary", frozenset({"success"}))],
 }
 
-# Modules that optionally ground on deterministic synthesis when present.
-_OPTIONAL_LLM_GROUNDING = frozenset(
-    {"llm_summary", "llm_action_items", "llm_custom_qa"}
-)
+
+def _snapshot_row(parent_id: str, pub: dict[str, Any]) -> dict[str, Any]:
+    """Identity + payload together from a single published read."""
+    return {
+        "module_id": parent_id,
+        "cache_identity": pub.get("cache_identity"),
+        "outcome": pub.get("outcome"),
+        "payload": pub.get("payload") or {},
+    }
+
+
+def parents_for_identity(parents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Strip payloads before hashing into cache identity."""
+    return [
+        {
+            "module_id": p["module_id"],
+            "cache_identity": p.get("cache_identity"),
+            "outcome": p.get("outcome"),
+        }
+        for p in parents
+    ]
 
 
 def resolve_optional_parents(
@@ -39,39 +54,22 @@ def resolve_optional_parents(
     enrichment_mode: str,
     storage: AnalysisStorage,
 ) -> list[dict[str, Any]]:
-    """Return optional parents actually consumed for identity."""
+    """Return optional parents actually consumed for identity + compute."""
     if module_id in _BASELINE_NEVER_CONSUME and enrichment_mode in {
         "baseline",
         "none",
     }:
-        # Probe published keyphrases without consuming (identity ignore-matrix).
         if module_id in {"wordclouds", "topic_modeling", "bertopic"}:
             _ = storage.read_published("keyphrases")
         return []
 
     consumed: list[dict[str, Any]] = []
-    if module_id in _OPTIONAL_LLM_GROUNDING:
-        for mid in ("highlights", "summary"):
-            pub = storage.read_published(mid)
-            if pub and pub.get("outcome") == "success":
-                consumed.append(
-                    {
-                        "module_id": mid,
-                        "cache_identity": pub.get("cache_identity"),
-                        "outcome": pub.get("outcome"),
-                    }
-                )
+    # LLM modules ground on document / hard parents only — do not record unused soft parents.
     if module_id == "moments":
         for mid in ("emotion", "sentiment", "topic_shift"):
             pub = storage.read_published(mid)
             if pub and pub.get("outcome") == "success":
-                consumed.append(
-                    {
-                        "module_id": mid,
-                        "cache_identity": pub.get("cache_identity"),
-                        "outcome": pub.get("outcome"),
-                    }
-                )
+                consumed.append(_snapshot_row(mid, pub))
     return consumed
 
 
@@ -80,11 +78,6 @@ def resolve_hard_parents(
     *,
     storage: AnalysisStorage,
 ) -> tuple[bool, list[dict[str, Any]], dict[str, Any] | None]:
-    """Resolve required hard parents.
-
-    Returns ``(ok, parents, failure)`` where ``failure`` is a run-result dict
-    suitable for publishing ``unavailable_dependency`` when ``ok`` is False.
-    """
     specs = HARD_PARENTS.get(module_id)
     if not specs:
         return True, [], None
@@ -96,13 +89,7 @@ def resolve_hard_parents(
         if pub is None or pub.get("outcome") not in acceptable:
             missing.append(parent_id)
             continue
-        parents.append(
-            {
-                "module_id": parent_id,
-                "cache_identity": pub.get("cache_identity"),
-                "outcome": pub.get("outcome"),
-            }
-        )
+        parents.append(_snapshot_row(parent_id, pub))
     if missing:
         return (
             False,
@@ -128,18 +115,12 @@ def resolve_hard_parents(
     return True, parents, None
 
 
-def parent_payloads(storage: AnalysisStorage, parents: list[dict[str, Any]]) -> dict[str, Any]:
-    """Map parent module_id → published payload (empty dict if missing)."""
-    out: dict[str, Any] = {}
-    for row in parents:
-        mid = row["module_id"]
-        pub = storage.read_published(mid)
-        out[mid] = (pub or {}).get("payload") or {}
-    return out
+def parent_payloads(parents: list[dict[str, Any]]) -> dict[str, Any]:
+    """Map parent module_id → snapshot payload (no second published read)."""
+    return {row["module_id"]: row.get("payload") or {} for row in parents}
 
 
 def batch_module_order(module_ids: list[str]) -> list[str]:
-    """Topological-ish order so hard parents run before consumers."""
     rank = {
         "stats": 10,
         "lexical_diversity": 11,

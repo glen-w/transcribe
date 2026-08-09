@@ -43,7 +43,7 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `llm_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_summary.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
 | `llm_action_items` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_action_items.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
 | `llm_custom_qa` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_custom_qa/` | n/a grounded QA adaptation | adaptation | 2026-08-09 |
-| `narrative_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/narrative_summary.py` | n/a; deterministic fallback when LLM offline | adaptation | 2026-08-09 |
+| `narrative_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/narrative_summary.py` | n/a; unavailable_model when LLM offline | adaptation | 2026-08-09 |
 
 ## Implementation gate
 

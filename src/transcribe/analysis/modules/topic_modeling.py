@@ -41,8 +41,15 @@ class TopicModelingModule:
     def cache_config(self) -> dict[str, Any]:
         return topic_modeling_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
-        _ = parents
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         if len(document.units) < 1:
             return {"outcome": "insufficient_data", "payload": {}}
         stop, _ = _load_stopwords()

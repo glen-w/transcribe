@@ -17,10 +17,23 @@ TOP_N = 12
 
 
 def highlights_config() -> dict[str, Any]:
+    from transcribe.analysis.modules.wordclouds import STOPWORDS_ID, stopwords_digest
+
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
         "top_n": TOP_N,
+        "stopwords_id": STOPWORDS_ID,
+        "stopwords_digest": stopwords_digest(),
+    }
+
+
+def highlights_lexicon_or_model() -> dict[str, Any]:
+    from transcribe.analysis.modules.wordclouds import STOPWORDS_ID, stopwords_digest
+
+    return {
+        "stopwords_id": STOPWORDS_ID,
+        "stopwords_digest": stopwords_digest(),
     }
 
 
@@ -46,8 +59,15 @@ class HighlightsModule:
     def cache_config(self) -> dict[str, Any]:
         return highlights_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
-        _ = parents
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         if not document.units:
             return {"outcome": "insufficient_data", "payload": {}}
         stop, _ = _load_stopwords()

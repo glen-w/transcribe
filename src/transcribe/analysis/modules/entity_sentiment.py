@@ -30,7 +30,14 @@ class EntitySentimentModule:
     def cache_config(self) -> dict[str, Any]:
         return entity_sentiment_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
         parents = parents or {}
         ner = parents.get("ner") or {}
         sentiment = parents.get("sentiment") or {}

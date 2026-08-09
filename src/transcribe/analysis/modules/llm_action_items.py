@@ -5,19 +5,20 @@ from __future__ import annotations
 from typing import Any
 
 from transcribe.analysis.document import AnalysisDocument
+from transcribe.analysis.llm_runtime import TextLLMContext
 from transcribe.analysis.modules._llm_common import (
-    GENERATION_SETTINGS,
     GROUND_DOC_CHUNKS_V1,
     PROMPT_VERSION,
-    chunk_context,
-    llm_preflight,
+    map_reduce_generate,
     parse_json_object,
+    require_llm_ctx,
 )
 
 MODULE_ID = "llm_action_items"
-MODULE_VERSION = "1e.2.0"
+MODULE_VERSION = "1e.2.1"
 PAYLOAD_SCHEMA = "llm_action_items_payload_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
+_ALLOWED_TYPES = frozenset({"action_item", "decision", "open_question"})
 SYSTEM = (
     "Extract notebook action items. JSON only: "
     '{"items":[{"record_type":"action_item|decision|open_question","text":"..."}]}.'
@@ -36,6 +37,42 @@ def provenance_files() -> list[dict[str, str]]:
     return []
 
 
+def _parse_items(raw: str) -> list[dict[str, str]] | None:
+    parsed = parse_json_object(raw)
+    if not parsed:
+        return None
+    items = parsed.get("items")
+    if not isinstance(items, list):
+        return None
+    clean: list[dict[str, str]] = []
+    for row in items[:40]:
+        if not isinstance(row, dict):
+            return None
+        text = row.get("text")
+        if not isinstance(text, str) or not text.strip():
+            continue
+        rtype = row.get("record_type", "action_item")
+        if not isinstance(rtype, str) or rtype not in _ALLOWED_TYPES:
+            return None
+        clean.append({"record_type": rtype, "text": text.strip()[:500]})
+    return clean
+
+
+def _reduce_items(partials: list[list[dict[str, str]]]) -> list[dict[str, str]]:
+    seen: set[str] = set()
+    out: list[dict[str, str]] = []
+    for group in partials:
+        for row in group:
+            key = f"{row['record_type']}:{row['text']}"
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(row)
+            if len(out) >= 40:
+                return out
+    return out
+
+
 class LLMActionItemsModule:
     module_id = MODULE_ID
     module_version = MODULE_VERSION
@@ -46,58 +83,53 @@ class LLMActionItemsModule:
     def cache_config(self) -> dict[str, Any]:
         return llm_action_items_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
-        _ = parents
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: TextLLMContext | None = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, question_text
         if not document.units or not document.text.strip():
             return {"outcome": "insufficient_data", "payload": {}}
-        pre = llm_preflight()
-        if not pre["ok"]:
-            return pre["result"]
-        client = pre["client"]
-        model = pre["model"]
-        prompt = f"Notebook text:\n{chunk_context(document)}\n\nExtract items JSON."
+        ctx = require_llm_ctx(llm_ctx)
+        if not isinstance(ctx, TextLLMContext):
+            return ctx
         try:
-            raw = client.generate(
-                model=model,
-                prompt=prompt,
+            reduced, raw_diag, _meta = map_reduce_generate(
+                llm_ctx=ctx,
+                document=document,
                 system=SYSTEM,
-                options=GENERATION_SETTINGS,
+                user_suffix="Extract items JSON.",
+                parse_partial=_parse_items,
+                reduce_partials=_reduce_items,
             )
         except Exception as exc:  # noqa: BLE001
             return {
                 "outcome": "failed",
                 "payload": {"error": {"code": "llm_generate", "message": str(exc)}},
             }
-        parsed = parse_json_object(raw)
-        items = (parsed or {}).get("items") if parsed else None
-        if not isinstance(items, list):
+        if reduced is None:
             return {
                 "outcome": "skipped_not_applicable",
-                "payload": {"raw": raw[:2000]},
+                "payload": {"schema": PAYLOAD_SCHEMA, "abstain": True},
                 "warnings": [
                     {
                         "code": "abstain_unparseable",
-                        "message": "model output abstained / unparseable",
+                        "message": "model output abstained / failed schema validation",
                     }
                 ],
+                "diagnostics": {"raw_bounded": raw_diag},
             }
-        clean = []
-        for row in items[:40]:
-            if not isinstance(row, dict) or not row.get("text"):
-                continue
-            clean.append(
-                {
-                    "record_type": str(row.get("record_type") or "action_item"),
-                    "text": str(row["text"])[:500],
-                }
-            )
         return {
             "outcome": "success",
             "payload": {
                 "schema": PAYLOAD_SCHEMA,
-                "items": clean,
-                "n_items": len(clean),
+                "items": reduced,
+                "n_items": len(reduced),
                 "honesty_label": "llm_generated",
-                "model": model,
+                "model": ctx.model_name,
             },
         }

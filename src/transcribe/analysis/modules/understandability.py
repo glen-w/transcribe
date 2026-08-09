@@ -85,7 +85,15 @@ class UnderstandabilityModule:
         "speaker grouping removed; pure-Python readability (no nltk/textstat)"
     )
 
-    def run(self, document: AnalysisDocument) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         metrics = compute_readability(document.text)
         if metrics.get("insufficient"):
             return {

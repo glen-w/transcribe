@@ -5,17 +5,18 @@ from __future__ import annotations
 from typing import Any
 
 from transcribe.analysis.document import AnalysisDocument
+from transcribe.analysis.llm_runtime import TextLLMContext
 from transcribe.analysis.modules._llm_common import (
-    GENERATION_SETTINGS,
     GROUND_DOC_CHUNKS_V1,
     PROMPT_VERSION,
-    chunk_context,
-    llm_preflight,
+    as_str_list,
+    map_reduce_generate,
     parse_json_object,
+    require_llm_ctx,
 )
 
 MODULE_ID = "llm_summary"
-MODULE_VERSION = "1e.2.0"
+MODULE_VERSION = "1e.2.1"
 PAYLOAD_SCHEMA = "llm_summary_payload_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 SYSTEM = (
@@ -36,6 +37,31 @@ def provenance_files() -> list[dict[str, str]]:
     return []
 
 
+def _parse_summary(raw: str) -> dict[str, Any] | None:
+    parsed = parse_json_object(raw)
+    if not parsed:
+        return None
+    summary = parsed.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        return None
+    bullets = as_str_list(parsed.get("bullets"), max_items=12)
+    if bullets is None:
+        if "bullets" in parsed and parsed.get("bullets") is not None:
+            return None
+        bullets = []
+    return {"summary": summary.strip(), "bullets": bullets}
+
+
+def _reduce_summaries(partials: list[dict[str, Any]]) -> dict[str, Any]:
+    summaries = [p["summary"] for p in partials if p.get("summary")]
+    bullets: list[str] = []
+    for p in partials:
+        for b in p.get("bullets") or []:
+            if b not in bullets:
+                bullets.append(b)
+    return {"summary": " ".join(summaries)[:4000], "bullets": bullets[:12]}
+
+
 class LLMSummaryModule:
     module_id = MODULE_ID
     module_version = MODULE_VERSION
@@ -46,48 +72,53 @@ class LLMSummaryModule:
     def cache_config(self) -> dict[str, Any]:
         return llm_summary_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
-        _ = parents
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: TextLLMContext | None = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, question_text
         if not document.units or not document.text.strip():
             return {"outcome": "insufficient_data", "payload": {}}
-        pre = llm_preflight()
-        if not pre["ok"]:
-            return pre["result"]
-        client = pre["client"]
-        model = pre["model"]
-        context = chunk_context(document)
-        prompt = f"Notebook text:\n{context}\n\nProduce the JSON summary."
+        ctx = require_llm_ctx(llm_ctx)
+        if not isinstance(ctx, TextLLMContext):
+            return ctx
         try:
-            raw = client.generate(
-                model=model,
-                prompt=prompt,
+            reduced, raw_diag, _meta = map_reduce_generate(
+                llm_ctx=ctx,
+                document=document,
                 system=SYSTEM,
-                options=GENERATION_SETTINGS,
+                user_suffix="Produce the JSON summary.",
+                parse_partial=_parse_summary,
+                reduce_partials=_reduce_summaries,
             )
         except Exception as exc:  # noqa: BLE001
             return {
                 "outcome": "failed",
                 "payload": {"error": {"code": "llm_generate", "message": str(exc)}},
             }
-        parsed = parse_json_object(raw)
-        if not parsed or not parsed.get("summary"):
+        if not reduced or not reduced.get("summary"):
             return {
                 "outcome": "skipped_not_applicable",
-                "payload": {"raw": raw[:2000]},
+                "payload": {"schema": PAYLOAD_SCHEMA, "abstain": True},
                 "warnings": [
                     {
                         "code": "abstain_unparseable",
-                        "message": "model output abstained / unparseable",
+                        "message": "model output abstained / failed schema validation",
                     }
                 ],
+                "diagnostics": {"raw_bounded": raw_diag},
             }
         return {
             "outcome": "success",
             "payload": {
                 "schema": PAYLOAD_SCHEMA,
-                "summary": str(parsed.get("summary")),
-                "bullets": list(parsed.get("bullets") or [])[:12],
+                "summary": reduced["summary"],
+                "bullets": reduced.get("bullets") or [],
                 "honesty_label": "llm_generated",
-                "model": model,
+                "model": ctx.model_name,
             },
         }

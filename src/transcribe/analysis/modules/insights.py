@@ -30,7 +30,14 @@ class InsightsModule:
     def cache_config(self) -> dict[str, Any]:
         return insights_config()
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
         parents = parents or {}
         highlights = parents.get("highlights") or {}
         topics = parents.get("topic_modeling") or {}

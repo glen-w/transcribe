@@ -108,7 +108,15 @@ class WordcloudsModule:
         "shared TOKEN_RE + pinned wordclouds_stopwords_v1"
     )
 
-    def run(self, document: AnalysisDocument) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
+        _ = parents, llm_ctx, question_text
         if not document.text.strip():
             return {
                 "outcome": "insufficient_data",

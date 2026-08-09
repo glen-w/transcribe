@@ -46,6 +46,7 @@ class GenerationOptions:
 @dataclass
 class OCRSettings:
     model_name: str = ""
+    text_model_name: str = ""
     base_url: str = "http://localhost:11434"
     prompt_id: str = "faithful_markdown"
     custom_prompt: str | None = None
@@ -58,6 +59,7 @@ class OCRSettings:
     def as_dict(self) -> dict[str, Any]:
         return {
             "model_name": self.model_name,
+            "text_model_name": self.text_model_name,
             "base_url": self.base_url,
             "prompt_id": self.prompt_id,
             "custom_prompt": self.custom_prompt,
@@ -73,6 +75,7 @@ class OCRSettings:
         opts = data.get("generation_options") or {}
         return cls(
             model_name=data.get("model_name", ""),
+            text_model_name=data.get("text_model_name", ""),
             base_url=data.get("base_url", "http://localhost:11434"),
             prompt_id=data.get("prompt_id", "faithful_markdown"),
             custom_prompt=data.get("custom_prompt"),

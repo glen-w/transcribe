@@ -177,8 +177,28 @@ def _render_workflow(runtime, root: str) -> None:
             options=names or [project.settings.model_name or ""],
             index=0 if names else 0,
         )
+        text_model_options = [m.name for m in all_discovery.models] or [
+            project.settings.text_model_name or ""
+        ]
+        text_model = st.selectbox(
+            "Text analysis model",
+            options=text_model_options,
+            index=(
+                text_model_options.index(project.settings.text_model_name)
+                if project.settings.text_model_name in text_model_options
+                else 0
+            ),
+            help="Required for LLM analysis modules. Vision/embedding models are rejected.",
+        )
+        text_manual = st.text_input(
+            "Advanced / manual text model override",
+            value="",
+            help="Exact Ollama model name for Summaries / Ask notebook LLM modules.",
+        )
+        if text_manual.strip():
+            text_model = text_manual.strip()
         manual = st.text_input(
-            "Advanced / manual model override",
+            "Advanced / manual vision model override",
             value="",
             help="Use when capabilities are unknown on older Ollama builds.",
         )
@@ -205,6 +225,7 @@ def _render_workflow(runtime, root: str) -> None:
             settings = project.settings
             settings.base_url = normalized
             settings.model_name = model
+            settings.text_model_name = text_model
             settings.prompt_id = prompt_id
             settings.custom_prompt = custom.strip() or None
             settings.preprocess_profile = preprocess
@@ -711,6 +732,11 @@ def _render_workflow(runtime, root: str) -> None:
             if not env:
                 st.info(f"**{mid}:** unavailable — run synthesis first")
                 continue
+            if rm.get("status") == "stale":
+                st.warning(
+                    f"**{mid}:** published result not verified current "
+                    "(pass a live cache identity before treating evidence as fresh)"
+                )
             cap = env.get("capability")
             payload = env.get("payload") or {}
             honesty = payload.get("honesty_label")
@@ -725,11 +751,9 @@ def _render_workflow(runtime, root: str) -> None:
                 st.json(payload)
 
     with tab_ask:
-        from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
-        from transcribe.analysis.runner import AnalysisRunner
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
-        import transcribe.analysis.runner as runner_mod
 
         st.subheader("Ask notebook")
         st.caption(
@@ -741,21 +765,10 @@ def _render_workflow(runtime, root: str) -> None:
             runner = AnalysisRunner(
                 projects, clock=SystemClock(), ids=UuidGenerator()
             )
-            original = runner_mod.get_registered_modules
-
-            def patched(*, wave: str | None = None):
-                mods = original(wave=wave)
-                mods["llm_custom_qa"] = LLMCustomQAModule(
-                    question_text=question.strip()
+            with st.spinner("Asking notebook…"):
+                env = runner.run_module(
+                    "llm_custom_qa", question_text=question.strip()
                 )
-                return mods
-
-            runner_mod.get_registered_modules = patched  # type: ignore[assignment]
-            try:
-                with st.spinner("Asking notebook…"):
-                    env = runner.run_module("llm_custom_qa")
-            finally:
-                runner_mod.get_registered_modules = original  # type: ignore[assignment]
             st.write(
                 f"outcome=`{env.get('outcome')}` capability=`{env.get('capability')}`"
             )
@@ -764,19 +777,28 @@ def _render_workflow(runtime, root: str) -> None:
                 st.caption(f"Honesty: {payload['honesty_label']}")
             if payload.get("answer"):
                 st.markdown(payload["answer"])
-            if env.get("evidence"):
-                st.json(env["evidence"])
+            evidence = env.get("evidence") or []
+            if evidence and env.get("published"):
+                st.json(evidence)
             for w in env.get("warnings") or []:
                 st.warning(w.get("message") or w.get("code"))
             with st.expander("Raw payload"):
                 st.json(payload)
 
         storage = AnalysisStorage(paths)
-        published = storage.read_published("llm_custom_qa")
-        if published:
+        rm = load_published_read_model(
+            storage, "llm_custom_qa", current_cache_identity=None
+        )
+        if rm.get("envelope"):
             st.divider()
-            st.caption("Last published Ask notebook result")
-            st.json(published.get("payload") or {})
+            if rm.get("status") == "stale":
+                st.caption(
+                    "Last published Ask notebook result (not verified current — "
+                    "re-ask to refresh)"
+                )
+            else:
+                st.caption("Last published Ask notebook result")
+            st.json((rm["envelope"] or {}).get("payload") or {})
 
 
 def main() -> None:

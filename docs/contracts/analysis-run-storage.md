@@ -123,15 +123,19 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 | `generation_settings` | yes (canonical subset: temperature, max tokens, etc.) |
 | `grounding_strategy_id` | yes |
 | `chunking_policy_id` | yes |
+| `reduction_policy_id` | yes (`notebook_map_reduce_v1` for Wave 1e) |
+| `token_estimator_id` | yes (`whitespace_tokens_v1` for Wave 1e) |
 | `question_text` | yes for `llm_custom_qa`; else null |
 | `resolved_model_digest` | yes when model resolved; else null (preflight → unavailable_model) |
-| `input_fingerprint` | yes (document content fingerprint or explicit reduction fingerprint) |
+| `input_fingerprint` | yes (excerpts actually supplied / reduction fingerprint — not whole-document dump) |
 
 **Frozen Wave 1e policy ids** (must match [analysis-result.md](analysis-result.md)):
 
 | Field | Allowed Wave 1e values |
 |-------|------------------------|
-| `chunking_policy_id` | `notebook_chunks_units_v1` |
+| `chunking_policy_id` | `notebook_chunks_units_v1` (token budget; sub-split oversized units) |
+| `reduction_policy_id` | `notebook_map_reduce_v1` |
+| `token_estimator_id` | `whitespace_tokens_v1` |
 | `grounding_strategy_id` | `ground_doc_chunks_v1` \| `ground_highlights_summary_v1` |
 
 ## Dependency compatibility (sole normative hard DAG)
