@@ -6,20 +6,22 @@ from typing import Any
 
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules.semantic_similarity import build_unit_vectors, cosine
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "topic_shift"
 MODULE_VERSION = "1c.0"
 PAYLOAD_SCHEMA = "topic_shift_payload_v1"
 ALGORITHM_VERSION = "order_cosine_drop_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-SHIFT_THRESHOLD = 0.25
 
 
 def topic_shift_config() -> dict[str, Any]:
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "shift_threshold": SHIFT_THRESHOLD,
+        **module_knob_dict(cfg, MODULE_ID),
     }
 
 

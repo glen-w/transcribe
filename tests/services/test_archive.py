@@ -266,6 +266,23 @@ def test_thumbnail_and_export_metadata(tmp_path: Path):
     assert notebook["pages"][0]["tags"] == ["memento"]
 
 
+def test_cover_fallback_is_first_page_not_earliest_date(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    root, projects = _make_notebook(
+        runtime,
+        "order",
+        title="Order",
+        page_specs=[
+            {"date": ApproximateDate(2022, 6, 1), "text": "later first"},
+            {"date": ApproximateDate(2010, 1, 1), "text": "earlier second"},
+        ],
+    )
+    project = projects.load(reconcile=False)
+    assert project.cover_page_id is None
+    thumbs = ThumbnailService(open_project_paths(root))
+    assert thumbs.cover_page_id(project) == project.pages[0].page_id
+
+
 def test_most_pages_ordering(tmp_path: Path):
     runtime = _runtime(tmp_path)
     _make_notebook(

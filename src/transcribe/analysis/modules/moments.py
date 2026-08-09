@@ -9,20 +9,22 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument, content_fingerprint
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
 from transcribe.analysis.modules.wordclouds import _load_stopwords
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "moments"
 MODULE_VERSION = "1d.0"
 PAYLOAD_SCHEMA = "moments_payload_v1"
 ALGORITHM_VERSION = "notebook_salience_fork_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-TOP_N = 10
 
 
 def moments_config() -> dict[str, Any]:
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "top_n": TOP_N,
+        **module_knob_dict(cfg, MODULE_ID),
     }
 
 
@@ -142,7 +144,8 @@ class MomentsModule:
                 }
             )
         scored.sort(key=lambda r: (-r["score"], r["order"], r["unit_id"]))
-        top = scored[:TOP_N]
+        top_n = require_operation_config().analysis.moments.top_n
+        top = scored[:top_n]
         evidence = []
         for row in top:
             unit = next(u for u in document.units if u.unit_id == row["unit_id"])

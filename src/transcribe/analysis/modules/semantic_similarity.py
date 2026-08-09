@@ -9,22 +9,22 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
 from transcribe.analysis.modules.wordclouds import _load_stopwords
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "semantic_similarity"
 MODULE_VERSION = "1c.0"
 PAYLOAD_SCHEMA = "semantic_similarity_payload_v1"
 ALGORITHM_VERSION = "bow_cosine_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-MOTIF_THRESHOLD = 0.55
-MAX_MOTIFS = 25
 
 
 def semantic_similarity_config() -> dict[str, Any]:
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "motif_threshold": MOTIF_THRESHOLD,
-        "max_motifs": MAX_MOTIFS,
+        **module_knob_dict(cfg, MODULE_ID),
     }
 
 

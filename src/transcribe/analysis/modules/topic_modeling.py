@@ -8,22 +8,22 @@ from typing import Any
 from transcribe.analysis.document import AnalysisDocument
 from transcribe.analysis.modules._tx_lexical_diversity import tokenize
 from transcribe.analysis.modules.wordclouds import _load_stopwords
+from transcribe.config.facade import require_operation_config
+from transcribe.config.knobs import module_knob_dict
 
 MODULE_ID = "topic_modeling"
 MODULE_VERSION = "1c.0"
 PAYLOAD_SCHEMA = "topic_modeling_payload_v1"
 ALGORITHM_VERSION = "topic_seed_buckets_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
-N_TOPICS = 5
-TERMS_PER_TOPIC = 8
 
 
 def topic_modeling_config() -> dict[str, Any]:
+    cfg = require_operation_config()
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "n_topics": N_TOPICS,
-        "terms_per_topic": TERMS_PER_TOPIC,
+        **module_knob_dict(cfg, MODULE_ID),
     }
 
 
