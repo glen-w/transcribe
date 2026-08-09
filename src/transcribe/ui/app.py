@@ -12,6 +12,10 @@ from pathlib import Path
 
 import streamlit as st
 
+from transcribe.analysis.llm_runtime import (
+    is_unsuitable_text_model_name,
+    suitable_text_model_names,
+)
 from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import (
@@ -26,9 +30,11 @@ from transcribe.services.job import JobCoordinator, JobProgress, build_coordinat
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
 from transcribe.ui.page_viewer import render_page_viewer
+from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
+    is_workflow_mode,
     normalize_ui_mode,
     render_brand,
     render_mode_nav,
@@ -77,7 +83,8 @@ def _render_job_progress(progress: JobProgress) -> None:
         )
 
 
-def _render_workflow(runtime, root: str) -> None:
+def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None:
+    section = normalize_ui_mode(section)
     try:
         paths, projects, ingest = _services(root)
         project = projects.load(reconcile=True)
@@ -86,7 +93,11 @@ def _render_workflow(runtime, root: str) -> None:
         st.caption(str(exc))
         return
 
-    if st.session_state.get("show_page_viewer") and st.session_state.get("view_page_id"):
+    if (
+        section == "Transcribe"
+        and st.session_state.get("show_page_viewer")
+        and st.session_state.get("view_page_id")
+    ):
         render_page_viewer(
             paths=paths,
             projects=projects,
@@ -96,45 +107,34 @@ def _render_workflow(runtime, root: str) -> None:
             or [p.page_id for p in project.pages],
             view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
-            back_label="Back to workflow",
+            back_label="Back to Transcribe",
         )
         return
 
+    if section == "Analyse":
+        st.caption(f"Project: `{paths.root}`")
+        render_run_analysis_form(projects=projects, project=project)
+        st.divider()
+        st.markdown("#### Published results")
+        _render_analysis_result_tabs(paths, projects, project)
+        return
+
     back_cols = st.columns([1, 4])
-    if back_cols[0].button("← Archive", key="workflow_back_archive"):
+    if back_cols[0].button("← Archive", key=f"workflow_back_archive_{section}"):
         set_ui_mode("Archive")
     back_cols[1].caption(f"Project: `{paths.root}`")
 
+    if section == "Export":
+        _render_export_panel(runtime, paths, projects, project, root)
+        return
+
+    # Transcribe (OCR run): import → run → pages
     coord = get_coordinator(str(paths.root))
     live = coord.get_progress()
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
 
-    (
-        tab_import,
-        tab_run,
-        tab_pages,
-        tab_export,
-        tab_overview,
-        tab_themes,
-        tab_mood,
-        tab_moments,
-        tab_summaries,
-        tab_ask,
-    ) = st.tabs(
-        [
-            "Import",
-            "Run",
-            "Pages",
-            "Export",
-            "Overview",
-            "Themes",
-            "Mood & tone",
-            "Moments",
-            "Summaries",
-            "Ask notebook",
-        ]
-    )
+    tab_import, tab_run, tab_pages = st.tabs(["Import", "Run OCR", "Pages"])
 
     with tab_import:
         uploaded = st.file_uploader(
@@ -192,9 +192,18 @@ def _render_workflow(runtime, root: str) -> None:
             options=names or [project.settings.model_name or ""],
             index=0 if names else 0,
         )
-        text_model_options = [m.name for m in all_discovery.models] or [
-            project.settings.text_model_name or ""
-        ]
+        text_model_options = suitable_text_model_names(all_discovery.models)
+        if (
+            project.settings.text_model_name
+            and is_unsuitable_text_model_name(project.settings.text_model_name)
+        ):
+            st.warning(
+                f"Saved text model `{project.settings.text_model_name}` is "
+                "vision/embedding — choose a text model below."
+            )
+        if not text_model_options:
+            st.caption("No suitable text models discovered; use manual override.")
+            text_model_options = [""]
         text_model = st.selectbox(
             "Text analysis model",
             options=text_model_options,
@@ -203,7 +212,7 @@ def _render_workflow(runtime, root: str) -> None:
                 if project.settings.text_model_name in text_model_options
                 else 0
             ),
-            help="Required for LLM analysis modules. Vision/embedding models are rejected.",
+            help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
         )
         text_manual = st.text_input(
             "Advanced / manual text model override",
@@ -268,7 +277,10 @@ def _render_workflow(runtime, root: str) -> None:
                 )
             ),
             disabled=not cleanup_enabled,
-            help="Text model for cleanup. Falls back to the text analysis model if unset.",
+            help=(
+                "Text model for cleanup (vision/embedding filtered out). "
+                "Falls back to the text analysis model if unset."
+            ),
         )
         cleanup_manual = st.text_input(
             "Advanced / manual cleanup model override",
@@ -368,21 +380,44 @@ def _render_workflow(runtime, root: str) -> None:
                 show_back=False,
             )
 
-    with tab_export:
-        export_dest = st.text_input(
-            "Export directory",
-            value=str(runtime.export_dir / Path(root).name),
+    # Export + analysis result tabs live under Workflow → Export / Analyse.
+
+
+def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
+    export_dest = st.text_input(
+        "Export directory",
+        value=str(runtime.export_dir / Path(root).name),
+    )
+    if st.button("Export"):
+        dest = Path(export_dest) if export_dest.strip() else None
+        written = ExportService(paths, projects).export_all(project, dest)
+        for kind, path in written.items():
+            st.write(f"**{kind}:** `{path}`")
+        st.download_button(
+            "Download notebook JSON",
+            data=path_read(written["notebook"]),
+            file_name="notebook.transcribe.json",
         )
-        if st.button("Export"):
-            dest = Path(export_dest) if export_dest.strip() else None
-            written = ExportService(paths, projects).export_all(project, dest)
-            for kind, path in written.items():
-                st.write(f"**{kind}:** `{path}`")
-            st.download_button(
-                "Download notebook JSON",
-                data=path_read(written["notebook"]),
-                file_name="notebook.transcribe.json",
-            )
+
+
+def _render_analysis_result_tabs(paths, projects, project) -> None:
+    (
+        tab_overview,
+        tab_themes,
+        tab_mood,
+        tab_moments,
+        tab_summaries,
+        tab_ask,
+    ) = st.tabs(
+        [
+            "Overview",
+            "Themes",
+            "Mood & tone",
+            "Moments",
+            "Summaries",
+            "Ask notebook",
+        ]
+    )
 
     with tab_overview:
         from transcribe.analysis.adapter import build_page_v1_document
@@ -391,7 +426,10 @@ def _render_workflow(runtime, root: str) -> None:
             cache_identity_hex,
         )
         from transcribe.analysis.document import AnalysisDocumentError
-        from transcribe.analysis.modules import get_wave13_modules
+        from transcribe.analysis.modules import (
+            THROUGH_OVERVIEW,
+            get_registered_modules,
+        )
         from transcribe.analysis.modules import wordclouds as wordclouds_mod
         from transcribe.analysis.parents import resolve_optional_parents
         from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
@@ -407,11 +445,10 @@ def _render_workflow(runtime, root: str) -> None:
         runner = AnalysisRunner(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-        if st.button("Run analysis (through Wave 1.3)"):
+        if st.button("Run Overview analysis"):
             with st.spinner("Running analysis modules…"):
-                from transcribe.analysis.modules import get_wave13_modules
-
-                results = runner.run_batch(list(get_wave13_modules().keys()))
+                overview_mods = get_registered_modules(through=THROUGH_OVERVIEW)
+                results = runner.run_batch(list(overview_mods.keys()))
             for mid, env in results.items():
                 st.write(
                     f"**{mid}:** outcome=`{env.get('outcome')}` "
@@ -420,9 +457,7 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         storage = AnalysisStorage(paths)
-        from transcribe.analysis.modules import get_wave13_modules
-
-        modules = get_wave13_modules()
+        modules = get_registered_modules(through=THROUGH_OVERVIEW)
         current_identity: dict[str, str | None] = {}
         try:
             doc = build_page_v1_document(project, projects)
@@ -554,7 +589,10 @@ def _render_workflow(runtime, root: str) -> None:
                 st.warning(f"**{mid}:** unavailable")
 
     with tab_themes:
-        from transcribe.analysis.modules import get_wave1c_modules
+        from transcribe.analysis.modules import (
+            THROUGH_THEMES,
+            get_registered_modules,
+        )
         from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
@@ -572,7 +610,7 @@ def _render_workflow(runtime, root: str) -> None:
             "topic_shift",
             "bertopic",
         ]
-        if st.button("Run Themes analysis (Wave 1c)"):
+        if st.button("Run Themes analysis"):
             with st.spinner("Running Themes modules…"):
                 results = runner.run_batch(theme_ids)
             for mid in theme_ids:
@@ -584,8 +622,8 @@ def _render_workflow(runtime, root: str) -> None:
             st.rerun()
 
         storage = AnalysisStorage(paths)
-        w1c = get_wave1c_modules()
-        assert set(theme_ids).issubset(set(w1c))
+        themes = get_registered_modules(through=THROUGH_THEMES)
+        assert set(theme_ids).issubset(set(themes))
         for mid in theme_ids:
             identity = runner.planned_cache_identity(mid)
             rm = load_published_read_model(
@@ -653,7 +691,7 @@ def _render_workflow(runtime, root: str) -> None:
             "affect_tension",
             "epistemic_markers",
         ]
-        if st.button("Run Mood & tone analysis (Wave 1d)"):
+        if st.button("Run Mood & tone analysis"):
             ordered = [
                 "sentiment",
                 "emotion",
@@ -910,17 +948,25 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
         "Archive",
         "Browse notebooks by timeline, tags, and recent activity.",
     ),
-    "Notebooks": (
-        "Notebooks",
+    "View": (
+        "View",
         "Open a notebook volume and jump into its pages.",
     ),
     "Search": (
         "Search",
         "Find text across transcribed notebook pages.",
     ),
-    "Workflow": (
-        "Workflow",
-        "Import pages, run OCR, review results, and export.",
+    "Transcribe": (
+        "Transcribe",
+        "Import pages, run OCR, and review results.",
+    ),
+    "Analyse": (
+        "Analyse",
+        "Run notebook analysis from Quick / Balanced / Thorough presets.",
+    ),
+    "Export": (
+        "Export",
+        "Export notebook JSON, Markdown, and plain text.",
     ),
 }
 
@@ -933,8 +979,12 @@ def main() -> None:
     runtime.ensure_layout()
     default_root = str(runtime.default_project_dir())
 
+    mode = normalize_ui_mode(st.session_state.get("ui_mode"))
+    st.session_state["ui_mode"] = mode
+
     with st.sidebar:
         render_brand()
+        mode = render_mode_nav(mode)
         render_nav_section("Project")
         root = st.text_input(
             "Project directory", value=st.session_state.get("root", default_root)
@@ -959,20 +1009,16 @@ def main() -> None:
                 ingest.cleanup_staging()
                 projects.load(reconcile=True)
                 st.cache_resource.clear()
-                set_ui_mode("Workflow")
+                set_ui_mode("Transcribe")
             except TranscribeError as exc:
                 st.error(str(exc))
-
-    mode = normalize_ui_mode(st.session_state.get("ui_mode"))
-    st.session_state["ui_mode"] = mode
-    mode = render_mode_nav(mode)
 
     archive = ArchiveService(runtime)
     archive.ensure_index()
 
-    # Page viewer overlay when navigated from Archive/Search/Notebooks.
+    # Page viewer overlay when navigated from Archive/Search/View.
     if (
-        mode != "Workflow"
+        not is_workflow_mode(mode)
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
         and st.session_state.get("root")
@@ -992,16 +1038,18 @@ def main() -> None:
             st.session_state["show_page_viewer"] = False
 
     title, desc = _PAGE_SHELL[mode]
-    render_page_shell(title, desc)
+    # Analyse owns its own page shell inside Run Analysis.
+    if mode != "Analyse":
+        render_page_shell(title, desc)
 
     if mode == "Archive":
         render_archive(runtime, archive)
-    elif mode == "Notebooks":
+    elif mode == "View":
         render_notebooks(runtime, archive)
     elif mode == "Search":
         render_search(runtime, archive)
-    else:
-        _render_workflow(runtime, root)
+    elif mode in ("Transcribe", "Analyse", "Export"):
+        _render_workflow(runtime, root, section=mode)
 
 
 def path_read(path: Path) -> bytes:

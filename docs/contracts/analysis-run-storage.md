@@ -123,15 +123,15 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 | `generation_settings` | yes (canonical subset: temperature, max tokens, etc.) |
 | `grounding_strategy_id` | yes |
 | `chunking_policy_id` | yes |
-| `reduction_policy_id` | yes (`notebook_map_reduce_v1` for Wave 1e) |
-| `token_estimator_id` | yes (`whitespace_tokens_v1` for Wave 1e) |
+| `reduction_policy_id` | yes (`notebook_map_reduce_v1` for LLM modules) |
+| `token_estimator_id` | yes (`whitespace_tokens_v1` for LLM modules) |
 | `question_text` | yes for `llm_custom_qa`; else null |
 | `resolved_model_digest` | yes when model resolved; else null (preflight → unavailable_model) |
 | `input_fingerprint` | yes (excerpts actually supplied / reduction fingerprint — not whole-document dump) |
 
-**Frozen Wave 1e policy ids** (must match [analysis-result.md](analysis-result.md)):
+**Frozen LLM policy ids** (must match [analysis-result.md](analysis-result.md)):
 
-| Field | Allowed Wave 1e values |
+| Field | Allowed LLM policy values |
 |-------|------------------------|
 | `chunking_policy_id` | `notebook_chunks_units_v1` (token budget; sub-split oversized units) |
 | `reduction_policy_id` | `notebook_map_reduce_v1` |
@@ -142,7 +142,7 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 
 PRODUCT docs may list human-readable relationships including soft enrichments. **This contract owns hard-parent compatibility.** Consumers must not silently reuse stale or differently configured parents.
 
-### Required (hard) parents (Wave 1)
+### Required (hard) parents (core set)
 
 | Consumer | Required parents | Acceptable parent outcomes |
 |----------|------------------|----------------------------|
@@ -164,11 +164,11 @@ On failure → commit reusable terminal with `outcome: unavailable_dependency` w
 
 These parents **enrich** payloads when present and compatible; absence must not fail the consumer. When consumed, their `{module_id, cache_identity, outcome}` enter `parents` and thus cache identity. When absent, the consumer runs its documented baseline path (never an ad-hoc stub).
 
-Optional-parent **resolution must precede** `cache_identity` construction and cache lookup. Only parents **actually consumed** enter `parents`. Wave 1.2 locks `wordclouds` to `enrichment_mode: "baseline"`: `keyphrases` is never consumed even when a compatible published `success` exists (absent / incompatible / failed / non-success / success → all ignored). Enrichment requires a deliberate later mode/`module_version` transition so installing 1b cannot silently change baseline identity or outputs.
+Optional-parent **resolution must precede** `cache_identity` construction and cache lookup. Only parents **actually consumed** enter `parents`. Baseline wordclouds mode locks `wordclouds` to `enrichment_mode: "baseline"`: `keyphrases` is never consumed even when a compatible published `success` exists (absent / incompatible / failed / non-success / success → all ignored). Enrichment requires a deliberate later mode/`module_version` transition so enabling enrichment cannot silently change baseline identity or outputs.
 
 | Consumer | Optional parent | Baseline when absent |
 |----------|-----------------|----------------------|
-| `wordclouds` | `keyphrases` | Token/frequency cloud from document text only (`enrichment_mode: "baseline"` in Wave 1.2 always takes this path) |
+| `wordclouds` | `keyphrases` | Token/frequency cloud from document text only (`enrichment_mode: "baseline"` in baseline wordclouds always takes this path) |
 | `topic_modeling` | `keyphrases` | Model without keyphrase prior/seed enrichment |
 | `bertopic` | `keyphrases` | BERTopic without keyphrase enrichment |
 | `contextual_emotion` | neighbouring-unit window only | N/A (no parent module; window is config) |
@@ -176,7 +176,7 @@ Optional-parent **resolution must precede** `cache_identity` construction and ca
 | `insights` | — | Hard parents only; no TX `insight_eligibility` |
 | `llm_*` / `narrative_summary` | deterministic `summary` / `highlights` as grounding context | `narrative_summary` still hard-deps `summary`; other LLM modules may ground on document text alone per module notes |
 
-### Fallbacks (Wave 1)
+### Fallbacks (core set)
 
 | Situation | Behaviour |
 |-----------|-----------|

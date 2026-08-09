@@ -1,9 +1,11 @@
 Type: PRODUCT
-Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependency map, checklists, test intent, exit criteria). Does **not** define runtime contracts, schemas, storage rules, cache identity, refusal/outcome enums, or atomicity. Those live only in CONTRACT docs — this plan must not silently become a second authority. Disposition table: [analysis_module_porting.md](analysis_module_porting.md); waves: [ROADMAP.md](ROADMAP.md).
+Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependency map, checklists, test intent, exit criteria). **Internal delivery history only** — product language uses “core module set”, not “Wave 1”. Does **not** define runtime contracts, schemas, storage rules, cache identity, refusal/outcome enums, or atomicity. Those live only in CONTRACT docs — this plan must not silently become a second authority. Disposition table: [analysis_module_porting.md](analysis_module_porting.md); roadmap: [ROADMAP.md](ROADMAP.md).
 
-# Wave 1 plan — TranscriptX analysis ports
+# Wave 1 plan — TranscriptX analysis ports (internal)
 
-**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a Wave 1 blocker — see [ROADMAP.md](ROADMAP.md) Waves 2+.
+> **Internal numbering.** This document keeps historical Wave / sub-wave ids (`1.1`…`1e.2`). User-facing docs, UI, and code should say **core modules**, not “Wave 1”.
+
+**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a core-set blocker — tracked under the **robustness & UX** focus on [ROADMAP.md](ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**.
 
 Detailed delivery plan for the 25 **Port early** modules. Companion to the disposition map and roadmap.
 
@@ -97,7 +99,7 @@ Every port fills [analysis_port_pins.md](dev/analysis_port_pins.md) with the **c
 | **`paragraph_v1`** | Moments, highlights, fine-grained emotion, QA evidence — when page text is long |
 | **Document-level `text`** | Whole-notebook summaries, wordclouds, lexical diversity rollups |
 
-Splitter rules and stable derived-unit IDs are **frozen in** [analysis-document.md](contracts/analysis-document.md). **`paragraph_v1` must be implemented and tested before Waves 1d/1e** modules that emit span evidence. Cores stay unit-agnostic.
+Splitter rules and stable derived-unit IDs are **frozen in** [analysis-document.md](contracts/analysis-document.md). **`paragraph_v1` must be implemented and tested before Moments / LLM synthesis modules** modules that emit span evidence. Cores stay unit-agnostic.
 
 ### Chronology (no TX timing machinery)
 
@@ -179,7 +181,7 @@ Notebook UI is **not** a TX module picker clone. Target surfaces:
 | **Themes** | Keyphrases, topics, clusters, shifts, recurring themes | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
 | **People & places** | NER, entity frequency over time, entity sentiment, co-occurrence | `ner`, `entity_sentiment` |
 | **Mood & tone** | Sentiment/emotions over chronology, affect tension, certainty/hedging | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
-| **Patterns** *(partial in W1)* | Repeated phrases, semantic echoes, recurring ideas | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops → Wave 2–3 |
+| **Patterns** *(partial in W1)* | Repeated phrases, semantic echoes, recurring ideas | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops deferred with Wave 2–3 |
 | **Moments** | Unusual / emotionally strong / high-information passages | `moments`, `highlights` |
 | **Ask notebook** | Grounded custom QA | `llm_custom_qa` |
 | **Summaries** | Notebook / month / section summaries, narrative, action items | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items`, `understandability`, `wordclouds` |
@@ -210,7 +212,7 @@ Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice st
 | **Depends on** | 1.1 infra (runner/storage/envelope/Overview); mechanical pytest gate before coding |
 | **Input** | Solely `AnalysisDocument.text` via `wordclouds_tokens_v1` (shared `TOKEN_RE` + pinned `wordclouds_stopwords_v1`) |
 | **Payload** | `wordclouds_payload_v1` token weights; zero eligible tokens → `insufficient_data` |
-| **Also ship** | Registry extension beyond `get_wave11_modules`; resolve-parents-before-identity (baseline → empty); Overview token-weight chart/table (PNG optional presentation only); pin row + provenance match |
+| **Also ship** | Registry extension beyond foundations slice (`through="1.1"`); resolve-parents-before-identity (baseline → empty); Overview token-weight chart/table (PNG optional presentation only); pin row + provenance match |
 | **Exit** | §10 + baseline ignore-matrix + 1.1 three-module non-regression + reopen/corrupt Overview bars |
 
 ### Wave 1.3 — Language foundations (start of 1b)
@@ -410,8 +412,8 @@ Keep `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` in 
 - No shared `transcriptx-analysis` library extraction
 - No voice / speaker / pause / interaction / contagion ports
 - No rewriting cores to import Transcribe `Page` objects or Streamlit state
-- No Wave 2 reinterpretations (`politeness`, `echoes`, `temporal_dynamics`, `momentum`, clean-text exports, `chart_descriptions`)
-- No new `ocr_quality` (Wave 2 special case; not a TX port)
+- No Wave 2 reinterpretations (`politeness`, `echoes`, `temporal_dynamics`, `momentum`, clean-text exports, `chart_descriptions`) — still deferred post–Wave 1
+- No new `ocr_quality` (deferred; prefer OCR cleanup / second-pass LLM verification)
 - No synthetic timestamps or fake speakers to appease TX APIs
 - No documenting analysis as shipped until modules are implemented *(Wave 1 modules are implemented — product docs may say shipped)*
 - No in-place external-notebook / JPEGs-at-root / `.transcribe/` derived-state layout
@@ -503,7 +505,7 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Hard DAG + optional enrichments + eligibility policy
 - Outcomes, capability vocabulary, refusal vs empty-success
 - Evidence renderability + stale citation behaviour
-- Sub-wave order 1a→1e; `ocr_quality` remains Wave 2
+- Sub-wave order 1a→1e; `ocr_quality` and Wave 2 reinterpretations deferred (ROADMAP)
 - Concrete TX commit provenance (not slogan-only `ported_from`)
 
 **Still free (implementation detail only — must not affect durable identity):**
@@ -512,4 +514,4 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Which Overview widgets ship visually with 1a vs wait for 1b entities
 - Non-identity UX copy and chart aesthetics
 
-**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas).
+**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Core robustness & UX** (deferred reinterpretations not scheduled).

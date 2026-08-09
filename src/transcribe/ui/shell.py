@@ -6,7 +6,19 @@ import html
 
 import streamlit as st
 
-_MODES: tuple[str, ...] = ("Archive", "Notebooks", "Search", "Workflow")
+# Notebooks section
+_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive")
+# Workflow section
+_WORKFLOW_MODES: tuple[str, ...] = ("Transcribe", "Analyse", "Export")
+_MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES)
+
+_LEGACY_MODE_ALIASES: dict[str, str] = {
+    "Notebooks": "View",
+    "Workflow": "Transcribe",
+    # Older Analyse spelling / synonyms
+    "Analyze": "Analyse",
+    "Run Analysis": "Analyse",
+}
 
 
 def configure_streamlit_page() -> None:
@@ -170,27 +182,6 @@ def inject_global_styles() -> None:
         margin: 0 0 0.75rem 0;
         max-width: 52rem;
     }
-    /* Main-area mode strip — always visible even if sidebar collapses */
-    section[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button[kind="secondary"] {
-        background: rgba(250, 250, 250, 0.07) !important;
-        border: 1px solid rgba(250, 250, 250, 0.14) !important;
-        border-radius: 6px !important;
-        color: #d7dee8 !important;
-        font-weight: 500;
-        box-shadow: none !important;
-    }
-    section[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button[kind="primary"] {
-        background: rgba(31, 119, 180, 0.38) !important;
-        border: 1px solid rgba(155, 208, 245, 0.45) !important;
-        border-radius: 6px !important;
-        color: #f3f9fd !important;
-        font-weight: 600;
-        box-shadow: none !important;
-    }
-    section[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button p,
-    section[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button span {
-        color: inherit !important;
-    }
 </style>
 """,
         unsafe_allow_html=True,
@@ -229,8 +220,7 @@ def render_page_shell(title: str, description: str | None = None) -> None:
 
 def set_ui_mode(mode: str) -> None:
     """Switch top-level UI mode and rerun (clears page-viewer overlay)."""
-    if mode not in _MODES:
-        mode = "Archive"
+    mode = normalize_ui_mode(mode)
     st.session_state["ui_mode"] = mode
     st.session_state["show_page_viewer"] = False
     st.rerun()
@@ -251,21 +241,37 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
 
 
 def render_mode_nav(current: str) -> str:
-    """Always-visible main-area mode strip (survives Streamlit sidebar collapse)."""
-    if current not in _MODES:
-        current = "Archive"
-        st.session_state["ui_mode"] = current
+    """Left-sidebar mode buttons under Notebooks / Workflow subheads."""
+    current = normalize_ui_mode(current)
+    st.session_state["ui_mode"] = current
 
-    cols = st.columns(len(_MODES))
-    for col, mode in zip(cols, _MODES, strict=True):
-        with col:
-            _nav_button(
-                label=mode, mode=mode, current=current, key_prefix="topnav"
-            )
+    render_nav_section("Notebooks")
+    for mode in _NOTEBOOK_MODES:
+        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
+
+    render_nav_section("Workflow")
+    workflow_labels = {
+        "Transcribe": "Transcribe",
+        "Analyse": "Analyse",
+        "Export": "Export",
+    }
+    for mode in _WORKFLOW_MODES:
+        _nav_button(
+            label=workflow_labels[mode],
+            mode=mode,
+            current=current,
+            key_prefix="nav",
+        )
     return current
 
 
 def normalize_ui_mode(raw: str | None) -> str:
+    if raw in _LEGACY_MODE_ALIASES:
+        return _LEGACY_MODE_ALIASES[raw]
     if raw in _MODES:
         return raw
     return "Archive"
+
+
+def is_workflow_mode(mode: str) -> bool:
+    return normalize_ui_mode(mode) in _WORKFLOW_MODES

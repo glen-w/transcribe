@@ -1,4 +1,4 @@
-"""Offline smoke: Wave 1 analysis contracts landed and indexed (docs-only plan)."""
+"""Offline smoke: core analysis contracts landed and indexed (docs-only plan)."""
 
 from __future__ import annotations
 

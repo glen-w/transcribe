@@ -1,4 +1,4 @@
-"""notebook_eligibility_v1 — sole Wave 1 stand-in for TX insight_eligibility."""
+"""notebook_eligibility_v1 — sole core stand-in for TX insight_eligibility."""
 
 from __future__ import annotations
 

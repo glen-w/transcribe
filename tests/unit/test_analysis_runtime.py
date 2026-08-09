@@ -1,4 +1,4 @@
-"""Offline tests for Wave 1 analysis adapter/runner/storage."""
+"""Offline tests for analysis adapter/runner/storage."""
 
 from __future__ import annotations
 

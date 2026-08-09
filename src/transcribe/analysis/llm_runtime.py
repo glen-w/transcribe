@@ -6,9 +6,11 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from transcribe.errors import ProviderError
+from transcribe.providers.base import ModelInfo
 from transcribe.providers.ollama import OllamaVisionProvider, normalize_base_url
 from transcribe.runtime_paths import default_ollama_base_url
 
@@ -52,6 +54,25 @@ def is_unsuitable_text_model_name(name: str) -> bool:
     return bool(_UNSUITABLE_NAME.search(name or ""))
 
 
+def is_unsuitable_text_model_info(model: ModelInfo) -> bool:
+    """Reject vision/embedding models for text LLM dropdowns and binding."""
+    if is_unsuitable_text_model_name(model.name):
+        return True
+    if model.capability_known and _UNSUITABLE_CAPS.intersection(
+        {c.lower() for c in model.capabilities}
+    ):
+        return True
+    family = (model.family or "").lower()
+    if family in {"clip", "bert"} or "vision" in family or "embed" in family:
+        return True
+    return False
+
+
+def suitable_text_model_names(models: Sequence[ModelInfo]) -> list[str]:
+    """Names safe for text-model selectboxes (excludes vision/embedding)."""
+    return [m.name for m in models if not is_unsuitable_text_model_info(m)]
+
+
 @dataclass
 class OllamaTextClient:
     """Text generate client reusing OCR's hardened Ollama transport."""
@@ -80,14 +101,7 @@ class OllamaTextClient:
         for row in result.models:
             if row.name != model:
                 continue
-            if row.capability_known and _UNSUITABLE_CAPS.intersection(
-                {c.lower() for c in row.capabilities}
-            ):
-                return True
-            family = (row.family or "").lower()
-            if family in {"clip", "bert"} or "vision" in family or "embed" in family:
-                return True
-            return False
+            return is_unsuitable_text_model_info(row)
         return False
 
     def resolve_configured_model(self, configured: str) -> str | None:

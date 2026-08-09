@@ -1,4 +1,4 @@
-"""Wave 1.3 Language foundations tests."""
+"""Overview language foundations tests."""
 
 from __future__ import annotations
 
@@ -14,10 +14,10 @@ from transcribe.analysis.cache_identity import (
 from transcribe.analysis.document import AnalysisDocument, AnalysisUnit, content_fingerprint
 from transcribe.analysis.eligibility import evaluate_notebook_eligibility_v1
 from transcribe.analysis.modules import (
+    THROUGH_FOUNDATIONS,
+    THROUGH_OVERVIEW,
+    THROUGH_WORDCLOUDS,
     get_registered_modules,
-    get_wave11_modules,
-    get_wave12_modules,
-    get_wave13_modules,
 )
 from transcribe.analysis.modules.epistemic_markers import EpistemicMarkersModule
 from transcribe.analysis.modules.ner import NERModule
@@ -75,15 +75,15 @@ def _doc(units: list[tuple[str, str]], *, doc_id: str = "d1") -> AnalysisDocumen
 
 
 def test_registry_wave_slices():
-    assert set(get_wave11_modules()) == {
+    assert set(get_registered_modules(through=THROUGH_FOUNDATIONS)) == {
         "stats",
         "lexical_diversity",
         "understandability",
     }
-    w12 = get_wave12_modules()
+    w12 = get_registered_modules(through=THROUGH_WORDCLOUDS)
     assert "wordclouds" in w12
     assert "ner" not in w12
-    w13 = get_wave13_modules()
+    w13 = get_registered_modules(through=THROUGH_OVERVIEW)
     assert {"ner", "sentiment", "epistemic_markers"}.issubset(set(w13))
     assert set(w12).issubset(set(w13))
     assert set(get_registered_modules()) >= set(w13)
@@ -217,8 +217,8 @@ def test_ner_evidence_stale_after_edit(tmp_path: Path):
 
     original = runner_mod.get_registered_modules
 
-    def patched(*, wave=None):
-        base = original(wave=wave)
+    def patched(*, through=None):
+        base = original(through=through)
         base["ner"] = NERModule(extract_fn=fake_extract)
         return base
 
@@ -240,7 +240,7 @@ def test_ner_evidence_stale_after_edit(tmp_path: Path):
 
 def test_provenance_pins_for_language_modules():
     for mid in ("ner", "sentiment", "epistemic_markers"):
-        mod = get_wave13_modules()[mid]
+        mod = get_registered_modules(through=THROUGH_OVERVIEW)[mid]
         prov = _module_provenance(mod)
         assert prov["ported_from"]["commit"] == "50a0ede8e7acd03bbd9125a5a5237049f3291304"
         assert prov["semantic_class"] == "adaptation"

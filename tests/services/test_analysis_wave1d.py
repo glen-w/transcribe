@@ -1,4 +1,4 @@
-"""Wave 1d emotion & salience tests (offline)."""
+"""Emotion & salience tests (offline)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from transcribe.analysis.modules import (
-    get_wave1c_modules,
-    get_wave1d_modules,
-    get_wave1e_modules,
-)
+
 from transcribe.analysis.modules.affect_tension import AffectTensionModule
 from transcribe.analysis.modules.emotion import EmotionModule, score_emotion
 from transcribe.analysis.modules.fine_grained_emotion import FineGrainedEmotionModule
@@ -19,6 +15,12 @@ from transcribe.analysis.runner import AnalysisRunner
 from transcribe.ingest import IngestService
 from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds
+from transcribe.analysis.modules import (
+    get_registered_modules,
+    THROUGH_THEMES,
+    THROUGH_MOOD,
+    THROUGH_CORE,
+)
 
 
 def _png_bytes() -> bytes:
@@ -52,9 +54,9 @@ AFFECTIVE = [
 
 
 def test_registry_includes_1d():
-    w1c = get_wave1c_modules()
-    w1d = get_wave1d_modules()
-    w1e = get_wave1e_modules()
+    w1c = get_registered_modules(through=THROUGH_THEMES)
+    w1d = get_registered_modules(through=THROUGH_MOOD)
+    w1e = get_registered_modules(through=THROUGH_CORE)
     assert {
         "emotion",
         "contextual_emotion",

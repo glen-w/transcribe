@@ -7,7 +7,7 @@ Import pages → run local OCR → review/edit → export. Product framing: [PRO
 
 ## 1. Create or open a project
 
-**UI:** open Workflow and choose/create a project under your projects directory.
+**UI:** open **Workflow → Transcribe** and choose/create a project under your projects directory.
 
 **CLI:**
 
@@ -25,7 +25,7 @@ Supported inputs: JPEG, PNG, PDF (unencrypted). PDFs are rendered to per-page PN
 ./transcribe.sh cli import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./scan.pdf --dpi 200
 ```
 
-In the UI: Import tab → upload → Import files.
+In the UI: **Transcribe → Import** → upload → Import files.
 
 ## 3. Choose a vision model and run
 
@@ -42,13 +42,13 @@ Run:
 # force re-OCR: add --force
 ```
 
-In the UI: Run tab → select vision model → optional **Clean OCR with text model** (mode + cleanup model) → Start transcription. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
+In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** (mode + cleanup model) → Start transcription. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Details: [contracts/page-result.md](contracts/page-result.md).
 
 ## 4. Review and edit
 
-Open Archive / Notebooks / Search / Workflow, then the page viewer. Edits are stored as `edited_text` and survive re-runs.
+Open Archive / View / Search / Transcribe, then the page viewer. Edits are stored as `edited_text` and survive re-runs.
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
@@ -56,18 +56,20 @@ Open Archive / Notebooks / Search / Workflow, then the page viewer. Edits are st
 
 ## 5. Notebook analysis (optional)
 
-After pages have text (OCR and/or edits), open Workflow analysis tabs:
+After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 
-| Tab | What it shows |
-|-----|----------------|
-| **Overview** | Counts, diversity, readability, entities, baseline wordcloud |
-| **Themes** | Keyphrases, topics, similarity, topic shifts |
-| **Mood & tone** | Sentiment, emotion family, hedging |
-| **Moments** | Salient spans / pages |
-| **Summaries** | Deterministic highlights → summary → insights; optional LLM summary / action items / narrative |
-| **Ask notebook** | Grounded custom QA (`llm_custom_qa`) with unit evidence |
+1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
+2. Optionally enable an Ask-notebook question.
+3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook.
 
-Use a **text** Ollama model for Summaries LLM modules and Ask notebook. Deterministic synthesis works without it. Capability banners (`unavailable_model`, `unavailable_extra`, `insufficient_data`, …) are intentional honesty, not blank failures. Roadmap: [ROADMAP.md](ROADMAP.md).
+| Preset | Modules |
+|--------|---------|
+| **Quick** | Light/medium only — no LLM, no heavy modules |
+| **Balanced** | Adds `semantic_similarity` + `llm_summary` |
+| **Thorough** | All suitable core modules (including heavy + LLM suite) |
+| **Custom** | Pick modules (seeded from Balanced) |
+
+Use a **text** Ollama model for LLM modules. Deterministic synthesis works without it. Capability banners (`unavailable_model`, `unavailable_extra`, `insufficient_data`, …) are intentional honesty, not blank failures. Roadmap: [ROADMAP.md](ROADMAP.md).
 
 ## 6. Export
 
@@ -76,6 +78,7 @@ Use a **text** Ollama model for Summaries LLM modules and Ask notebook. Determin
 # or: … export <project> /path/to/dest
 ```
 
+In the UI: **Workflow → Export**.
 Produces notebook JSON, Markdown, plain text, and an export manifest. Contract: [contracts/notebook-export.md](contracts/notebook-export.md).
 
 ## 7. Integrity check

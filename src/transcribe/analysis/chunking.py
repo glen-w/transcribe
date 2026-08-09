@@ -1,4 +1,4 @@
-"""Named LLM chunking / grounding / reduction policy ids (Wave 1e contract)."""
+"""Named LLM chunking / grounding / reduction policy ids (core LLM contract)."""
 
 from __future__ import annotations
 

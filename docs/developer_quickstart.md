@@ -45,7 +45,7 @@ Pytest marker present today: `integration` (live Ollama) — not selected by def
 | Export | `transcribe.services.export` |
 | Archive cache | `transcribe.services.archive` |
 | Analysis runner / storage | `transcribe.analysis.runner` · `transcribe.analysis.storage` |
-| Wave 1 modules | `transcribe.analysis.modules` |
+| Core modules | `transcribe.analysis.modules` |
 | Validation | `transcribe.domain.validation` |
 | Doctor | `transcribe.services.doctor` |
 | Ollama provider | `transcribe.providers.ollama` |

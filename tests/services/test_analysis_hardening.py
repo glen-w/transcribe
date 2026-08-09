@@ -1,4 +1,4 @@
-"""Wave 1 analysis hardening — parent freshness, evidence, boundaries, invalidation."""
+"""Core analysis analysis hardening — parent freshness, evidence, boundaries, invalidation."""
 
 from __future__ import annotations
 
@@ -81,8 +81,8 @@ def _with_injected_ner():
 
     original = runner_mod.get_registered_modules
 
-    def patched(*, wave: str | None = None):
-        mods = original(wave=wave)
+    def patched(*, through: str | None = None):
+        mods = original(through=through)
         mods["ner"] = NERModule(extract_fn=_fake_ner_extract)
         return mods
 

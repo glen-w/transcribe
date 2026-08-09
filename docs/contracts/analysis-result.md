@@ -176,7 +176,7 @@ Map to **named outcomes**, not uncaught exceptions. Refusal vs empty-success is 
 | Model/algorithm requires more samples than available | `insufficient_data` |
 | Execution exception / crash | attempt `failed` or `interrupted`; **never** clobber published reusable |
 
-### Minimum-input defaults (Wave 1)
+### Minimum-input defaults (core set)
 
 Shared 1.1 tokenizer for lexical metrics unless a module documents otherwise: maximal runs matching TX `TOKEN_RE` (letters with optional internal `'`/`’`/`-`); casefold for types; sentence splits on `.?!` followed by whitespace or EOS.
 
@@ -184,7 +184,7 @@ Float metrics in canonical payloads round to **6** decimal places for goldens.
 
 ### `wordclouds` baseline (`wordclouds_tokens_v1` / `wordclouds_payload_v1`)
 
-Normative for Wave 1.2 baseline mode (`enrichment_mode: "baseline"`). Sole analytical input is `AnalysisDocument.text` (never `units[]` tokenization).
+Normative for wordclouds baseline mode (`enrichment_mode: "baseline"`). Sole analytical input is `AnalysisDocument.text` (never `units[]` tokenization).
 
 | Rule | Policy |
 |------|--------|
@@ -204,12 +204,12 @@ Compatibility is judged on **analytical payload semantics**; rendered pixels / P
 | `stats` | zero emitted units | ≥1 unit | zero sub-metric counts allowed |
 | `lexical_diversity` | `n_tokens < 1` | `n_tokens ≥ 1` | MTLD only if `n_tokens ≥ 50`; else omit `mtld`, `partial: true`, warning `below_mtld_threshold` |
 | `understandability` | `n_words < 3` or `n_sentences < 1` | otherwise | non-finite scores → `failed` |
-| `wordclouds` | empty document **or** zero eligible tokens after `wordclouds_tokens_v1` | ≥1 eligible token | baseline only in Wave 1.2; see section above |
+| `wordclouds` | empty document **or** zero eligible tokens after `wordclouds_tokens_v1` | ≥1 eligible token | baseline only in wordclouds baseline mode; see section above |
 | `ner`, `sentiment`, `emotion`, `epistemic_markers` | empty document | possibly empty labels | |
 | `entity_sentiment`, `affect_tension` | parents / empty join | per parents | hard parents |
 | `keyphrases`, `topic_modeling`, `bertopic`, `highlights`, `insights` | eligibility / algorithm mins | | |
 
-### Language foundations payloads (Wave 1.3)
+### Language foundations payloads
 
 | Module | Payload id | Notes |
 |--------|------------|-------|
@@ -217,9 +217,9 @@ Compatibility is judged on **analytical payload semantics**; rendered pixels / P
 | `sentiment` | `sentiment_payload_v1` | Per-unit `compound`/`pos`/`neu`/`neg` + `label` ordered by `order` (optional `date`); `global_stats` means + distribution; no speaker keys |
 | `epistemic_markers` | `epistemic_markers_payload_v1` | Lexicon `epistemic_markers_en` + `lexicon_markers_v1` matching; `global_stats` / per-unit rates; optional evidence spans for hits |
 
-Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do not invent wall-clock timestamps. Wave 1.3 modules are **ungated** relative to `notebook_eligibility_v1`.
+Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do not invent wall-clock timestamps. Language foundations modules are **ungated** relative to `notebook_eligibility_v1`.
 
-### Topics & similarity payloads (Wave 1c)
+### Topics & similarity payloads
 
 | Module | Payload id | Notes |
 |--------|------------|-------|
@@ -234,7 +234,7 @@ Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do
 | `moments` | empty document | ranked list (maybe length 1) | |
 | LLM suite | empty / unavailable model | abstain rules | see LLM section |
 
-### Emotion & salience payloads (Wave 1d)
+### Emotion & salience payloads
 
 | Module | Payload id | Notes |
 |--------|------------|-------|
@@ -244,7 +244,7 @@ Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do
 | `affect_tension` | `affect_tension_payload_v1` | Hard parents `emotion`+`sentiment`; tension series vs order |
 | `moments` | `moments_payload_v1` | Salience **fork** (no momentum); optional soft `emotion`/`sentiment`/`topic_shift`; prefer `paragraph_v1` |
 
-## LLM evidence, cache identity contribution, and refusal (Wave 1e)
+## LLM evidence, cache identity contribution, and refusal
 
 Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary`:
 
@@ -252,23 +252,23 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 - Evidence must resolve to **current** compatible units/spans under the current content fingerprint and split profile
 - Stale evidence after relevant text or splitting changes is **not reusable**
 - Bounded input: deterministic chunking / section aggregation; forbid dumping an unbounded whole-notebook string when it exceeds the configured max context policy (policy id is part of cache identity)
-- **Frozen Wave 1e policy ids:**
+- **Frozen LLM policy ids:**
   - `chunking_policy_id`: `notebook_chunks_units_v1` (pack units by `order` up to a token budget; oversized units are deterministically sub-split with span provenance; never silently truncated)
   - `reduction_policy_id`: `notebook_map_reduce_v1` (bound total prompt context; map/reduce when chunks exceed total budget)
   - `grounding_strategy_id`: `ground_doc_chunks_v1` (document chunks) or `ground_highlights_summary_v1` (`narrative_summary`)
 - Cache identity **must** include (via analysis-run-storage `llm` object): resolved model digest, prompt/template version, generation settings, grounding strategy id, question text when applicable, input/dependency identities, chunking policy id
 - Recorded test doubles must exercise the **same** result validation and abstention path as live Ollama (no separate “stub success” shape)
 
-### Synthesis & LLM payloads (Wave 1e)
+### Synthesis & LLM payloads
 
 | Module | Payload id | Notes |
 |--------|------------|-------|
 | `keyphrases` | `keyphrases_payload_v1` | Eligibility required |
 | `entity_sentiment` | `entity_sentiment_payload_v1` | Hard parents `ner`+`sentiment` |
-| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics (see Wave 1c) |
-| `semantic_similarity` | `semantic_similarity_payload_v1` | See Wave 1c |
-| `topic_shift` | `topic_shift_payload_v1` | See Wave 1c |
-| `bertopic` | `bertopic_payload_v1` | See Wave 1c |
+| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics (see topics & similarity) |
+| `semantic_similarity` | `semantic_similarity_payload_v1` | See topics & similarity |
+| `topic_shift` | `topic_shift_payload_v1` | See topics & similarity |
+| `bertopic` | `bertopic_payload_v1` | See topics & similarity |
 | `highlights` | `highlights_payload_v1` | Eligibility; prefer `paragraph_v1` |
 | `summary` | `summary_payload_v1` | Hard parent `highlights` |
 | `insights` | `insights_payload_v1` | Hard parents `highlights`+`topic_modeling`; eligibility |

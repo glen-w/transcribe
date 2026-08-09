@@ -1,4 +1,4 @@
-"""Analysis module registry and Wave 1 cores."""
+"""Analysis module registry and core module set."""
 
 from __future__ import annotations
 
@@ -25,18 +25,23 @@ class AnalysisModule(Protocol):
 
 ModuleFactory = Callable[[], AnalysisModule]
 
-WAVE_1_1 = "1.1"
-WAVE_1_2 = "1.2"
-WAVE_1_3 = "1.3"
-WAVE_1_4 = "1.4"
-WAVE_1_C = "1c"
-WAVE_1_D = "1d"
-WAVE_1_E1 = "1e.1"
-WAVE_1_E2 = "1e.2"
+# Internal delivery-slice ids (historical port order). Prefer full core via through=None.
+THROUGH_FOUNDATIONS = "1.1"
+THROUGH_WORDCLOUDS = "1.2"
+THROUGH_OVERVIEW = "1.3"
+THROUGH_LANGUAGE = "1.4"
+THROUGH_THEMES = "1c"
+THROUGH_MOOD = "1d"
+THROUGH_SYNTHESIS = "1e.1"
+THROUGH_CORE = "1e.2"
 
 
-def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModule]:
-    """Return module instances for a delivery wave (default: through 1e.2)."""
+def get_registered_modules(*, through: str | None = None) -> dict[str, AnalysisModule]:
+    """Return core analysis module instances.
+
+    ``through`` selects a historical delivery slice for tests/partial runs.
+    Default (``None``) is the full frozen core set.
+    """
     from transcribe.analysis.modules.affect_tension import AffectTensionModule
     from transcribe.analysis.modules.bertopic import BertopicModule
     from transcribe.analysis.modules.contextual_emotion import ContextualEmotionModule
@@ -63,28 +68,28 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
     from transcribe.analysis.modules.understandability import UnderstandabilityModule
     from transcribe.analysis.modules.wordclouds import WordcloudsModule
 
-    wave11 = [StatsModule(), LexicalDiversityModule(), UnderstandabilityModule()]
-    wave12 = [*wave11, WordcloudsModule()]
-    wave13 = [*wave12, NERModule(), SentimentModule(), EpistemicMarkersModule()]
-    wave14 = [*wave13, KeyphrasesModule(), EntitySentimentModule()]
-    wave1c = [
-        *wave14,
+    foundations = [StatsModule(), LexicalDiversityModule(), UnderstandabilityModule()]
+    wordclouds = [*foundations, WordcloudsModule()]
+    overview = [*wordclouds, NERModule(), SentimentModule(), EpistemicMarkersModule()]
+    language = [*overview, KeyphrasesModule(), EntitySentimentModule()]
+    themes = [
+        *language,
         TopicModelingModule(),
         SemanticSimilarityModule(),
         TopicShiftModule(),
         BertopicModule(),
     ]
-    wave1d = [
-        *wave1c,
+    mood = [
+        *themes,
         EmotionModule(),
         ContextualEmotionModule(),
         FineGrainedEmotionModule(),
         AffectTensionModule(),
         MomentsModule(),
     ]
-    wave1e1 = [*wave1d, HighlightsModule(), SummaryModule(), InsightsModule()]
-    wave1e2 = [
-        *wave1e1,
+    synthesis = [*mood, HighlightsModule(), SummaryModule(), InsightsModule()]
+    core = [
+        *synthesis,
         LLMSummaryModule(),
         LLMActionItemsModule(),
         LLMCustomQAModule(),
@@ -92,44 +97,21 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
     ]
 
     table = {
-        WAVE_1_1: wave11,
-        WAVE_1_2: wave12,
-        WAVE_1_3: wave13,
-        WAVE_1_4: wave14,
-        WAVE_1_C: wave1c,
-        WAVE_1_D: wave1d,
-        WAVE_1_E1: wave1e1,
-        WAVE_1_E2: wave1e2,
-        "1e": wave1e2,
-        None: wave1e2,
+        THROUGH_FOUNDATIONS: foundations,
+        THROUGH_WORDCLOUDS: wordclouds,
+        THROUGH_OVERVIEW: overview,
+        THROUGH_LANGUAGE: language,
+        THROUGH_THEMES: themes,
+        THROUGH_MOOD: mood,
+        THROUGH_SYNTHESIS: synthesis,
+        THROUGH_CORE: core,
+        "1e": core,
+        None: core,
     }
-    mods = table.get(wave, wave1e2)
+    mods = table.get(through, core)
     return {m.module_id: m for m in mods}
 
 
-def get_wave11_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_1)
-
-
-def get_wave12_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_2)
-
-
-def get_wave13_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_3)
-
-
-def get_wave14_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_4)
-
-
-def get_wave1c_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_C)
-
-
-def get_wave1d_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_D)
-
-
-def get_wave1e_modules() -> dict[str, AnalysisModule]:
-    return get_registered_modules(wave=WAVE_1_E2)
+def get_core_modules() -> dict[str, AnalysisModule]:
+    """Full frozen core module set."""
+    return get_registered_modules()

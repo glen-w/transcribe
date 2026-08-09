@@ -37,10 +37,12 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 
 ## Analysis
 
-- Wave 1 modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
+- Core analysis modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
+- Prefer **OCR cleanup / second-pass LLM verification** and human edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
 - Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
 - LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
-- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead
+- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
+- Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
 ## Integration

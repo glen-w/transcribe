@@ -25,9 +25,11 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-Archive · Notebooks · Search · Workflow (shared page viewer for review/edit).
+**Notebooks:** View · Search · Archive (shared page viewer for review/edit).
 
-Workflow also exposes notebook **analysis** tabs after OCR text exists: Overview · Themes · Mood & tone · Moments · Summaries · Ask notebook. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM tabs need a text-capable Ollama model.
+**Workflow:** Transcribe (OCR) · Analyse · Export.
+
+**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets, ported from TranscriptX) plus published-result tabs: Overview · Themes · Mood & tone · Moments · Summaries · Ask notebook. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model.
 
 ### Helper script
 

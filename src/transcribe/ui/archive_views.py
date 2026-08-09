@@ -238,9 +238,9 @@ def _notebook_card(nb: NotebookSummary, *, return_mode: str) -> None:
         )
         st.session_state["ui_mode"] = return_mode
         st.rerun()
-    if st.button("Workflow", key=f"wf_nb_{nb.project_id}_{return_mode}"):
+    if st.button("Transcribe", key=f"wf_nb_{nb.project_id}_{return_mode}"):
         st.session_state["root"] = str(nb.root)
-        st.session_state["ui_mode"] = "Workflow"
+        st.session_state["ui_mode"] = "Transcribe"
         st.session_state["show_page_viewer"] = False
         st.rerun()
 
@@ -307,12 +307,12 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                     page_id=page_ids[0],
                     page_ids=page_ids,
                     project_root=nb.root,
-                    return_mode="Notebooks",
+                    return_mode="View",
                 )
                 st.rerun()
-            if b2.button("Open workflow", key=f"nb_open_{nb.project_id}"):
+            if b2.button("Open Transcribe", key=f"nb_open_{nb.project_id}"):
                 st.session_state["root"] = str(nb.root)
-                st.session_state["ui_mode"] = "Workflow"
+                st.session_state["ui_mode"] = "Transcribe"
                 st.rerun()
         st.divider()
 

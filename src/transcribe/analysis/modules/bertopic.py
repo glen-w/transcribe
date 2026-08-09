@@ -75,7 +75,7 @@ class BertopicModule:
                     }
                 ],
             }
-        # Extra present but full BERTopic path is not wired in Wave 1c —
+        # Extra present but full BERTopic path is not wired yet —
         # still refuse silent substitute algorithms under this module_id.
         return {
             "outcome": "skipped_not_applicable",

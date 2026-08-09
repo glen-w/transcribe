@@ -1,4 +1,4 @@
-"""Wave 1c topics & similarity tests (offline)."""
+"""Topics & similarity tests (offline)."""
 
 from __future__ import annotations
 
@@ -6,12 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from transcribe.analysis.modules import (
-    get_wave13_modules,
-    get_wave14_modules,
-    get_wave1c_modules,
-    get_wave1e_modules,
-)
+
 from transcribe.analysis.modules.bertopic import BertopicModule
 from transcribe.analysis.modules.semantic_similarity import SemanticSimilarityModule
 from transcribe.analysis.modules.topic_shift import TopicShiftModule
@@ -21,6 +16,13 @@ from transcribe.analysis.storage import AnalysisStorage
 from transcribe.ingest import IngestService
 from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds
+from transcribe.analysis.modules import (
+    get_registered_modules,
+    THROUGH_OVERVIEW,
+    THROUGH_LANGUAGE,
+    THROUGH_THEMES,
+    THROUGH_CORE,
+)
 
 
 def _png_bytes() -> bytes:
@@ -60,10 +62,10 @@ NEAR_DUP = [
 
 
 def test_registry_includes_1c_and_parents():
-    w13 = get_wave13_modules()
-    w14 = get_wave14_modules()
-    w1c = get_wave1c_modules()
-    w1e = get_wave1e_modules()
+    w13 = get_registered_modules(through=THROUGH_OVERVIEW)
+    w14 = get_registered_modules(through=THROUGH_LANGUAGE)
+    w1c = get_registered_modules(through=THROUGH_THEMES)
+    w1e = get_registered_modules(through=THROUGH_CORE)
     assert {"keyphrases", "entity_sentiment"}.issubset(set(w14))
     assert {
         "topic_modeling",
@@ -203,7 +205,7 @@ def test_cores_accept_analysis_document_only():
 
 def test_wave13_non_regression_with_1c(tmp_path: Path):
     projects, runner = _project_with_pages(tmp_path, SHIFT_TEXTS)
-    for mid in get_wave13_modules():
+    for mid in get_registered_modules(through=THROUGH_OVERVIEW):
         env = runner.run_module(mid)
         assert env["outcome"] in {
             "success",

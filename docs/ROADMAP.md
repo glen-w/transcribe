@@ -1,31 +1,48 @@
 Type: PRODUCT
-Authority: Product roadmap and analysis-porting delivery waves. Does not define runtime contracts or shipped schemas. Wave 1 detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
+Authority: Product roadmap and analysis-porting delivery order. Does not define runtime contracts or shipped schemas. Core-module delivery history (internal slice ids): [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 # Transcribe roadmap
 
-**Product focus today:** local-first handwritten notebook OCR (import → run → review → export) plus **Wave 1 notebook analysis** on transcribed text.
+**Product focus today:** local-first handwritten notebook OCR (import → run → review → export) plus **shipped core notebook analysis**, with active work on **robustness and Analyse UX** for that set. Deferred reinterpretations / `ocr_quality` are not scheduled.
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Analysis porting map:** [analysis_module_porting.md](analysis_module_porting.md)  
-**Wave 1 delivery plan:** [analysis_wave1_plan.md](analysis_wave1_plan.md)  
+**Core delivery history (internal):** [analysis_wave1_plan.md](analysis_wave1_plan.md)  
 **Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
-> **Status legend:** [ ] planned · [~] in progress · [x] done
+> **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred
 
-**Wave 1 status: [x] done** (all 25 Port-early modules through 1e.2; pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md)). Waves 2–4 remain planned. Delivery detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
+**Core module set: [x] done** (all 25 Port-early modules; pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md)). Internal delivery slices **1.1 → 1e.2**: [analysis_wave1_plan.md](analysis_wave1_plan.md).
+
+**Current product focus:** deepen **robustness and UX** for the shipped analysis set — not new deferred-reinterpretation modules. Deferred reinterpretations and `ocr_quality` are **deferred** (see below). Later / do-not-port rows stay on the disposition map only.
 
 **Architecture (shipped):** verbatim-ish analytical cores + thin notebook adapters over canonical `AnalysisDocument` units — see [analysis_wave1_plan.md](analysis_wave1_plan.md). Cores do not import `Page` / Streamlit. UI surfaces today: Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook (People & places / Patterns remain read-model feeds without dedicated tabs). Durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)).
 
-**Implementation gate (historical for Wave 1; still required for later waves):** analysis contracts indexed, `notebook_eligibility_v1` CONTRACT ownership, exact TX pin + semantic class ([analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate), [dev/analysis_port_pins.md](dev/analysis_port_pins.md)).
+**Implementation gate (historical for the core port; still required if deferred rows are reopened):** analysis contracts indexed, `notebook_eligibility_v1` CONTRACT ownership, exact TX pin + semantic class ([analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate), [dev/analysis_port_pins.md](dev/analysis_port_pins.md)).
 
 ---
 
-## Wave 1 — Strong fits (port early) — [x] done
+## Now — Core robustness & UX — [~] active
 
-Direct ports of language, topic, emotion, and synthesis modules. Delivered in sub-waves **1a–1e** (detail in [analysis_wave1_plan.md](analysis_wave1_plan.md)).
+Priority after shipping the 25 Port-early modules. **Do not** schedule deferred-reinterpretation ports while this focus is open.
 
-| Sub-wave | Status | Modules | Unlocks |
+| Track | Intent |
+|-------|--------|
+| **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
+| **Analyse UX** | Make Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook clearer and more usable (progress, banners, evidence navigation, run presets) without inventing new module IDs |
+| **Payload polish** | Optional dedicated People & places or Patterns tabs, and deliberate keyphrase enrichment for wordclouds/topics, only when they improve the **current** module set — not as a back door for deferred reinterpretations |
+| **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
+
+Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
+
+---
+
+## Core module set — Strong fits (port early) — [x] done
+
+Direct ports of language, topic, emotion, and synthesis modules. Delivered in internal slices **1a–1e** (detail in [analysis_wave1_plan.md](analysis_wave1_plan.md)).
+
+| Slice | Status | Modules | Unlocks |
 |----------|--------|---------|---------|
 | **1.1** Infra + first metrics | [x] | `stats`, `lexical_diversity`, `understandability` (+ adapter, `analysis/` storage, pins, Overview read-model) | Overview (counts / diversity / readability) |
 | **1.2** Wordclouds | [x] | `wordclouds` | Wordcloud viz |
@@ -41,9 +58,9 @@ Direct ports of language, topic, emotion, and synthesis modules. Delivered in su
 
 LLM modules are **optional at runtime** (local text Ollama); deterministic `highlights` → `summary` → `insights` work offline. `llm_custom_qa` requires grounded unit evidence.
 
-TX hard deps resolved for Wave 1: `insight_eligibility` → sole policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md); `momentum` → `moments` notebook salience fork. Do not pull Wave 2–3 modules early. Outcome/cache/DAG gates: [analysis-result](contracts/analysis-result.md) · [analysis-run-storage](contracts/analysis-run-storage.md). `ocr_quality` stays Wave 2.
+TX hard deps resolved for the core set: `insight_eligibility` → sole policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md); `momentum` → `moments` notebook salience fork. Outcome/cache/DAG gates: [analysis-result](contracts/analysis-result.md) · [analysis-run-storage](contracts/analysis-run-storage.md). Do not pull deferred reinterpretation modules while the robustness/UX focus is active.
 
-| Module | Sub-wave | Status | Notes |
+| Module | Slice | Status | Notes |
 |--------|----------|--------|-------|
 | `stats` | 1.1 | [x] | Unit/notebook distributions |
 | `lexical_diversity` | 1.1 | [x] | Vocabulary diversity |
@@ -73,9 +90,13 @@ TX hard deps resolved for Wave 1: `insight_eligibility` → sole policy [`notebo
 
 ---
 
-## Wave 2 — Reinterpret for notebooks (+ OCR quality) — [ ] planned
+## Deferred — Reinterpret for notebooks (+ OCR quality) — [−] deferred
 
-Useful TranscriptX ideas whose semantics must be redesigned for notebooks, plus one **new** foundations module.
+**Decision (2026-08-09):** Reinterpretation module work is **deferred**. Product focus is robustness and UX for the shipped core module set (see **Now** above). Need for these notebook reinterpretation outputs is unproven; do not schedule them until that focus closes and product revisits the disposition map.
+
+**`ocr_quality` deferred specifically:** a dedicated OCR-quality analysis module is not scheduled. Prefer improving transcribed text via the existing **second-pass LLM OCR cleanup / verification** path (and human review edits). Revisit only if cleanup + review leave a clear, user-facing quality gap that analysis (not OCR) should own.
+
+Disposition inventory retained for later reopen (not active delivery):
 
 | Module / target | Disposition | Notebook reinterpretation |
 |-----------------|-------------|---------------------------|
@@ -86,13 +107,13 @@ Useful TranscriptX ideas whose semantics must be redesigned for notebooks, plus 
 | `transcript_output` | Reinterpret | → clean notebook text / export |
 | `simplified_transcript` | Reinterpret | → simplified / cleaned notebook text |
 | `chart_descriptions` | Reinterpret | LLM descriptions once notebook charts exist |
-| **`ocr_quality`** | **New (special case)** | Notebook analogue of TX `transcript_quality`, **not a port**. Base on OCR confidence, uncertain spans, page quality, handwriting legibility, correction rate, etc. |
+| **`ocr_quality`** | **New (special case)** | Notebook analogue of TX `transcript_quality`, **not a port**. Deferred — not a substitute for OCR cleanup/verification. |
 
 ---
 
-## Wave 3 — Potentially interesting later — [ ] planned
+## Later — Potentially interesting — [ ] planned
 
-Worth considering after Waves 1–2; several need a content-generic redesign or a new module identity.
+Worth considering only after core deepen-in-place and any reopened deferred reinterpretations; several need a content-generic redesign or a new module identity.
 
 | Module / target | Notebook angle |
 |-----------------|----------------|
@@ -104,7 +125,7 @@ Worth considering after Waves 1–2; several need a content-generic redesign or 
 
 ---
 
-## Wave 4 — Do not port — [x] documented (out of scope)
+## Out of scope — Do not port — [x] documented
 
 Intrinsically transcript-, speaker-, or audio-specific. Documented so they are not accidentally scheduled.
 
@@ -112,7 +133,7 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 |--------|------------------|
 | `interactions` | Speaker turn-taking / equity |
 | `pauses` | Timed silence / audio timeline |
-| `transcript_quality` | ASR confidence; replaced by new `ocr_quality` in Wave 2 |
+| `transcript_quality` | ASR confidence; do not port. A notebook `ocr_quality` analogue remains deferred (prefer OCR cleanup/verification) |
 | `llm_speaker_summary` | Speaker-conditioned summary |
 | `contagion` | Interpersonal affect (unless deliberately redefined later as a new idea) |
 | `voice_features` | Audio features |
@@ -125,7 +146,7 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 ---
 
-## Outside analysis waves
+## Outside analysis porting
 
 Still product scope but not part of the TranscriptX analysis-porting programme:
 

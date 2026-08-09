@@ -39,7 +39,8 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Page-first domain (ordered pages, not timed speaker segments)
 - Human edits preserved separately from raw OCR attempts
 - Portable export without required absolute paths
-- Wave 1 notebook analysis modules and Workflow analysis tabs (optional local text Ollama for LLM modules)
+- Core notebook analysis modules and Analyse → Run Analysis (optional local text Ollama for LLM modules)
+- Deepen-in-place: robustness and Analyse UX for the shipped module set ([ROADMAP.md](ROADMAP.md))
 
 **Out of scope for current core**
 
@@ -47,7 +48,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Audio transcription or speaker diarization
 - Shipping TranscriptX integration (future seam only — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md))
 - OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none)
-- Wave 2+ analysis reinterpretations (`ocr_quality`, echoes, etc.) until scheduled on [ROADMAP.md](ROADMAP.md)
+- Deferred analysis reinterpretations and `ocr_quality` — **deferred** on [ROADMAP.md](ROADMAP.md); prefer second-pass LLM OCR cleanup/verification for text quality
 
 ## Honesty
 

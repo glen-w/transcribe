@@ -1,11 +1,11 @@
 Type: PRODUCT
-Authority: TranscriptX → Transcribe analysis-module porting dispositions and notebook reinterpret notes. Does not define runtime contracts or shipped module IDs. Wave 1 delivery detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
+Authority: TranscriptX → Transcribe analysis-module porting dispositions and notebook reinterpret notes. Does not define runtime contracts or shipped module IDs. Core delivery history (internal slices): [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 # Analysis module porting (from TranscriptX)
 
 Planning map for which TranscriptX analysis modules to bring into Transcribe, how to adapt them for page/notebook text, and which to leave behind.
 
-**Wave 1 (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). This map remains the disposition authority for Waves 2–4.
+**Core module set (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). **Deferred reinterpretations and `ocr_quality` are not scheduled**; current product focus is robustness and UX for the shipped modules ([ROADMAP.md](ROADMAP.md) **Now**). This map remains the disposition authority for deferred / later / out-of-scope rows when reopened.
 
 Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md).
 
@@ -13,13 +13,13 @@ Transcribe is page-first OCR text, not timed speaker segments. Modules that assu
 
 | Disposition | Meaning |
 |-------------|---------|
-| **Port early** | Strong fit; port almost verbatim onto canonical analysis input (**Wave 1: done**) |
+| **Port early** | Strong fit; port almost verbatim onto canonical analysis input (**core: done**) |
 | **Reinterpret** | Useful idea; redesign semantics for notebooks |
 | **Later** | Interesting after core analysis exists; may need a new module identity |
 | **Do not port** | Intrinsically transcript/audio/interpersonal; out of scope |
 | **New (special case)** | Notebook analogue of a TranscriptX idea; implement fresh, do not port the TX code |
 
-**Wave** column matches [ROADMAP.md](ROADMAP.md). Wave 1 was delivered as sub-waves **1a–1e** in the [Wave 1 plan](analysis_wave1_plan.md).
+**Slice** column uses internal delivery ids matching [ROADMAP.md](ROADMAP.md) / [analysis_wave1_plan.md](analysis_wave1_plan.md). The core set was delivered as slices **1a–1e**.
 
 ---
 
@@ -46,7 +46,7 @@ analysis-result → project-local analysis/ storage (bound to project_id) → No
 | Managed project identity, page IDs, persistence under `analysis/`, invalidation, locking, UI | Scoring / ranking / clustering / inference on text+units |
 
 - Copy modules with **exact TX pins** and `parity` / `adaptation` / `fork` classification. **Resist** extracting a shared `transcriptx-analysis` library until identical cores are obvious.
-- Wave 1 eligibility: sole named policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) — no ad-hoc per-module insight_eligibility stubs.
+- Core eligibility: sole named policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) — no ad-hoc per-module insight_eligibility stubs.
 - Small compatibility test corpus for TX ↔ Transcribe diffs (implementation-time).
 - Chronology = unit `order` + optional `date` — no synthetic wall-clock or fake speakers.
 
@@ -54,17 +54,17 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ---
 
-## Notebook UI surfaces ↔ Wave 1 modules
+## Notebook UI surfaces ↔ core modules
 
 Shipped Workflow tabs are marked **UI**. People & places / Patterns remain payload feeds without dedicated tabs.
 
-| Surface | Status | Wave 1 feeds |
+| Surface | Status | Core feeds |
 |---------|--------|----------------|
 | **Overview** | UI | `stats`, `lexical_diversity`, `ner`, `keyphrases`, `topic_modeling`, `wordclouds`, `understandability` |
 | **Themes** | UI | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
 | **People & places** | payload only | `ner`, `entity_sentiment` |
 | **Mood & tone** | UI | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
-| **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — echoes / loops later |
+| **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops deferred with reinterpretation / later rows |
 | **Moments** | UI | `moments`, `highlights` |
 | **Ask notebook** | UI | `llm_custom_qa` |
 | **Summaries** | UI | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items` |
@@ -73,7 +73,7 @@ Shipped Workflow tabs are marked **UI**. People & places / Patterns remain paylo
 
 ## Porting table
 
-| Module | TX UI group | Disposition | Wave | Notebook notes |
+| Module | TX UI group | Disposition | Slice | Notebook notes |
 |--------|-------------|-------------|------|----------------|
 | `stats` | Foundations | Port early | 1.1 | Page/notebook length, token counts, distributions over units |
 | `lexical_diversity` | Language & Meaning | Port early | 1.1 | Diversity metrics over notebook vocabulary |
@@ -100,14 +100,14 @@ Shipped Workflow tabs are marked **UI**. People & places / Patterns remain paylo
 | `llm_action_items` | Summary & Synthesis | Port early | 1e | Tasks / decisions / open questions |
 | `llm_custom_qa` | Summary & Synthesis | Port early | 1e | Grounded QA with unit evidence |
 | `narrative_summary` | Summary & Synthesis | Port early | 1e | LLM narrative from deterministic summary |
-| `politeness` | Speakers & Interaction | Reinterpret | 2 | → tone / formality of notes (not interpersonal politeness) |
-| `echoes` | Speakers & Interaction | Reinterpret | 2 | → repeated ideas/phrases across pages or notebooks |
-| `temporal_dynamics` | Foundations | Reinterpret | 2 | → change through notebook chronology / page order |
-| `momentum` | Dynamics & Flow | Reinterpret | 2 | → density / idea-flow rather than conversational flow |
-| `transcript_output` | Foundations | Reinterpret | 2 | → clean notebook text / export surface |
-| `simplified_transcript` | Foundations | Reinterpret | 2 | → simplified / cleaned notebook text |
-| `chart_descriptions` | Summary & Synthesis | Reinterpret | 2 | Still applicable once notebook analysis charts exist |
-| `ocr_quality` | *(new)* | New (special case) | 2 | **Do not port** `transcript_quality`. New module from OCR confidence, uncertain spans, page quality, handwriting legibility, correction rate, etc. |
+| `politeness` | Speakers & Interaction | Reinterpret | 2 (deferred) | → tone / formality of notes (not interpersonal politeness) |
+| `echoes` | Speakers & Interaction | Reinterpret | 2 (deferred) | → repeated ideas/phrases across pages or notebooks |
+| `temporal_dynamics` | Foundations | Reinterpret | 2 (deferred) | → change through notebook chronology / page order |
+| `momentum` | Dynamics & Flow | Reinterpret | 2 (deferred) | → density / idea-flow rather than conversational flow |
+| `transcript_output` | Foundations | Reinterpret | 2 (deferred) | → clean notebook text / export surface |
+| `simplified_transcript` | Foundations | Reinterpret | 2 (deferred) | → simplified / cleaned notebook text |
+| `chart_descriptions` | Summary & Synthesis | Reinterpret | 2 (deferred) | Still applicable once notebook analysis charts exist |
+| `ocr_quality` | *(new)* | New (special case) | 2 (deferred) | **Do not port** `transcript_quality`. Deferred: prefer second-pass LLM OCR cleanup/verification over a dedicated quality module. Revisit only if a clear analysis-owned gap remains. |
 | `tics` | Foundations | Later | 3 | → recurring phrases / habitual wording in notes |
 | `insight_eligibility` | Foundations | Later | 3 | Survive if made content-generic (not transcript-genre gated) |
 | `qa_analysis` | Speakers & Interaction | Later | 3 | Self-posed questions and subsequent answers in notes |
@@ -115,7 +115,7 @@ Shipped Workflow tabs are marked **UI**. People & places / Patterns remain paylo
 | `conversation_loops` | Speakers & Interaction | Later | 3 | Recurring unresolved themes — prefer a **separate** module rather than pretending it is the same |
 | `interactions` | Speakers & Interaction | Do not port | 4 | Speaker turn-taking / equity; no speakers |
 | `pauses` | Foundations | Do not port | 4 | Timed silence; no audio timeline |
-| `transcript_quality` | Foundations | Do not port | 4 | ASR confidence scorecard; replace with new `ocr_quality` (Wave 2) |
+| `transcript_quality` | Foundations | Do not port | 4 | ASR confidence scorecard; notebook `ocr_quality` analogue remains deferred (prefer OCR cleanup/verification) |
 | `llm_speaker_summary` | Summary & Synthesis | Do not port | 4 | Speaker-conditioned LLM summary |
 | `contagion` | Speakers & Interaction | Do not port | 4 | Interpersonal affect contagion unless deliberately redefined later |
 | `voice_features` | Voice & Audio | Do not port | 4 | Audio feature extraction |
@@ -132,11 +132,11 @@ Shipped Workflow tabs are marked **UI**. People & places / Patterns remain paylo
 
 | Disposition | Count | Status |
 |-------------|------:|--------|
-| Port early (Wave 1 / 1a–1e) | 25 | **shipped** |
-| Reinterpret (Wave 2) | 7 | planned |
-| New special case (Wave 2) | 1 (`ocr_quality`) | planned |
-| Later (Wave 3) | 5 | planned |
-| Do not port (Wave 4) | 12 | out of scope |
+| Port early (core / 1a–1e) | 25 | **shipped** |
+| Reinterpret (deferred) | 7 | **deferred** (need unproven; see ROADMAP) |
+| New special case (deferred) | 1 (`ocr_quality`) | **deferred** (prefer OCR cleanup/verification) |
+| Later | 5 | planned (after deepen-in-place) |
+| Do not port | 12 | out of scope |
 
 ---
 

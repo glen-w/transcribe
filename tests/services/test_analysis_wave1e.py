@@ -1,4 +1,4 @@
-"""Wave 1e synthesis & LLM tests (offline deterministic + recorded doubles)."""
+"""Synthesis & LLM tests (offline deterministic + recorded doubles)."""
 
 from __future__ import annotations
 
@@ -18,9 +18,10 @@ from transcribe.analysis.llm_runtime import (
     set_text_llm_client,
 )
 from transcribe.analysis.modules import (
-    get_wave13_modules,
-    get_wave1e_modules,
-    get_wave14_modules,
+    THROUGH_CORE,
+    THROUGH_LANGUAGE,
+    THROUGH_OVERVIEW,
+    get_registered_modules,
 )
 from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
 from transcribe.analysis.modules.llm_summary import LLMSummaryModule
@@ -63,9 +64,9 @@ TEXTS = [
 
 
 def test_registry_includes_1e_and_parents():
-    w13 = get_wave13_modules()
-    w14 = get_wave14_modules()
-    w1e = get_wave1e_modules()
+    w13 = get_registered_modules(through=THROUGH_OVERVIEW)
+    w14 = get_registered_modules(through=THROUGH_LANGUAGE)
+    w1e = get_registered_modules(through=THROUGH_CORE)
     assert {"keyphrases", "entity_sentiment"}.issubset(set(w14))
     assert {"topic_modeling", "highlights", "summary", "insights"}.issubset(set(w1e))
     assert {
@@ -160,8 +161,8 @@ def test_entity_sentiment_with_injected_ner(tmp_path: Path):
 
     original = runner_mod.get_registered_modules
 
-    def patched(*, wave: str | None = None):
-        mods = original(wave=wave)
+    def patched(*, through: str | None = None):
+        mods = original(through=through)
         mods["ner"] = NERModule(extract_fn=fake_extract)
         mods["sentiment"] = SentimentModule()
         return mods

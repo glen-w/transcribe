@@ -1,4 +1,4 @@
-"""Wave 1.1 analysis infrastructure and module tests."""
+"""Analysis infrastructure and foundations module tests."""
 
 from __future__ import annotations
 

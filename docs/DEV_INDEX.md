@@ -11,9 +11,9 @@ Authority: curated maintainer navigation only — does not own contracts
 | [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md) | Docs authority model and change checklist |
 | [runtime/installation.md](runtime/installation.md) | Install extras and env vars |
 | [runtime/docker.md](runtime/docker.md) | Container layout |
-| [ROADMAP.md](ROADMAP.md) | Analysis-porting waves (PRODUCT) |
+| [ROADMAP.md](ROADMAP.md) | Analysis roadmap + current robustness/UX focus (PRODUCT) |
 | [analysis_module_porting.md](analysis_module_porting.md) | TX → Transcribe dispositions |
-| [analysis_wave1_plan.md](analysis_wave1_plan.md) | Wave 1 architecture + sub-waves (PRODUCT; shipped) |
+| [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core delivery history / internal slices (PRODUCT; shipped) |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Post-ship hardening checklist for analysis infra |
 | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |

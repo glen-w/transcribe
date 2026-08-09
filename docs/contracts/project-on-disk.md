@@ -34,7 +34,7 @@ Relative paths stored in the manifest must resolve inside the project root (path
 
 - The `analysis/` directory is **optional until the first analysis artifact is written**.
 - Existing managed projects without `analysis/` remain valid.
-- Introducing Wave 1 analysis **is not** a project-layout migration: absence of `analysis/` is conformant; writers create it on demand.
+- Introducing analysis under `analysis/` **is not** a project-layout migration: absence of `analysis/` is conformant; writers create it on demand.
 
 Other contracts (including analysis-run-storage) **reference** these paths and must not independently redefine the top-level project tree.
 

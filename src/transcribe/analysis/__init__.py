@@ -1,4 +1,4 @@
-"""Notebook analysis: canonical documents, runners, and Wave 1 module ports."""
+"""Notebook analysis: canonical documents, runners, and core module ports."""
 
 from __future__ import annotations
 

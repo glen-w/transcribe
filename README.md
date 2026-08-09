@@ -50,7 +50,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 
 | Surface | Role |
 |---------|------|
-| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Archive, Notebooks, Search, Workflow |
+| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Notebooks (View/Search/Archive) · Workflow (Transcribe/Analyse/Export) |
 | **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor |
 | **Services API** | Shared by UI and CLI (`transcribe.services`) |
 
@@ -70,9 +70,10 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 - Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
 - Local Ollama vision OCR with content fingerprints for skip/resume
 - Immutable OCR attempts; human edits live in `edited_text`
-- Workspace Archive / Notebooks / Search over your projects directory
+- Workspace Archive / View / Search over your projects directory
+- Run Analysis presets (Quick / Balanced / Thorough / Custom)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text)
-- **Wave 1 notebook analysis** on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
+- **Core notebook analysis** on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
 
@@ -82,7 +83,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Wave 1 analysis ports are shipped**; next product analysis work is Wave 2 reinterpretations (including new `ocr_quality`) — [ROADMAP.md](docs/ROADMAP.md) · [Wave 1 plan](docs/analysis_wave1_plan.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; next product work is **robustness and Analyse UX** for that set. Deferred reinterpretations and `ocr_quality` are **not scheduled** — [ROADMAP.md](docs/ROADMAP.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

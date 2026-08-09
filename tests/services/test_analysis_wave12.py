@@ -1,4 +1,4 @@
-"""Wave 1.2 baseline wordclouds tests."""
+"""Baseline wordclouds tests."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from transcribe.analysis.cache_identity import (
     cache_identity_hex,
 )
 from transcribe.analysis.document import AnalysisDocument, AnalysisUnit
-from transcribe.analysis.modules import get_registered_modules, get_wave11_modules
+from transcribe.analysis.modules import THROUGH_FOUNDATIONS, get_registered_modules
 from transcribe.analysis.modules.wordclouds import (
     WordcloudsModule,
     build_token_payload,
@@ -70,7 +70,7 @@ def _doc(text: str) -> AnalysisDocument:
 
 
 def test_registry_includes_wordclouds_and_wave11_unchanged():
-    w11 = get_wave11_modules()
+    w11 = get_registered_modules(through=THROUGH_FOUNDATIONS)
     assert set(w11) == {"stats", "lexical_diversity", "understandability"}
     all_mods = get_registered_modules()
     assert "wordclouds" in all_mods

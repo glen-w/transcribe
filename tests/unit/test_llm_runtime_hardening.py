@@ -10,8 +10,10 @@ from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
     parse_json_object,
     set_text_llm_client,
+    suitable_text_model_names,
     unavailable_model_result,
 )
+from transcribe.providers.base import ModelInfo
 
 
 class _StubTextClient:
@@ -44,6 +46,50 @@ def test_unsuitable_text_model_name_patterns():
     assert not is_unsuitable_text_model_name("llama3.2:3b")
     assert not is_unsuitable_text_model_name("mistral-small:latest")
 
+
+def test_suitable_text_model_names_filters_vision_and_embedding():
+    models = [
+        ModelInfo(
+            name="llama3.2:3b",
+            digest="a",
+            capability_known=True,
+            capabilities=["completion"],
+        ),
+        ModelInfo(
+            name="llama3.2-vision:11b",
+            digest="b",
+            capability_known=True,
+            capabilities=["vision", "completion"],
+        ),
+        ModelInfo(
+            name="nomic-embed-text",
+            digest="c",
+            capability_known=True,
+            capabilities=["embedding"],
+        ),
+        ModelInfo(
+            name="odd-multimodal",
+            digest="d",
+            capability_known=True,
+            capabilities=["vision"],
+        ),
+        ModelInfo(
+            name="unknown-caps-ok",
+            digest="e",
+            capability_known=False,
+            capabilities=[],
+        ),
+        ModelInfo(
+            name="image-encoder",
+            digest="f",
+            family="clip",
+            capability_known=False,
+        ),
+    ]
+    assert suitable_text_model_names(models) == [
+        "llama3.2:3b",
+        "unknown-caps-ok",
+    ]
 
 def test_bind_requires_explicit_model_for_non_double():
     stub = _StubTextClient()

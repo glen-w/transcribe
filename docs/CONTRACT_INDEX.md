@@ -14,7 +14,7 @@ Truth hierarchy: **on-disk project + page results** are authoritative. Archive S
 | Canonical analysis input, content fingerprint, `source_ref`, spans | [contracts/analysis-document.md](contracts/analysis-document.md) |
 | Analysis result envelope, outcomes vs attempts, capability UI states, provenance, evidence | [contracts/analysis-result.md](contracts/analysis-result.md) |
 | Analysis persistence, cache identity, hard/optional parents, atomic publish | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
-| Sole Wave-1 eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
+| Sole notebook eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Future TranscriptX handoff (non-shipped) | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) |
 
 Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result` — all version **1** today).

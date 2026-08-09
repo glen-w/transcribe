@@ -12,17 +12,17 @@ On-disk project layout: [project-on-disk.md](project-on-disk.md). Effective page
 - `format` must be `"transcribe.analysis-document"`
 - `schema_version` must be `1` for this contract
 - Unsupported `schema_version` → refuse (no silent upgrade)
-- This schema is **frozen for Wave 1a**: adapters and ports must not invent alternate document shapes. Schema changes require a new `schema_version` and an explicit contract revision.
+- This schema is **frozen for the core set**: adapters and ports must not invent alternate document shapes. Schema changes require a new `schema_version` and an explicit contract revision.
 
 ## Schema (v1)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `document_id` | string | yes | Stable id for this analysis view; **must equal** the project’s `project_id` for notebook-scoped Wave 1 runs |
+| `document_id` | string | yes | Stable id for this analysis view; **must equal** the project’s `project_id` for notebook-scoped core runs |
 | `text` | string | yes | Document-level text (see concatenation rules) — **canonical** representation for document-level modules |
 | `units` | array | yes | Ordered analysis units (may be empty only transiently before refusal; see validation) |
 | `granularity_version` | string | yes | Version id of the unit-splitting rules used |
-| `split_profile` | string | yes | Named split profile (`page` or `paragraph_v1` in Wave 1) |
+| `split_profile` | string | yes | Named split profile (`page` or `paragraph_v1` in the core set) |
 
 Each unit:
 
@@ -36,7 +36,7 @@ Each unit:
 
 ### Uniqueness and ordering guarantees
 
-- `document_id` is unique per managed project analysis view (Wave 1: one document id per `project_id`)
+- `document_id` is unique per managed project analysis view (core: one document id per `project_id`)
 - `unit_id` values are unique within a document (`duplicate_unit_id` if not)
 - `units` **must** be strictly sorted by `(order, unit_id)` ascending
 - Analysis cores consume units in array order; `order` is chronology, not identity
@@ -73,7 +73,7 @@ Refuse with named errors (no silent repair of ids or order):
 | `invalid_date` | `date` present and not `YYYY-MM-DD` |
 | `invalid_source_ref` | fails `source_ref` validation |
 | `unsupported_schema_version` | unknown version |
-| `unsupported_split_profile` | `split_profile` not in the frozen Wave 1 set below |
+| `unsupported_split_profile` | `split_profile` not in the frozen core set below |
 
 Analysis consumes units in array order (already sorted by `(order, unit_id)`). `order` is chronology, not identity.
 
@@ -90,13 +90,13 @@ Adapters build `units` from the managed project. Normative membership:
 
 If omission yields zero units → document validation fails with `empty_document_text`; callers map that to analysis-result `insufficient_data` (or `skipped_not_applicable` when an eligibility policy produced an empty eligible set — see [notebook-eligibility.md](notebook-eligibility.md)).
 
-## Frozen Wave 1 split profiles
+## Frozen core split profiles
 
-Wave 1 admits only these `split_profile` values. New profiles require a contract bump of `granularity_version` and explicit documentation — they are **not** free implementation choices once results and citations persist.
+The core set admits only these `split_profile` values. New profiles require a contract bump of `granularity_version` and explicit documentation — they are **not** free implementation choices once results and citations persist.
 
 ### `split_profile: "page"` (`granularity_version: "page_v1"`)
 
-Wave 1.1 canonicalisation (exact):
+`page` profile canonicalisation (exact):
 
 - Walk manifest `pages` in order; skip `analysis_excluded` pages and blank/whitespace-only / failed-empty effective text
 - One unit per remaining page; `unit_id == page_id`
@@ -110,7 +110,7 @@ Wave 1.1 canonicalisation (exact):
 
 ### `split_profile: "paragraph_v1"` (`granularity_version: "paragraph_v1"`)
 
-Deterministic, identity-preserving paragraph derivation (required before Moments / highlights / QA evidence ports that use span units — Waves 1d/1e):
+Deterministic, identity-preserving paragraph derivation (required before Moments / highlights / QA evidence ports that use span units):
 
 1. For each included page with non-empty effective text `T`, find split points at every run of **two or more** consecutive `\n` characters (blank-line separated blocks)
 2. Each block is the half-open substring `T[start:end]` with leading/trailing `\n` from the separator run excluded from the block; do not otherwise trim interior whitespace
