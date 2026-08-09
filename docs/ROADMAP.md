@@ -23,14 +23,25 @@ Authority: Product roadmap and analysis-porting delivery order. Does not define 
 
 ---
 
-## Now — Core robustness & UX — [~] active
+## Now — Product hardening wave — [~] active
 
 Priority after shipping the 25 Port-early modules. **Do not** schedule deferred-reinterpretation ports while this focus is open.
+
+Phased checklist (see product hardening plan): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
+
+| Phase | Status | Intent |
+|-------|--------|--------|
+| **1** — #10, #3, #4 | [x] | Archive mutation-generation TTL + shared Ollama discovery cache; preset form is the only batch Analyse launcher; one `module_freshness` authority (Overview no longer hand-builds cache identity) |
+| **2** — #1, #2 | [ ] | Durable AnalysisRunPlan + frozen snapshot; project-scoped async AnalysisCoordinator |
+| **3** — #5, #6 | [ ] | Preflight plan-hash bind; versioned presets |
+| **4** — #11, #12 | [ ] | `content_revision` + derived health |
+| **5** — #13 | [ ] | Provenance-aware export under stable revision |
+| **6** — #7–9 | [ ] | Product views, status strip, OCR Advanced |
 
 | Track | Intent |
 |-------|--------|
 | **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
-| **Analyse UX** | Make Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook clearer and more usable (progress, banners, evidence navigation, run presets) without inventing new module IDs |
+| **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as read-models |
 | **Payload polish** | Optional dedicated People & places or Patterns tabs, and deliberate keyphrase enrichment for wordclouds/topics, only when they improve the **current** module set — not as a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 

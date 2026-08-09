@@ -20,11 +20,12 @@ from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import (
     OllamaVisionProvider,
+    invalidate_discovery_cache,
     is_local_machine_host,
     normalize_base_url,
 )
 from transcribe.runtime_paths import build_runtime_paths
-from transcribe.services.archive import ArchiveService
+from transcribe.services.archive import ArchiveService, bump_archive_generation
 from transcribe.services.export import ExportService
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.project import ProjectService, open_project_paths
@@ -50,6 +51,22 @@ def get_coordinator(project_root: str) -> JobCoordinator:
         project_root, clock=SystemClock(), ids=UuidGenerator()
     )
     return coord
+
+
+@st.cache_resource
+def get_archive(projects_dir: str, data_dir: str) -> ArchiveService:
+    """Keep ArchiveService across Streamlit reruns so TTL / generation state sticks."""
+    from transcribe.runtime_paths import RuntimePaths
+
+    live = build_runtime_paths()
+    runtime = RuntimePaths(
+        repo_root=live.repo_root,
+        data_dir=Path(data_dir),
+        projects_dir=Path(projects_dir),
+        inbox_dir=live.inbox_dir,
+        export_dir=live.export_dir,
+    )
+    return ArchiveService(runtime)
 
 
 def _services(project_root: str):
@@ -149,6 +166,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
                     project = ingest.import_bytes(
                         f.name, f.getvalue(), render_dpi=int(dpi)
                     )
+                    bump_archive_generation(runtime)
                     st.success(f"Imported {f.name}")
                 except TranscribeError as exc:
                     st.error(f"{f.name}: {exc}")
@@ -159,6 +177,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
             project = projects.update_notebook_metadata(
                 tags=[t for t in tags_in.split(",")]
             )
+            bump_archive_generation(runtime)
             st.success("Tags saved")
 
     with tab_run:
@@ -181,6 +200,8 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
         provider = OllamaVisionProvider(normalized)
         c1, c2 = st.columns([1, 1])
         refresh = c2.button("Refresh Models")
+        if refresh:
+            invalidate_discovery_cache(normalized)
         discovery = provider.list_vision_models(refresh=refresh)
         if discovery.error:
             st.caption(f"Discovery: {discovery.error}")
@@ -326,6 +347,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
                 and progress.status != "running"
             ):
                 st.session_state["_job_was_running"] = False
+                bump_archive_generation(runtime)
                 st.rerun()
 
         job_status_panel()
@@ -420,19 +442,11 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
     )
 
     with tab_overview:
-        from transcribe.analysis.adapter import build_page_v1_document
-        from transcribe.analysis.cache_identity import (
-            build_cache_identity_object,
-            cache_identity_hex,
-        )
-        from transcribe.analysis.document import AnalysisDocumentError
         from transcribe.analysis.modules import (
             THROUGH_OVERVIEW,
             get_registered_modules,
         )
-        from transcribe.analysis.modules import wordclouds as wordclouds_mod
-        from transcribe.analysis.parents import resolve_optional_parents
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
@@ -440,72 +454,26 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
         st.caption(
             "Read-model of validated published analysis results "
             "(stats, lexical diversity, understandability, wordclouds, "
-            "ner, sentiment, epistemic markers)."
+            "ner, sentiment, epistemic markers). Run analysis from the "
+            "preset form above."
         )
         runner = AnalysisRunner(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-        if st.button("Run Overview analysis"):
-            with st.spinner("Running analysis modules…"):
-                overview_mods = get_registered_modules(through=THROUGH_OVERVIEW)
-                results = runner.run_batch(list(overview_mods.keys()))
-            for mid, env in results.items():
-                st.write(
-                    f"**{mid}:** outcome=`{env.get('outcome')}` "
-                    f"capability=`{env.get('capability')}`"
-                )
-            st.rerun()
-
         storage = AnalysisStorage(paths)
         modules = get_registered_modules(through=THROUGH_OVERVIEW)
-        current_identity: dict[str, str | None] = {}
-        try:
-            doc = build_page_v1_document(project, projects)
-            for mid, module in modules.items():
-                config: dict = {}
-                lexicon = None
-                enrichment = "none"
-                cache_fn = getattr(module, "cache_config", None)
-                if callable(cache_fn):
-                    config = dict(cache_fn())
-                if mid == "wordclouds":
-                    config = wordclouds_mod.wordclouds_config()
-                    lexicon = wordclouds_mod.wordclouds_lexicon_or_model()
-                    enrichment = wordclouds_mod.ENRICHMENT_MODE
-                elif mid == "ner":
-                    from transcribe.analysis.modules import ner as ner_mod
-
-                    lexicon = ner_mod.ner_lexicon_or_model()
-                elif mid == "sentiment":
-                    from transcribe.analysis.modules import sentiment as sent_mod
-
-                    lexicon = sent_mod.sentiment_lexicon_or_model()
-                elif mid == "epistemic_markers":
-                    from transcribe.analysis.modules import epistemic_markers as epi_mod
-
-                    lexicon = epi_mod.epistemic_lexicon_or_model()
-                parents = resolve_optional_parents(
-                    mid, enrichment_mode=enrichment, storage=storage
-                )
-                current_identity[mid] = cache_identity_hex(
-                    build_cache_identity_object(
-                        project_id=project.id,
-                        module_id=module.module_id,
-                        module_version=module.module_version,
-                        document=doc,
-                        config=config,
-                        parents=parents,
-                        lexicon_or_model=lexicon,
-                    )
-                )
-        except AnalysisDocumentError:
-            for mid in modules:
-                current_identity[mid] = None
+        read_models = {
+            rm["module_id"]: rm
+            for rm in module_freshness(runner, storage, list(modules.keys()))
+        }
 
         for mid in modules:
-            model = load_published_read_model(
-                storage, mid, current_cache_identity=current_identity.get(mid)
-            )
+            model = read_models.get(mid) or {
+                "status": "unavailable",
+                "module_id": mid,
+                "envelope": None,
+                "live_evidence": [],
+            }
             status = model["status"]
             env = model.get("envelope")
             if status == "unavailable":
@@ -593,14 +561,15 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             THROUGH_THEMES,
             get_registered_modules,
         )
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
         st.subheader("Themes")
         st.caption(
             "Keyphrases, topics, semantic motifs, and topic shifts along page order. "
-            "BERTopic remains an optional extra (`unavailable_extra` when missing)."
+            "BERTopic remains an optional extra (`unavailable_extra` when missing). "
+            "Run analysis from the preset form above."
         )
         runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
         theme_ids = [
@@ -610,32 +579,18 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             "topic_shift",
             "bertopic",
         ]
-        if st.button("Run Themes analysis"):
-            with st.spinner("Running Themes modules…"):
-                results = runner.run_batch(theme_ids)
-            for mid in theme_ids:
-                env = results.get(mid) or {}
-                st.write(
-                    f"**{mid}:** outcome=`{env.get('outcome')}` "
-                    f"capability=`{env.get('capability')}`"
-                )
-            st.rerun()
-
         storage = AnalysisStorage(paths)
         themes = get_registered_modules(through=THROUGH_THEMES)
         assert set(theme_ids).issubset(set(themes))
-        for mid in theme_ids:
-            identity = runner.planned_cache_identity(mid)
-            rm = load_published_read_model(
-                storage, mid, current_cache_identity=identity
-            )
+        for rm in module_freshness(runner, storage, theme_ids):
+            mid = rm["module_id"]
             env = rm.get("envelope")
             if not env:
-                st.info(f"**{mid}:** unavailable — run Themes analysis first")
+                st.info(f"**{mid}:** unavailable — run analysis first")
                 continue
             if rm.get("status") == "stale":
                 st.warning(
-                    f"**{mid}:** stale relative to current notebook — re-run Themes"
+                    f"**{mid}:** stale relative to current notebook — refresh analysis"
                 )
                 continue
             cap = env.get("capability")
@@ -673,14 +628,15 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_mood:
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
         st.subheader("Mood & tone")
         st.caption(
             "Emotion chronology, contextual smoothing, affect tension, and hedging. "
-            "Fine-grained emotion stays an optional extra."
+            "Fine-grained emotion stays an optional extra. "
+            "Run analysis from the preset form above."
         )
         runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
         mood_ids = [
@@ -691,38 +647,16 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             "affect_tension",
             "epistemic_markers",
         ]
-        if st.button("Run Mood & tone analysis"):
-            ordered = [
-                "sentiment",
-                "emotion",
-                "contextual_emotion",
-                "fine_grained_emotion",
-                "affect_tension",
-                "epistemic_markers",
-            ]
-            with st.spinner("Running Mood modules…"):
-                results = runner.run_batch(ordered)
-            for mid in mood_ids:
-                env = results.get(mid) or {}
-                st.write(
-                    f"**{mid}:** outcome=`{env.get('outcome')}` "
-                    f"capability=`{env.get('capability')}`"
-                )
-            st.rerun()
-
         storage = AnalysisStorage(paths)
-        for mid in mood_ids:
-            identity = runner.planned_cache_identity(mid)
-            rm = load_published_read_model(
-                storage, mid, current_cache_identity=identity
-            )
+        for rm in module_freshness(runner, storage, mood_ids):
+            mid = rm["module_id"]
             env = rm.get("envelope")
             if not env:
-                st.info(f"**{mid}:** unavailable — run Mood analysis first")
+                st.info(f"**{mid}:** unavailable — run analysis first")
                 continue
             if rm.get("status") == "stale":
                 st.warning(
-                    f"**{mid}:** stale relative to current notebook — re-run Mood"
+                    f"**{mid}:** stale relative to current notebook — refresh analysis"
                 )
                 continue
             cap = env.get("capability")
@@ -730,7 +664,7 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             if cap == "unavailable_extra":
                 st.warning(banner + " (optional extra not available)")
             elif cap == "unavailable_dependency":
-                st.warning(banner + " (run emotion + sentiment first)")
+                st.warning(banner + " (needs emotion + sentiment parents)")
             elif cap in {"insufficient_data", "skipped_not_applicable"}:
                 st.info(banner)
             else:
@@ -749,42 +683,26 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_moments:
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
         st.subheader("Moments")
         st.caption(
             "Notebook salience fork (no TX momentum). Soft features from emotion, "
-            "sentiment, and topic_shift enrich scores when available."
+            "sentiment, and topic_shift enrich scores when available. "
+            "Run analysis from the preset form above."
         )
         runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        if st.button("Run Moments analysis"):
-            ordered = [
-                "sentiment",
-                "emotion",
-                "topic_shift",
-                "moments",
-            ]
-            with st.spinner("Finding moments…"):
-                results = runner.run_batch(ordered)
-            env = results.get("moments") or {}
-            st.write(
-                f"**moments:** outcome=`{env.get('outcome')}` "
-                f"capability=`{env.get('capability')}`"
-            )
-            st.rerun()
-
         storage = AnalysisStorage(paths)
-        identity = runner.planned_cache_identity("moments")
-        rm = load_published_read_model(
-            storage, "moments", current_cache_identity=identity
-        )
+        rm = module_freshness(runner, storage, ["moments"])[0]
         env = rm.get("envelope")
         if not env:
-            st.info("**moments:** unavailable — run Moments analysis first")
+            st.info("**moments:** unavailable — run analysis first")
         elif rm.get("status") == "stale":
-            st.warning("**moments:** stale relative to current notebook — re-run Moments")
+            st.warning(
+                "**moments:** stale relative to current notebook — refresh analysis"
+            )
         else:
             cap = env.get("capability")
             st.markdown(
@@ -801,14 +719,15 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_summaries:
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
         st.subheader("Summaries")
         st.caption(
             "Deterministic highlights → summary → insights, plus optional LLM "
-            "outputs (honesty-labeled). Works offline when Ollama is down."
+            "outputs (honesty-labeled). Works offline when Ollama is down. "
+            "Run analysis from the preset form above."
         )
         runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
         storage = AnalysisStorage(paths)
@@ -821,45 +740,15 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             "llm_action_items",
             "narrative_summary",
         ]
-        if st.button("Run synthesis & LLM suite"):
-            ordered = [
-                "ner",
-                "sentiment",
-                "keyphrases",
-                "topic_modeling",
-                "highlights",
-                "summary",
-                "insights",
-                "llm_summary",
-                "llm_action_items",
-                "narrative_summary",
-            ]
-            with st.spinner("Running synthesis modules…"):
-                results = runner.run_batch(ordered)
-            for mid in synth_ids:
-                env = results.get(mid) or {}
-                label = ""
-                payload = env.get("payload") or {}
-                if payload.get("honesty_label"):
-                    label = f" honesty=`{payload['honesty_label']}`"
-                st.write(
-                    f"**{mid}:** outcome=`{env.get('outcome')}` "
-                    f"capability=`{env.get('capability')}`{label}"
-                )
-            st.rerun()
-
-        for mid in synth_ids:
-            identity = runner.planned_cache_identity(mid)
-            rm = load_published_read_model(
-                storage, mid, current_cache_identity=identity
-            )
+        for rm in module_freshness(runner, storage, synth_ids):
+            mid = rm["module_id"]
             env = rm.get("envelope")
             if not env:
-                st.info(f"**{mid}:** unavailable — run synthesis first")
+                st.info(f"**{mid}:** unavailable — run analysis first")
                 continue
             if rm.get("status") == "stale":
                 st.warning(
-                    f"**{mid}:** stale relative to current notebook — re-run synthesis"
+                    f"**{mid}:** stale relative to current notebook — refresh analysis"
                 )
                 continue
             cap = env.get("capability")
@@ -879,14 +768,14 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_ask:
-        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.runner import AnalysisRunner, module_freshness
         from transcribe.analysis.storage import AnalysisStorage
         from transcribe.ports import SystemClock, UuidGenerator
 
         st.subheader("Ask notebook")
         st.caption(
             "Grounded QA with unit evidence. Unsupported answers abstain — "
-            "no fabricated citations."
+            "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
         )
         question = st.text_input("Question", key="ask_notebook_question")
         if st.button("Ask", disabled=not (question or "").strip()):
@@ -925,10 +814,12 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
         ask_runner = AnalysisRunner(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-        identity = ask_runner.planned_cache_identity("llm_custom_qa")
-        rm = load_published_read_model(
-            storage, "llm_custom_qa", current_cache_identity=identity
-        )
+        rm = module_freshness(
+            ask_runner,
+            storage,
+            ["llm_custom_qa"],
+            question_text=(question or "").strip() or None,
+        )[0]
         if rm.get("envelope"):
             st.divider()
             if rm.get("status") == "stale":
@@ -941,6 +832,7 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 if live:
                     st.json(live)
             st.json((rm["envelope"] or {}).get("payload") or {})
+
 
 
 _PAGE_SHELL: dict[str, tuple[str, str]] = {
@@ -1013,7 +905,7 @@ def main() -> None:
             except TranscribeError as exc:
                 st.error(str(exc))
 
-    archive = ArchiveService(runtime)
+    archive = get_archive(str(runtime.projects_dir), str(runtime.data_dir))
     archive.ensure_index()
 
     # Page viewer overlay when navigated from Archive/Search/View.

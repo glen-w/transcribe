@@ -25,7 +25,7 @@ from transcribe.analysis.presets import (
 )
 from transcribe.analysis.runner import AnalysisRunner
 from transcribe.ports import SystemClock, UuidGenerator
-from transcribe.providers.ollama import OllamaVisionProvider
+from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
 from transcribe.services.project import ProjectService
 from transcribe.ui.shell import render_page_shell
 
@@ -129,7 +129,10 @@ def render_run_analysis_form(
                 "(vision/embedding models are rejected)."
             )
             provider = OllamaVisionProvider(project.settings.base_url)
-            discovery = provider.list_models(refresh=False)
+            refresh_models = st.button("Refresh models", key="run_analysis_refresh_models")
+            if refresh_models:
+                invalidate_discovery_cache(project.settings.base_url)
+            discovery = provider.list_models(refresh=refresh_models)
             names = suitable_text_model_names(discovery.models)
             if text_model and is_unsuitable_text_model_name(text_model):
                 st.warning(

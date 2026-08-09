@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from pathlib import Path
 
 import streamlit as st
 
@@ -20,12 +21,20 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Run Analysis": "Analyse",
 }
 
+_LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.png"
+
+
+def logo_path() -> Path | None:
+    """Packaged brand mark, if present."""
+    return _LOGO_PATH if _LOGO_PATH.is_file() else None
+
 
 def configure_streamlit_page() -> None:
     """``st.set_page_config`` must run before other Streamlit commands."""
+    icon: str | Path = logo_path() or "📓"
     st.set_page_config(
         page_title="Transcribe",
-        page_icon="📓",
+        page_icon=icon,
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -52,19 +61,35 @@ def inject_global_styles() -> None:
     }
     .tx-sidebar-brand {
         margin: 0 0 0.65rem 0;
+        line-height: 1.2;
+    }
+    .tx-sidebar-brand img {
+        display: block;
+        width: 100%;
+        max-width: 220px;
+        height: auto;
+        border-radius: 8px;
+    }
+    .tx-sidebar-brand-text {
         font-size: 1.35rem;
         font-weight: 700;
         color: #1f77b4;
         letter-spacing: 0.01em;
-        line-height: 1.2;
     }
     .tx-sidebar-brand-sub {
         display: block;
-        margin-top: 0.15rem;
+        margin-top: 0.35rem;
+        margin-bottom: 0.65rem;
         font-size: 0.72rem;
         font-weight: 500;
         color: #8a9ab0;
         letter-spacing: 0.02em;
+    }
+    section[data-testid="stSidebar"] [data-testid="stImage"] {
+        margin: 0 0 0.15rem 0 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stImage"] img {
+        border-radius: 8px;
     }
     section[data-testid="stSidebar"] * {
         overflow-wrap: anywhere;
@@ -190,8 +215,16 @@ def inject_global_styles() -> None:
 
 def render_brand() -> None:
     """Sidebar brand mark."""
+    path = logo_path()
+    if path is not None:
+        st.image(str(path), use_container_width=True)
+        st.markdown(
+            '<span class="tx-sidebar-brand-sub">Notebook OCR</span>',
+            unsafe_allow_html=True,
+        )
+        return
     st.markdown(
-        '<div class="tx-sidebar-brand">Transcribe'
+        '<div class="tx-sidebar-brand"><span class="tx-sidebar-brand-text">Transcribe</span>'
         '<span class="tx-sidebar-brand-sub">Notebook OCR</span></div>',
         unsafe_allow_html=True,
     )

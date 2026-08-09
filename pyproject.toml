@@ -28,6 +28,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "transcribe.analysis" = ["data/*.json"]
+"transcribe.ui" = ["assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

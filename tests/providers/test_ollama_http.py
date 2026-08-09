@@ -7,7 +7,13 @@ from unittest.mock import patch
 import pytest
 
 from transcribe.errors import ProviderError
-from transcribe.providers.ollama import OllamaVisionProvider
+from transcribe.providers.base import ModelInfo
+from transcribe.providers.ollama import (
+    OllamaVisionProvider,
+    _discovery_cache,
+    get_cached_discovery,
+    invalidate_discovery_cache,
+)
 
 
 class _Resp:
@@ -26,6 +32,7 @@ class _Resp:
 
 
 def test_discovery_filters_vision_and_caches():
+    invalidate_discovery_cache()
     tags = {
         "models": [
             {"name": "vision-a", "digest": "d1", "details": {"family": "x"}},
@@ -53,13 +60,46 @@ def test_discovery_filters_vision_and_caches():
         result = provider.list_vision_models(refresh=True)
         assert [m.name for m in result.models] == ["vision-a"]
         n = len(calls)
-        # cached
+        # cached on same provider
         result2 = provider.list_vision_models(refresh=False)
         assert [m.name for m in result2.models] == ["vision-a"]
         assert len(calls) == n
+        # shared across new provider instances
+        other = OllamaVisionProvider("http://localhost:11434", discovery_ttl=60)
+        other.list_vision_models(refresh=False)
+        assert len(calls) == n
+        # refresh forces rediscovery
+        provider.list_vision_models(refresh=True)
+        assert len(calls) > n
+
+
+def test_invalidate_discovery_cache_by_url():
+    invalidate_discovery_cache()
+    models = [
+        ModelInfo(
+            name="m",
+            digest="d",
+            size=1,
+            family="x",
+            parameter_size=None,
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    get_cached_discovery(
+        "http://localhost:11434",
+        request_timeout=300.0,
+        discovery_ttl=60.0,
+        refresh=True,
+        fetch=lambda: (models, None),
+    )
+    assert any("localhost:11434" in k for k in _discovery_cache)
+    invalidate_discovery_cache("http://localhost:11434")
+    assert not any("localhost:11434" in k for k in _discovery_cache)
 
 
 def test_generate_maps_model_missing_404():
+    invalidate_discovery_cache()
     import urllib.error
 
     def fake_urlopen(req, timeout=None):

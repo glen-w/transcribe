@@ -39,9 +39,10 @@ CLI ──────────────────┘              │
 - **IngestService** — stages, journals, promotes, then commits the manifest; recovers incomplete journals on open/load
 - **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings
 - **ExportService** — one coherent snapshot, then multi-format promote
-- **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption
+- **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing)
-- **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`
+- **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities)
+- **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
 ## Explicit non-goals for the core architecture
 

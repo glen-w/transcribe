@@ -12,7 +12,8 @@ from transcribe.domain.models import Project
 from transcribe.errors import TranscribeError
 from transcribe.paths import ProjectPaths
 from transcribe.ports import SystemClock, UuidGenerator
-from transcribe.services.archive import highlight_terms
+from transcribe.runtime_paths import build_runtime_paths
+from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
 
@@ -182,6 +183,7 @@ def render_page_viewer(
             st.caption("An edit is active. New OCR raw text is preserved separately.")
             if st.button("Use new transcription"):
                 projects.adopt_raw_as_edit(page.page_id)
+                bump_archive_generation(build_runtime_paths())
                 st.rerun()
         default_text = edited if edited is not None else (raw or "")
         if highlight_query.strip() and default_text:
@@ -190,6 +192,7 @@ def render_page_viewer(
         text = st.text_area("Transcription", value=default_text, height=320)
         if st.button("Save edit"):
             projects.save_user_edit(page.page_id, text)
+            bump_archive_generation(build_runtime_paths())
             st.success("Saved")
 
         st.divider()
@@ -213,6 +216,7 @@ def render_page_viewer(
                     date=new_date,
                     tags=normalize_tags([t for t in tags_in.split(",")]),
                 )
+                bump_archive_generation(build_runtime_paths())
                 st.success("Metadata saved")
                 st.rerun()
             except (ValueError, TranscribeError) as exc:
@@ -223,6 +227,7 @@ def render_page_viewer(
             try:
                 project = projects.update_notebook_metadata(cover_page_id=page.page_id)
                 thumbs.ensure_thumb(project, page.page_id)
+                bump_archive_generation(build_runtime_paths())
                 st.success("Cover updated")
             except TranscribeError as exc:
                 st.error(str(exc))

@@ -39,6 +39,34 @@ _INDEX_TTL_S = 2.0
 _FTS_SCHEMA_VERSION = 2
 _CACHE_SCHEMA_VERSION = 1
 _BUSY_TIMEOUT_MS = 5000
+_GENERATION_FILENAME = "archive.generation"
+
+
+def archive_generation_path(runtime: RuntimePaths) -> Path:
+    return runtime.data_dir / "cache" / _GENERATION_FILENAME
+
+
+def read_archive_generation(runtime: RuntimePaths) -> int:
+    """Workspace mutation token for cheap ensure_index short-circuit."""
+    path = archive_generation_path(runtime)
+    try:
+        return int(path.read_text(encoding="utf-8").strip() or "0")
+    except (OSError, ValueError):
+        return 0
+
+
+def bump_archive_generation(runtime: RuntimePaths) -> int:
+    """Increment the workspace mutation token (call after project text/index mutations)."""
+    path = archive_generation_path(runtime)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = FileLock(path.with_suffix(".generation.lock"), timeout=30.0)
+    with lock:
+        current = read_archive_generation(runtime)
+        nxt = current + 1
+        tmp = path.with_suffix(".generation.tmp")
+        tmp.write_text(str(nxt), encoding="utf-8")
+        tmp.replace(path)
+        return nxt
 
 
 @dataclass(frozen=True)
@@ -213,7 +241,7 @@ class ArchiveService:
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
         self._rebuild_lock_path = self.index_path.with_suffix(".sqlite.lock")
         self._validated_at: float | None = None
-        self._workspace_fp: str | None = None
+        self._validated_generation: int | None = None
         self._ensure_calls = 0  # test counter
 
     def _connect(self) -> sqlite3.Connection:
@@ -236,7 +264,7 @@ class ArchiveService:
             except OSError:
                 pass
         self._validated_at = None
-        self._workspace_fp = None
+        self._validated_generation = None
 
     def _ensure_schema(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
@@ -310,25 +338,6 @@ class ArchiveService:
             "INSERT OR REPLACE INTO meta(key, value) VALUES ('cache_schema_version', ?)",
             (str(_CACHE_SCHEMA_VERSION),),
         )
-    def _workspace_fingerprint(self) -> str:
-        """Cheap mtime rollup used to skip ensure_index when nothing changed."""
-        parts: list[str] = []
-        for root in discover_project_roots(self.runtime.projects_dir):
-            manifest = root / "project.json"
-            try:
-                parts.append(f"{root.name}:{manifest.stat().st_mtime_ns}")
-            except OSError:
-                continue
-            results = root / "results"
-            if results.exists():
-                try:
-                    parts.append(
-                        str(sum(p.stat().st_mtime_ns for p in results.glob("*.json")))
-                    )
-                except OSError:
-                    pass
-        return "|".join(parts)
-
     def _project_signature(self, root: Path, project: Project) -> str:
         parts = [project.updated_at, str(len(project.pages))]
         results = root / "results"
@@ -337,26 +346,30 @@ class ArchiveService:
             parts.extend(mtimes)
         return "|".join(parts)
 
-    def ensure_index(self, *, force: bool = False) -> None:
-        now = time.monotonic()
-        fp = self._workspace_fingerprint()
-        if (
-            not force
-            and self._validated_at is not None
-            and self._workspace_fp == fp
+    def _ttl_fresh(self, *, generation: int, now: float) -> bool:
+        return (
+            self._validated_at is not None
+            and self._validated_generation == generation
             and (now - self._validated_at) < _INDEX_TTL_S
-        ):
+        )
+
+    def ensure_index(self, *, force: bool = False) -> None:
+        """Rebuild disposable FTS when forced, TTL expired, or generation bumped.
+
+        The hot-path guard uses an explicit mutation generation token — not
+        directory/result mtimes (in-place result edits do not change dir mtime
+        reliably). Callers must ``bump_archive_generation`` / ``invalidate``
+        after mutations; after TTL expiry a full signature rebuild still runs.
+        """
+        now = time.monotonic()
+        generation = read_archive_generation(self.runtime)
+        if not force and self._ttl_fresh(generation=generation, now=now):
             return
         with FileLock(self._rebuild_lock_path, timeout=60.0):
             # Re-check TTL after acquiring the cross-process rebuild lock.
             now = time.monotonic()
-            fp = self._workspace_fingerprint()
-            if (
-                not force
-                and self._validated_at is not None
-                and self._workspace_fp == fp
-                and (now - self._validated_at) < _INDEX_TTL_S
-            ):
+            generation = read_archive_generation(self.runtime)
+            if not force and self._ttl_fresh(generation=generation, now=now):
                 return
             self._ensure_calls += 1
             self._ensure_index_locked(force=force)
@@ -409,15 +422,25 @@ class ArchiveService:
                             "DELETE FROM notebooks WHERE project_id = ?", (project_id,)
                         )
                     conn.commit()
-                self._validated_at = time.monotonic()
-                self._workspace_fp = self._workspace_fingerprint()
+                self._mark_validated()
                 return
             except sqlite3.DatabaseError:
                 self._delete_cache()
                 if attempt == 1:
                     raise
+        self._mark_validated()
+
+    def _mark_validated(self) -> None:
         self._validated_at = time.monotonic()
-        self._workspace_fp = self._workspace_fingerprint()
+        self._validated_generation = read_archive_generation(self.runtime)
+
+    def note_mutation(self) -> int:
+        """Bump workspace generation and clear in-process TTL (index stays until rebuild)."""
+        nxt = bump_archive_generation(self.runtime)
+        self._validated_at = None
+        self._validated_generation = None
+        return nxt
+
     def invalidate(self, project_id: str) -> None:
         with self._connect() as conn:
             self._ensure_schema(conn)
@@ -425,8 +448,7 @@ class ArchiveService:
             conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
             conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
             conn.commit()
-        self._validated_at = None
-        self._workspace_fp = None
+        self.note_mutation()
 
     def _reindex_project(
         self,

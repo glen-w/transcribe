@@ -6,9 +6,11 @@ import base64
 import ipaddress
 import json
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,6 +19,62 @@ from transcribe.providers.base import DiscoveryResult, ModelInfo, ProviderResult
 
 _DISCOVERY_TTL_S = 45.0
 _MAX_RETRIES = 3
+
+_discovery_lock = threading.Lock()
+_discovery_cache: dict[str, "_DiscoveryEntry"] = {}
+
+
+@dataclass
+class _DiscoveryEntry:
+    at: float
+    models: list[ModelInfo]
+    error: str | None
+
+
+def discovery_cache_key(base_url: str, *, request_timeout: float = 300.0) -> str:
+    """Key for shared discovery metadata (URL + transport timeout)."""
+    return f"{normalize_base_url(base_url)}|timeout={float(request_timeout)}"
+
+
+def invalidate_discovery_cache(base_url: str | None = None) -> None:
+    """Drop cached discovery for one URL (all timeouts) or the entire cache."""
+    with _discovery_lock:
+        if base_url is None:
+            _discovery_cache.clear()
+            return
+        prefix = f"{normalize_base_url(base_url)}|"
+        for key in list(_discovery_cache):
+            if key.startswith(prefix):
+                del _discovery_cache[key]
+
+
+def get_cached_discovery(
+    base_url: str,
+    *,
+    request_timeout: float = 300.0,
+    discovery_ttl: float = _DISCOVERY_TTL_S,
+    refresh: bool = False,
+    fetch: Any | None = None,
+) -> tuple[list[ModelInfo], str | None]:
+    """Thread-safe discovery metadata cache keyed by URL + transport config.
+
+    ``fetch`` is ``Callable[[], tuple[list[ModelInfo], str | None]]`` used on miss.
+    """
+    key = discovery_cache_key(base_url, request_timeout=request_timeout)
+    now = time.monotonic()
+    with _discovery_lock:
+        if not refresh:
+            entry = _discovery_cache.get(key)
+            if entry is not None and now - entry.at < discovery_ttl:
+                return list(entry.models), entry.error
+    if fetch is None:
+        raise TypeError("fetch is required when discovery cache misses")
+    models, error = fetch()
+    with _discovery_lock:
+        _discovery_cache[key] = _DiscoveryEntry(
+            at=time.monotonic(), models=list(models), error=error
+        )
+    return list(models), error
 
 
 def normalize_base_url(url: str) -> str:
@@ -95,9 +153,6 @@ class OllamaVisionProvider:
         self.base_url = normalize_base_url(base_url)
         self.request_timeout = request_timeout
         self.discovery_ttl = discovery_ttl
-        self._cache_at: float | None = None
-        self._cache_models: list[ModelInfo] | None = None
-        self._cache_error: str | None = None
 
     def healthcheck(self) -> None:
         self._http_get("/api/tags", timeout=min(10.0, self.request_timeout))
@@ -174,14 +229,18 @@ class OllamaVisionProvider:
         raise last_error
 
     def _discover(self, *, refresh: bool) -> tuple[list[ModelInfo], str | None]:
-        now = time.monotonic()
-        if (
-            not refresh
-            and self._cache_models is not None
-            and self._cache_at is not None
-            and now - self._cache_at < self.discovery_ttl
-        ):
-            return self._cache_models, self._cache_error
+        def fetch() -> tuple[list[ModelInfo], str | None]:
+            return self._discover_uncached()
+
+        return get_cached_discovery(
+            self.base_url,
+            request_timeout=self.request_timeout,
+            discovery_ttl=self.discovery_ttl,
+            refresh=refresh,
+            fetch=fetch,
+        )
+
+    def _discover_uncached(self) -> tuple[list[ModelInfo], str | None]:
         try:
             tags = self._http_get("/api/tags", timeout=min(30.0, self.request_timeout))
             models_raw = tags.get("models") if isinstance(tags, dict) else None
@@ -221,19 +280,10 @@ class OllamaVisionProvider:
                         capability_known=capability_known,
                     )
                 )
-            self._cache_models = models
-            self._cache_error = None
-            self._cache_at = now
             return models, None
         except ProviderError as exc:
-            self._cache_models = []
-            self._cache_error = str(exc)
-            self._cache_at = now
             return [], str(exc)
         except Exception as exc:  # noqa: BLE001 — user-safe discovery
-            self._cache_models = []
-            self._cache_error = str(exc)
-            self._cache_at = now
             return [], str(exc)
 
     def _show(self, model: str) -> dict[str, Any] | None:

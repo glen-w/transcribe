@@ -63,6 +63,24 @@ def test_stats_run_publishes_under_analysis_and_cache_hits(tmp_path: Path):
     assert second["attempt_id"] == first["attempt_id"]
 
 
+def test_module_freshness_matches_planned_identity(tmp_path: Path):
+    from transcribe.analysis.runner import module_freshness
+
+    paths, projects, clock, ids = _transcribed_project(tmp_path, n_pages=1)
+    runner = AnalysisRunner(projects, clock=clock, ids=ids)
+    storage = AnalysisStorage(paths)
+    env = runner.run_module("stats")
+    models = module_freshness(runner, storage, ["stats"])
+    assert len(models) == 1
+    assert models[0]["status"] == "ok"
+    assert models[0]["envelope"]["cache_identity"] == env["cache_identity"]
+
+    page_id = projects.load().pages[0].page_id
+    projects.save_user_edit(page_id, "edited text makes published stats stale for freshness")
+    stale = module_freshness(runner, storage, ["stats"])
+    assert stale[0]["status"] == "stale"
+
+
 def test_content_fingerprint_stable_for_same_document(tmp_path: Path):
     _paths, projects, _clock, _ids = _transcribed_project(tmp_path, n_pages=1)
     doc = build_page_v1_document(projects.load(), projects)

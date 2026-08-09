@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 from transcribe.analysis import ADAPTER_VERSION
 from transcribe.analysis.adapter import build_page_v1_document, build_paragraph_v1_document
@@ -884,3 +884,26 @@ def load_published_read_model(
             current_content_fingerprint=fp,
         ),
     }
+
+
+def module_freshness(
+    runner: AnalysisRunner,
+    storage: AnalysisStorage,
+    module_ids: Sequence[str],
+    *,
+    question_text: str | None = None,
+) -> list[dict[str, Any]]:
+    """Authoritative UI freshness for published modules via planned cache identity.
+
+    The UI must not construct cache identities itself — always call this (or
+    ``planned_cache_identity`` + ``load_published_read_model``).
+    """
+    out: list[dict[str, Any]] = []
+    for mid in module_ids:
+        identity = runner.planned_cache_identity(mid, question_text=question_text)
+        out.append(
+            load_published_read_model(
+                storage, mid, current_cache_identity=identity
+            )
+        )
+    return out

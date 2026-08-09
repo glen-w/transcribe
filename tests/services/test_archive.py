@@ -336,6 +336,8 @@ def test_partial_date_ordering(tmp_path: Path):
 
 
 def test_index_refreshes_after_text_and_metadata_change(tmp_path: Path):
+    from transcribe.services.archive import bump_archive_generation
+
     runtime = _runtime(tmp_path)
     root, projects = _make_notebook(
         runtime,
@@ -356,6 +358,7 @@ def test_index_refreshes_after_text_and_metadata_change(tmp_path: Path):
     write_json_atomic(paths.result_path(page_id), result.as_dict())
     # Bump manifest updated_at so signature changes even if mtime is coarse.
     projects.update_page_metadata(page_id, tags=["refreshed"])
+    bump_archive_generation(runtime)
 
     archive.ensure_index()
     assert archive.search("after-token").showing == 1
@@ -452,7 +455,7 @@ def test_search_pagination(tmp_path: Path):
     assert {h.page_id for h in page1.hits}.isdisjoint({h.page_id for h in page2.hits})
 
 
-def test_ensure_index_skips_when_fingerprint_unchanged(tmp_path: Path):
+def test_ensure_index_skips_when_generation_unchanged(tmp_path: Path):
     runtime = _runtime(tmp_path)
     _make_notebook(
         runtime,
@@ -466,6 +469,49 @@ def test_ensure_index_skips_when_fingerprint_unchanged(tmp_path: Path):
     archive.ensure_index()
     archive.ensure_index()
     assert archive._ensure_calls == calls
+
+
+def test_ensure_index_reruns_after_generation_bump(tmp_path: Path):
+    from transcribe.services.archive import bump_archive_generation
+
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "ttl2",
+        title="TTL2",
+        page_specs=[{"date": ApproximateDate(2021, 1, 1), "text": "hello"}],
+    )
+    archive = ArchiveService(runtime)
+    archive.ensure_index(force=True)
+    calls = archive._ensure_calls
+    bump_archive_generation(runtime)
+    archive.ensure_index()
+    assert archive._ensure_calls == calls + 1
+
+
+def test_ensure_index_ignores_result_mtime_without_generation_bump(tmp_path: Path):
+    """In-place result edits must not defeat TTL unless generation is bumped."""
+    runtime = _runtime(tmp_path)
+    root, projects = _make_notebook(
+        runtime,
+        "silent",
+        title="Silent",
+        page_specs=[{"date": ApproximateDate(2020, 1, 1), "text": "before-silent"}],
+    )
+    archive = ArchiveService(runtime)
+    archive.ensure_index(force=True)
+    calls = archive._ensure_calls
+
+    page_id = projects.load(reconcile=False).pages[0].page_id
+    paths = open_project_paths(root)
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    result.edited_text = "after-silent token"
+    write_json_atomic(paths.result_path(page_id), result.as_dict())
+
+    archive.ensure_index()
+    assert archive._ensure_calls == calls
+    assert archive.search("after-silent").showing == 0
 
 
 def test_corrupt_archive_cache_deletes_and_rebuilds(tmp_path: Path):

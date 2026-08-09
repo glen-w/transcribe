@@ -28,7 +28,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 ## Archive / cache
 
 - Workspace search/timeline depends on a rebuildable SQLite cache. Corrupt or incompatible caches are deleted and rebuilt
-- Cache signatures use mtimes — acceptable only because projects remain authoritative
+- Cheap `ensure_index` short-circuit uses an explicit **mutation generation** token (`data/cache/archive.generation`), bumped after import/OCR/edit/metadata — not directory mtimes (in-place result edits do not reliably change dir mtime). Per-project rebuild signatures still use result file mtimes inside a rebuild
+- Ollama model discovery metadata is cached by base URL + transport timeout; **Refresh** invalidates. Execution clients stay lightweight
 
 ## Privacy
 
@@ -41,6 +42,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Prefer **OCR cleanup / second-pass LLM verification** and human edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
 - Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
 - LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
+- Batch Analyse runs from the preset form only; result tabs are read-models. Ask notebook remains an ad-hoc action
+- Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI
 - Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
 - Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
