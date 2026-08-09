@@ -240,6 +240,17 @@ Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice st
 | **Out** | Emotion family / moments → **1d**; silent BERTopic substitutes |
 | **Exit** | §10 + ≥2-unit gates + 1.3/1.4 non-regression + Themes capability banners |
 
+### Wave 1d — Emotion & salience
+
+| | |
+|--|--|
+| **Modules** | `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `moments` |
+| **Depends on** | 1c exit; `paragraph_v1` for moments evidence; hard-parent resolver for `affect_tension` |
+| **Payloads** | `emotion_payload_v1`, `contextual_emotion_payload_v1`, `fine_grained_emotion_payload_v1`, `affect_tension_payload_v1`, `moments_payload_v1` |
+| **Also ship** | Mood & tone + Moments UI; soft optional parents for moments; pin rows (`moments` = `fork`); `unavailable_extra` for fine-grained |
+| **Out** | Silent lexicon substitute under `fine_grained_emotion`; TX `momentum` |
+| **Exit** | §10 + hard-parent tension + soft-feature moments + 1c non-regression |
+
 ### Wave 1a — Foundations (thematic; delivered as 1.1 + 1.2)
 
 Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slices above for delivery tracking.

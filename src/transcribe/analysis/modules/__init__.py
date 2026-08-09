@@ -30,15 +30,20 @@ WAVE_1_2 = "1.2"
 WAVE_1_3 = "1.3"
 WAVE_1_4 = "1.4"
 WAVE_1_C = "1c"
+WAVE_1_D = "1d"
 WAVE_1_E1 = "1e.1"
 WAVE_1_E2 = "1e.2"
 
 
 def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModule]:
     """Return module instances for a delivery wave (default: through 1e.2)."""
+    from transcribe.analysis.modules.affect_tension import AffectTensionModule
     from transcribe.analysis.modules.bertopic import BertopicModule
+    from transcribe.analysis.modules.contextual_emotion import ContextualEmotionModule
+    from transcribe.analysis.modules.emotion import EmotionModule
     from transcribe.analysis.modules.entity_sentiment import EntitySentimentModule
     from transcribe.analysis.modules.epistemic_markers import EpistemicMarkersModule
+    from transcribe.analysis.modules.fine_grained_emotion import FineGrainedEmotionModule
     from transcribe.analysis.modules.highlights import HighlightsModule
     from transcribe.analysis.modules.insights import InsightsModule
     from transcribe.analysis.modules.keyphrases import KeyphrasesModule
@@ -46,6 +51,7 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
     from transcribe.analysis.modules.llm_action_items import LLMActionItemsModule
     from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
     from transcribe.analysis.modules.llm_summary import LLMSummaryModule
+    from transcribe.analysis.modules.moments import MomentsModule
     from transcribe.analysis.modules.narrative_summary import NarrativeSummaryModule
     from transcribe.analysis.modules.ner import NERModule
     from transcribe.analysis.modules.semantic_similarity import SemanticSimilarityModule
@@ -68,7 +74,15 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
         TopicShiftModule(),
         BertopicModule(),
     ]
-    wave1e1 = [*wave1c, HighlightsModule(), SummaryModule(), InsightsModule()]
+    wave1d = [
+        *wave1c,
+        EmotionModule(),
+        ContextualEmotionModule(),
+        FineGrainedEmotionModule(),
+        AffectTensionModule(),
+        MomentsModule(),
+    ]
+    wave1e1 = [*wave1d, HighlightsModule(), SummaryModule(), InsightsModule()]
     wave1e2 = [
         *wave1e1,
         LLMSummaryModule(),
@@ -83,6 +97,7 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
         WAVE_1_3: wave13,
         WAVE_1_4: wave14,
         WAVE_1_C: wave1c,
+        WAVE_1_D: wave1d,
         WAVE_1_E1: wave1e1,
         WAVE_1_E2: wave1e2,
         "1e": wave1e2,
@@ -110,6 +125,10 @@ def get_wave14_modules() -> dict[str, AnalysisModule]:
 
 def get_wave1c_modules() -> dict[str, AnalysisModule]:
     return get_registered_modules(wave=WAVE_1_C)
+
+
+def get_wave1d_modules() -> dict[str, AnalysisModule]:
+    return get_registered_modules(wave=WAVE_1_D)
 
 
 def get_wave1e_modules() -> dict[str, AnalysisModule]:

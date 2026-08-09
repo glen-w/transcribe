@@ -15,6 +15,10 @@ HARD_PARENTS: dict[str, list[tuple[str, frozenset[str]]]] = {
         ("ner", frozenset({"success"})),
         ("sentiment", frozenset({"success"})),
     ],
+    "affect_tension": [
+        ("emotion", frozenset({"success"})),
+        ("sentiment", frozenset({"success"})),
+    ],
     "summary": [("highlights", frozenset({"success"}))],
     "insights": [
         ("highlights", frozenset({"success"})),
@@ -48,6 +52,17 @@ def resolve_optional_parents(
     consumed: list[dict[str, Any]] = []
     if module_id in _OPTIONAL_LLM_GROUNDING:
         for mid in ("highlights", "summary"):
+            pub = storage.read_published(mid)
+            if pub and pub.get("outcome") == "success":
+                consumed.append(
+                    {
+                        "module_id": mid,
+                        "cache_identity": pub.get("cache_identity"),
+                        "outcome": pub.get("outcome"),
+                    }
+                )
+    if module_id == "moments":
+        for mid in ("emotion", "sentiment", "topic_shift"):
             pub = storage.read_published(mid)
             if pub and pub.get("outcome") == "success":
                 consumed.append(
@@ -139,6 +154,11 @@ def batch_module_order(module_ids: list[str]) -> list[str]:
         "semantic_similarity": 51,
         "topic_shift": 52,
         "bertopic": 53,
+        "emotion": 54,
+        "contextual_emotion": 55,
+        "fine_grained_emotion": 56,
+        "affect_tension": 57,
+        "moments": 58,
         "highlights": 60,
         "summary": 61,
         "insights": 62,

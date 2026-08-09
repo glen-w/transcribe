@@ -46,7 +46,7 @@ from transcribe.services.project import ProjectService
 ELIGIBILITY_REQUIRED = frozenset(
     {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
 )
-PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa"})
+PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa", "moments"})
 LLM_MODULES = frozenset(
     {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
 )
@@ -71,6 +71,8 @@ def _module_lexicon(module: Any) -> Any:
         "ner": "ner_lexicon_or_model",
         "sentiment": "sentiment_lexicon_or_model",
         "epistemic_markers": "epistemic_lexicon_or_model",
+        "emotion": "emotion_lexicon_or_model",
+        "contextual_emotion": "emotion_lexicon_or_model",
     }
     attr = loaders.get(mid)
     if not attr:

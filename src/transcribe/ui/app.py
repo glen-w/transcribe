@@ -102,6 +102,8 @@ def _render_workflow(runtime, root: str) -> None:
         tab_export,
         tab_overview,
         tab_themes,
+        tab_mood,
+        tab_moments,
         tab_summaries,
         tab_ask,
     ) = st.tabs(
@@ -112,6 +114,8 @@ def _render_workflow(runtime, root: str) -> None:
             "Export",
             "Overview",
             "Themes",
+            "Mood & tone",
+            "Moments",
             "Summaries",
             "Ask notebook",
         ]
@@ -536,6 +540,121 @@ def _render_workflow(runtime, root: str) -> None:
                     f"{payload.get('n_units', 0)} units · {len(shifts)} shift boundary(ies)"
                 )
             with st.expander(f"{mid} payload"):
+                st.json(payload)
+
+    with tab_mood:
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+
+        st.subheader("Mood & tone")
+        st.caption(
+            "Emotion chronology, contextual smoothing, affect tension, and hedging. "
+            "Fine-grained emotion stays an optional extra."
+        )
+        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+        mood_ids = [
+            "sentiment",
+            "emotion",
+            "contextual_emotion",
+            "fine_grained_emotion",
+            "affect_tension",
+            "epistemic_markers",
+        ]
+        if st.button("Run Mood & tone analysis (Wave 1d)"):
+            ordered = [
+                "sentiment",
+                "emotion",
+                "contextual_emotion",
+                "fine_grained_emotion",
+                "affect_tension",
+                "epistemic_markers",
+            ]
+            with st.spinner("Running Mood modules…"):
+                results = runner.run_batch(ordered)
+            for mid in mood_ids:
+                env = results.get(mid) or {}
+                st.write(
+                    f"**{mid}:** outcome=`{env.get('outcome')}` "
+                    f"capability=`{env.get('capability')}`"
+                )
+            st.rerun()
+
+        storage = AnalysisStorage(paths)
+        for mid in mood_ids:
+            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            env = rm.get("envelope")
+            if not env:
+                st.info(f"**{mid}:** unavailable — run Mood analysis first")
+                continue
+            cap = env.get("capability")
+            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
+            if cap == "unavailable_extra":
+                st.warning(banner + " (optional extra not available)")
+            elif cap == "unavailable_dependency":
+                st.warning(banner + " (run emotion + sentiment first)")
+            elif cap in {"insufficient_data", "skipped_not_applicable"}:
+                st.info(banner)
+            else:
+                st.markdown(banner)
+            payload = env.get("payload") or {}
+            if mid == "emotion" and payload.get("global_stats"):
+                st.caption(
+                    f"intensity_mean={payload['global_stats'].get('intensity_mean')}"
+                )
+            elif mid == "affect_tension" and payload.get("global_stats"):
+                st.caption(
+                    f"tension_mean={payload['global_stats'].get('tension_mean')} · "
+                    f"conflicts={payload['global_stats'].get('n_conflicting')}"
+                )
+            with st.expander(f"{mid} payload"):
+                st.json(payload)
+
+    with tab_moments:
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+
+        st.subheader("Moments")
+        st.caption(
+            "Notebook salience fork (no TX momentum). Soft features from emotion, "
+            "sentiment, and topic_shift enrich scores when available."
+        )
+        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+        if st.button("Run Moments analysis"):
+            ordered = [
+                "sentiment",
+                "emotion",
+                "topic_shift",
+                "moments",
+            ]
+            with st.spinner("Finding moments…"):
+                results = runner.run_batch(ordered)
+            env = results.get("moments") or {}
+            st.write(
+                f"**moments:** outcome=`{env.get('outcome')}` "
+                f"capability=`{env.get('capability')}`"
+            )
+            st.rerun()
+
+        storage = AnalysisStorage(paths)
+        rm = load_published_read_model(storage, "moments", current_cache_identity=None)
+        env = rm.get("envelope")
+        if not env:
+            st.info("**moments:** unavailable — run Moments analysis first")
+        else:
+            cap = env.get("capability")
+            st.markdown(
+                f"**moments:** capability=`{cap}` outcome=`{env.get('outcome')}`"
+            )
+            payload = env.get("payload") or {}
+            for row in payload.get("moments") or []:
+                st.write(
+                    f"- score=`{row.get('score')}` · `{row.get('quote', '')[:120]}`"
+                )
+            for w in env.get("warnings") or []:
+                st.caption(w.get("message") or w.get("code"))
+            with st.expander("moments payload"):
                 st.json(payload)
 
     with tab_summaries:

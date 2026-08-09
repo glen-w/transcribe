@@ -32,6 +32,11 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `semantic_similarity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/semantic_similarity/` | n/a BoW cosine adaptation; multi-speaker gate dropped | adaptation | 2026-08-09 |
 | `topic_shift` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/topic_shift/` | n/a order-based cosine-drop adaptation | adaptation | 2026-08-09 |
 | `bertopic` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/bertopic/` | n/a optional extra → `unavailable_extra` (no silent substitute) | adaptation | 2026-08-09 |
+| `emotion` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/emotion/` | lexicon digest via `emotion_lexicon_v1` | adaptation | 2026-08-09 |
+| `contextual_emotion` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/contextual_emotion/` | n/a order-neighbor window adaptation | adaptation | 2026-08-09 |
+| `fine_grained_emotion` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/fine_grained_emotion/` | n/a optional extra → `unavailable_extra` | adaptation | 2026-08-09 |
+| `affect_tension` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/affect_tension/` | n/a join adaptation | adaptation | 2026-08-09 |
+| `moments` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/moments/` | n/a notebook salience **fork** (no momentum) | fork | 2026-08-09 |
 | `highlights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/highlights/` | n/a notebook salience adaptation | adaptation | 2026-08-09 |
 | `summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/summary/` | n/a from-highlights adaptation | adaptation | 2026-08-09 |
 | `insights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/insights/` | n/a; eligibility via `notebook_eligibility_v1` | adaptation | 2026-08-09 |

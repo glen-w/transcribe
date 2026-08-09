@@ -233,6 +233,16 @@ Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do
 | `moments` | empty document | ranked list (maybe length 1) | |
 | LLM suite | empty / unavailable model | abstain rules | see LLM section |
 
+### Emotion & salience payloads (Wave 1d)
+
+| Module | Payload id | Notes |
+|--------|------------|-------|
+| `emotion` | `emotion_payload_v1` | Ungated; lexicon `emotion_lexicon_v1`; per-unit scores/distribution/intensity + chronology |
+| `contextual_emotion` | `contextual_emotion_payload_v1` | Neighbor window by `order` (config, not a parent module) |
+| `fine_grained_emotion` | `fine_grained_emotion_payload_v1` | Optional transformer extra → `unavailable_extra` (never silent lexicon substitute) |
+| `affect_tension` | `affect_tension_payload_v1` | Hard parents `emotion`+`sentiment`; tension series vs order |
+| `moments` | `moments_payload_v1` | Salience **fork** (no momentum); optional soft `emotion`/`sentiment`/`topic_shift`; prefer `paragraph_v1` |
+
 ## LLM evidence, cache identity contribution, and refusal (Wave 1e)
 
 Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary`:
