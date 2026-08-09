@@ -33,8 +33,16 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 markers = [
+  "smoke: fast critical-path smoke tests",
+  "unit: isolated unit tests",
   "integration: tests that require a live local Ollama server",
+  "slow: intentionally slow tests",
+  "requires_ollama: live Ollama HTTP required",
+  "requires_docker: Docker daemon required",
+  "requires_network: outbound network required",
+  "quarantined: temporarily excluded from the default suite",
 ]
+addopts = "-m 'not quarantined and not requires_ollama and not requires_docker and not requires_network and not slow and not integration'"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff]

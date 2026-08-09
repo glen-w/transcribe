@@ -463,3 +463,35 @@ def test_highlights_stopwords_in_identity(tmp_path: Path):
     lex = env.get("lexicon_or_model") or {}
     assert lex.get("stopwords_id") == "wordclouds_stopwords_v1"
     assert lex.get("stopwords_digest")
+
+
+def test_narrative_summary_success_with_double(tmp_path: Path):
+    set_text_llm_client(
+        RecordedDoubleClient(
+            responses={"default": '{"narrative":"A short garden story."}'}
+        )
+    )
+    try:
+        projects, runner = _project_with_pages(tmp_path, TEXTS)
+        assert runner.run_module("highlights")["outcome"] == "success"
+        assert runner.run_module("summary")["outcome"] == "success"
+        env = runner.run_module("narrative_summary")
+        assert env["outcome"] == "success"
+        assert env["payload"]["honesty_label"] == "llm_generated"
+        assert "garden" in env["payload"]["narrative"].lower()
+        assert env["llm"]["grounding_strategy_id"] == "ground_highlights_summary_v1"
+    finally:
+        set_text_llm_client(None)
+
+
+def test_llm_action_items_rejects_non_list_items(tmp_path: Path):
+    set_text_llm_client(
+        RecordedDoubleClient(responses={"default": '{"items":"not-a-list"}'})
+    )
+    try:
+        projects, runner = _project_with_pages(tmp_path, TEXTS)
+        env = runner.run_module("llm_action_items")
+        assert env["outcome"] == "skipped_not_applicable"
+        assert "raw" not in (env.get("payload") or {})
+    finally:
+        set_text_llm_client(None)
