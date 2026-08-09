@@ -26,6 +26,11 @@ from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.preprocess import PREPROCESS_VERSION, apply_preprocess
 from transcribe.prompts import render_prompt
 from transcribe.providers.base import VisionOCRProvider
+from transcribe.services.ocr_cleanup import (
+    CleanupPlanConfig,
+    resolve_cleanup_plan_config,
+    run_ocr_cleanup,
+)
 from transcribe.services.project import ProjectService
 
 
@@ -50,6 +55,15 @@ class JobPlan:
     generation_options: dict[str, Any]
     max_workers: int
     config_fingerprint: str
+    cleanup: CleanupPlanConfig = field(default_factory=lambda: CleanupPlanConfig(
+        enabled=False,
+        mode="strip_leak",
+        model_name="",
+        model_digest="",
+        prompt_id="",
+        prompt_version="",
+        prompt_template_sha256="",
+    ))
 
 
 @dataclass
@@ -104,12 +118,14 @@ class JobCoordinator:
         *,
         clock: Clock,
         ids: IdGenerator,
+        cleanup_client: Any | None = None,
     ) -> None:
         self.paths = paths
         self.projects = project_service
         self.provider = provider
         self.clock = clock
         self.ids = ids
+        self.cleanup_client = cleanup_client
         self._lock = threading.Lock()
         self._job: JobState | None = None
         self._job_file_lock = JobLock(paths.job_lock)
@@ -130,12 +146,18 @@ class JobCoordinator:
             snap = _snapshot_progress(self._job.progress)
         _default_progress_log(snap)
 
+    def _validate_cleanup_settings_or_raise(self) -> None:
+        """Fail-fast cleanup config check before job start (plan freeze)."""
+        project = self.projects.load(reconcile=False)
+        resolve_cleanup_plan_config(project.settings, client=self.cleanup_client)
+
     def start(
         self,
         *,
         page_ids: list[str] | None = None,
         force: bool = False,
     ) -> str:
+        self._validate_cleanup_settings_or_raise()
         with self._lock:
             if self._job is not None and self._job.thread and self._job.thread.is_alive():
                 raise JobConflictError("a transcription job is already running in this process")
@@ -173,6 +195,7 @@ class JobCoordinator:
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> JobProgress:
         """CLI-friendly synchronous run (still uses job lock)."""
+        self._validate_cleanup_settings_or_raise()
         if not self._job_file_lock.try_acquire():
             raise JobConflictError(
                 "another process holds the OCR job lock for this project"
@@ -287,6 +310,7 @@ class JobCoordinator:
         base_url = settings.base_url
         preprocess_profile = settings.preprocess_profile or "none"
         max_workers = max(1, min(2, int(settings.max_workers or 1)))
+        cleanup = resolve_cleanup_plan_config(settings, client=self.cleanup_client)
         config_fp, _ = compute_input_fingerprint(
             provider=provider_id,
             model_name=settings.model_name,
@@ -297,6 +321,7 @@ class JobCoordinator:
             preprocess_profile=preprocess_profile,
             preprocess_version=PREPROCESS_VERSION,
             generation_options=gen_opts,
+            cleanup=cleanup.fingerprint_dict(),
         )
         return JobPlan(
             job_id=job_id,
@@ -316,6 +341,7 @@ class JobCoordinator:
             generation_options=gen_opts,
             max_workers=max_workers,
             config_fingerprint=config_fp,
+            cleanup=cleanup,
         )
 
     def _seal_provider(
@@ -499,6 +525,7 @@ class JobCoordinator:
             preprocess_profile=plan.preprocess_profile,
             preprocess_version=plan.preprocess_version,
             generation_options=plan.generation_options,
+            cleanup=plan.cleanup.fingerprint_dict(),
         )
         return fp, payload, processed
 
@@ -541,6 +568,7 @@ class JobCoordinator:
             ),
             provider_metadata={},
             started_at=started,
+            cleanup=None,
         )
         self.projects.record_generation(page_id, running)
 
@@ -554,7 +582,19 @@ class JobCoordinator:
             if running.provenance:
                 running.provenance.model_digest = result.model_digest
                 running.provenance.model_identity_verified = result.model_identity_verified
-            running.raw_text = result.text
+
+            vision_text = result.text
+            final_text, cleanup_record = run_ocr_cleanup(
+                vision_text=vision_text,
+                plan=plan.cleanup,
+                base_url=plan.base_url,
+                client=self.cleanup_client,
+            )
+
+            # Atomic success write: raw_text + cleanup together; never persist
+            # cleaned text without a complete cleanup record.
+            running.raw_text = final_text
+            running.cleanup = cleanup_record
             running.provider_metadata = result.provider_metadata
             running.status = "succeeded"
             running.completed_at = to_iso(self.clock.now())
@@ -572,6 +612,7 @@ class JobCoordinator:
                     preprocess_profile=plan.preprocess_profile,
                     preprocess_version=plan.preprocess_version,
                     generation_options=plan.generation_options,
+                    cleanup=plan.cleanup.fingerprint_dict(),
                 )
                 running.input_fingerprint = fp2
                 running.fingerprint_payload = payload2

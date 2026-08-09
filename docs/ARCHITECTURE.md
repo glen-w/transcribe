@@ -37,7 +37,7 @@ CLI ──────────────────┘              │
 
 - **ProjectService** — load/save settings and metadata with load→modify→validate→write under the mutation lock; reconciles interrupted attempts when the job lock is free
 - **IngestService** — stages, journals, promotes, then commits the manifest; recovers incomplete journals on open/load
-- **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, and provider binding at job start; workers consume the plan, not live UI settings
+- **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption
 - **DoctorService** — structural integrity (+ optional deep hashing)

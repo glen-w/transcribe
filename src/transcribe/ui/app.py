@@ -26,6 +26,16 @@ from transcribe.services.job import JobCoordinator, JobProgress, build_coordinat
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
 from transcribe.ui.page_viewer import render_page_viewer
+from transcribe.ui.shell import (
+    configure_streamlit_page,
+    inject_global_styles,
+    normalize_ui_mode,
+    render_brand,
+    render_mode_nav,
+    render_nav_section,
+    render_page_shell,
+    set_ui_mode,
+)
 
 
 @st.cache_resource
@@ -89,6 +99,11 @@ def _render_workflow(runtime, root: str) -> None:
             back_label="Back to workflow",
         )
         return
+
+    back_cols = st.columns([1, 4])
+    if back_cols[0].button("← Archive", key="workflow_back_archive"):
+        set_ui_mode("Archive")
+    back_cols[1].caption(f"Project: `{paths.root}`")
 
     coord = get_coordinator(str(paths.root))
     live = coord.get_progress()
@@ -215,6 +230,53 @@ def _render_workflow(runtime, root: str) -> None:
         preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
         workers = st.selectbox("Workers", [1, 2], index=0)
         force = st.checkbox("Force re-run (ignore matching fingerprints)")
+        cleanup_enabled = st.checkbox(
+            "Clean OCR with text model",
+            value=bool(project.settings.cleanup_enabled),
+            help=(
+                "Optional second-pass text model after vision OCR. "
+                "Adds one Ollama call per page; failures keep raw OCR."
+            ),
+        )
+        cleanup_mode_labels = {
+            "strip_leak": "Strip prompt leakage only",
+            "sanitize_light": "Strip leakage + light sanitize",
+            "rewrite": "Broader rewrite / normalize",
+        }
+        cleanup_mode = st.selectbox(
+            "Cleanup mode",
+            options=list(cleanup_mode_labels.keys()),
+            format_func=lambda m: cleanup_mode_labels[m],
+            index=(
+                list(cleanup_mode_labels.keys()).index(project.settings.cleanup_mode)
+                if project.settings.cleanup_mode in cleanup_mode_labels
+                else 0
+            ),
+            disabled=not cleanup_enabled,
+        )
+        cleanup_model_options = text_model_options
+        cleanup_model = st.selectbox(
+            "Cleanup model",
+            options=cleanup_model_options,
+            index=(
+                cleanup_model_options.index(project.settings.cleanup_model_name)
+                if project.settings.cleanup_model_name in cleanup_model_options
+                else (
+                    cleanup_model_options.index(project.settings.text_model_name)
+                    if project.settings.text_model_name in cleanup_model_options
+                    else 0
+                )
+            ),
+            disabled=not cleanup_enabled,
+            help="Text model for cleanup. Falls back to the text analysis model if unset.",
+        )
+        cleanup_manual = st.text_input(
+            "Advanced / manual cleanup model override",
+            value="",
+            disabled=not cleanup_enabled,
+        )
+        if cleanup_manual.strip():
+            cleanup_model = cleanup_manual.strip()
 
         if st.button("Save settings"):
             if live.status == "running":
@@ -232,6 +294,10 @@ def _render_workflow(runtime, root: str) -> None:
             settings.max_workers = int(workers)
             settings.allow_non_loopback = allow_remote
             settings.generation_options.temperature = 0.0
+            settings.cleanup_enabled = bool(cleanup_enabled)
+            settings.cleanup_mode = cleanup_mode
+            if cleanup_enabled:
+                settings.cleanup_model_name = cleanup_model
             project = projects.save_settings(project, settings)
             if live.status != "running":
                 coord.provider = OllamaVisionProvider(normalized)
@@ -261,11 +327,16 @@ def _render_workflow(runtime, root: str) -> None:
                     settings = project.settings
                     settings.base_url = normalized
                     settings.model_name = model
+                    settings.text_model_name = text_model
                     settings.prompt_id = prompt_id
                     settings.custom_prompt = custom.strip() or None
                     settings.preprocess_profile = preprocess
                     settings.max_workers = int(workers)
                     settings.allow_non_loopback = allow_remote
+                    settings.cleanup_enabled = bool(cleanup_enabled)
+                    settings.cleanup_mode = cleanup_mode
+                    if cleanup_enabled:
+                        settings.cleanup_model_name = cleanup_model
                     project = projects.save_settings(project, settings)
                     coord.provider = OllamaVisionProvider(normalized)
                     coord.start(force=force)
@@ -834,53 +905,67 @@ def _render_workflow(runtime, root: str) -> None:
             st.json((rm["envelope"] or {}).get("payload") or {})
 
 
+_PAGE_SHELL: dict[str, tuple[str, str]] = {
+    "Archive": (
+        "Archive",
+        "Browse notebooks by timeline, tags, and recent activity.",
+    ),
+    "Notebooks": (
+        "Notebooks",
+        "Open a notebook volume and jump into its pages.",
+    ),
+    "Search": (
+        "Search",
+        "Find text across transcribed notebook pages.",
+    ),
+    "Workflow": (
+        "Workflow",
+        "Import pages, run OCR, review results, and export.",
+    ),
+}
+
+
 def main() -> None:
-    st.set_page_config(page_title="Transcribe", layout="wide")
-    st.title("Transcribe")
-    st.caption("Local-first handwritten notebook OCR via Ollama")
+    configure_streamlit_page()
+    inject_global_styles()
 
     runtime = build_runtime_paths()
     runtime.ensure_layout()
     default_root = str(runtime.default_project_dir())
-    root = st.sidebar.text_input(
-        "Project directory", value=st.session_state.get("root", default_root)
-    )
-    st.session_state["root"] = root
-    st.sidebar.caption(f"Projects root: `{runtime.projects_dir}`")
-    st.sidebar.caption(f"Inbox: `{runtime.inbox_dir}`")
-    st.sidebar.caption(f"Exports: `{runtime.export_dir}`")
 
-    col_a, col_b = st.sidebar.columns(2)
-    if col_a.button("Create"):
-        try:
-            paths = open_project_paths(Path(root))
-            ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
-            st.sidebar.success("Created")
-            st.cache_resource.clear()
-        except TranscribeError as exc:
-            st.sidebar.error(str(exc))
-    if col_b.button("Open"):
-        try:
-            paths, projects, ingest = _services(root)
-            ingest.cleanup_staging()
-            projects.load(reconcile=True)
-            st.sidebar.success("Opened")
-            st.cache_resource.clear()
-            st.session_state["ui_mode"] = "Workflow"
-        except TranscribeError as exc:
-            st.sidebar.error(str(exc))
-
-    mode = st.sidebar.radio(
-        "Mode",
-        ["Archive", "Notebooks", "Search", "Workflow"],
-        index=["Archive", "Notebooks", "Search", "Workflow"].index(
-            st.session_state.get("ui_mode", "Archive")
+    with st.sidebar:
+        render_brand()
+        render_nav_section("Project")
+        root = st.text_input(
+            "Project directory", value=st.session_state.get("root", default_root)
         )
-        if st.session_state.get("ui_mode", "Archive")
-        in ["Archive", "Notebooks", "Search", "Workflow"]
-        else 0,
-    )
+        st.session_state["root"] = root
+        st.caption(f"Projects root: `{runtime.projects_dir}`")
+        st.caption(f"Inbox: `{runtime.inbox_dir}`")
+        st.caption(f"Exports: `{runtime.export_dir}`")
+
+        col_a, col_b = st.columns(2)
+        if col_a.button("Create", use_container_width=True):
+            try:
+                paths = open_project_paths(Path(root))
+                ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
+                st.success("Created")
+                st.cache_resource.clear()
+            except TranscribeError as exc:
+                st.error(str(exc))
+        if col_b.button("Open", use_container_width=True):
+            try:
+                paths, projects, ingest = _services(root)
+                ingest.cleanup_staging()
+                projects.load(reconcile=True)
+                st.cache_resource.clear()
+                set_ui_mode("Workflow")
+            except TranscribeError as exc:
+                st.error(str(exc))
+
+    mode = normalize_ui_mode(st.session_state.get("ui_mode"))
     st.session_state["ui_mode"] = mode
+    mode = render_mode_nav(mode)
 
     archive = ArchiveService(runtime)
     archive.ensure_index()
@@ -905,6 +990,9 @@ def main() -> None:
         except TranscribeError as exc:
             st.error(str(exc))
             st.session_state["show_page_viewer"] = False
+
+    title, desc = _PAGE_SHELL[mode]
+    render_page_shell(title, desc)
 
     if mode == "Archive":
         render_archive(runtime, archive)

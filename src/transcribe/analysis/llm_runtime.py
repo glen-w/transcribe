@@ -110,14 +110,14 @@ class OllamaTextClient:
         digest, verified = self._provider.resolve_model_identity(model)
         return digest if verified and digest else None
 
-    def generate(
+    def generate_with_meta(
         self,
         *,
         model: str,
         prompt: str,
         system: str | None = None,
         options: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> tuple[str, dict[str, Any]]:
         body: dict[str, Any] = {
             "model": model,
             "prompt": prompt if system is None else f"{system}\n\n{prompt}",
@@ -131,7 +131,31 @@ class OllamaTextClient:
             raise ProviderError(
                 "Ollama returned a non-object JSON response", code="bad_response"
             )
-        return str(payload.get("response") or "")
+        meta: dict[str, Any] = {}
+        for key in (
+            "total_duration",
+            "load_duration",
+            "prompt_eval_count",
+            "eval_count",
+            "prompt_eval_duration",
+            "eval_duration",
+        ):
+            if key in payload and isinstance(payload[key], (int, float)):
+                meta[key] = payload[key]
+        return str(payload.get("response") or ""), meta
+
+    def generate(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        system: str | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> str:
+        text, _meta = self.generate_with_meta(
+            model=model, prompt=prompt, system=system, options=options
+        )
+        return text
 
 
 @dataclass
@@ -165,17 +189,33 @@ class RecordedDoubleClient:
         system: str | None = None,
         options: dict[str, Any] | None = None,
     ) -> str:
-        _ = model, options
+        text, _meta = self.generate_with_meta(
+            model=model, prompt=prompt, system=system, options=options
+        )
+        return text
+
+    def generate_with_meta(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        system: str | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[str, dict[str, Any]]:
+        _ = model
         key = hashlib.sha256(
             f"{system or ''}\n{prompt}".encode("utf-8")
         ).hexdigest()[:16]
+        meta: dict[str, Any] = {}
+        if options and isinstance(options.get("eval_count"), (int, float)):
+            meta["eval_count"] = options["eval_count"]
         if key in self.responses:
-            return self.responses[key]
+            return self.responses[key], meta
         for marker, text in self.responses.items():
             if marker.startswith("contains:") and marker[9:] in prompt:
-                return text
+                return text, meta
         if "default" in self.responses:
-            return self.responses["default"]
+            return self.responses["default"], meta
         raise RuntimeError(f"no recorded response for prompt key {key}")
 
     def model_digest(self, model: str) -> str | None:

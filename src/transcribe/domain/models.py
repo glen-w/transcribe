@@ -43,6 +43,9 @@ class GenerationOptions:
         return {"temperature": self.temperature}
 
 
+CLEANUP_MODES = frozenset({"strip_leak", "sanitize_light", "rewrite"})
+
+
 @dataclass
 class OCRSettings:
     model_name: str = ""
@@ -55,6 +58,9 @@ class OCRSettings:
     max_workers: int = 1
     generation_options: GenerationOptions = field(default_factory=GenerationOptions)
     allow_non_loopback: bool = False
+    cleanup_enabled: bool = False
+    cleanup_mode: str = "strip_leak"
+    cleanup_model_name: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -68,11 +74,17 @@ class OCRSettings:
             "max_workers": self.max_workers,
             "generation_options": self.generation_options.as_dict(),
             "allow_non_loopback": self.allow_non_loopback,
+            "cleanup_enabled": self.cleanup_enabled,
+            "cleanup_mode": self.cleanup_mode,
+            "cleanup_model_name": self.cleanup_model_name,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OCRSettings:
         opts = data.get("generation_options") or {}
+        mode = str(data.get("cleanup_mode") or "strip_leak")
+        if mode not in CLEANUP_MODES:
+            mode = "strip_leak"
         return cls(
             model_name=data.get("model_name", ""),
             text_model_name=data.get("text_model_name", ""),
@@ -86,6 +98,85 @@ class OCRSettings:
                 temperature=float(opts.get("temperature", 0.0)),
             ),
             allow_non_loopback=bool(data.get("allow_non_loopback", False)),
+            cleanup_enabled=bool(data.get("cleanup_enabled", False)),
+            cleanup_mode=mode,
+            cleanup_model_name=str(data.get("cleanup_model_name") or ""),
+        )
+
+
+@dataclass
+class CleanupRecord:
+    """Post-OCR cleanup outcome; never alters OCRAttempt.status semantics."""
+
+    execution_status: str
+    acceptance_status: str
+    mode: str | None = None
+    model_name: str | None = None
+    model_digest: str | None = None
+    prompt_id: str | None = None
+    prompt_version: str | None = None
+    prompt_sha256: str | None = None
+    note: str | None = None
+    pre_cleanup_text: str | None = None
+    original_length: int | None = None
+    candidate_length: int | None = None
+    length_ratio: float | None = None
+    cleanup_validator_policy_id: str | None = None
+    cleanup_validator_policy_version: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "execution_status": self.execution_status,
+            "acceptance_status": self.acceptance_status,
+            "mode": self.mode,
+            "model_name": self.model_name,
+            "model_digest": self.model_digest,
+            "prompt_id": self.prompt_id,
+            "prompt_version": self.prompt_version,
+            "prompt_sha256": self.prompt_sha256,
+            "note": self.note,
+            "pre_cleanup_text": self.pre_cleanup_text,
+            "original_length": self.original_length,
+            "candidate_length": self.candidate_length,
+            "length_ratio": self.length_ratio,
+            "cleanup_validator_policy_id": self.cleanup_validator_policy_id,
+            "cleanup_validator_policy_version": self.cleanup_validator_policy_version,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> CleanupRecord | None:
+        if not data or not isinstance(data, dict):
+            return None
+        return cls(
+            execution_status=str(data.get("execution_status") or "disabled"),
+            acceptance_status=str(data.get("acceptance_status") or "not_applicable"),
+            mode=data.get("mode"),
+            model_name=data.get("model_name"),
+            model_digest=data.get("model_digest"),
+            prompt_id=data.get("prompt_id"),
+            prompt_version=data.get("prompt_version"),
+            prompt_sha256=data.get("prompt_sha256"),
+            note=data.get("note"),
+            pre_cleanup_text=data.get("pre_cleanup_text"),
+            original_length=(
+                int(data["original_length"])
+                if data.get("original_length") is not None
+                else None
+            ),
+            candidate_length=(
+                int(data["candidate_length"])
+                if data.get("candidate_length") is not None
+                else None
+            ),
+            length_ratio=(
+                float(data["length_ratio"])
+                if data.get("length_ratio") is not None
+                else None
+            ),
+            cleanup_validator_policy_id=data.get("cleanup_validator_policy_id"),
+            cleanup_validator_policy_version=data.get(
+                "cleanup_validator_policy_version"
+            ),
         )
 
 
@@ -319,9 +410,10 @@ class OCRAttempt:
     started_at: str
     completed_at: str | None = None
     error: AttemptError | None = None
+    cleanup: CleanupRecord | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "attempt_id": self.attempt_id,
             "status": self.status,
             "input_fingerprint": self.input_fingerprint,
@@ -333,6 +425,9 @@ class OCRAttempt:
             "completed_at": self.completed_at,
             "error": self.error.as_dict() if self.error else None,
         }
+        if self.cleanup is not None:
+            payload["cleanup"] = self.cleanup.as_dict()
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OCRAttempt:
@@ -348,6 +443,7 @@ class OCRAttempt:
             started_at=data["started_at"],
             completed_at=data.get("completed_at"),
             error=AttemptError.from_dict(data.get("error")),
+            cleanup=CleanupRecord.from_dict(data.get("cleanup")),
         )
 
 

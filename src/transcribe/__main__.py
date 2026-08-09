@@ -45,6 +45,22 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--force", action="store_true")
     p_run.add_argument("--workers", type=int, default=1)
     p_run.add_argument("--allow-remote-ollama", action="store_true")
+    p_run.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Enable optional post-OCR text-model cleanup",
+    )
+    p_run.add_argument(
+        "--cleanup-mode",
+        choices=["strip_leak", "sanitize_light", "rewrite"],
+        default=None,
+        help="Cleanup mode (requires --cleanup)",
+    )
+    p_run.add_argument(
+        "--cleanup-model",
+        default=None,
+        help="Text model for cleanup (defaults to project text analysis model)",
+    )
 
     p_export = sub.add_parser("export", help="Export markdown/text/notebook JSON")
     p_export.add_argument("project", type=Path)
@@ -142,6 +158,18 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return 2
             settings.allow_non_loopback = bool(args.allow_remote_ollama)
+            if args.cleanup:
+                settings.cleanup_enabled = True
+                if args.cleanup_mode:
+                    settings.cleanup_mode = args.cleanup_mode
+                if args.cleanup_model:
+                    settings.cleanup_model_name = args.cleanup_model.strip()
+            elif args.cleanup_mode or args.cleanup_model:
+                print(
+                    "error: --cleanup-mode / --cleanup-model require --cleanup",
+                    file=sys.stderr,
+                )
+                return 2
             project = projects.save_settings(project, settings)
             coord.provider = OllamaVisionProvider(settings.base_url)
 

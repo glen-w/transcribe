@@ -42,7 +42,7 @@ Run:
 # force re-OCR: add --force
 ```
 
-In the UI: Run tab → select model → Start transcription. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan.
+In the UI: Run tab → select vision model → optional **Clean OCR with text model** (mode + cleanup model) → Start transcription. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Details: [contracts/page-result.md](contracts/page-result.md).
 

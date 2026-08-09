@@ -81,7 +81,6 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
 
     del runtime
     archive.ensure_index()
-    st.subheader("Archive")
     years = archive.available_years()
     period_options = ["All", "Year", "Range"] if years else ["All", "Range"]
     period = st.selectbox("Period", period_options, index=0)
@@ -249,7 +248,6 @@ def _notebook_card(nb: NotebookSummary, *, return_mode: str) -> None:
 def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
     del runtime
     archive.ensure_index()
-    st.subheader("Notebooks")
     order = st.selectbox(
         "Order",
         ["oldest", "newest", "most_pages"],
@@ -322,7 +320,6 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
 def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
     del runtime
     archive.ensure_index()
-    st.subheader("Search")
     query = st.text_input("Search text", value=st.session_state.get("search_query", ""))
     st.session_state["search_query"] = query
     order = st.selectbox(

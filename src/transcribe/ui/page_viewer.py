@@ -151,6 +151,31 @@ def render_page_viewer(
         status = result.status if result else "pending"
         st.write(f"Status: **{status}**")
         attempt = result.active_attempt() if result else None
+        if attempt and attempt.cleanup is not None:
+            cu = attempt.cleanup
+            if cu.execution_status == "disabled":
+                pass
+            elif cu.acceptance_status == "applied":
+                st.caption(
+                    f"Cleanup: applied ({cu.mode}) via {cu.model_name or 'text model'}"
+                )
+            elif cu.acceptance_status == "unchanged":
+                st.caption(
+                    f"Cleanup: unchanged ({cu.note or 'identical'}) — kept OCR text"
+                )
+            elif cu.acceptance_status == "validator_rejected":
+                st.caption(
+                    f"Cleanup: validator rejected — {cu.note} (kept raw OCR)"
+                )
+            elif cu.execution_status == "provider_failed":
+                st.caption(
+                    f"Cleanup: provider failed — {cu.note} (kept raw OCR)"
+                )
+            elif cu.execution_status == "skipped_empty_source":
+                st.caption("Cleanup: skipped empty OCR source")
+            if cu.pre_cleanup_text is not None:
+                with st.expander("Pre-cleanup OCR text", expanded=False):
+                    st.text(cu.pre_cleanup_text)
         raw = attempt.raw_text if attempt else ""
         edited = result.edited_text if result else None
         if edited is not None and attempt and attempt.raw_text is not None:

@@ -24,8 +24,14 @@ def compute_input_fingerprint(
     preprocess_profile: str,
     preprocess_version: int,
     generation_options: dict[str, Any],
+    cleanup: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Return (hex digest, canonical fingerprint object)."""
+    """Return (hex digest, canonical fingerprint object).
+
+    When cleanup is enabled, pass a dict with frozen cleanup identity fields.
+    When disabled, omit ``cleanup`` (None) so fingerprints stay compatible with
+    pre-cleanup attempts.
+    """
     payload: dict[str, Any] = {
         "provider": provider,
         "model_name": model_name,
@@ -36,6 +42,8 @@ def compute_input_fingerprint(
         "preprocess": {"profile": preprocess_profile, "version": preprocess_version},
         "generation_options": generation_options,
     }
+    if cleanup is not None:
+        payload["cleanup"] = cleanup
     digest = hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
     return digest, payload
 
