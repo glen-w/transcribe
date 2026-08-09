@@ -11,7 +11,14 @@ class AnalysisModule(Protocol):
     module_id: str
     module_version: str
 
-    def run(self, document: AnalysisDocument, *, parents: dict | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        document: AnalysisDocument,
+        *,
+        parents: dict | None = None,
+        llm_ctx: Any = None,
+        question_text: str | None = None,
+    ) -> dict[str, Any]:
         """Return {outcome, payload, warnings?, partial?, capability_reason?, evidence?}."""
         ...
 
@@ -29,6 +36,7 @@ WAVE_1_E2 = "1e.2"
 
 def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModule]:
     """Return module instances for a delivery wave (default: through 1e.2)."""
+    from transcribe.analysis.modules.bertopic import BertopicModule
     from transcribe.analysis.modules.entity_sentiment import EntitySentimentModule
     from transcribe.analysis.modules.epistemic_markers import EpistemicMarkersModule
     from transcribe.analysis.modules.highlights import HighlightsModule
@@ -40,10 +48,12 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
     from transcribe.analysis.modules.llm_summary import LLMSummaryModule
     from transcribe.analysis.modules.narrative_summary import NarrativeSummaryModule
     from transcribe.analysis.modules.ner import NERModule
+    from transcribe.analysis.modules.semantic_similarity import SemanticSimilarityModule
     from transcribe.analysis.modules.sentiment import SentimentModule
     from transcribe.analysis.modules.stats import StatsModule
     from transcribe.analysis.modules.summary import SummaryModule
     from transcribe.analysis.modules.topic_modeling import TopicModelingModule
+    from transcribe.analysis.modules.topic_shift import TopicShiftModule
     from transcribe.analysis.modules.understandability import UnderstandabilityModule
     from transcribe.analysis.modules.wordclouds import WordcloudsModule
 
@@ -51,7 +61,13 @@ def get_registered_modules(*, wave: str | None = None) -> dict[str, AnalysisModu
     wave12 = [*wave11, WordcloudsModule()]
     wave13 = [*wave12, NERModule(), SentimentModule(), EpistemicMarkersModule()]
     wave14 = [*wave13, KeyphrasesModule(), EntitySentimentModule()]
-    wave1c = [*wave14, TopicModelingModule()]
+    wave1c = [
+        *wave14,
+        TopicModelingModule(),
+        SemanticSimilarityModule(),
+        TopicShiftModule(),
+        BertopicModule(),
+    ]
     wave1e1 = [*wave1c, HighlightsModule(), SummaryModule(), InsightsModule()]
     wave1e2 = [
         *wave1e1,
@@ -90,6 +106,10 @@ def get_wave13_modules() -> dict[str, AnalysisModule]:
 
 def get_wave14_modules() -> dict[str, AnalysisModule]:
     return get_registered_modules(wave=WAVE_1_4)
+
+
+def get_wave1c_modules() -> dict[str, AnalysisModule]:
+    return get_registered_modules(wave=WAVE_1_C)
 
 
 def get_wave1e_modules() -> dict[str, AnalysisModule]:

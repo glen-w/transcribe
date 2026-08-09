@@ -85,6 +85,8 @@ def _module_enrichment_mode(module: Any) -> str:
         from transcribe.analysis.modules import wordclouds as wc
 
         return wc.ENRICHMENT_MODE
+    if mid in {"topic_modeling", "bertopic"}:
+        return "baseline"
     return "none"
 
 

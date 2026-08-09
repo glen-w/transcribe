@@ -95,8 +95,26 @@ def _render_workflow(runtime, root: str) -> None:
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
 
-    tab_import, tab_run, tab_pages, tab_export, tab_overview, tab_summaries, tab_ask = st.tabs(
-        ["Import", "Run", "Pages", "Export", "Overview", "Summaries", "Ask notebook"]
+    (
+        tab_import,
+        tab_run,
+        tab_pages,
+        tab_export,
+        tab_overview,
+        tab_themes,
+        tab_summaries,
+        tab_ask,
+    ) = st.tabs(
+        [
+            "Import",
+            "Run",
+            "Pages",
+            "Export",
+            "Overview",
+            "Themes",
+            "Summaries",
+            "Ask notebook",
+        ]
     )
 
     with tab_import:
@@ -446,6 +464,79 @@ def _render_workflow(runtime, root: str) -> None:
                     st.json(payload)
             else:
                 st.warning(f"**{mid}:** unavailable")
+
+    with tab_themes:
+        from transcribe.analysis.modules import get_wave1c_modules
+        from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
+        from transcribe.analysis.storage import AnalysisStorage
+        from transcribe.ports import SystemClock, UuidGenerator
+
+        st.subheader("Themes")
+        st.caption(
+            "Keyphrases, topics, semantic motifs, and topic shifts along page order. "
+            "BERTopic remains an optional extra (`unavailable_extra` when missing)."
+        )
+        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+        theme_ids = [
+            "keyphrases",
+            "topic_modeling",
+            "semantic_similarity",
+            "topic_shift",
+            "bertopic",
+        ]
+        if st.button("Run Themes analysis (Wave 1c)"):
+            with st.spinner("Running Themes modules…"):
+                results = runner.run_batch(theme_ids)
+            for mid in theme_ids:
+                env = results.get(mid) or {}
+                st.write(
+                    f"**{mid}:** outcome=`{env.get('outcome')}` "
+                    f"capability=`{env.get('capability')}`"
+                )
+            st.rerun()
+
+        storage = AnalysisStorage(paths)
+        w1c = get_wave1c_modules()
+        assert set(theme_ids).issubset(set(w1c))
+        for mid in theme_ids:
+            rm = load_published_read_model(storage, mid, current_cache_identity=None)
+            env = rm.get("envelope")
+            if not env:
+                st.info(f"**{mid}:** unavailable — run Themes analysis first")
+                continue
+            cap = env.get("capability")
+            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
+            if cap == "unavailable_extra":
+                st.warning(banner + " (optional extra not available)")
+            elif cap in {"insufficient_data", "skipped_not_applicable"}:
+                st.info(banner)
+            elif cap == "failed":
+                st.error(banner)
+            else:
+                st.markdown(banner)
+            payload = env.get("payload") or {}
+            if mid == "keyphrases" and payload.get("phrases"):
+                st.write(
+                    ", ".join(
+                        p.get("phrase", "") for p in payload["phrases"][:12] if p.get("phrase")
+                    )
+                )
+            elif mid == "topic_modeling" and payload.get("topics"):
+                for topic in payload["topics"][:5]:
+                    terms = ", ".join(topic.get("terms") or [])
+                    st.write(f"- **{topic.get('label')}**: {terms}")
+            elif mid == "semantic_similarity":
+                motifs = payload.get("motifs") or []
+                st.caption(
+                    f"{payload.get('n_units', 0)} units · {len(motifs)} motif pair(s)"
+                )
+            elif mid == "topic_shift":
+                shifts = payload.get("shifts") or []
+                st.caption(
+                    f"{payload.get('n_units', 0)} units · {len(shifts)} shift boundary(ies)"
+                )
+            with st.expander(f"{mid} payload"):
+                st.json(payload)
 
     with tab_summaries:
         from transcribe.analysis.runner import AnalysisRunner, load_published_read_model

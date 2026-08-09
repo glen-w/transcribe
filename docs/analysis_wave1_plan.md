@@ -229,6 +229,17 @@ Ship in ordered decimal slices under thematic groups 1a–1e. **No next slice st
 | **Modules** | `entity_sentiment` (hard parents `ner`+`sentiment`), `keyphrases` (`notebook_eligibility_v1`) |
 | **Depends on** | 1.3 exit; hard-parent resolver before identity |
 
+### Wave 1c — Topics & similarity (completion)
+
+| | |
+|--|--|
+| **Modules** | `topic_modeling` (may already be present), `semantic_similarity`, `topic_shift`, `bertopic` (optional extra) |
+| **Depends on** | 1.4 exit; unit `order` chronology; eligibility for `topic_modeling` / `bertopic` |
+| **Payloads** | `topic_modeling_payload_v1`, `semantic_similarity_payload_v1`, `topic_shift_payload_v1`, `bertopic_payload_v1` |
+| **Also ship** | Themes surface; baseline ignore-matrix for optional `keyphrases` on topics/BERTopic; pin rows; `unavailable_extra` honesty for missing BERTopic |
+| **Out** | Emotion family / moments → **1d**; silent BERTopic substitutes |
+| **Exit** | §10 + ≥2-unit gates + 1.3/1.4 non-regression + Themes capability banners |
+
 ### Wave 1a — Foundations (thematic; delivered as 1.1 + 1.2)
 
 Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slices above for delivery tracking.

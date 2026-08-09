@@ -134,10 +134,12 @@ def test_epistemic_markers_hits_and_evidence():
         assert "source_ref" in ev
 
 
-def test_ner_unavailable_without_spacy():
+def test_ner_unavailable_without_spacy(monkeypatch):
     doc = _doc([("p0", "Alice met Bob in Paris.")])
+    import transcribe.analysis.modules.ner as ner_mod
+
+    monkeypatch.setattr(ner_mod, "_try_spacy_extract", lambda _text: None)
     result = NERModule().run(doc)
-    # Without spaCy in the default venv this is unavailable_extra.
     assert result["outcome"] == "skipped_not_applicable"
     assert result["capability_reason"] == "unavailable_extra"
 
@@ -293,9 +295,11 @@ def test_sentiment_cache_identity_includes_lexicon_digest(tmp_path: Path):
     assert "lexicon_digest" in sentiment_config()
 
 
-def test_unavailable_extra_capability_on_envelope(tmp_path: Path):
+def test_unavailable_extra_capability_on_envelope(tmp_path: Path, monkeypatch):
+    import transcribe.analysis.modules.ner as ner_mod
+
+    monkeypatch.setattr(ner_mod, "_try_spacy_extract", lambda _text: None)
     projects, runner = _project_with_pages(tmp_path, ["Alice met Bob."])
     env = runner.run_module("ner")
-    # Default venv has no spaCy → unavailable_extra capability
     assert env["outcome"] == "skipped_not_applicable"
     assert env["capability"] == "unavailable_extra"

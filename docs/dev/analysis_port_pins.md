@@ -29,6 +29,9 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `keyphrases` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/keyphrases/` (scoring idea) | n/a notebook TF-IDF adaptation | adaptation | 2026-08-09 |
 | `entity_sentiment` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/entity_sentiment/` | n/a join adaptation | adaptation | 2026-08-09 |
 | `topic_modeling` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/topic_modeling/` | n/a seed-bucket adaptation (no sklearn) | adaptation | 2026-08-09 |
+| `semantic_similarity` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/semantic_similarity/` | n/a BoW cosine adaptation; multi-speaker gate dropped | adaptation | 2026-08-09 |
+| `topic_shift` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/topic_shift/` | n/a order-based cosine-drop adaptation | adaptation | 2026-08-09 |
+| `bertopic` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/bertopic/` | n/a optional extra → `unavailable_extra` (no silent substitute) | adaptation | 2026-08-09 |
 | `highlights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/highlights/` | n/a notebook salience adaptation | adaptation | 2026-08-09 |
 | `summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/summary/` | n/a from-highlights adaptation | adaptation | 2026-08-09 |
 | `insights` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/insights/` | n/a; eligibility via `notebook_eligibility_v1` | adaptation | 2026-08-09 |

@@ -7,7 +7,7 @@ from typing import Any
 from transcribe.analysis.storage import AnalysisStorage
 
 # Wave 1.2: wordclouds baseline never consumes keyphrases.
-_BASELINE_NEVER_CONSUME = frozenset({"wordclouds"})
+_BASELINE_NEVER_CONSUME = frozenset({"wordclouds", "topic_modeling", "bertopic"})
 
 # Hard parents: consumer → ordered list of (parent_id, acceptable outcomes)
 HARD_PARENTS: dict[str, list[tuple[str, frozenset[str]]]] = {
@@ -36,8 +36,13 @@ def resolve_optional_parents(
     storage: AnalysisStorage,
 ) -> list[dict[str, Any]]:
     """Return optional parents actually consumed for identity."""
-    if module_id in _BASELINE_NEVER_CONSUME and enrichment_mode == "baseline":
-        _ = storage.read_published("keyphrases")
+    if module_id in _BASELINE_NEVER_CONSUME and enrichment_mode in {
+        "baseline",
+        "none",
+    }:
+        # Probe published keyphrases without consuming (identity ignore-matrix).
+        if module_id in {"wordclouds", "topic_modeling", "bertopic"}:
+            _ = storage.read_published("keyphrases")
         return []
 
     consumed: list[dict[str, Any]] = []
@@ -131,6 +136,9 @@ def batch_module_order(module_ids: list[str]) -> list[str]:
         "keyphrases": 40,
         "entity_sentiment": 41,
         "topic_modeling": 50,
+        "semantic_similarity": 51,
+        "topic_shift": 52,
+        "bertopic": 53,
         "highlights": 60,
         "summary": 61,
         "insights": 62,

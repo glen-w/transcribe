@@ -218,6 +218,15 @@ Compatibility is judged on **analytical payload semantics**; rendered pixels / P
 
 Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do not invent wall-clock timestamps. Wave 1.3 modules are **ungated** relative to `notebook_eligibility_v1`.
 
+### Topics & similarity payloads (Wave 1c)
+
+| Module | Payload id | Notes |
+|--------|------------|-------|
+| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics; baseline ignores optional `keyphrases` |
+| `semantic_similarity` | `semantic_similarity_payload_v1` | Ungated; BoW TF-IDF cosine `matrix` + `motifs[]`; no multi-speaker gate |
+| `topic_shift` | `topic_shift_payload_v1` | Ungated; consecutive cosine drops vs unit `order` (+ optional `date`); `shifts[]` |
+| `bertopic` | `bertopic_payload_v1` | Eligibility required; optional extra — missing/unconfigured → `skipped_not_applicable` + capability `unavailable_extra` (never silent LDA substitute) |
+
 | Module | `insufficient_data` when | `success` when | Notes |
 |--------|--------------------------|----------------|-------|
 | `semantic_similarity`, `topic_shift` | `< 2` units | ≥2 units | |
@@ -244,7 +253,10 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 |--------|------------|-------|
 | `keyphrases` | `keyphrases_payload_v1` | Eligibility required |
 | `entity_sentiment` | `entity_sentiment_payload_v1` | Hard parents `ner`+`sentiment` |
-| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics |
+| `topic_modeling` | `topic_modeling_payload_v1` | Eligibility required; seed-bucket topics (see Wave 1c) |
+| `semantic_similarity` | `semantic_similarity_payload_v1` | See Wave 1c |
+| `topic_shift` | `topic_shift_payload_v1` | See Wave 1c |
+| `bertopic` | `bertopic_payload_v1` | See Wave 1c |
 | `highlights` | `highlights_payload_v1` | Eligibility; prefer `paragraph_v1` |
 | `summary` | `summary_payload_v1` | Hard parent `highlights` |
 | `insights` | `insights_payload_v1` | Hard parents `highlights`+`topic_modeling`; eligibility |
