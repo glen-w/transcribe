@@ -7,7 +7,7 @@ Import pages → run local OCR → review/edit → export. Product framing: [PRO
 
 ## 1. Create or open a project
 
-**UI:** open **Workflow → Transcribe** and choose/create a project under your projects directory.
+**UI:** set the project directory in the sidebar, optionally set **Notebook name**, then **Create** or **Open**. Rename later from **View** (Rename action) or **Workflow → Import**.
 
 **CLI:**
 
@@ -25,7 +25,7 @@ Supported inputs: JPEG, PNG, PDF (unencrypted). PDFs are rendered to per-page PN
 ./transcribe.sh cli import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./scan.pdf --dpi 200
 ```
 
-In the UI: **Transcribe → Import** → upload → Import files.
+In the UI: **Workflow → Import** → set **Notebook name** if needed → upload → Import files.
 
 ## 3. Choose a vision model and run
 

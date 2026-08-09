@@ -9,15 +9,24 @@ import streamlit as st
 
 # Notebooks section
 _NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive")
-# Workflow section
-_WORKFLOW_MODES: tuple[str, ...] = ("Transcribe", "Analyse", "Export")
+# Workflow section (import → OCR → review, then analyse / export)
+_WORKFLOW_MODES: tuple[str, ...] = (
+    "Import",
+    "Transcribe",
+    "Review",
+    "Analyse",
+    "Export",
+)
 # App settings (global prefs, not project OCR settings)
 _SETTINGS_MODES: tuple[str, ...] = ("Settings",)
 _MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES, *_SETTINGS_MODES)
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Notebooks": "View",
-    "Workflow": "Transcribe",
+    "Workflow": "Import",
+    # Former Transcribe sub-tabs
+    "Run OCR": "Transcribe",
+    "Pages": "Review",
     # Older Analyse spelling / synonyms
     "Analyze": "Analyse",
     "Run Analysis": "Analyse",
@@ -366,7 +375,10 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
         "width": "stretch",
     }
     if st.button(text, **kwargs):
-        if st.session_state.get("ui_mode") != mode:
+        # Re-clicking the active mode clears page-viewer overlay (no separate Back).
+        if st.session_state.get("ui_mode") != mode or st.session_state.get(
+            "show_page_viewer"
+        ):
             set_ui_mode(mode)
 
 
@@ -380,18 +392,8 @@ def render_mode_nav(current: str) -> str:
         _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
 
     render_nav_section("Workflow")
-    workflow_labels = {
-        "Transcribe": "Transcribe",
-        "Analyse": "Analyse",
-        "Export": "Export",
-    }
     for mode in _WORKFLOW_MODES:
-        _nav_button(
-            label=workflow_labels[mode],
-            mode=mode,
-            current=current,
-            key_prefix="nav",
-        )
+        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
 
     render_nav_section("App")
     for mode in _SETTINGS_MODES:

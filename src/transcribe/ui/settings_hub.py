@@ -35,6 +35,30 @@ def render_configuration_panel() -> None:
             f"Workspace settings unreadable ({view.recovery_code}). "
             "Use Reset workspace below."
         )
+
+    st.markdown("#### Import")
+    st.caption("Used when importing PDFs (Workflow → Import). Default 200 DPI.")
+    dpi = st.number_input(
+        "PDF render DPI",
+        min_value=72,
+        max_value=600,
+        value=int(view.effective.ingest.render_dpi),
+        key="settings_ingest_render_dpi",
+    )
+    if st.button("Save import defaults", type="primary", key="settings_ingest_save"):
+        try:
+            loaded = load_workspace_settings()
+            cfg = deep_merge_dict({}, loaded.config)
+            cfg.setdefault("ingest", {})["render_dpi"] = int(dpi)
+            save_workspace_settings(config=cfg, activations=loaded.activations)
+            clear_config_cache()
+            reload_config()
+            st.success("Saved.")
+            st.rerun()
+        except ConfigError as exc:
+            st.error(f"{exc.code}: {exc}")
+
+    st.divider()
     st.caption("Curated knobs (effective values). Edit via Analysis / Models / Profiles.")
     for field in COMMON_SETTINGS_SCHEMA:
         parts = field.key.split(".")
@@ -44,6 +68,8 @@ def render_configuration_panel() -> None:
                 cur = getattr(view.effective.ocr, parts[1])
             elif parts[0] == "llm":
                 cur = getattr(view.effective.llm, parts[1])
+            elif parts[0] == "ingest":
+                cur = getattr(view.effective.ingest, parts[1])
             elif parts[0] == "analysis":
                 sub = getattr(view.effective.analysis, parts[1])
                 cur = getattr(sub, parts[2]) if len(parts) > 2 else sub
@@ -74,7 +100,7 @@ def render_models_panel() -> None:
     llm = view.effective.llm
     st.caption(
         "Workspace OCR URL seeds new projects only. Open-project URL is independent "
-        "until you Apply or save on Transcribe → Run."
+        "until you Apply or save on Workflow → Transcribe."
     )
     base_url = st.text_input("Workspace Ollama base URL", value=ocr.base_url or "")
     text_pref = st.text_input(

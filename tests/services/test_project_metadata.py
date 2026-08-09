@@ -116,3 +116,54 @@ def test_malformed_date_state_rejected():
                 "date_source": None,
             }
         )
+
+
+def test_delete_managed_notebook_removes_project_keeps_external(
+    tmp_path: Path,
+) -> None:
+    from transcribe.services.project import delete_managed_notebook
+
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    original = tmp_path / "originals" / "scan.png"
+    original.parent.mkdir()
+    original.write_bytes(_png_bytes())
+
+    paths = open_project_paths(projects_dir / "nb")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("To delete")
+    IngestService(paths, clock=clock, ids=ids).import_bytes(
+        "scan.png", original.read_bytes()
+    )
+    assert paths.manifest.is_file()
+    assert any(paths.sources_dir.iterdir())
+
+    deleted = delete_managed_notebook(paths.root, projects_dir=projects_dir)
+    assert deleted == paths.root.resolve()
+    assert not paths.root.exists()
+    assert original.is_file()
+    assert original.read_bytes() == _png_bytes()
+
+
+def test_delete_managed_notebook_refuses_projects_root(tmp_path: Path) -> None:
+    from transcribe.errors import ProjectError
+    from transcribe.services.project import delete_managed_notebook
+
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    with pytest.raises(ProjectError, match="projects directory itself"):
+        delete_managed_notebook(projects_dir, projects_dir=projects_dir)
+
+
+def test_delete_managed_notebook_refuses_escape(tmp_path: Path) -> None:
+    from transcribe.errors import ProjectError
+    from transcribe.services.project import delete_managed_notebook
+
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "project.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(ProjectError, match="escapes"):
+        delete_managed_notebook(outside, projects_dir=projects_dir)

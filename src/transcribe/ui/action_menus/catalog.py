@@ -26,7 +26,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.TRANSCRIBE,
         "Transcribe",
         ":material/document_scanner:",
-        "Open the Transcribe workflow for this notebook.",
+        "Open the Transcribe (OCR) workflow for this notebook.",
     ),
     ActionDef(
         ActionId.ANALYSE,
@@ -40,6 +40,18 @@ ACTIONS: tuple[ActionDef, ...] = (
         ":material/ios_share:",
         "Open Export for this notebook.",
     ),
+    ActionDef(
+        ActionId.RENAME,
+        "Rename",
+        ":material/edit:",
+        "Rename this notebook (display title only; the project folder path is unchanged).",
+    ),
+    ActionDef(
+        ActionId.DELETE,
+        "Delete",
+        ":material/delete:",
+        "Delete this managed notebook (imported copies only). External originals are not touched.",
+    ),
 )
 
 ACTIONS_BY_ID: dict[ActionId, ActionDef] = {a.id: a for a in ACTIONS}
@@ -50,18 +62,28 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
         ActionId.TRANSCRIBE,
         ActionId.ANALYSE,
         ActionId.EXPORT,
+        ActionId.RENAME,
     ),
     SectionId.VIEW_NOTEBOOK: (
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
         ActionId.ANALYSE,
         ActionId.EXPORT,
+        ActionId.RENAME,
+        ActionId.DELETE,
     ),
 }
 
 NOTEBOOK_STRIP: tuple[ActionId, ...] = (
     ActionId.OPEN,
     ActionId.TRANSCRIBE,
+)
+
+VIEW_NOTEBOOK_STRIP: tuple[ActionId, ...] = (
+    ActionId.OPEN,
+    ActionId.TRANSCRIBE,
+    ActionId.RENAME,
+    ActionId.DELETE,
 )
 
 BUILT_IN_STANDARD_MENU: tuple[ActionId, ...] = (
@@ -80,7 +102,7 @@ class SectionDefaultKey:
 
 SECTION_DEFAULTS: dict[SectionDefaultKey, tuple[ActionId, ...]] = {
     SectionDefaultKey(SectionId.ARCHIVE_NOTEBOOK, "notebook"): NOTEBOOK_STRIP,
-    SectionDefaultKey(SectionId.VIEW_NOTEBOOK, "notebook"): NOTEBOOK_STRIP,
+    SectionDefaultKey(SectionId.VIEW_NOTEBOOK, "notebook"): VIEW_NOTEBOOK_STRIP,
 }
 
 

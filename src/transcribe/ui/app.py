@@ -78,9 +78,11 @@ def _services(project_root: str):
     clock = SystemClock()
     ids = UuidGenerator()
     projects = ProjectService(paths, clock=clock, ids=ids)
+    from transcribe.config.facade import get_config
     from transcribe.ingest import IngestService
 
-    ingest = IngestService(paths, clock=clock, ids=ids)
+    dpi = int(get_config().effective.ingest.render_dpi)
+    ingest = IngestService(paths, clock=clock, ids=ids, default_dpi=dpi)
     return paths, projects, ingest
 
 
@@ -104,7 +106,7 @@ def _render_job_progress(progress: JobProgress) -> None:
         )
 
 
-def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None:
+def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     section = normalize_ui_mode(section)
     try:
         paths, projects, ingest = _services(root)
@@ -115,7 +117,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
         return
 
     if (
-        section == "Transcribe"
+        section == "Review"
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
     ):
@@ -128,7 +130,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
             or [p.page_id for p in project.pages],
             view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
-            back_label="Back to Transcribe",
+            back_label="Back to Review",
         )
         return
 
@@ -149,26 +151,23 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
         _render_export_panel(runtime, paths, projects, project, root)
         return
 
-    # Transcribe (OCR run): import → run → pages
-    coord = get_coordinator(str(paths.root))
-    live = coord.get_progress()
-    was_running = st.session_state.get("_job_was_running", False)
-    st.session_state["_job_was_running"] = live.status == "running"
-
-    tab_import, tab_run, tab_pages = st.tabs(["Import", "Run OCR", "Pages"])
-
-    with tab_import:
+    if section == "Import":
         uploaded = st.file_uploader(
             "JPEG / PNG / PDF",
             type=["jpg", "jpeg", "png", "pdf"],
             accept_multiple_files=True,
         )
-        dpi = st.number_input("PDF render DPI", min_value=72, max_value=600, value=200)
+        from transcribe.config.facade import get_config
+
+        dpi = int(get_config().effective.ingest.render_dpi)
+        st.caption(
+            f"PDF render DPI: **{dpi}** (change under Settings → Configuration)"
+        )
         if st.button("Import files") and uploaded:
             for f in uploaded:
                 try:
                     project = ingest.import_bytes(
-                        f.name, f.getvalue(), render_dpi=int(dpi)
+                        f.name, f.getvalue(), render_dpi=dpi
                     )
                     bump_archive_generation(runtime)
                     st.success(f"Imported {f.name}")
@@ -176,217 +175,35 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
                     st.error(f"{f.name}: {exc}")
             st.rerun()
         st.write(f"Pages in project: **{len(project.pages)}**")
-        tags_in = st.text_input("Notebook tags (comma-separated)", value=", ".join(project.tags))
+        title_key = f"import_notebook_title__{project.id}"
+        if title_key not in st.session_state:
+            st.session_state[title_key] = project.title or ""
+        title_in = st.text_input(
+            "Notebook name",
+            key=title_key,
+            help="Display title for this notebook. The project folder path is unchanged.",
+        )
+        if st.button("Save notebook name"):
+            cleaned = title_in.strip()
+            if not cleaned:
+                st.error("Notebook name cannot be empty.")
+            else:
+                project = projects.update_notebook_metadata(title=cleaned)
+                bump_archive_generation(runtime)
+                st.session_state[title_key] = project.title
+                st.success("Notebook name saved")
+        tags_in = st.text_input(
+            "Notebook tags (comma-separated)", value=", ".join(project.tags)
+        )
         if st.button("Save notebook tags"):
             project = projects.update_notebook_metadata(
                 tags=[t for t in tags_in.split(",")]
             )
             bump_archive_generation(runtime)
             st.success("Tags saved")
+        return
 
-    with tab_run:
-        base_url = st.text_input("Ollama base URL", value=project.settings.base_url)
-        try:
-            normalized = normalize_base_url(base_url)
-            remote = not is_local_machine_host(normalized)
-        except Exception as exc:
-            st.error(str(exc))
-            normalized = project.settings.base_url
-            remote = False
-
-        allow_remote = False
-        if remote:
-            st.warning(
-                "This Ollama host is not loopback. Page images will leave this machine."
-            )
-            allow_remote = st.checkbox("I understand and want to use this remote host")
-
-        provider = OllamaVisionProvider(normalized)
-        c1, c2 = st.columns([1, 1])
-        refresh = c2.button("Refresh Models")
-        if refresh:
-            invalidate_discovery_cache(normalized)
-        discovery = provider.list_vision_models(refresh=refresh)
-        if discovery.error:
-            st.caption(f"Discovery: {discovery.error}")
-        names = [m.name for m in discovery.models]
-        all_discovery = provider.list_models(refresh=False)
-        unknown = [m.name for m in all_discovery.models if not m.capability_known]
-        model = st.selectbox(
-            "Vision model",
-            options=names or [project.settings.model_name or ""],
-            index=0 if names else 0,
-        )
-        text_model_options = suitable_text_model_names(all_discovery.models)
-        if (
-            project.settings.text_model_name
-            and is_unsuitable_text_model_name(project.settings.text_model_name)
-        ):
-            st.warning(
-                f"Saved text model `{project.settings.text_model_name}` is "
-                "vision/embedding — choose a text model below."
-            )
-        if not text_model_options:
-            st.caption("No suitable text models discovered; use manual override.")
-            text_model_options = [""]
-        text_model = st.selectbox(
-            "Text analysis model",
-            options=text_model_options,
-            index=(
-                text_model_options.index(project.settings.text_model_name)
-                if project.settings.text_model_name in text_model_options
-                else 0
-            ),
-            help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
-        )
-        text_manual = st.text_input(
-            "Advanced / manual text model override",
-            value="",
-            help="Exact Ollama model name for Summaries / Ask notebook LLM modules.",
-        )
-        if text_manual.strip():
-            text_model = text_manual.strip()
-        manual = st.text_input(
-            "Advanced / manual vision model override",
-            value="",
-            help="Use when capabilities are unknown on older Ollama builds.",
-        )
-        if manual.strip():
-            model = manual.strip()
-        if unknown:
-            with st.expander("Models with unknown capabilities"):
-                st.write(", ".join(unknown))
-
-        prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
-        custom = st.text_area(
-            "Custom prompt override (optional)", value=project.settings.custom_prompt or ""
-        )
-        preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
-        workers = st.selectbox("Workers", [1, 2], index=0)
-        force = st.checkbox("Force re-run (ignore matching fingerprints)")
-        cleanup_enabled = st.checkbox(
-            "Clean OCR with text model",
-            value=bool(project.settings.cleanup_enabled),
-            help=(
-                "Optional second-pass text model after vision OCR. "
-                "Adds one Ollama call per page; failures keep raw OCR."
-            ),
-        )
-        cleanup_mode_labels = {
-            "strip_leak": "Strip prompt leakage only",
-            "sanitize_light": "Strip leakage + light sanitize",
-            "rewrite": "Broader rewrite / normalize",
-        }
-        cleanup_mode = st.selectbox(
-            "Cleanup mode",
-            options=list(cleanup_mode_labels.keys()),
-            format_func=lambda m: cleanup_mode_labels[m],
-            index=(
-                list(cleanup_mode_labels.keys()).index(project.settings.cleanup_mode)
-                if project.settings.cleanup_mode in cleanup_mode_labels
-                else 0
-            ),
-            disabled=not cleanup_enabled,
-        )
-        cleanup_model_options = text_model_options
-        cleanup_model = st.selectbox(
-            "Cleanup model",
-            options=cleanup_model_options,
-            index=(
-                cleanup_model_options.index(project.settings.cleanup_model_name)
-                if project.settings.cleanup_model_name in cleanup_model_options
-                else (
-                    cleanup_model_options.index(project.settings.text_model_name)
-                    if project.settings.text_model_name in cleanup_model_options
-                    else 0
-                )
-            ),
-            disabled=not cleanup_enabled,
-            help=(
-                "Text model for cleanup (vision/embedding filtered out). "
-                "Falls back to the text analysis model if unset."
-            ),
-        )
-        cleanup_manual = st.text_input(
-            "Advanced / manual cleanup model override",
-            value="",
-            disabled=not cleanup_enabled,
-        )
-        if cleanup_manual.strip():
-            cleanup_model = cleanup_manual.strip()
-
-        if st.button("Save settings"):
-            if live.status == "running":
-                st.warning(
-                    "A job is running; settings will apply to the next job only "
-                    "(the active JobPlan is frozen)."
-                )
-            settings = project.settings
-            settings.base_url = normalized
-            settings.model_name = model
-            settings.text_model_name = text_model
-            settings.prompt_id = prompt_id
-            settings.custom_prompt = custom.strip() or None
-            settings.preprocess_profile = preprocess
-            settings.max_workers = int(workers)
-            settings.allow_non_loopback = allow_remote
-            settings.generation_options.temperature = 0.0
-            settings.cleanup_enabled = bool(cleanup_enabled)
-            settings.cleanup_mode = cleanup_mode
-            if cleanup_enabled:
-                settings.cleanup_model_name = cleanup_model
-            project = projects.save_settings(project, settings)
-            if live.status != "running":
-                coord.provider = OllamaVisionProvider(normalized)
-            st.success("Settings saved")
-
-        poll = timedelta(seconds=2) if live.status == "running" or was_running else None
-
-        @st.fragment(run_every=poll)
-        def job_status_panel() -> None:
-            progress = coord.get_progress()
-            _render_job_progress(progress)
-            if (
-                st.session_state.get("_job_was_running")
-                and progress.status != "running"
-            ):
-                st.session_state["_job_was_running"] = False
-                bump_archive_generation(runtime)
-                st.rerun()
-
-        job_status_panel()
-
-        b1, b2 = st.columns(2)
-        if b1.button("Start transcription", disabled=live.status == "running"):
-            if remote and not allow_remote:
-                st.error("Enable the remote-host acknowledgement first.")
-            else:
-                try:
-                    settings = project.settings
-                    settings.base_url = normalized
-                    settings.model_name = model
-                    settings.text_model_name = text_model
-                    settings.prompt_id = prompt_id
-                    settings.custom_prompt = custom.strip() or None
-                    settings.preprocess_profile = preprocess
-                    settings.max_workers = int(workers)
-                    settings.allow_non_loopback = allow_remote
-                    settings.cleanup_enabled = bool(cleanup_enabled)
-                    settings.cleanup_mode = cleanup_mode
-                    if cleanup_enabled:
-                        settings.cleanup_model_name = cleanup_model
-                    project = projects.save_settings(project, settings)
-                    coord.provider = OllamaVisionProvider(normalized)
-                    coord.start(force=force)
-                    st.session_state["_job_was_running"] = True
-                    st.rerun()
-                except (JobConflictError, TranscribeError) as exc:
-                    st.error(str(exc))
-        if b2.button("Stop after current page", disabled=live.status != "running"):
-            coord.request_cancel()
-            st.info("Stopping after current page…")
-
-    with tab_pages:
+    if section == "Review":
         if not project.pages:
             st.info("No pages yet.")
         else:
@@ -396,7 +213,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
                 default_id = page_ids[0]
             st.session_state["view_page_id"] = default_id
             st.session_state["view_page_ids"] = page_ids
-            project = render_page_viewer(
+            render_page_viewer(
                 paths=paths,
                 projects=projects,
                 project=project,
@@ -405,8 +222,214 @@ def _render_workflow(runtime, root: str, *, section: str = "Transcribe") -> None
                 highlight_query="",
                 show_back=False,
             )
+        return
 
-    # Export + analysis result tabs live under Workflow → Export / Analyse.
+    # Transcribe: configure Ollama and run OCR
+    coord = get_coordinator(str(paths.root))
+    live = coord.get_progress()
+    was_running = st.session_state.get("_job_was_running", False)
+    st.session_state["_job_was_running"] = live.status == "running"
+
+    base_url = st.text_input("Ollama base URL", value=project.settings.base_url)
+    try:
+        normalized = normalize_base_url(base_url)
+        remote = not is_local_machine_host(normalized)
+    except Exception as exc:
+        st.error(str(exc))
+        normalized = project.settings.base_url
+        remote = False
+
+    allow_remote = False
+    if remote:
+        st.warning(
+            "This Ollama host is not loopback. Page images will leave this machine."
+        )
+        allow_remote = st.checkbox("I understand and want to use this remote host")
+
+    provider = OllamaVisionProvider(normalized)
+    _, c2 = st.columns([1, 1])
+    refresh = c2.button("Refresh Models")
+    if refresh:
+        invalidate_discovery_cache(normalized)
+    discovery = provider.list_vision_models(refresh=refresh)
+    if discovery.error:
+        st.caption(f"Discovery: {discovery.error}")
+    names = [m.name for m in discovery.models]
+    all_discovery = provider.list_models(refresh=False)
+    unknown = [m.name for m in all_discovery.models if not m.capability_known]
+    model = st.selectbox(
+        "Vision model",
+        options=names or [project.settings.model_name or ""],
+        index=0 if names else 0,
+    )
+    text_model_options = suitable_text_model_names(all_discovery.models)
+    if (
+        project.settings.text_model_name
+        and is_unsuitable_text_model_name(project.settings.text_model_name)
+    ):
+        st.warning(
+            f"Saved text model `{project.settings.text_model_name}` is "
+            "vision/embedding — choose a text model below."
+        )
+    if not text_model_options:
+        st.caption("No suitable text models discovered; use manual override.")
+        text_model_options = [""]
+    text_model = st.selectbox(
+        "Text analysis model",
+        options=text_model_options,
+        index=(
+            text_model_options.index(project.settings.text_model_name)
+            if project.settings.text_model_name in text_model_options
+            else 0
+        ),
+        help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
+    )
+    text_manual = st.text_input(
+        "Advanced / manual text model override",
+        value="",
+        help="Exact Ollama model name for Summaries / Ask notebook LLM modules.",
+    )
+    if text_manual.strip():
+        text_model = text_manual.strip()
+    manual = st.text_input(
+        "Advanced / manual vision model override",
+        value="",
+        help="Use when capabilities are unknown on older Ollama builds.",
+    )
+    if manual.strip():
+        model = manual.strip()
+    if unknown:
+        with st.expander("Models with unknown capabilities"):
+            st.write(", ".join(unknown))
+
+    prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
+    custom = st.text_area(
+        "Custom prompt override (optional)", value=project.settings.custom_prompt or ""
+    )
+    preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
+    workers = st.selectbox("Workers", [1, 2], index=0)
+    force = st.checkbox("Force re-run (ignore matching fingerprints)")
+    cleanup_enabled = st.checkbox(
+        "Clean OCR with text model",
+        value=bool(project.settings.cleanup_enabled),
+        help=(
+            "Optional second-pass text model after vision OCR. "
+            "Adds one Ollama call per page; failures keep raw OCR."
+        ),
+    )
+    cleanup_mode_labels = {
+        "strip_leak": "Strip prompt leakage only",
+        "sanitize_light": "Strip leakage + light sanitize",
+        "rewrite": "Broader rewrite / normalize",
+    }
+    cleanup_mode = st.selectbox(
+        "Cleanup mode",
+        options=list(cleanup_mode_labels.keys()),
+        format_func=lambda m: cleanup_mode_labels[m],
+        index=(
+            list(cleanup_mode_labels.keys()).index(project.settings.cleanup_mode)
+            if project.settings.cleanup_mode in cleanup_mode_labels
+            else 0
+        ),
+        disabled=not cleanup_enabled,
+    )
+    cleanup_model_options = text_model_options
+    cleanup_model = st.selectbox(
+        "Cleanup model",
+        options=cleanup_model_options,
+        index=(
+            cleanup_model_options.index(project.settings.cleanup_model_name)
+            if project.settings.cleanup_model_name in cleanup_model_options
+            else (
+                cleanup_model_options.index(project.settings.text_model_name)
+                if project.settings.text_model_name in cleanup_model_options
+                else 0
+            )
+        ),
+        disabled=not cleanup_enabled,
+        help=(
+            "Text model for cleanup (vision/embedding filtered out). "
+            "Falls back to the text analysis model if unset."
+        ),
+    )
+    cleanup_manual = st.text_input(
+        "Advanced / manual cleanup model override",
+        value="",
+        disabled=not cleanup_enabled,
+    )
+    if cleanup_manual.strip():
+        cleanup_model = cleanup_manual.strip()
+
+    if st.button("Save settings"):
+        if live.status == "running":
+            st.warning(
+                "A job is running; settings will apply to the next job only "
+                "(the active JobPlan is frozen)."
+            )
+        settings = project.settings
+        settings.base_url = normalized
+        settings.model_name = model
+        settings.text_model_name = text_model
+        settings.prompt_id = prompt_id
+        settings.custom_prompt = custom.strip() or None
+        settings.preprocess_profile = preprocess
+        settings.max_workers = int(workers)
+        settings.allow_non_loopback = allow_remote
+        settings.generation_options.temperature = 0.0
+        settings.cleanup_enabled = bool(cleanup_enabled)
+        settings.cleanup_mode = cleanup_mode
+        if cleanup_enabled:
+            settings.cleanup_model_name = cleanup_model
+        project = projects.save_settings(project, settings)
+        if live.status != "running":
+            coord.provider = OllamaVisionProvider(normalized)
+        st.success("Settings saved")
+
+    poll = timedelta(seconds=2) if live.status == "running" or was_running else None
+
+    @st.fragment(run_every=poll)
+    def job_status_panel() -> None:
+        progress = coord.get_progress()
+        _render_job_progress(progress)
+        if (
+            st.session_state.get("_job_was_running")
+            and progress.status != "running"
+        ):
+            st.session_state["_job_was_running"] = False
+            bump_archive_generation(runtime)
+            st.rerun()
+
+    job_status_panel()
+
+    b1, b2 = st.columns(2)
+    if b1.button("Start transcription", disabled=live.status == "running"):
+        if remote and not allow_remote:
+            st.error("Enable the remote-host acknowledgement first.")
+        else:
+            try:
+                settings = project.settings
+                settings.base_url = normalized
+                settings.model_name = model
+                settings.text_model_name = text_model
+                settings.prompt_id = prompt_id
+                settings.custom_prompt = custom.strip() or None
+                settings.preprocess_profile = preprocess
+                settings.max_workers = int(workers)
+                settings.allow_non_loopback = allow_remote
+                settings.cleanup_enabled = bool(cleanup_enabled)
+                settings.cleanup_mode = cleanup_mode
+                if cleanup_enabled:
+                    settings.cleanup_model_name = cleanup_model
+                project = projects.save_settings(project, settings)
+                coord.provider = OllamaVisionProvider(normalized)
+                coord.start(force=force)
+                st.session_state["_job_was_running"] = True
+                st.rerun()
+            except (JobConflictError, TranscribeError) as exc:
+                st.error(str(exc))
+    if b2.button("Stop after current page", disabled=live.status != "running"):
+        coord.request_cancel()
+        st.info("Stopping after current page…")
 
 
 def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
@@ -852,9 +875,17 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
         "Search",
         "Find text across transcribed notebook pages.",
     ),
+    "Import": (
+        "Import",
+        "Add JPEG, PNG, or PDF pages to this notebook.",
+    ),
     "Transcribe": (
         "Transcribe",
-        "Import pages, run OCR, and review results.",
+        "Configure Ollama and run OCR on notebook pages.",
+    ),
+    "Review": (
+        "Review",
+        "Browse and edit transcribed pages.",
     ),
     "Analyse": (
         "Analyse",
@@ -890,6 +921,15 @@ def main() -> None:
             "Project directory", value=st.session_state.get("root", default_root)
         )
         st.session_state["root"] = root
+        if "create_notebook_title" not in st.session_state:
+            st.session_state["create_notebook_title"] = (
+                Path(root).expanduser().name or "Untitled notebook"
+            )
+        create_title = st.text_input(
+            "Notebook name",
+            help="Used when Create makes a new notebook. Rename later from View or Import.",
+            key="create_notebook_title",
+        )
         st.caption(f"Projects root: `{runtime.projects_dir}`")
         st.caption(f"Inbox: `{runtime.inbox_dir}`")
         st.caption(f"Exports: `{runtime.export_dir}`")
@@ -897,9 +937,12 @@ def main() -> None:
         col_a, col_b = st.columns(2)
         if col_a.button("Create", width="stretch"):
             try:
+                cleaned = (create_title or "").strip() or "Untitled notebook"
                 paths = open_project_paths(Path(root))
-                ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create()
-                st.success("Created")
+                ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create(
+                    title=cleaned
+                )
+                st.success(f"Created “{cleaned}”")
                 st.cache_resource.clear()
             except TranscribeError as exc:
                 st.error(str(exc))
@@ -909,7 +952,7 @@ def main() -> None:
                 ingest.cleanup_staging()
                 projects.load(reconcile=True)
                 st.cache_resource.clear()
-                set_ui_mode("Transcribe")
+                set_ui_mode("Import")
             except TranscribeError as exc:
                 st.error(str(exc))
 
@@ -924,13 +967,12 @@ def main() -> None:
         and st.session_state.get("root")
     ):
         try:
-            return_mode = st.session_state.get("page_return_mode", mode)
             render_page_viewer(
                 page_id=st.session_state["view_page_id"],
                 page_ids=st.session_state.get("view_page_ids"),
                 view_entries=st.session_state.get("view_entries"),
                 highlight_query=st.session_state.get("view_highlight", ""),
-                back_label=f"Back to {return_mode}",
+                show_back=False,
             )
             return
         except TranscribeError as exc:
@@ -950,7 +992,7 @@ def main() -> None:
         render_search(runtime, archive)
     elif mode == "Settings":
         render_settings_page()
-    elif mode in ("Transcribe", "Analyse", "Export"):
+    elif is_workflow_mode(mode):
         _render_workflow(runtime, root, section=mode)
 
 

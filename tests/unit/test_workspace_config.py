@@ -68,6 +68,7 @@ def test_defaults_parity_matches_shipped_presets(runtime: RuntimePaths) -> None:
     assert view.effective.analysis.wordclouds.max_tokens == 100
     assert view.effective.analysis.topic_modeling.n_topics == 5
     assert view.effective.llm.num_predict == 1024
+    assert view.effective.ingest.render_dpi == 200
     assert BUILTIN_PRESET_POLICIES["balanced"].llm_module_ids == ("llm_summary",)
 
 
@@ -94,6 +95,17 @@ def test_precedence_workspace_over_defaults(runtime: RuntimePaths) -> None:
     )
     assert resolved.effective.analysis.keyphrases.top_n == 7
     assert resolved.provenance["analysis.keyphrases.top_n"] == "workspace"
+
+
+def test_ingest_render_dpi_workspace_override(runtime: RuntimePaths) -> None:
+    save_workspace_settings(
+        config={"analysis": {}, "llm": {}, "ocr": {}, "ingest": {"render_dpi": 150}},
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    view = reload_config(runtime=runtime)
+    assert view.effective.ingest.render_dpi == 150
+    assert view.provenance["ingest.render_dpi"] == "workspace"
 
 
 def test_precedence_env_over_workspace(runtime: RuntimePaths, monkeypatch: pytest.MonkeyPatch) -> None:

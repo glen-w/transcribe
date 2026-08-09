@@ -125,16 +125,27 @@ def test_catalogue_invariants() -> None:
 
 
 def test_section_defaults() -> None:
-    for sid in SECTION_ORDER:
-        assert list(section_default_actions(sid)) == [
-            ActionId.OPEN,
-            ActionId.TRANSCRIBE,
-        ]
-        prefs = built_in_prefs()
-        assert configured_actions_for_section(prefs, sid) == [
-            ActionId.OPEN,
-            ActionId.TRANSCRIBE,
-        ]
+    assert list(section_default_actions(SectionId.ARCHIVE_NOTEBOOK)) == [
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+    ]
+    assert list(section_default_actions(SectionId.VIEW_NOTEBOOK)) == [
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+        ActionId.RENAME,
+        ActionId.DELETE,
+    ]
+    prefs = built_in_prefs()
+    assert configured_actions_for_section(prefs, SectionId.ARCHIVE_NOTEBOOK) == [
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+    ]
+    assert configured_actions_for_section(prefs, SectionId.VIEW_NOTEBOOK) == [
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+        ActionId.RENAME,
+        ActionId.DELETE,
+    ]
 
 
 def test_sanitise_drops_unknown_and_duplicates() -> None:
@@ -525,9 +536,36 @@ def test_empty_notebook_open_unavailable(tmp_path: Path) -> None:
     assert not caps.has_pages
     assert not is_action_available(ActionId.OPEN, ctx, caps)
     assert is_action_available(ActionId.TRANSCRIBE, ctx, caps)
+    assert is_action_available(ActionId.RENAME, ctx, caps)
+    assert is_action_available(ActionId.DELETE, ctx, caps)
     session: dict = {}
     assert navigate_open(ctx, session=session, rerun=False) is False
     assert session == {}
+
+
+def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> None:
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    project, root = _make_project(projects, "del", with_page=True)
+    ctx = load_live_notebook_context(
+        project_id=project.id,
+        project_root=root,
+        projects_dir=projects,
+        return_mode=ReturnMode.VIEW,
+    )
+    prefs = built_in_prefs()
+    assert resolve_section_actions(SectionId.VIEW_NOTEBOOK, ctx, prefs=prefs) == [
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+        ActionId.RENAME,
+        ActionId.DELETE,
+    ]
+    archive_actions = resolve_section_actions(
+        SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs
+    )
+    assert ActionId.RENAME not in archive_actions
+    assert ActionId.DELETE not in archive_actions
+    assert ActionId.RENAME in SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK]
 
 
 def test_widget_keys_unique_across_notebooks() -> None:

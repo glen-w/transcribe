@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from transcribe.domain.dates import (
@@ -20,7 +21,7 @@ from transcribe.domain.models import (
     Project,
 )
 from transcribe.domain.validation import validate_page_result, validate_project
-from transcribe.errors import ProjectError
+from transcribe.errors import JobConflictError, ProjectError
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
 from transcribe.persistence.locks import job_lock_held, mutation_lock
@@ -385,3 +386,51 @@ def open_project_paths(root: Path) -> ProjectPaths:
     paths = ProjectPaths(root=Path(root).expanduser().resolve())
     paths.ensure_layout()
     return paths
+
+
+def delete_managed_notebook(
+    project_root: Path | str,
+    *,
+    projects_dir: Path | str,
+) -> Path:
+    """Delete a managed notebook directory (imported copies only).
+
+    External originals outside the project tree are never touched. The root must
+    resolve under ``projects_dir``, be a real directory, and contain
+    ``project.json``.
+    """
+    projects = Path(projects_dir).expanduser().resolve()
+    try:
+        root = Path(project_root).expanduser().resolve()
+    except OSError as exc:
+        raise ProjectError(f"unresolvable project root: {exc}") from exc
+
+    try:
+        root.relative_to(projects)
+    except ValueError as exc:
+        raise ProjectError(
+            f"project root escapes projects directory: {root}"
+        ) from exc
+
+    if root == projects:
+        raise ProjectError(
+            "refusing to delete projects directory itself; pass a notebook root"
+        )
+    if not root.is_dir():
+        raise ProjectError(f"project root is not a directory: {root}")
+    if not (root / "project.json").is_file():
+        raise ProjectError(f"missing project.json under {root}")
+
+    job_lock = root / ".transcribe.job.lock"
+    if job_lock_held(job_lock):
+        raise JobConflictError(
+            "cannot delete notebook while an OCR job is running"
+        )
+
+    # Brief exclusive section so concurrent mutators fail closed before removal.
+    mutation = root / ".transcribe.lock"
+    with mutation_lock(mutation):
+        pass
+
+    shutil.rmtree(root)
+    return root

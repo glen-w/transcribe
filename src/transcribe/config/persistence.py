@@ -16,7 +16,9 @@ from transcribe.config.errors import (
     ConfigError,
 )
 from transcribe.config.models import (
+    KNOWN_CONFIG_SUBTREES,
     ProfileActivations,
+    empty_config_dict,
     strip_unknown_config_keys,
     workspace_document,
 )
@@ -56,7 +58,7 @@ def settings_lock_path(runtime: RuntimePaths | None = None) -> Path:
 def empty_workspace_payload() -> dict[str, Any]:
     acts = ProfileActivations()
     return workspace_document(
-        config={"analysis": {}, "llm": {}, "ocr": {}},
+        config=empty_config_dict(),
         activations=acts,
         schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
     )
@@ -90,7 +92,7 @@ def _validate_document(raw: Any, *, path: Path) -> tuple[dict[str, Any], Profile
     if not isinstance(cfg, dict):
         raise ConfigError(SETTINGS_CORRUPT, f"{path} config must be an object")
     # Forbid unknown top-level config keys on load for safety
-    unknown = set(cfg) - {"analysis", "llm", "ocr"}
+    unknown = set(cfg) - KNOWN_CONFIG_SUBTREES
     if unknown:
         raise ConfigError(
             SETTINGS_CORRUPT,
@@ -112,7 +114,7 @@ def load_workspace_settings(
     path = settings_path(runtime)
     if not path.is_file():
         return LoadedWorkspace(
-            config={"analysis": {}, "llm": {}, "ocr": {}},
+            config=empty_config_dict(),
             activations=ProfileActivations(),
             path=path,
             schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -130,7 +132,7 @@ def load_workspace_settings(
         if recovery != "defaults_readonly":
             raise
         return LoadedWorkspace(
-            config={"analysis": {}, "llm": {}, "ocr": {}},
+            config=empty_config_dict(),
             activations=ProfileActivations(),
             path=path,
             schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -143,7 +145,7 @@ def load_workspace_settings(
         if recovery != "defaults_readonly":
             raise err from exc
         return LoadedWorkspace(
-            config={"analysis": {}, "llm": {}, "ocr": {}},
+            config=empty_config_dict(),
             activations=ProfileActivations(),
             path=path,
             schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,
@@ -167,8 +169,8 @@ def save_workspace_settings(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     cleaned = strip_unknown_config_keys(config)
-    if set(config.keys()) - {"analysis", "llm", "ocr"}:
-        unknown = sorted(set(config.keys()) - {"analysis", "llm", "ocr"})
+    if set(config.keys()) - KNOWN_CONFIG_SUBTREES:
+        unknown = sorted(set(config.keys()) - KNOWN_CONFIG_SUBTREES)
         raise ConfigError(
             SETTINGS_CORRUPT,
             f"unknown config keys refused on save: {unknown}",
@@ -244,7 +246,7 @@ def reset_workspace_settings(*, runtime: RuntimePaths | None = None) -> LoadedWo
         payload = empty_workspace_payload()
         write_json_atomic(path, payload)
         return LoadedWorkspace(
-            config={"analysis": {}, "llm": {}, "ocr": {}},
+            config=empty_config_dict(),
             activations=acts,
             path=path,
             schema_version=CURRENT_SETTINGS_SCHEMA_VERSION,

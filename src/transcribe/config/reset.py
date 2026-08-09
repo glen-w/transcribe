@@ -21,6 +21,7 @@ _SUBTREE_PREFIXES = {
     "analysis.ui_presets": ("analysis", "ui_presets"),
     "llm": ("llm",),
     "ocr": ("ocr",),
+    "ingest": ("ingest",),
 }
 
 

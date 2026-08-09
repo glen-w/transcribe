@@ -82,7 +82,6 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
 def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
     from transcribe.domain.dates import parse_date_input
 
-    del runtime
     archive.ensure_index()
     years = archive.available_years()
     period_options = ["All", "Year", "Range"] if years else ["All", "Range"]

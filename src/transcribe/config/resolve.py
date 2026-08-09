@@ -104,7 +104,12 @@ def resolve_effective_config(
     ):
         merged.pop(act_key, None)
     _flatten_provenance(
-        {"analysis": merged["analysis"], "llm": merged["llm"], "ocr": merged["ocr"]},
+        {
+            "analysis": merged["analysis"],
+            "llm": merged["llm"],
+            "ocr": merged["ocr"],
+            "ingest": merged["ingest"],
+        },
         "default",
         into=provenance,
     )
@@ -113,6 +118,7 @@ def resolve_effective_config(
         "analysis": dict(workspace_config.get("analysis") or {}),
         "llm": dict(workspace_config.get("llm") or {}),
         "ocr": dict(workspace_config.get("ocr") or {}),
+        "ingest": dict(workspace_config.get("ingest") or {}),
     }
     if any(ws.values()):
         merged = deep_merge_dict(merged, ws)

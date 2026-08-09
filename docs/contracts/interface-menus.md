@@ -68,10 +68,10 @@ Atomic rename alone is insufficient. **Restore built-ins** is a persisted CAS wr
 
 | Kind | IDs |
 |------|-----|
-| Actions | `open`, `transcribe`, `analyse`, `export` |
+| Actions | `open`, `transcribe`, `analyse`, `export`, `rename`, `delete` |
 | Sections | `archive_notebook`, `view_notebook` |
 
-Do not rename or remove these IDs after release without migration logic and a schema bump.
+Do not rename or remove these IDs after release without migration logic and a schema bump. Additive action IDs are allowed within schema v1 when catalogue, allowlists, and handlers stay closed.
 
 ## Capability freshness
 

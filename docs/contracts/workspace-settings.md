@@ -22,7 +22,8 @@ Virtual builtin profiles are **not** on disk.
 Project OCR fields win over env so notebook `project.json` settings are not
 silently overridden by `TRANSCRIBE_OLLAMA_BASE_URL`. Project may override only
 OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
-**new projects only**.
+**new projects only**. Workspace `ingest.render_dpi` (default **200**, range
+72–600) is the PDF rasterisation DPI for Workflow → Import.
 
 ## Profiles
 

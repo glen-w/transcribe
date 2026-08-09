@@ -15,6 +15,8 @@ class ActionId(str, Enum):
     TRANSCRIBE = "transcribe"
     ANALYSE = "analyse"
     EXPORT = "export"
+    RENAME = "rename"
+    DELETE = "delete"
 
 
 class ReturnMode(str, Enum):

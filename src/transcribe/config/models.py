@@ -319,6 +319,29 @@ class OcrWorkspaceConfig:
 
 
 @dataclass(frozen=True)
+class IngestConfig:
+    """Workspace ingest defaults (PDF rasterisation, etc.)."""
+
+    render_dpi: int = 200
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"render_dpi": self.render_dpi}
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> IngestConfig:
+        data = data or {}
+        dpi = int(data.get("render_dpi", 200))
+        if dpi < 72:
+            dpi = 72
+        elif dpi > 600:
+            dpi = 600
+        return cls(render_dpi=dpi)
+
+
+KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset({"analysis", "llm", "ocr", "ingest"})
+
+
+@dataclass(frozen=True)
 class ProfileActivations:
     workflow: str = "default"
     ocr: str = "default"
@@ -348,6 +371,7 @@ class EffectiveConfig:
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
     llm: LlmConfig = field(default_factory=LlmConfig)
     ocr: OcrWorkspaceConfig = field(default_factory=OcrWorkspaceConfig)
+    ingest: IngestConfig = field(default_factory=IngestConfig)
     activations: ProfileActivations = field(default_factory=ProfileActivations)
 
     def as_dict(self) -> dict[str, Any]:
@@ -355,6 +379,7 @@ class EffectiveConfig:
             "analysis": self.analysis.as_dict(),
             "llm": self.llm.as_dict(),
             "ocr": self.ocr.as_dict(),
+            "ingest": self.ingest.as_dict(),
             **self.activations.as_dict(),
         }
 
@@ -365,6 +390,7 @@ class EffectiveConfig:
             analysis=AnalysisConfig.from_dict(data.get("analysis")),
             llm=LlmConfig.from_dict(data.get("llm")),
             ocr=OcrWorkspaceConfig.from_dict(data.get("ocr")),
+            ingest=IngestConfig.from_dict(data.get("ingest")),
             activations=ProfileActivations.from_dict(data),
         )
 
@@ -402,6 +428,7 @@ def workspace_document(
             "analysis": body.get("analysis", {}),
             "llm": body.get("llm", {}),
             "ocr": body.get("ocr", {}),
+            "ingest": body.get("ingest", {}),
         },
         "active_workflow_profile": activations.workflow,
         "active_ocr_profile": activations.ocr,
@@ -415,4 +442,10 @@ def strip_unknown_config_keys(data: Mapping[str, Any]) -> dict[str, Any]:
         "analysis": dict(data.get("analysis") or {}),
         "llm": dict(data.get("llm") or {}),
         "ocr": dict(data.get("ocr") or {}),
+        "ingest": dict(data.get("ingest") or {}),
     }
+
+
+def empty_config_dict() -> dict[str, Any]:
+    """Empty workspace config skeleton (all known subtrees)."""
+    return {key: {} for key in sorted(KNOWN_CONFIG_SUBTREES)}
