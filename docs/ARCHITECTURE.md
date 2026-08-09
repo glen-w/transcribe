@@ -41,6 +41,7 @@ CLI ──────────────────┘              │
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption
 - **DoctorService** — structural integrity (+ optional deep hashing)
+- **AnalysisRunner / AnalysisStorage** — project-local Wave 1 modules over `AnalysisDocument`; publish under `analysis/`
 
 ## Explicit non-goals for the core architecture
 
@@ -48,4 +49,4 @@ CLI ──────────────────┘              │
 - Introducing a task queue or multi-process worker fleet for v1
 - Coupling to TranscriptX libraries
 
-Direction and analysis ports: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).
+Shipped Wave 1 analysis + planned Waves 2–4: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).

@@ -27,6 +27,8 @@ Authority: self — supported public entrypoints and support policy for how user
 
 Archive · Notebooks · Search · Workflow (shared page viewer for review/edit).
 
+Workflow also exposes notebook **analysis** tabs after OCR text exists: Overview · Themes · Mood & tone · Moments · Summaries · Ask notebook. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM tabs need a text-capable Ollama model.
+
 ### Helper script
 
 `./transcribe.sh` resolves a project-local `.venv` and accepts: `ui|web` (default), `cli|run …`, `install|setup`, `install-dev`, or passthrough argv to the CLI.

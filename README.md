@@ -72,16 +72,17 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 - Immutable OCR attempts; human edits live in `edited_text`
 - Workspace Archive / Notebooks / Search over your projects directory
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text)
+- **Wave 1 notebook analysis** on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
 
 ## Architecture (brief)
 
-File-shaped authoritative storage (project + per-page results), OCR behind a provider boundary, rebuildable archive SQLite cache, CLI and Streamlit sharing the same services. See [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+File-shaped authoritative storage (project + per-page results + optional `analysis/`), OCR behind a provider boundary, rebuildable archive SQLite cache, CLI and Streamlit sharing the same services. See [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Direction
 
-Stabilise the OCR notebook core (import → run → review → export) before analysis-module ports. Planned ports from TranscriptX ideas: [ROADMAP.md](docs/ROADMAP.md) · [Wave 1 plan](docs/analysis_wave1_plan.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Wave 1 analysis ports are shipped**; next product analysis work is Wave 2 reinterpretations (including new `ocr_quality`) — [ROADMAP.md](docs/ROADMAP.md) · [Wave 1 plan](docs/analysis_wave1_plan.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

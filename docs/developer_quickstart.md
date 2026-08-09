@@ -44,6 +44,8 @@ Pytest marker present today: `integration` (live Ollama) — not selected by def
 | OCR jobs | `transcribe.services.job` |
 | Export | `transcribe.services.export` |
 | Archive cache | `transcribe.services.archive` |
+| Analysis runner / storage | `transcribe.analysis.runner` · `transcribe.analysis.storage` |
+| Wave 1 modules | `transcribe.analysis.modules` |
 | Validation | `transcribe.domain.validation` |
 | Doctor | `transcribe.services.doctor` |
 | Ollama provider | `transcribe.providers.ollama` |
@@ -52,7 +54,8 @@ Pytest marker present today: `integration` (live Ollama) — not selected by def
 
 - New vision backends: implement `VisionOCRProvider` and keep UI/CLI on services
 - New preprocess profiles: extend `transcribe.preprocess` and validation allowlists together
-- Do not put OCR or persistence rules inside Streamlit widgets
+- New analysis modules: register in `transcribe.analysis.modules`, pin in [dev/analysis_port_pins.md](dev/analysis_port_pins.md), follow [ROADMAP.md](ROADMAP.md)
+- Do not put OCR, analysis, or persistence rules inside Streamlit widgets
 
 ## Docs when you change behaviour
 

@@ -12,7 +12,8 @@ On your machine you can:
 1. Import JPEG/PNG/PDF pages into a durable project directory
 2. Run local vision OCR via Ollama
 3. Review and correct text page by page
-4. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
+4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook)
+5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
 
 without requiring a cloud OCR provider or a TranscriptX dependency.
 
@@ -38,6 +39,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Page-first domain (ordered pages, not timed speaker segments)
 - Human edits preserved separately from raw OCR attempts
 - Portable export without required absolute paths
+- Wave 1 notebook analysis modules and Workflow analysis tabs (optional local text Ollama for LLM modules)
 
 **Out of scope for current core**
 
@@ -45,10 +47,11 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Audio transcription or speaker diarization
 - Shipping TranscriptX integration (future seam only — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md))
 - OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none)
+- Wave 2+ analysis reinterpretations (`ocr_quality`, echoes, etc.) until scheduled on [ROADMAP.md](ROADMAP.md)
 
 ## Honesty
 
-See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, and privacy caveats. Long-horizon analysis ports: [ROADMAP.md](ROADMAP.md) · [analysis_wave1_plan.md](analysis_wave1_plan.md).
+See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, analysis capability caveats, and privacy. Shipped vs planned analysis: [ROADMAP.md](ROADMAP.md) · [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Related
 

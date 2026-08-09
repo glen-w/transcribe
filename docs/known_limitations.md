@@ -33,6 +33,14 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Local-by-default Ollama. Remote hosts exfiltrate page images by design of that configuration
 - Transcribe does not ship cloud OCR providers
 
+## Analysis
+
+- Wave 1 modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
+- Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
+- LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
+- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead
+- Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
+
 ## Integration
 
 - No TranscriptX dependency. Future notebook handoff is documented separately and is not shipped behaviour: [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md)

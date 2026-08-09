@@ -3,6 +3,8 @@ Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependen
 
 # Wave 1 plan — TranscriptX analysis ports
 
+**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a Wave 1 blocker — see [ROADMAP.md](ROADMAP.md) Waves 2+.
+
 Detailed delivery plan for the 25 **Port early** modules. Companion to the disposition map and roadmap.
 
 **Governing contracts (sole normative authority):**
@@ -322,19 +324,19 @@ Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slice
 
 ## 5. Per-slice checklists
 
-Common port checklist (every module):
+Common port checklist (every module) — **satisfied for Wave 1 as of 2026-08-09**:
 
-- [ ] Contracts + pin gate satisfied ([§9](#9-implementation-gate))
-- [ ] Copy TX core with attribution; keep structure recognisable
-- [ ] Exact TX pin row (concrete commit + file sha256) + `semantic_class` in [analysis_port_pins.md](dev/analysis_port_pins.md)
-- [ ] Accept `AnalysisDocument` (or thin segment-shaped view produced by adapter)
-- [ ] Emit **payload only**; adapter wraps [analysis-result](contracts/analysis-result.md) envelope
-- [ ] No imports of Transcribe `Page` / Streamlit / project paths in core
-- [ ] Durable write via analysis-run-storage rules (link — do not invent identity)
-- [ ] Edge cases map to named outcomes/capabilities ([analysis-result](contracts/analysis-result.md))
-- [ ] Minimum-input behaviour covered by fixtures (one-page, empty, short, all-blank as relevant)
-- [ ] Compatibility fixtures: exact / tolerance / shape as appropriate ([§8](#8-compatibility-corpus-and-acceptance-tests))
-- [ ] UI wires to the surface in §3 and distinguishes capability states
+- [x] Contracts + pin gate satisfied ([§9](#9-implementation-gate))
+- [x] Copy TX core with attribution; keep structure recognisable (adaptation/fork where noted)
+- [x] Exact TX pin row (concrete commit + file sha256 where applicable) + `semantic_class` in [analysis_port_pins.md](dev/analysis_port_pins.md)
+- [x] Accept `AnalysisDocument` (or thin segment-shaped view produced by adapter)
+- [x] Emit **payload only**; adapter wraps [analysis-result](contracts/analysis-result.md) envelope
+- [x] No imports of Transcribe `Page` / Streamlit / project paths in core
+- [x] Durable write via analysis-run-storage rules (link — do not invent identity)
+- [x] Edge cases map to named outcomes/capabilities ([analysis-result](contracts/analysis-result.md))
+- [x] Minimum-input behaviour covered by fixtures (one-page, empty, short, all-blank as relevant)
+- [x] Compatibility fixtures: exact / tolerance / shape as appropriate ([§8](#8-compatibility-corpus-and-acceptance-tests))
+- [x] UI wires to the surface in §3 and distinguishes capability states (Overview / Themes / Mood / Moments / Summaries / Ask; People & places / Patterns remain payload feeds without dedicated tabs)
 
 ### 1a — Foundations
 
@@ -411,7 +413,7 @@ Keep `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` in 
 - No Wave 2 reinterpretations (`politeness`, `echoes`, `temporal_dynamics`, `momentum`, clean-text exports, `chart_descriptions`)
 - No new `ocr_quality` (Wave 2 special case; not a TX port)
 - No synthetic timestamps or fake speakers to appease TX APIs
-- No documenting analysis as shipped until modules are implemented
+- No documenting analysis as shipped until modules are implemented *(Wave 1 modules are implemented — product docs may say shipped)*
 - No in-place external-notebook / JPEGs-at-root / `.transcribe/` derived-state layout
 - No global authoritative analysis store
 - No treating `analysis/` introduction as a project-layout migration

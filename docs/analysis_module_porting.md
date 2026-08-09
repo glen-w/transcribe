@@ -5,19 +5,21 @@ Authority: TranscriptX → Transcribe analysis-module porting dispositions and n
 
 Planning map for which TranscriptX analysis modules to bring into Transcribe, how to adapt them for page/notebook text, and which to leave behind.
 
-Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md), [ROADMAP.md](ROADMAP.md), and the detailed [Wave 1 plan](analysis_wave1_plan.md).
+**Wave 1 (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). This map remains the disposition authority for Waves 2–4.
+
+Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md).
 
 **Disposition legend**
 
 | Disposition | Meaning |
 |-------------|---------|
-| **Port early** | Strong fit; port almost verbatim onto canonical analysis input |
+| **Port early** | Strong fit; port almost verbatim onto canonical analysis input (**Wave 1: done**) |
 | **Reinterpret** | Useful idea; redesign semantics for notebooks |
 | **Later** | Interesting after core analysis exists; may need a new module identity |
 | **Do not port** | Intrinsically transcript/audio/interpersonal; out of scope |
 | **New (special case)** | Notebook analogue of a TranscriptX idea; implement fresh, do not port the TX code |
 
-**Wave** column matches [ROADMAP.md](ROADMAP.md). Wave 1 splits into sub-waves **1a–1e** in the [Wave 1 plan](analysis_wave1_plan.md).
+**Wave** column matches [ROADMAP.md](ROADMAP.md). Wave 1 was delivered as sub-waves **1a–1e** in the [Wave 1 plan](analysis_wave1_plan.md).
 
 ---
 
@@ -54,16 +56,18 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Notebook UI surfaces ↔ Wave 1 modules
 
-| Surface | Wave 1 feeds |
-|---------|----------------|
-| **Overview** | `stats`, `lexical_diversity`, `ner`, `keyphrases`, `topic_modeling` |
-| **Themes** | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
-| **People & places** | `ner`, `entity_sentiment` |
-| **Mood & tone** | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
-| **Patterns** (partial) | `keyphrases`, `semantic_similarity`, `topic_shift` — echoes / loops later |
-| **Moments** | `moments`, `highlights` |
-| **Ask notebook** | `llm_custom_qa` |
-| **Summaries** | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items`, `understandability`, `wordclouds` |
+Shipped Workflow tabs are marked **UI**. People & places / Patterns remain payload feeds without dedicated tabs.
+
+| Surface | Status | Wave 1 feeds |
+|---------|--------|----------------|
+| **Overview** | UI | `stats`, `lexical_diversity`, `ner`, `keyphrases`, `topic_modeling`, `wordclouds`, `understandability` |
+| **Themes** | UI | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
+| **People & places** | payload only | `ner`, `entity_sentiment` |
+| **Mood & tone** | UI | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
+| **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — echoes / loops later |
+| **Moments** | UI | `moments`, `highlights` |
+| **Ask notebook** | UI | `llm_custom_qa` |
+| **Summaries** | UI | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items` |
 
 ---
 
@@ -126,13 +130,13 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Summary counts
 
-| Disposition | Count |
-|-------------|------:|
-| Port early (Wave 1 / 1a–1e) | 25 |
-| Reinterpret (Wave 2) | 7 |
-| New special case (Wave 2) | 1 (`ocr_quality`) |
-| Later (Wave 3) | 5 |
-| Do not port (Wave 4) | 12 |
+| Disposition | Count | Status |
+|-------------|------:|--------|
+| Port early (Wave 1 / 1a–1e) | 25 | **shipped** |
+| Reinterpret (Wave 2) | 7 | planned |
+| New special case (Wave 2) | 1 (`ocr_quality`) | planned |
+| Later (Wave 3) | 5 | planned |
+| Do not port (Wave 4) | 12 | out of scope |
 
 ---
 
