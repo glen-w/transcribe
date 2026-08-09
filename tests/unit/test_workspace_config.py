@@ -11,7 +11,10 @@ from transcribe.analysis.cache_identity import config_fingerprint
 from transcribe.analysis.presets import BUILTIN_PRESET_POLICIES, resolve_analysis_preset
 from transcribe.config.defaults import RESERVED_PROFILE_NAMES, builtin_profile_config
 from transcribe.config.errors import (
+    PROFILE_CORRUPT,
+    PROFILE_NOT_FOUND,
     PROFILE_RESERVED_NAME,
+    PROFILE_SCHEMA_UNSUPPORTED,
     SETTINGS_CORRUPT,
     SETTINGS_SCHEMA_UNSUPPORTED,
     ConfigError,
@@ -25,16 +28,27 @@ from transcribe.config.facade import (
     snapshot_for_operation,
 )
 from transcribe.config.knobs import module_knob_dict
-from transcribe.config.models import EffectiveConfig, ProfileActivations
+from transcribe.config.models import EffectiveConfig, IngestConfig, ProfileActivations
 from transcribe.config.persistence import (
     load_workspace_settings,
     save_workspace_settings,
     settings_path,
 )
-from transcribe.config.profiles import save_user_profile, validate_profile_name
+from transcribe.config.profiles import (
+    load_profile_overlay,
+    list_user_profile_names,
+    save_user_profile,
+    validate_profile_name,
+)
 from transcribe.config.resolve import resolve_effective_config
-from transcribe.config.versions import ANALYSIS_CONFIG_VERSION, CURRENT_SETTINGS_SCHEMA_VERSION
+from transcribe.config.versions import (
+    ANALYSIS_CONFIG_VERSION,
+    CURRENT_PROFILE_SCHEMA_VERSION,
+    CURRENT_SETTINGS_SCHEMA_VERSION,
+    PROFILE_FORMAT,
+)
 from transcribe.domain.models import OCRSettings
+from transcribe.persistence.atomic import write_json_atomic
 from transcribe.runtime_paths import RuntimePaths
 
 
@@ -106,6 +120,13 @@ def test_ingest_render_dpi_workspace_override(runtime: RuntimePaths) -> None:
     view = reload_config(runtime=runtime)
     assert view.effective.ingest.render_dpi == 150
     assert view.provenance["ingest.render_dpi"] == "workspace"
+
+
+def test_ingest_config_clamps_render_dpi() -> None:
+    assert IngestConfig.from_dict({"render_dpi": 50}).render_dpi == 72
+    assert IngestConfig.from_dict({"render_dpi": 900}).render_dpi == 600
+    assert IngestConfig.from_dict(None).render_dpi == 200
+    assert IngestConfig.from_dict({"render_dpi": 200}).as_dict() == {"render_dpi": 200}
 
 
 def test_precedence_env_over_workspace(runtime: RuntimePaths, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -240,3 +261,36 @@ def test_user_profile_save_and_path_safety(runtime: RuntimePaths) -> None:
     assert "workflow" in str(path)
     with pytest.raises(ConfigError):
         validate_profile_name("../evil", for_save_as=True)
+
+
+def test_load_profile_overlay_errors(runtime: RuntimePaths) -> None:
+    with pytest.raises(ConfigError) as missing:
+        load_profile_overlay("workflow", "no_such_profile", runtime=runtime)
+    assert missing.value.code == PROFILE_NOT_FOUND
+
+    path = save_user_profile(
+        "ocr",
+        "custom_ocr",
+        {"ocr": {"max_workers": 2}},
+        runtime=runtime,
+    )
+    assert "custom_ocr" in list_user_profile_names("ocr", runtime=runtime)
+
+    write_json_atomic(
+        path,
+        {
+            "format": PROFILE_FORMAT,
+            "schema_version": CURRENT_PROFILE_SCHEMA_VERSION + 99,
+            "target_id": "ocr",
+            "name": "custom_ocr",
+            "config": {"ocr": {}},
+        },
+    )
+    with pytest.raises(ConfigError) as unsupported:
+        load_profile_overlay("ocr", "custom_ocr", runtime=runtime)
+    assert unsupported.value.code == PROFILE_SCHEMA_UNSUPPORTED
+
+    write_json_atomic(path, {"format": "wrong.format", "schema_version": 1})
+    with pytest.raises(ConfigError) as corrupt:
+        load_profile_overlay("ocr", "custom_ocr", runtime=runtime)
+    assert corrupt.value.code == PROFILE_CORRUPT

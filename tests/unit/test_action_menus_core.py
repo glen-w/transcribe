@@ -16,6 +16,9 @@ from transcribe.ui.action_menus.catalog import (
     BUILT_IN_STANDARD_MENU,
     SECTION_ALLOWLISTS,
     SECTION_DEFAULTS,
+    help_for,
+    icon_for,
+    label_for,
     section_default_actions,
 )
 from transcribe.ui.action_menus.context import (
@@ -541,6 +544,22 @@ def test_empty_notebook_open_unavailable(tmp_path: Path) -> None:
     session: dict = {}
     assert navigate_open(ctx, session=session, rerun=False) is False
     assert session == {}
+
+
+def test_catalog_helpers_and_unknown_section_fallback() -> None:
+    assert label_for(ActionId.RENAME) == ACTIONS_BY_ID[ActionId.RENAME].label
+    assert icon_for(ActionId.DELETE) == ACTIONS_BY_ID[ActionId.DELETE].icon
+    assert help_for(ActionId.OPEN) == ACTIONS_BY_ID[ActionId.OPEN].help
+    assert section_default_actions(SectionId.VIEW_NOTEBOOK) == (
+        ActionId.OPEN,
+        ActionId.TRANSCRIBE,
+        ActionId.RENAME,
+        ActionId.DELETE,
+    )
+    # Unknown subject_type falls back to allowlist first action.
+    assert section_default_actions(
+        SectionId.ARCHIVE_NOTEBOOK, subject_type="page"
+    ) == (SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK][0],)
 
 
 def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> None:
