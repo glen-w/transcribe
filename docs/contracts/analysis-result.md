@@ -276,3 +276,18 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 | `llm_action_items` | `llm_action_items_payload_v1` | Optional Ollama |
 | `llm_custom_qa` | `llm_custom_qa_payload_v1` | Grounded `unit_ids`; abstain if ungrounded |
 | `narrative_summary` | `narrative_summary_payload_v1` | Hard parent `summary`; `unavailable_model` when Ollama/text model missing |
+
+## Derived Analyse health (non-durable)
+
+`AnalysisHealth` is computed for UI surfaces from published envelopes + planned cache identities + notebook `content_revision`. It is **not** a persisted authority; publish authority remains `published.json` + cache identity.
+
+| Field | Notes |
+|-------|-------|
+| `content_revision` | Notebook content identity ([project-on-disk.md](project-on-disk.md)) |
+| `modules` | Per-module `{freshness, capability, outcome}` from `module_freshness` |
+| `aggregate` | `healthy` \| `stale` \| `missing` \| `degraded` \| `failed` \| `running` \| `interrupted` |
+| `active_run_status` | Optional batch coordinator status |
+
+**Aggregate order:** running → interrupted → any stale → all unavailable/missing → any failed → any degraded capability (`unavailable_*` / `insufficient_data` / `skipped_not_applicable`) → healthy.
+
+Overview / Themes / Mood / Moments / Summaries **must** answer “is this current and healthy?” from this shared derivation (or a scope of it). Ask notebook is ad-hoc and does **not** update batch health.

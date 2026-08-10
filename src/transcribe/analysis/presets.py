@@ -12,8 +12,9 @@ profile → defaults). Builtin ``BUILTIN_PRESET_POLICIES`` remain the model defa
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from typing import Any, Literal, Sequence
 
 from transcribe.analysis.module_catalog import (
     format_module_label,
@@ -24,6 +25,7 @@ from transcribe.analysis.module_catalog import (
 from transcribe.config.facade import require_operation_config
 from transcribe.config.models import EffectiveConfig, PresetPolicyConfig
 from transcribe.config.versions import PRESET_POLICY_VERSION
+from transcribe.domain.fingerprint import canonical_json_bytes
 
 AnalysisPreset = Literal["quick", "balanced", "thorough", "custom"]
 VALID_PRESETS: tuple[AnalysisPreset, ...] = (
@@ -60,6 +62,7 @@ class PresetPolicy:
     heavy_module_ids: tuple[str, ...] = ()
     include_excluded_from_default: bool = False
     module_ids: tuple[str, ...] | None = None
+    content_version: int = 1
 
 
 def _policy_from_config(cfg: PresetPolicyConfig) -> PresetPolicy:
@@ -70,7 +73,47 @@ def _policy_from_config(cfg: PresetPolicyConfig) -> PresetPolicy:
         heavy_module_ids=cfg.heavy_module_ids,
         include_excluded_from_default=cfg.include_excluded_from_default,
         module_ids=cfg.module_ids,
+        content_version=int(cfg.content_version),
     )
+
+
+def preset_policy_fingerprint(policy: PresetPolicy | PresetPolicyConfig) -> str:
+    """SHA-256 of policy body excluding content_version."""
+    if isinstance(policy, PresetPolicyConfig):
+        body = policy.policy_body_dict()
+    else:
+        body = {
+            "allow_llm": policy.allow_llm,
+            "llm_module_ids": list(policy.llm_module_ids),
+            "allow_heavy": policy.allow_heavy,
+            "heavy_module_ids": list(policy.heavy_module_ids),
+            "include_excluded_from_default": policy.include_excluded_from_default,
+            "module_ids": None if policy.module_ids is None else list(policy.module_ids),
+        }
+    return hashlib.sha256(canonical_json_bytes(body)).hexdigest()
+
+
+def custom_modules_fingerprint(module_ids: Sequence[str]) -> str:
+    """Stable identity surrogate for Custom preset selections."""
+    return hashlib.sha256(
+        canonical_json_bytes({"module_ids": list(module_ids)})
+    ).hexdigest()
+
+
+def bump_preset_content_versions(
+    previous: dict[str, Any],
+    next_draft: dict[str, Any],
+) -> dict[str, Any]:
+    """Return saved preset dicts with content_version bumped when policy body changes."""
+    out: dict[str, Any] = {}
+    for key in ("quick", "balanced", "thorough"):
+        prev_cfg = PresetPolicyConfig.from_dict(previous.get(key))
+        next_cfg = PresetPolicyConfig.from_dict(next_draft.get(key))
+        version = int(prev_cfg.content_version)
+        if prev_cfg.policy_body_dict() != next_cfg.policy_body_dict():
+            version = version + 1
+        out[key] = {**next_cfg.policy_body_dict(), "content_version": version}
+    return out
 
 
 # Builtin policies — same defaults as TranscriptX ``ui_presets.py`` / model defaults.
@@ -94,6 +137,8 @@ def policies_from_effective(cfg: EffectiveConfig) -> dict[str, PresetPolicy]:
 class ResolvedAnalysisPreset:
     preset: AnalysisPreset
     module_ids: tuple[str, ...]
+    content_version: int = 1
+    policy_fingerprint: str = ""
 
 
 @dataclass(frozen=True)
@@ -247,14 +292,25 @@ def resolve_analysis_preset(
             list(custom_modules or ()), suitable=suitable
         )
         if not kept:
-            kept = resolve_analysis_preset(
-                "balanced", effective=cfg
-            ).module_ids
-        return ResolvedAnalysisPreset(preset="custom", module_ids=kept)
+            balanced = resolve_analysis_preset("balanced", effective=cfg)
+            kept = balanced.module_ids
+        fp = custom_modules_fingerprint(kept)
+        return ResolvedAnalysisPreset(
+            preset="custom",
+            module_ids=kept,
+            content_version=0,
+            policy_fingerprint=fp,
+        )
 
     policy = policies[preset_key]
     modules = _modules_from_policy(suitable, policy)
-    return ResolvedAnalysisPreset(preset=preset_key, module_ids=modules)
+    cfg_policy = getattr(cfg.analysis.ui_presets, preset_key)
+    return ResolvedAnalysisPreset(
+        preset=preset_key,
+        module_ids=modules,
+        content_version=int(cfg_policy.content_version),
+        policy_fingerprint=preset_policy_fingerprint(cfg_policy),
+    )
 
 
 def _count_llm_and_heavy(module_ids: Sequence[str]) -> tuple[int, int]:
@@ -316,12 +372,15 @@ __all__ = [
     "PresetPolicy",
     "ResolvedAnalysisPreset",
     "VALID_PRESETS",
+    "bump_preset_content_versions",
     "compute_effective_modules",
+    "custom_modules_fingerprint",
     "expand_with_hard_parents",
     "format_module_label",
     "format_preset_label",
     "label_to_preset",
     "policies_from_effective",
+    "preset_policy_fingerprint",
     "prune_modules_with_unsatisfied_deps",
     "reconcile_custom_modules",
     "resolve_analysis_preset",

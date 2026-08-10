@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from transcribe import __version__
+from transcribe.domain.content_revision import content_revision_hex
 from transcribe.domain.fingerprint import sha256_bytes
 from transcribe.domain.models import PageResult, Project
 from transcribe.paths import ProjectPaths
@@ -21,6 +22,7 @@ from transcribe.services.project import ProjectService
 class ExportSnapshot:
     project: Project
     results: dict[str, PageResult | None]
+    content_revision: str = ""
 
 
 class ExportService:
@@ -42,7 +44,10 @@ class ExportService:
                 results[page.page_id] = self.projects._load_page_result_unlocked(
                     page.page_id
                 )
-            return ExportSnapshot(project=snap_project, results=results)
+            rev = content_revision_hex(snap_project, results)
+            return ExportSnapshot(
+                project=snap_project, results=results, content_revision=rev
+            )
 
     def export_all(
         self, project: Project | None = None, dest_dir: Path | None = None
@@ -73,6 +78,7 @@ class ExportService:
                 "application_version": __version__,
                 "project_id": snapshot.project.id,
                 "project_updated_at": snapshot.project.updated_at,
+                "content_revision": snapshot.content_revision,
                 "files": {
                     "notebook": "notebook.transcribe.json",
                     "markdown": "notebook.md",
@@ -128,10 +134,26 @@ class ExportService:
                     "tags": list(page.tags),
                 }
             )
+        rev = (
+            snap.content_revision
+            if snap is not None and snap.content_revision
+            else content_revision_hex(
+                project,
+                {
+                    p.page_id: (
+                        snap.results.get(p.page_id)
+                        if snap is not None
+                        else self.projects.load_page_result(p.page_id)
+                    )
+                    for p in project.pages
+                },
+            )
+        )
         return {
             "format": "transcribe.notebook",
             "schema_version": 1,
             "application_version": __version__,
+            "content_revision": rev,
             "project": {
                 "id": project.id,
                 "title": project.title,
@@ -158,7 +180,17 @@ class ExportService:
     def build_markdown(self, snapshot: ExportSnapshot | Project) -> str:
         snap = snapshot if isinstance(snapshot, ExportSnapshot) else None
         project = snapshot.project if snap else snapshot  # type: ignore[assignment]
-        parts: list[str] = [f"# {project.title}\n"]
+        rev = (
+            snap.content_revision
+            if snap is not None and snap.content_revision
+            else ""
+        )
+        if not rev and snap is not None:
+            rev = content_revision_hex(project, snap.results)
+        parts: list[str] = []
+        if rev:
+            parts.append(f"<!-- transcribe.content_revision: {rev} -->\n")
+        parts.append(f"# {project.title}\n")
         for i, page in enumerate(project.pages):
             if snap is not None:
                 result = snap.results.get(page.page_id)
@@ -171,7 +203,16 @@ class ExportService:
     def build_plaintext(self, snapshot: ExportSnapshot | Project) -> str:
         snap = snapshot if isinstance(snapshot, ExportSnapshot) else None
         project = snapshot.project if snap else snapshot  # type: ignore[assignment]
+        rev = (
+            snap.content_revision
+            if snap is not None and snap.content_revision
+            else ""
+        )
+        if not rev and snap is not None:
+            rev = content_revision_hex(project, snap.results)
         parts: list[str] = []
+        if rev:
+            parts.append(f"# transcribe.content_revision: {rev}")
         for i, page in enumerate(project.pages):
             if snap is not None:
                 result = snap.results.get(page.page_id)

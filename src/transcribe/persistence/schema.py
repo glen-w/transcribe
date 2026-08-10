@@ -8,6 +8,7 @@ SUPPORTED: dict[str, int] = {
     "transcribe.project": 1,
     "transcribe.page-result": 1,
     "transcribe.notebook": 1,
+    "transcribe.export-manifest": 1,
     "transcribe.analysis-document": 1,
     "transcribe.analysis-result": 1,
     "transcribe.detection-result": 1,
