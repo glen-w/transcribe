@@ -26,7 +26,7 @@ A **DetectorDefinition** orchestrates scanning notebook content for phenomena. I
 
 ## Built-in vs custom
 
-- **Built-in detectors** ship in code registry (`transcribe.detection.registry`).
+- **Built-in detectors** ship in code registry (`transcribe.detection.registry`): `poetry`, `todo_lists`, `lists`, `quotations`.
 - **Custom detectors** are declarative user definitions compiled to DetectorDefinition + constrained prompt. No arbitrary Python plugins in v1.
 
 ## CustomDetectorDefinition (user-facing, declarative)

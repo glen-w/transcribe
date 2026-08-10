@@ -14,3 +14,6 @@ Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODU
 | Archive index | Rebuildable SQLite FTS cache for the workspace | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | `transcribe.notebook` | Portable export JSON | [contracts/notebook-export.md](contracts/notebook-export.md) |
 | Doctor | Integrity check CLI | [public_surfaces.md](public_surfaces.md) |
+| Prompt Hub | Settings catalogue for OCR, cleanup, and detection prompts | [contracts/prompt-definition.md](contracts/prompt-definition.md) |
+| Detector | Prompt-backed scan for notebook phenomena (not a saved prompt alone) | [contracts/detection-definition.md](contracts/detection-definition.md) |
+| DetectionFinding | Derived span finding with provenance and review status | [contracts/detection-finding.md](contracts/detection-finding.md) |

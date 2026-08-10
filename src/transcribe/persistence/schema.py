@@ -11,6 +11,7 @@ SUPPORTED: dict[str, int] = {
     "transcribe.analysis-document": 1,
     "transcribe.analysis-result": 1,
     "transcribe.detection-result": 1,
+    "transcribe.prompt-definition": 1,
     # Bulk-import generation (prospective until activation gate)
     "transcribe.corpus-index": 1,
     "transcribe.import-run": 1,

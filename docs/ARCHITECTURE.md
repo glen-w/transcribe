@@ -50,7 +50,7 @@ CLI ──────────────────┘              │
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
 - **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
 - **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities)
-- **DetectionRunner / DetectionStorage / prompt_engine** — prompt-backed page/window detectors; publish findings under `detection/`; freshness via `detector_freshness` / planned cache identity
+- **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
 ## Explicit non-goals for the core architecture

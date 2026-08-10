@@ -21,7 +21,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
 | `export <project> [dest]` | Write notebook JSON + Markdown + plain text |
 | `status <project>` | Print per-page status |
-| `detect <project>` | Run a content detector (`--detector poetry`, `--force`, `--list`) |
+| `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
 
 ### UI modes
@@ -30,7 +30,7 @@ Authority: self — supported public entrypoints and support policy for how user
 
 **Workflow:** Transcribe (OCR) · Analyse · Export.
 
-**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets, ported from TranscriptX) plus published-result tabs: Overview · Themes · Mood & tone · Moments · Summaries · Ask notebook. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
+**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus published-result tabs and **Detect** (poetry, to-do lists, lists, quotations, custom detectors). Analysis is project-local under `analysis/`; detection findings under `detection/`. LLM modules and detectors need a suitable local Ollama model. Preset policies, Prompt Hub, and detector settings live under **App → Settings**.
 
 ### Helper script
 

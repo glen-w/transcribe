@@ -14,6 +14,7 @@ class ActionId(str, Enum):
     OPEN = "open"
     TRANSCRIBE = "transcribe"
     ANALYSE = "analyse"
+    DETECT = "detect"
     EXPORT = "export"
     RENAME = "rename"
     DELETE = "delete"
