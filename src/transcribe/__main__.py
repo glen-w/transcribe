@@ -77,6 +77,20 @@ def main(argv: list[str] | None = None) -> int:
         help="Hash source/render files and verify against the manifest",
     )
 
+    p_detect = sub.add_parser("detect", help="Run a notebook content detector")
+    p_detect.add_argument("project", type=Path)
+    p_detect.add_argument(
+        "--detector",
+        default="poetry",
+        help="Detector id (default: poetry)",
+    )
+    p_detect.add_argument("--force", action="store_true")
+    p_detect.add_argument(
+        "--list",
+        action="store_true",
+        help="List available detectors and exit",
+    )
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
@@ -188,6 +202,27 @@ def main(argv: list[str] | None = None) -> int:
             for kind, path in written.items():
                 print(f"{kind}: {path}")
             return 0
+
+        if args.cmd == "detect":
+            from transcribe.detection.api import DetectionService
+
+            if args.list:
+                for info in DetectionService.list_detectors():
+                    print(f"{info.detector_id}\tv{info.version}\t{info.title}")
+                return 0
+            svc = DetectionService(projects)
+            result = svc.run_detector(args.detector, force=args.force)
+            findings = result.get("findings") or []
+            print(
+                f"detector={args.detector} outcome={result.get('outcome')} "
+                f"findings={len(findings)} windows={result.get('windows_scanned', 0)}"
+            )
+            for f in findings:
+                print(
+                    f"  {f.get('finding_type')} pages {f.get('start_page_id')}.."
+                    f"{f.get('end_page_id')} confidence={f.get('confidence')}"
+                )
+            return 0 if result.get("outcome") in ("success", "skipped_not_applicable", "insufficient_data") else 1
 
         parser.error(f"unknown command {args.cmd}")
         return 2

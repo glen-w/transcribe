@@ -117,8 +117,10 @@ class ProjectService:
             project = self._load_unlocked(reconcile=reconcile)
         if reconcile:
             from transcribe.analysis.storage import AnalysisStorage
+            from transcribe.detection.storage import DetectionStorage
 
             AnalysisStorage(self.paths).reconcile_interrupted()
+            DetectionStorage(self.paths).reconcile_interrupted()
         return project
 
     def save_settings(self, project: Project, settings: OCRSettings) -> Project:
