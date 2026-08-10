@@ -8,8 +8,14 @@ from typing import Any
 from transcribe.analysis.envelope import CACHEABLE_OUTCOMES
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
-from transcribe.persistence.locks import job_lock_held, mutation_lock
+from transcribe.persistence.locks import analysis_lock_held, mutation_lock
 from transcribe.persistence.schema import SchemaError, require_format
+
+# Reserved directory name under analysis/ — never treated as a module id.
+RUNS_DIR_NAME = "runs"
+_RUN_TERMINAL_STATUSES = frozenset(
+    {"completed", "cancelled", "failed", "interrupted"}
+)
 
 
 class AnalysisStorage:
@@ -17,6 +23,8 @@ class AnalysisStorage:
         self.paths = paths
 
     def module_dir(self, module_id: str) -> Path:
+        if module_id == RUNS_DIR_NAME:
+            raise ValueError(f"reserved analysis path name: {module_id}")
         return self.paths.analysis_dir / module_id
 
     def attempts_dir(self, module_id: str) -> Path:
@@ -27,6 +35,12 @@ class AnalysisStorage:
 
     def published_path(self, module_id: str) -> Path:
         return self.module_dir(module_id) / "published.json"
+
+    def runs_dir(self) -> Path:
+        return self.paths.analysis_runs_dir
+
+    def run_path(self, run_id: str) -> Path:
+        return self.runs_dir() / f"{run_id}.json"
 
     def write_attempt(self, module_id: str, envelope: dict[str, Any]) -> Path:
         attempt_id = envelope.get("attempt_id")
@@ -61,6 +75,24 @@ class AnalysisStorage:
         try:
             return require_format(read_json(path), "transcribe.analysis-result")
         except (SchemaError, OSError, ValueError, TypeError):
+            return None
+
+    def write_run_record(self, payload: dict[str, Any]) -> Path:
+        run_id = payload.get("run_id")
+        if not run_id:
+            raise ValueError("run record requires run_id")
+        path = self.run_path(str(run_id))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(path, payload)
+        return path
+
+    def read_run_record(self, run_id: str) -> dict[str, Any] | None:
+        path = self.run_path(run_id)
+        if not path.exists():
+            return None
+        try:
+            return read_json(path)
+        except (OSError, ValueError, TypeError):
             return None
 
     def publish_if_current(
@@ -120,18 +152,20 @@ class AnalysisStorage:
         return published
 
     def reconcile_interrupted(self) -> list[str]:
-        """Convert orphaned running attempts to interrupted. Never touches published."""
+        """Convert orphaned running attempts/runs to interrupted. Never touches published."""
         changed: list[str] = []
         root = self.paths.analysis_dir
         if not root.exists():
             return changed
-        # Only reconcile when job lock is free (OCR not mid-flight is fine;
-        # analysis uses mutation_lock for writes — job lock free is sufficient signal).
-        if job_lock_held(self.paths.job_lock):
+        # Only reconcile when the analysis batch lock is free so a live async
+        # run is not false-interrupted.
+        if analysis_lock_held(self.paths.analysis_lock):
             return changed
         with mutation_lock(self.paths.mutation_lock):
             for module_dir in sorted(root.iterdir()):
                 if not module_dir.is_dir():
+                    continue
+                if module_dir.name == RUNS_DIR_NAME:
                     continue
                 attempts = module_dir / "attempts"
                 if not attempts.exists():
@@ -148,6 +182,21 @@ class AnalysisStorage:
                     payload["outcome"] = payload.get("outcome") or "failed"
                     payload["capability"] = "failed"
                     payload["published"] = False
+                    write_json_atomic(path, payload)
+                    changed.append(str(path))
+            runs = self.runs_dir()
+            if runs.exists():
+                for path in sorted(runs.glob("*.json")):
+                    try:
+                        payload = read_json(path)
+                    except (OSError, ValueError, TypeError):
+                        continue
+                    status = str(payload.get("status") or "")
+                    if status in _RUN_TERMINAL_STATUSES:
+                        continue
+                    payload = dict(payload)
+                    payload["status"] = "interrupted"
+                    payload["message"] = payload.get("message") or "interrupted on reopen"
                     write_json_atomic(path, payload)
                     changed.append(str(path))
         return changed

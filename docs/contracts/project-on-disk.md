@@ -22,6 +22,7 @@ A project root contains:
 | `pages/<source_id>/<page_index>/<render_id>.png` | Versioned page renders |
 | `results/<page_id>.json` | Per-page OCR attempts and edits |
 | `analysis/` | Durable per-notebook analysis artifacts (optional until first write; see [analysis-run-storage.md](analysis-run-storage.md)) |
+| `analysis/runs/` | Batch analysis run records (plan + progress; not publish authority) |
 | `detection/` | Durable per-notebook detection findings (optional until first write; see [detection-run-storage.md](detection-run-storage.md)) |
 | `exports/` | Default export destination inside the project |
 | `prompts/` | Reserved for project prompt assets |
@@ -31,6 +32,7 @@ A project root contains:
 | `.cache/analysis/` | Optional disposable analysis acceleration (never authoritative) |
 | `.transcribe.lock` | Short mutation lock |
 | `.transcribe.job.lock` | Cross-process OCR job lock |
+| `.transcribe.analysis.lock` | Cross-process analysis batch run lock |
 | `.ingest-journal.json` | Crash journal for an in-flight ingest (absent when idle) |
 
 Relative paths stored in the manifest must resolve inside the project root (path containment).
@@ -79,6 +81,7 @@ Defensive limits (implementation-enforced): source byte cap, PDF page cap, rende
 |------|-------|
 | `.transcribe.lock` | Short critical sections for manifest/result/analysis RMW |
 | `.transcribe.job.lock` | At most one OCR job per project across processes |
+| `.transcribe.analysis.lock` | At most one analysis batch run per project across processes |
 
 Workspace corpus lock and **corpus → notebook** lock order are defined in [notebook-corpus.md](notebook-corpus.md) (prospective until activation).
 
@@ -87,6 +90,7 @@ Workspace corpus lock and **corpus → notebook** lock order are defined in [not
 - Workspace `data/cache/archive.sqlite` is **not** part of a project and is never authoritative (rebuildable search/timeline cache; on-disk project + page results remain truth)
 - Any future analysis discovery/index rows in archive (or elsewhere) are disposable pointers at project-local artifacts under `analysis/` and must never become analysis authority
 - `jobs/*.json` records run-level history; resume/skip authority remains page attempts + fingerprints
+- `analysis/runs/*.json` records batch analysis plan/progress history; publish authority remains module `published.json` + cache identity
 - `.cache/**` is disposable acceleration only
 
 ## Explicit non-goals (layout)
