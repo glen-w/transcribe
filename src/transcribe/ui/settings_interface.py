@@ -123,7 +123,7 @@ def render_interface_panel() -> None:
         options=["Built-in", "Custom"],
         key="iface_std_mode",
         horizontal=True,
-        help="Built-in is Open · Transcribe · Analyse · Export.",
+        help="Built-in is Open · Transcribe · Run Analysis · Export.",
         disabled=draft.recovery,
     )
     if st.session_state.get("iface_std_mode") == "Custom":

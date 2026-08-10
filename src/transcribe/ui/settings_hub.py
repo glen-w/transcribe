@@ -23,6 +23,7 @@ from transcribe.config.reset import (
     reset_whole_workspace,
 )
 from transcribe.ports import SystemClock, UuidGenerator
+from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.project import ProjectService, open_project_paths
 from pathlib import Path
 
@@ -36,6 +37,14 @@ def render_configuration_panel() -> None:
             "Use Reset workspace below."
         )
 
+    runtime = build_runtime_paths()
+    st.markdown("#### Folders")
+    st.caption("Set via environment / Docker mounts; not editable here.")
+    st.caption(f"Notebooks: `{runtime.projects_dir}`")
+    st.caption(f"Inbox: `{runtime.inbox_dir}`")
+    st.caption(f"Exports: `{runtime.export_dir}`")
+
+    st.divider()
     st.markdown("#### Import")
     st.caption("Used when importing PDFs and images (Workflow → Import).")
     dpi = st.number_input(
@@ -107,7 +116,7 @@ def render_models_panel() -> None:
     ocr = view.effective.ocr
     llm = view.effective.llm
     st.caption(
-        "Workspace OCR URL seeds new projects only. Open-project URL is independent "
+        "Workspace OCR URL seeds new notebooks only. Open-notebook URL is independent "
         "until you Apply or save on Workflow → Transcribe."
     )
     base_url = st.text_input("Workspace Ollama base URL", value=ocr.base_url or "")
@@ -156,25 +165,25 @@ def render_models_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
     st.divider()
-    st.markdown("#### Apply OCR defaults to open project")
+    st.markdown("#### Apply OCR defaults to open notebook")
     root = st.session_state.get("root")
     if not root:
-        st.caption("Open a project to apply.")
+        st.caption("Select a notebook to apply.")
         return
     try:
         paths = open_project_paths(Path(root))
         projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
         project = projects.load(reconcile=False)
     except Exception as exc:  # noqa: BLE001
-        st.warning(f"Could not load project: {exc}")
+        st.warning(f"Could not load notebook: {exc}")
         return
     plan = preview_apply_ocr(project.settings, view.effective.ocr)
     changed = plan.changed
     if not changed:
-        st.caption("No differences between workspace OCR defaults and project settings.")
+        st.caption("No differences between workspace OCR defaults and notebook settings.")
         return
     st.json({k: {"from": a, "to": b} for k, (a, b) in changed.items()})
-    if st.button("Apply allowlisted OCR fields to open project", key="settings_apply_ocr"):
+    if st.button("Apply allowlisted OCR fields to open notebook", key="settings_apply_ocr"):
         try:
             new_settings = apply_ocr_patch(project.settings, plan)
             projects.save_settings(project, new_settings)

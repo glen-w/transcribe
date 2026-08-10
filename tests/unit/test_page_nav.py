@@ -2,7 +2,129 @@
 
 from __future__ import annotations
 
-from transcribe.ui.page_viewer import _normalize_entries
+from pathlib import Path
+
+from transcribe.domain.models import AttemptProvenance, CleanupRecord, OCRAttempt
+from transcribe.ui.page_viewer import (
+    _cleanup_mode_help,
+    _filter_existing_entries,
+    _normalize_entries,
+    _page_number_to_index,
+    _resolve_view_entries,
+    _transcription_model_help,
+    _transcription_model_label,
+)
+
+
+def _attempt(
+    *,
+    model_name: str | None = None,
+    fingerprint_model: str | None = None,
+) -> OCRAttempt:
+    provenance = None
+    if model_name is not None:
+        provenance = AttemptProvenance(
+            model_name=model_name,
+            model_digest=None,
+            model_identity_verified=False,
+            prompt_id="p",
+            prompt_version="1",
+            prompt_sha256="abc",
+            prompt_text="x",
+            input_sha256="def",
+            preprocess_profile="none",
+            preprocess_version=1,
+            generation_options={},
+            application_version="0",
+            ollama_host="http://localhost",
+            request_id="r",
+            render_id="render",
+        )
+    payload = {"model_name": fingerprint_model} if fingerprint_model else {}
+    return OCRAttempt(
+        attempt_id="a1",
+        status="succeeded",
+        input_fingerprint="fp",
+        fingerprint_payload=payload,
+        raw_text="hi",
+        provenance=provenance,
+        provider_metadata={},
+        started_at="2024-01-01T00:00:00Z",
+    )
+
+
+def test_page_number_to_index_valid():
+    assert _page_number_to_index(1, 172) == 0
+    assert _page_number_to_index(2, 172) == 1
+    assert _page_number_to_index(172, 172) == 171
+
+
+def test_page_number_to_index_rejects_out_of_range():
+    assert _page_number_to_index(0, 172) is None
+    assert _page_number_to_index(173, 172) is None
+    assert _page_number_to_index(1, 0) is None
+
+
+def test_transcription_model_label_from_provenance():
+    assert _transcription_model_label(_attempt(model_name="gemma3:4b")) == "gemma3:4b"
+
+
+def test_transcription_model_label_falls_back_to_fingerprint():
+    assert (
+        _transcription_model_label(_attempt(fingerprint_model="llava:latest"))
+        == "llava:latest"
+    )
+
+
+def test_transcription_model_label_none_without_attempt():
+    assert _transcription_model_label(None) is None
+
+
+def test_transcription_model_help_includes_provenance():
+    help_text = _transcription_model_help(
+        _attempt(model_name="glm-ocr:latest"),
+        "glm-ocr:latest",
+    )
+    assert "glm-ocr:latest" in help_text
+    assert "Vision OCR" in help_text
+    assert "Prompt: p v1" in help_text
+    assert "Preprocess: none" in help_text
+    assert "unverified" in help_text
+
+
+def test_transcription_model_help_without_provenance():
+    help_text = _transcription_model_help(
+        _attempt(fingerprint_model="llava:latest"),
+        "llava:latest",
+    )
+    assert "llava:latest" in help_text
+    assert "Prompt:" not in help_text
+
+
+def test_cleanup_mode_help_sanitize_light():
+    help_text = _cleanup_mode_help(
+        CleanupRecord(
+            execution_status="succeeded",
+            acceptance_status="applied",
+            mode="sanitize_light",
+            model_name="llama3.1:8b",
+        )
+    )
+    assert "obvious OCR artefacts" in help_text
+    assert "paraphrase" in help_text
+    assert "llama3.1:8b" in help_text
+
+
+def test_cleanup_mode_help_unknown_mode():
+    help_text = _cleanup_mode_help(
+        CleanupRecord(
+            execution_status="succeeded",
+            acceptance_status="applied",
+            mode="custom_mode",
+        )
+    )
+    assert "custom_mode" in help_text
+    assert "raw OCR" in help_text
 
 
 def test_normalize_entries_from_page_ids():
@@ -28,3 +150,62 @@ def test_normalize_entries_cross_notebook():
     )
     assert entries[0]["project_root"] == "/a"
     assert entries[1]["project_root"] == "/b"
+
+
+def test_filter_existing_entries_drops_deleted(tmp_path: Path):
+    alive = tmp_path / "brown_3"
+    alive.mkdir()
+    (alive / "project.json").write_text("{}", encoding="utf-8")
+    dead = tmp_path / "notebook-project"
+    entries = _filter_existing_entries(
+        [
+            {"page_id": "old", "project_root": str(dead)},
+            {"page_id": "new", "project_root": str(alive)},
+        ]
+    )
+    assert entries == [{"page_id": "new", "project_root": str(alive)}]
+
+
+def test_resolve_prefers_explicit_page_ids_over_stale_session(tmp_path: Path, monkeypatch):
+    alive = tmp_path / "brown_3"
+    alive.mkdir()
+    (alive / "project.json").write_text("{}", encoding="utf-8")
+    dead = tmp_path / "notebook-project"
+
+    class _FakeState(dict):
+        pass
+
+    fake = _FakeState(
+        view_entries=[
+            {"page_id": "stale", "project_root": str(dead)},
+        ]
+    )
+    monkeypatch.setattr("transcribe.ui.page_viewer.st.session_state", fake)
+
+    entries = _resolve_view_entries(
+        page_ids=["a", "b"],
+        project_root=str(alive),
+        view_entries=None,
+        prefer_session_entries=True,
+    )
+    assert entries == [
+        {"page_id": "a", "project_root": str(alive)},
+        {"page_id": "b", "project_root": str(alive)},
+    ]
+
+
+def test_resolve_drops_deleted_explicit_view_entries(tmp_path: Path):
+    alive = tmp_path / "brown_3"
+    alive.mkdir()
+    (alive / "project.json").write_text("{}", encoding="utf-8")
+    dead = tmp_path / "notebook-project"
+
+    entries = _resolve_view_entries(
+        page_ids=["fallback"],
+        project_root=str(alive),
+        view_entries=[
+            {"page_id": "gone", "project_root": str(dead)},
+        ],
+        prefer_session_entries=False,
+    )
+    assert entries == [{"page_id": "fallback", "project_root": str(alive)}]

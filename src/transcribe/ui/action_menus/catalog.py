@@ -30,9 +30,9 @@ ACTIONS: tuple[ActionDef, ...] = (
     ),
     ActionDef(
         ActionId.ANALYSE,
-        "Analyse",
+        "Run Analysis",
         ":material/analytics:",
-        "Open Analyse for this notebook.",
+        "Open Run Analysis for this notebook.",
     ),
     ActionDef(
         ActionId.EXPORT,
@@ -44,7 +44,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.RENAME,
         "Rename",
         ":material/edit:",
-        "Rename this notebook (display title only; the project folder path is unchanged).",
+        "Rename this notebook (display title only; the notebook folder path is unchanged).",
     ),
     ActionDef(
         ActionId.DELETE,
@@ -77,11 +77,13 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
 NOTEBOOK_STRIP: tuple[ActionId, ...] = (
     ActionId.OPEN,
     ActionId.TRANSCRIBE,
+    ActionId.ANALYSE,
 )
 
 VIEW_NOTEBOOK_STRIP: tuple[ActionId, ...] = (
     ActionId.OPEN,
     ActionId.TRANSCRIBE,
+    ActionId.ANALYSE,
     ActionId.RENAME,
     ActionId.DELETE,
 )

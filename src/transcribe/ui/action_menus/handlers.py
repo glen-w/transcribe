@@ -144,7 +144,40 @@ def _notebook_title_for_dialog(
         return fallback
 
 
+def _scrub_viewer_entries_for_deleted(root: Path) -> None:
+    """Remove deleted notebook from Prev/Next nav even if another project is open."""
+    entries = st.session_state.get("view_entries")
+    if not entries:
+        return
+    try:
+        deleted = str(root.resolve())
+    except OSError:
+        deleted = str(root)
+    kept: list[dict] = []
+    for entry in entries:
+        raw = entry.get("project_root") if isinstance(entry, dict) else None
+        if not raw:
+            continue
+        try:
+            if str(Path(str(raw)).expanduser().resolve()) == deleted:
+                continue
+        except OSError:
+            continue
+        kept.append(entry)
+    if not kept:
+        clear_page_viewer_state()
+        return
+    st.session_state["view_entries"] = kept
+    st.session_state["view_page_ids"] = [
+        str(e.get("page_id")) for e in kept if e.get("page_id")
+    ]
+    current_id = st.session_state.get("view_page_id")
+    if current_id and current_id not in st.session_state["view_page_ids"]:
+        st.session_state["view_page_id"] = st.session_state["view_page_ids"][0]
+
+
 def _clear_session_if_deleted(root: Path) -> None:
+    _scrub_viewer_entries_for_deleted(root)
     current = st.session_state.get("root")
     if not current:
         return
@@ -154,6 +187,7 @@ def _clear_session_if_deleted(root: Path) -> None:
     except OSError:
         return
     st.session_state.pop("root", None)
+    st.session_state["pending_notebook_root"] = ""
     clear_page_viewer_state()
 
 
@@ -246,7 +280,7 @@ def _rename_notebook_dialog(
     projects_dir_key: str,
     title: str,
 ) -> None:
-    st.caption("Changes the display title only. The project folder path is unchanged.")
+    st.caption("Changes the display title only. The notebook folder path is unchanged.")
     err = st.session_state.pop(f"am_rename_error__{project_id}", None)
     if err:
         st.error(err)

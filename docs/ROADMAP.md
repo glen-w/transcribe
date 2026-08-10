@@ -82,6 +82,12 @@ Two separate lanes. Do not conflate human-facing scan cleanup with OCR input tra
 - Declutter identity (`enabled` + `DECLUTTER_VERSION` + ordered ops + frozen detection params) is frozen into ingest journal / render provenance; crash recovery never pairs mismatched pixels and metadata. OCR invalidation follows the final active render SHA.
 - Re-OCR / reprocessing (lifecycle below) may eventually re-apply either lane with explicit user choice; that does not change the defaults above.
 
+**Later — visual declutter expansion (Pillow-only, uncommitted)**
+
+Stay outside the page: high-confidence, edge-anchored artefacts only — never alter pixels inside the detected page area. That keeps declutter distinct from document restoration (no bleed-through, whitening, stains, ruled lines, hole punching, creases, page-wide shadow fix, or handwritten-margin cleanup).
+
+Suggested sequence after scanner-bed borders: **generic uniform overscan** → **binding gutter** → **edge shadows** → **obvious corner wedges**. Other safe candidates when detection is conservative: scanner lid/background slivers (uniform non-page edge bands), blank overscan margins (strong four-side page/background boundary), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
+
 ---
 
 ## Next — Corpus & product lifecycle — [?] candidates

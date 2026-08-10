@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -457,6 +458,29 @@ def open_project_paths(root: Path) -> ProjectPaths:
     paths = ProjectPaths(root=Path(root).expanduser().resolve())
     paths.ensure_layout()
     return paths
+
+
+def notebook_dir_slug(title: str) -> str:
+    """Filesystem-safe folder name derived from a notebook display title."""
+    raw = (title or "").strip() or "Untitled notebook"
+    slug = re.sub(r"[^\w.\-()+ ]+", "_", raw, flags=re.UNICODE).strip(" .")
+    slug = re.sub(r"\s+", "-", slug)
+    return slug or "notebook"
+
+
+def allocate_notebook_root(projects_dir: Path | str, title: str) -> Path:
+    """Pick an unused directory under ``projects_dir`` for a new notebook."""
+    projects = Path(projects_dir).expanduser().resolve()
+    base = notebook_dir_slug(title)
+    candidate = projects / base
+    if not candidate.exists():
+        return candidate
+    n = 2
+    while True:
+        alt = projects / f"{base}-{n}"
+        if not alt.exists():
+            return alt
+        n += 1
 
 
 def delete_managed_notebook(

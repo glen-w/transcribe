@@ -27,8 +27,15 @@ from transcribe.analysis.runner import AnalysisRunner
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
 from transcribe.services.project import ProjectService
+from transcribe.ui.components.action_links import render_action_link
+from transcribe.ui.components.progress_panel import (
+    SNAPSHOT_KEY,
+    StreamlitProgressCallback,
+    make_initial_snapshot,
+    render_progress_panel,
+)
 from transcribe.ui.module_ui_groups import group_modules_for_ui
-from transcribe.ui.shell import render_page_shell
+from transcribe.ui.shell import render_page_shell, set_ui_mode
 
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
@@ -39,6 +46,13 @@ _CUSTOM_QA_MODULE = "llm_custom_qa"
 _REVIEW_KEEP_OPEN_KEY = "run_analysis_review_modules_keep_open"
 _PENDING_REVIEW_REMOVAL_KEY = "run_analysis_pending_review_removal"
 _KEY_PREFIX = "run_analysis"
+_PENDING_LAUNCH_KEY = "run_analysis_pending_launch"
+_IN_PROGRESS_KEY = "analysis_run_in_progress"
+_LAST_RESULTS_KEY = "run_analysis_last_results"
+
+
+def analysis_run_in_progress() -> bool:
+    return bool(st.session_state.get(_IN_PROGRESS_KEY, False))
 
 
 def apply_pending_review_module_removal(session_state: Any) -> None:
@@ -129,18 +143,108 @@ def _render_module_review(module_ids: tuple[str, ...]) -> None:
                 )
 
 
-def render_run_analysis_form(
+def _render_post_analysis_actions() -> None:
+    """Compact next-step strip after a successful/finished Analyse run."""
+    last = st.session_state.get(_LAST_RESULTS_KEY)
+    if not isinstance(last, dict) or not last:
+        return
+    st.markdown("#### Next")
+    cols = st.columns(3, gap="small")
+    with cols[0]:
+        if render_action_link(
+            "View",
+            key="analysis_done_view",
+            icon=":material/menu_book:",
+            help="Open this notebook on the View page.",
+        ):
+            set_ui_mode("View")
+    with cols[1]:
+        if render_action_link(
+            "Review",
+            key="analysis_done_review",
+            icon=":material/rate_review:",
+            help="Browse and edit transcribed pages.",
+        ):
+            set_ui_mode("Review")
+    with cols[2]:
+        if render_action_link(
+            "Published results",
+            key="analysis_done_results",
+            icon=":material/analytics:",
+            help="Stay on Analyse and inspect published result tabs below.",
+        ):
+            st.session_state["_analysis_scroll_results"] = True
+            st.toast("Published results are below.")
+
+
+def _execute_pending_launch(
+    pending: dict[str, Any],
+    *,
+    projects: ProjectService,
+    progress: StreamlitProgressCallback,
+) -> None:
+    """Run snapshotted modules; sole launch authority after Run click."""
+    launch_ids = list(pending.get("modules") or [])
+    question_text = pending.get("question_text")
+    st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
+    progress.refresh_panel()
+
+    runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+    results: dict[str, dict[str, Any]] = {}
+    completed = failed = skipped = 0
+    total = len(launch_ids)
+
+    try:
+        for index, mid in enumerate(launch_ids, start=1):
+            progress.module_started(mid, index=index, total=total)
+            try:
+                if mid == "llm_custom_qa" and question_text:
+                    env = runner.run_module(mid, question_text=question_text)
+                else:
+                    env = runner.run_module(mid)
+            except Exception as exc:  # noqa: BLE001
+                env = {
+                    "module_id": mid,
+                    "outcome": "failed",
+                    "capability": "failed",
+                    "payload": {"error": {"message": str(exc)}},
+                }
+            results[mid] = env
+            outcome = str(env.get("outcome") or "failed")
+            if outcome == "failed":
+                failed += 1
+            else:
+                completed += 1
+            progress.module_finished(
+                mid,
+                outcome=outcome,
+                completed=completed,
+                failed=failed,
+                skipped=skipped,
+                total=total,
+            )
+        progress.run_completed()
+    except Exception as exc:  # noqa: BLE001
+        progress.run_failed(str(exc))
+    finally:
+        st.session_state[_IN_PROGRESS_KEY] = False
+        st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+        progress.refresh_panel()
+
+    st.session_state[_LAST_RESULTS_KEY] = {
+        mid: {
+            "outcome": env.get("outcome"),
+            "capability": env.get("capability"),
+        }
+        for mid, env in results.items()
+    }
+
+
+def _render_config_and_launch(
     *,
     projects: ProjectService,
     project: Any,
 ) -> None:
-    """Configure and launch a notebook analysis run from a TX-style preset."""
-    render_page_shell(
-        "Run Analysis",
-        "Choose an analysis preset (or custom modules), optional Ask-notebook "
-        "question, then run.",
-    )
-
     apply_pending_review_module_removal(st.session_state)
 
     suitable = list(suitable_module_ids())
@@ -255,33 +359,87 @@ def render_run_analysis_form(
         width="stretch",
         key="run_analysis_launch",
     ):
-        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        with st.spinner(f"Running {len(launch_ids)} modules…"):
-            q = (question_text or "").strip() or None
-            results: dict[str, dict[str, Any]] = {}
-            for mid in launch_ids:
-                try:
-                    if mid == "llm_custom_qa" and q:
-                        results[mid] = runner.run_module(mid, question_text=q)
-                    else:
-                        results[mid] = runner.run_module(mid)
-                except Exception as exc:  # noqa: BLE001
-                    results[mid] = {
-                        "module_id": mid,
-                        "outcome": "failed",
-                        "capability": "failed",
-                        "payload": {"error": {"message": str(exc)}},
-                    }
-        st.session_state["run_analysis_last_results"] = {
-            mid: {
-                "outcome": env.get("outcome"),
-                "capability": env.get("capability"),
-            }
-            for mid, env in results.items()
+        q = (question_text or "").strip() or None
+        st.session_state[_PENDING_LAUNCH_KEY] = {
+            "modules": list(launch_ids),
+            "question_text": q,
+            "form_cleared": False,
+            "started": False,
+            "footer_summary": (
+                f"Running **{format_preset_label(preset)}** · "
+                f"{len(launch_ids)} modules"
+            ),
         }
+        st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
+        st.session_state[_IN_PROGRESS_KEY] = True
         st.rerun()
 
-    last = st.session_state.get("run_analysis_last_results")
+
+def render_run_analysis_form(
+    *,
+    projects: ProjectService,
+    project: Any,
+) -> bool:
+    """Configure and launch a notebook analysis run from a TX-style preset.
+
+    Returns True while a run is in progress (caller should hide published tabs).
+    """
+    render_page_shell(
+        "Run Analysis",
+        "Choose an analysis preset (or custom modules), optional Ask-notebook "
+        "question, then run.",
+    )
+
+    # Post-run strip only when idle so links never point at a mid-run state.
+    if not analysis_run_in_progress():
+        _render_post_analysis_actions()
+
+    pending = st.session_state.get(_PENDING_LAUNCH_KEY)
+    if analysis_run_in_progress() and isinstance(pending, dict):
+        summary = pending.get("footer_summary") or "Running analysis…"
+        st.markdown(summary)
+        progress_slot = st.empty()
+        snapshot = st.session_state.get(SNAPSHOT_KEY)
+        if snapshot is not None:
+            with progress_slot.container():
+                render_progress_panel(snapshot)
+        else:
+            with progress_slot.container():
+                st.info("Analysis is running…")
+
+        # Three-phase launch (TX model):
+        # 1) click stores pending + rerun
+        # 2) paint progress only + form_cleared + rerun (ends script → clears form)
+        # 3) paint progress + execute (blocking; form stays gone)
+        if not pending.get("form_cleared"):
+            pending["form_cleared"] = True
+            st.session_state[_PENDING_LAUNCH_KEY] = pending
+            st.rerun()
+            return True
+        if not pending.get("started"):
+            pending["started"] = True
+            st.session_state[_PENDING_LAUNCH_KEY] = pending
+            progress = StreamlitProgressCallback(render_slot=progress_slot)
+            _execute_pending_launch(pending, projects=projects, progress=progress)
+            st.rerun()
+        return True
+
+    if analysis_run_in_progress():
+        snapshot = st.session_state.get(SNAPSHOT_KEY)
+        if snapshot is not None:
+            render_progress_panel(snapshot)
+        else:
+            st.info("Analysis is running…")
+        return True
+
+    last_snapshot = st.session_state.get(SNAPSHOT_KEY)
+    if last_snapshot and last_snapshot.get("status") in ("completed", "failed"):
+        with st.expander("Last run progress", expanded=False):
+            render_progress_panel(last_snapshot)
+
+    _render_config_and_launch(projects=projects, project=project)
+
+    last = st.session_state.get(_LAST_RESULTS_KEY)
     if isinstance(last, dict) and last:
         st.subheader("Last run")
         ok = sum(1 for v in last.values() if v.get("outcome") == "success")
@@ -291,3 +449,5 @@ def render_run_analysis_form(
                 f"**{format_module_label(mid)}:** outcome=`{row.get('outcome')}` "
                 f"capability=`{row.get('capability')}`"
             )
+
+    return False

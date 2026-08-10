@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from transcribe.domain.dates import (
     normalize_tags,
     parse_date_input,
 )
-from transcribe.domain.models import Project
+from transcribe.domain.models import CleanupRecord, OCRAttempt, Project
 from transcribe.errors import TranscribeError
 from transcribe.paths import ProjectPaths
 from transcribe.ports import SystemClock, UuidGenerator
@@ -21,6 +22,110 @@ from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
+
+# User-facing implications for each cleanup mode (matches cleanup prompts + validator).
+_CLEANUP_MODE_HELP: dict[str, str] = {
+    "strip_leak": (
+        "Strip leakage only: removes leaked system/instruction text and prompt "
+        "artefacts that are not part of the page. Does not paraphrase, rewrite, "
+        "or invent content. Tightest validator budgets — large edits are rejected "
+        "and raw OCR is kept."
+    ),
+    "sanitize_light": (
+        "Light sanitize: strips leakage and fixes only obvious OCR artefacts "
+        "(broken whitespace, duplicated punctuation) while staying faithful to "
+        "the page. Does not paraphrase meaning or add new content. Validator "
+        "allows modest length change; rejected output keeps raw OCR."
+    ),
+    "rewrite": (
+        "Broader rewrite: may lightly polish spelling/punctuation and remove "
+        "leaked instruction text while preserving the author's meaning. More "
+        "latitude than sanitize_light, but still must stay grounded in the OCR "
+        "source. Rejected output keeps raw OCR."
+    ),
+}
+
+
+def _transcription_model_label(attempt: OCRAttempt | None) -> str | None:
+    """Vision OCR model recorded on the active attempt, if any."""
+    if attempt is None:
+        return None
+    if attempt.provenance and attempt.provenance.model_name:
+        return attempt.provenance.model_name
+    raw = attempt.fingerprint_payload.get("model_name")
+    if raw:
+        return str(raw)
+    return None
+
+
+def _transcription_model_help(attempt: OCRAttempt | None, model_label: str) -> str:
+    """Tooltip detailing the vision OCR model used for this attempt."""
+    parts = [
+        f"Vision OCR model for this page: {model_label}.",
+        "Reads the page image and produces the transcription (before any cleanup).",
+    ]
+    prov = attempt.provenance if attempt else None
+    if prov is None:
+        return " ".join(parts)
+    if prov.model_identity_verified:
+        digest = (prov.model_digest or "").strip()
+        if digest:
+            short = digest if len(digest) <= 16 else f"{digest[:12]}…"
+            parts.append(f"Identity verified ({short}).")
+        else:
+            parts.append("Identity verified.")
+        parts.append("Matching fingerprints can skip re-OCR.")
+    else:
+        parts.append(
+            "Identity unverified — fingerprint skip is disabled for this model tag."
+        )
+    parts.append(f"Prompt: {prov.prompt_id} v{prov.prompt_version}.")
+    profile = prov.preprocess_profile or "none"
+    parts.append(f"Preprocess: {profile}.")
+    return " ".join(parts)
+
+
+def _cleanup_mode_help(cleanup: CleanupRecord) -> str:
+    """Tooltip detailing implications of the cleanup mode (and model if known)."""
+    mode = (cleanup.mode or "").strip()
+    base = _CLEANUP_MODE_HELP.get(
+        mode,
+        (
+            f"Cleanup mode “{mode or 'unknown'}”: second-pass text model after "
+            "vision OCR. Failures and validator rejections keep raw OCR."
+        ),
+    )
+    model = (cleanup.model_name or "").strip()
+    if model:
+        return f"{base} Cleanup model: {model}."
+    return base
+
+
+def _caption_with_info(body: str, help_text: str) -> None:
+    """Caption line with a hover `(i)` tooltip (no click / no rerun)."""
+    tip = html.escape(help_text, quote=True)
+    body_esc = html.escape(body)
+    st.markdown(
+        f'<p style="font-size:0.875rem;color:var(--text-color);opacity:0.6;'
+        f'margin:0 0 0.35rem 0;">{body_esc} '
+        f'<span title="{tip}" style="cursor:help;opacity:0.9;user-select:none;" '
+        f'aria-label="More info">(i)</span></p>',
+        unsafe_allow_html=True,
+    )
+
+
+def _page_number_to_index(page_number: int, total: int) -> int | None:
+    """Map a 1-based page number to a 0-based index, or None if out of range."""
+    if total < 1 or page_number < 1 or page_number > total:
+        return None
+    return page_number - 1
+
+
+def _navigate_to_entry(entry: dict[str, str]) -> None:
+    """Point the page viewer at a nav entry (may switch notebook root)."""
+    st.session_state["view_page_id"] = entry["page_id"]
+    st.session_state["root"] = entry["project_root"]
+    st.session_state["pending_notebook_root"] = str(entry["project_root"])
 
 
 def _normalize_entries(
@@ -41,6 +146,77 @@ def _normalize_entries(
     return [{"page_id": pid, "project_root": root} for pid in (page_ids or []) if pid and root]
 
 
+def _entry_root_exists(root: str | Path) -> bool:
+    try:
+        return (Path(root).expanduser() / "project.json").is_file()
+    except OSError:
+        return False
+
+
+def _filter_existing_entries(entries: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Drop nav entries whose notebook was deleted or never had a manifest."""
+    return [e for e in entries if _entry_root_exists(e["project_root"])]
+
+
+def _resolve_view_entries(
+    *,
+    page_ids: list[str] | None,
+    project_root: str | Path | None,
+    view_entries: list[dict[str, Any]] | None,
+    prefer_session_entries: bool,
+) -> list[dict[str, str]]:
+    """Build the Prev/Next list without letting deleted notebooks stick around.
+
+    Explicit ``view_entries`` (Archive/Search cross-notebook nav) win when passed.
+    Explicit ``page_ids`` from Review/workflow rebuild for the active project and
+    ignore stale session entries from a previous notebook.
+    """
+    if view_entries is not None:
+        entries = _normalize_entries(
+            page_ids=page_ids,
+            project_root=project_root,
+            view_entries=view_entries,
+        )
+    elif page_ids is not None:
+        entries = _normalize_entries(
+            page_ids=page_ids,
+            project_root=project_root,
+            view_entries=None,
+        )
+    elif prefer_session_entries:
+        raw = st.session_state.get("view_entries")
+        entries = (
+            _normalize_entries(
+                page_ids=None,
+                project_root=project_root,
+                view_entries=raw,
+            )
+            if raw
+            else []
+        )
+        if not entries:
+            entries = _normalize_entries(
+                page_ids=st.session_state.get("view_page_ids"),
+                project_root=project_root,
+                view_entries=None,
+            )
+    else:
+        entries = []
+
+    entries = _filter_existing_entries(entries)
+    if entries:
+        return entries
+
+    # Last resort: active project pages only.
+    return _filter_existing_entries(
+        _normalize_entries(
+            page_ids=page_ids or st.session_state.get("view_page_ids"),
+            project_root=project_root,
+            view_entries=None,
+        )
+    )
+
+
 def render_page_viewer(
     *,
     paths: ProjectPaths | None = None,
@@ -57,13 +233,17 @@ def render_page_viewer(
 
     When ``view_entries`` spans multiple notebooks, Prev/Next switches project roots.
     """
-    entries = view_entries or st.session_state.get("view_entries")
-    if not entries:
-        entries = _normalize_entries(
-            page_ids=page_ids or st.session_state.get("view_page_ids"),
-            project_root=st.session_state.get("root"),
-            view_entries=None,
-        )
+    active_root = (
+        str(paths.root)
+        if paths is not None
+        else str(st.session_state.get("root") or "")
+    )
+    entries = _resolve_view_entries(
+        page_ids=page_ids,
+        project_root=active_root,
+        view_entries=view_entries,
+        prefer_session_entries=True,
+    )
     if not entries:
         st.info("No pages in this context.")
         return project
@@ -111,7 +291,8 @@ def render_page_viewer(
     img_path = paths.resolve_contained(render.image_relpath)
     result = projects.load_page_result(page.page_id)
 
-    top = st.columns([1, 1, 2, 1, 1])
+    total = len(entries)
+    top = st.columns([1, 1, 2.2, 1.4, 1, 1])
     if show_back:
         if top[0].button(back_label):
             st.session_state.pop("view_page_id", None)
@@ -126,20 +307,35 @@ def render_page_viewer(
     else:
         top[0].write("")
     if top[1].button("←", disabled=idx <= 0, help="Previous page"):
-        prev = entries[idx - 1]
-        st.session_state["view_page_id"] = prev["page_id"]
-        st.session_state["root"] = prev["project_root"]
+        _navigate_to_entry(entries[idx - 1])
         st.rerun()
     top[2].markdown(
-        f"**{project.title}** · {idx + 1} / {len(entries)}"
+        f"**{project.title}**"
         + (f" · {page.date.format_display()}" if page.date else " · Undated")
     )
-    if top[3].button("→", disabled=idx >= len(entries) - 1, help="Next page"):
-        nxt = entries[idx + 1]
-        st.session_state["view_page_id"] = nxt["page_id"]
-        st.session_state["root"] = nxt["project_root"]
+    with top[3]:
+        with st.form("page_viewer_jump", border=False, clear_on_submit=False):
+            jump_cols = st.columns([2.2, 1.4, 1.2])
+            jump_to = jump_cols[0].number_input(
+                "Page",
+                min_value=1,
+                max_value=max(total, 1),
+                value=idx + 1,
+                step=1,
+                label_visibility="collapsed",
+                help=f"Type a page number (1–{total}) and press Enter or Go",
+            )
+            jump_cols[1].markdown(f"/ {total}")
+            jumped = jump_cols[2].form_submit_button("Go")
+        if jumped:
+            jump_idx = _page_number_to_index(int(jump_to), total)
+            if jump_idx is not None and jump_idx != idx:
+                _navigate_to_entry(entries[jump_idx])
+                st.rerun()
+    if top[4].button("→", disabled=idx >= total - 1, help="Next page"):
+        _navigate_to_entry(entries[idx + 1])
         st.rerun()
-    top[4].caption(f"`{page.page_id[:8]}…`")
+    top[5].caption(f"`{page.page_id[:8]}…`")
 
     if page.tags:
         st.caption("Tags: " + ", ".join(page.tags))
@@ -164,26 +360,41 @@ def render_page_viewer(
         status = result.status if result else "pending"
         st.write(f"Status: **{status}**")
         attempt = result.active_attempt() if result else None
+        model_label = _transcription_model_label(attempt)
+        if model_label:
+            _caption_with_info(
+                f"Transcription model: {model_label}",
+                _transcription_model_help(attempt, model_label),
+            )
         if attempt and attempt.cleanup is not None:
             cu = attempt.cleanup
             if cu.execution_status == "disabled":
                 pass
             elif cu.acceptance_status == "applied":
-                st.caption(
-                    f"Cleanup: applied ({cu.mode}) via {cu.model_name or 'text model'}"
+                _caption_with_info(
+                    f"Cleanup: applied ({cu.mode}) via {cu.model_name or 'text model'}",
+                    _cleanup_mode_help(cu),
                 )
             elif cu.acceptance_status == "unchanged":
-                st.caption(
+                body = (
                     f"Cleanup: unchanged ({cu.note or 'identical'}) — kept OCR text"
                 )
+                if cu.mode:
+                    _caption_with_info(body, _cleanup_mode_help(cu))
+                else:
+                    st.caption(body)
             elif cu.acceptance_status == "validator_rejected":
-                st.caption(
-                    f"Cleanup: validator rejected — {cu.note} (kept raw OCR)"
-                )
+                body = f"Cleanup: validator rejected — {cu.note} (kept raw OCR)"
+                if cu.mode:
+                    _caption_with_info(body, _cleanup_mode_help(cu))
+                else:
+                    st.caption(body)
             elif cu.execution_status == "provider_failed":
-                st.caption(
-                    f"Cleanup: provider failed — {cu.note} (kept raw OCR)"
-                )
+                body = f"Cleanup: provider failed — {cu.note} (kept raw OCR)"
+                if cu.mode:
+                    _caption_with_info(body, _cleanup_mode_help(cu))
+                else:
+                    st.caption(body)
             elif cu.execution_status == "skipped_empty_source":
                 st.caption("Cleanup: skipped empty OCR source")
             if cu.pre_cleanup_text is not None:
@@ -304,6 +515,7 @@ def open_page_context(
         view_entries=view_entries,
     )
     st.session_state["root"] = str(project_root)
+    st.session_state["pending_notebook_root"] = str(project_root)
     st.session_state["view_page_id"] = page_id
     st.session_state["view_page_ids"] = [e["page_id"] for e in entries]
     st.session_state["view_entries"] = entries

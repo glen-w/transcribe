@@ -131,10 +131,12 @@ def test_section_defaults() -> None:
     assert list(section_default_actions(SectionId.ARCHIVE_NOTEBOOK)) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
     ]
     assert list(section_default_actions(SectionId.VIEW_NOTEBOOK)) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
     ]
@@ -142,10 +144,12 @@ def test_section_defaults() -> None:
     assert configured_actions_for_section(prefs, SectionId.ARCHIVE_NOTEBOOK) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
     ]
     assert configured_actions_for_section(prefs, SectionId.VIEW_NOTEBOOK) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
     ]
@@ -193,6 +197,7 @@ def test_empty_manual_restores_section_defaults() -> None:
     assert merged.sections[SectionId.ARCHIVE_NOTEBOOK].selected == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
     ]
 
 
@@ -553,6 +558,7 @@ def test_catalog_helpers_and_unknown_section_fallback() -> None:
     assert section_default_actions(SectionId.VIEW_NOTEBOOK) == (
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
     )
@@ -576,6 +582,7 @@ def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> 
     assert resolve_section_actions(SectionId.VIEW_NOTEBOOK, ctx, prefs=prefs) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
     ]
@@ -697,8 +704,11 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "SectionId.VIEW_NOTEBOOK" in source
     assert "ReturnMode.ARCHIVE" in source
     assert "ReturnMode.VIEW" in source
+    assert "navigate_open" in source
+    assert "_render_clickable_cover" in source
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
     assert "st-key-tr_al_" in shell
+    assert "st-key-tx_cover_" in shell
     assert "Settings" in shell
 
 

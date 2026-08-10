@@ -176,6 +176,7 @@ def navigate_workflow(
 
     # Mutate only after validation succeeds.
     state["root"] = str(root)
+    state["pending_notebook_root"] = str(root)
     clear_page_viewer_state(state)
     state["ui_mode"] = normalize_ui_mode(mode.value)
     if rerun and session is None:
@@ -228,6 +229,7 @@ def navigate_open(
 
     # Pure session dict path for tests (no Streamlit page_context helper).
     state["root"] = str(root)
+    state["pending_notebook_root"] = str(root)
     state["view_page_id"] = page_id
     state["view_page_ids"] = page_ids
     state["view_entries"] = [

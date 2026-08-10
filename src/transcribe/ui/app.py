@@ -28,7 +28,11 @@ from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import ArchiveService, bump_archive_generation
 from transcribe.services.export import ExportService
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
-from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.services.project import (
+    ProjectService,
+    allocate_notebook_root,
+    open_project_paths,
+)
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
 from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.page_viewer import render_page_viewer
@@ -36,13 +40,14 @@ from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
+    is_open_notebook_workflow,
     is_workflow_mode,
     normalize_ui_mode,
     render_brand,
     render_mode_nav,
-    render_nav_section,
     render_page_shell,
     set_ui_mode,
+    sync_notebook_selector,
 )
 
 
@@ -198,7 +203,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         paths, projects, ingest = _services(root)
         project = projects.load(reconcile=True)
     except TranscribeError as exc:
-        st.info("Create or open a project directory to begin.")
+        st.info("Select or create a notebook to begin.")
         st.caption(str(exc))
         return
 
@@ -222,7 +227,11 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
 
     if section == "Analyse":
         st.caption(f"Project: `{paths.root}`")
-        render_run_analysis_form(projects=projects, project=project)
+        from transcribe.ui.run_analysis import analysis_run_in_progress
+
+        running = render_run_analysis_form(projects=projects, project=project)
+        if running or analysis_run_in_progress():
+            return
         st.divider()
         st.markdown("#### Published results")
         _render_analysis_result_tabs(paths, projects, project)
@@ -284,14 +293,14 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             if errors:
                 st.session_state["import_errors"] = errors
             st.rerun()
-        st.write(f"Pages in project: **{len(project.pages)}**")
+        st.write(f"Pages in notebook: **{len(project.pages)}**")
         title_key = f"import_notebook_title__{project.id}"
         if title_key not in st.session_state:
             st.session_state[title_key] = project.title or ""
         title_in = st.text_input(
             "Notebook name",
             key=title_key,
-            help="Display title for this notebook. The project folder path is unchanged.",
+            help="Display title for this notebook. The notebook folder path is unchanged.",
         )
         if st.button("Save notebook name"):
             cleaned = title_in.strip()
@@ -320,14 +329,21 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             default_id = st.session_state.get("view_page_id") or page_ids[0]
             if default_id not in page_ids:
                 default_id = page_ids[0]
+            # Rebuild nav for the open notebook so stale Archive/Search entries
+            # (e.g. a deleted notebook) cannot override Review.
+            view_entries = [
+                {"page_id": pid, "project_root": str(paths.root)} for pid in page_ids
+            ]
             st.session_state["view_page_id"] = default_id
             st.session_state["view_page_ids"] = page_ids
+            st.session_state["view_entries"] = view_entries
             render_page_viewer(
                 paths=paths,
                 projects=projects,
                 project=project,
                 page_id=default_id,
                 page_ids=page_ids,
+                view_entries=view_entries,
                 highlight_query="",
                 show_back=False,
             )
@@ -977,6 +993,10 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
         "Search",
         "Find text across transcribed notebook pages.",
     ),
+    "New notebook": (
+        "New notebook",
+        "Create a notebook, then import pages and run OCR.",
+    ),
     "Import": (
         "Import",
         "Add JPEG, PNG, or PDF pages to this notebook.",
@@ -1004,69 +1024,77 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
 }
 
 
+def _notebook_dropdown_options(archive: ArchiveService) -> list[tuple[str, str]]:
+    """``(root_path, title)`` pairs for the sidebar notebook selectbox."""
+    notebooks = archive.list_notebooks(order="newest")
+    out: list[tuple[str, str]] = []
+    for nb in notebooks:
+        try:
+            root = str(nb.root.expanduser().resolve())
+        except OSError:
+            root = str(nb.root)
+        out.append((root, nb.title or nb.root.name))
+    return out
+
+
+def _render_new_notebook(runtime, archive: ArchiveService) -> None:
+    st.caption(
+        "Creates a new notebook folder under the workspace notebooks directory, "
+        "then opens Import."
+    )
+    if "new_notebook_title" not in st.session_state:
+        st.session_state["new_notebook_title"] = "Untitled notebook"
+    title_in = st.text_input(
+        "Notebook name",
+        key="new_notebook_title",
+        help="Display title. A folder name is derived automatically.",
+    )
+    if st.button("Create notebook", type="primary", key="new_notebook_create"):
+        cleaned = (title_in or "").strip() or "Untitled notebook"
+        try:
+            root = allocate_notebook_root(runtime.projects_dir, cleaned)
+            paths = open_project_paths(root)
+            ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create(
+                title=cleaned
+            )
+            bump_archive_generation(runtime)
+            archive.ensure_index()
+            st.cache_resource.clear()
+            st.session_state["root"] = str(paths.root)
+            sync_notebook_selector(str(paths.root))
+            st.session_state.pop("new_notebook_title", None)
+            st.toast(f"Created “{cleaned}”")
+            set_ui_mode("Import")
+        except TranscribeError as exc:
+            st.error(str(exc))
+
+
 def main() -> None:
     configure_streamlit_page()
     inject_global_styles()
 
     runtime = build_runtime_paths()
     runtime.ensure_layout()
-    default_root = str(runtime.default_project_dir())
+
+    archive = get_archive(str(runtime.projects_dir), str(runtime.data_dir))
+    archive.ensure_index()
+    notebook_options = _notebook_dropdown_options(archive)
 
     mode = normalize_ui_mode(st.session_state.get("ui_mode"))
     st.session_state["ui_mode"] = mode
 
     with st.sidebar:
         render_brand()
-        mode = render_mode_nav(mode)
-        render_nav_section("Project")
-        root = st.text_input(
-            "Project directory", value=st.session_state.get("root", default_root)
-        )
-        st.session_state["root"] = root
-        if "create_notebook_title" not in st.session_state:
-            st.session_state["create_notebook_title"] = (
-                Path(root).expanduser().name or "Untitled notebook"
-            )
-        create_title = st.text_input(
-            "Notebook name",
-            help="Used when Create makes a new notebook. Rename later from View or Import.",
-            key="create_notebook_title",
-        )
-        st.caption(f"Projects root: `{runtime.projects_dir}`")
-        st.caption(f"Inbox: `{runtime.inbox_dir}`")
-        st.caption(f"Exports: `{runtime.export_dir}`")
+        mode = render_mode_nav(mode, notebook_options=notebook_options)
 
-        col_a, col_b = st.columns(2)
-        if col_a.button("Create", width="stretch"):
-            try:
-                cleaned = (create_title or "").strip() or "Untitled notebook"
-                paths = open_project_paths(Path(root))
-                ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create(
-                    title=cleaned
-                )
-                st.success(f"Created “{cleaned}”")
-                st.cache_resource.clear()
-            except TranscribeError as exc:
-                st.error(str(exc))
-        if col_b.button("Open", width="stretch"):
-            try:
-                paths, projects, ingest = _services(root)
-                ingest.cleanup_staging()
-                projects.load(reconcile=True)
-                st.cache_resource.clear()
-                set_ui_mode("Import")
-            except TranscribeError as exc:
-                st.error(str(exc))
-
-    archive = get_archive(str(runtime.projects_dir), str(runtime.data_dir))
-    archive.ensure_index()
+    root = st.session_state.get("root") or ""
 
     # Page viewer overlay when navigated from Archive/Search/View.
     if (
         not is_workflow_mode(mode)
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
-        and st.session_state.get("root")
+        and root
     ):
         try:
             render_page_viewer(
@@ -1094,7 +1122,12 @@ def main() -> None:
         render_search(runtime, archive)
     elif mode == "Settings":
         render_settings_page()
-    elif is_workflow_mode(mode):
+    elif mode == "New notebook":
+        _render_new_notebook(runtime, archive)
+    elif is_open_notebook_workflow(mode):
+        if not root:
+            st.info("Select a notebook above, or create one under Workflow → New notebook.")
+            return
         _render_workflow(runtime, root, section=mode)
 
 

@@ -20,8 +20,7 @@ class ThumbnailService:
     def thumb_path(self, page_id: str) -> Path:
         return self.paths.thumb_path(page_id)
 
-    def ensure_thumb(self, project: Project, page_id: str) -> Path | None:
-        """Return cached or freshly generated JPEG thumb path; None if page/render missing."""
+    def _source_image(self, project: Project, page_id: str) -> Path | None:
         page = next((p for p in project.pages if p.page_id == page_id), None)
         if page is None:
             return None
@@ -30,6 +29,16 @@ class ThumbnailService:
             return None
         src = self.paths.resolve_contained(render.image_relpath)
         if not src.exists():
+            return None
+        return src
+
+    def ensure_thumb(self, project: Project, page_id: str) -> Path | None:
+        """Return cached or freshly generated JPEG thumb path; None if page/render missing.
+
+        Preserves source aspect ratio, bounded by ``max_edge``.
+        """
+        src = self._source_image(project, page_id)
+        if src is None:
             return None
         self.paths.thumbs_dir.mkdir(parents=True, exist_ok=True)
         dest = self.thumb_path(page_id)

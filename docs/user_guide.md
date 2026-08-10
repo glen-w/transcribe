@@ -5,9 +5,9 @@ Authority: user flows and examples — summarizes contracts; does not define sch
 
 Import pages → run local OCR → review/edit → export. Product framing: [PRODUCT.md](PRODUCT.md). Entrypoints: [public_surfaces.md](public_surfaces.md).
 
-## 1. Create or open a project
+## 1. Create or open a notebook
 
-**UI:** set the project directory in the sidebar, optionally set **Notebook name**, then **Create** or **Open**. Rename later from **View** (Rename action) or **Workflow → Import**.
+**UI:** pick an existing notebook from the sidebar dropdown (sets context for Workflow), or choose **Workflow → New notebook**, name it, and create. Rename later from **View** (Rename action) or **Workflow → Import**.
 
 **CLI:**
 
@@ -25,7 +25,7 @@ Supported inputs: JPEG, PNG, PDF (unencrypted). PDFs are rendered to per-page PN
 ./transcribe.sh cli import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./scan.pdf --dpi 200
 ```
 
-In the UI: **Workflow → Import** → set **Notebook name** if needed → upload → Import files.
+In the UI: select a notebook → **Workflow → Import** → set **Notebook name** if needed → upload → Import files.
 
 ## 3. Choose a vision model and run
 
@@ -48,7 +48,7 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
 
 ## 4. Review and edit
 
-Open Archive / View / Search / Transcribe, then the page viewer. Edits are stored as `edited_text` and survive re-runs.
+Open Archive / View / Search / Review, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. The viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. Edits are stored as `edited_text` and survive re-runs.
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"

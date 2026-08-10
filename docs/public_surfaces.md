@@ -26,9 +26,9 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive (shared page viewer for review/edit).
+**Notebooks:** View · Search · Archive (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow.
 
-**Workflow:** Transcribe (OCR) · Analyse · Export.
+**Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
 **Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets, ported from TranscriptX) plus published-result tabs: Overview · Themes · Mood & tone · Moments · Summaries · Ask notebook. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
 

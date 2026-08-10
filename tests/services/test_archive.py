@@ -440,6 +440,82 @@ def test_filled_timeline_preserves_gaps(tmp_path: Path):
     assert len(tl.bins) > 2
 
 
+def test_timeline_excludes_implausible_years_from_spikes(tmp_path: Path):
+    """Page-number years must not stretch the axis or drop real activity."""
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "mixed",
+        title="Mixed",
+        page_specs=[
+            {"date": ApproximateDate(507), "text": "folio junk"},
+            {"date": ApproximateDate(2405), "text": "future junk"},
+            {"date": ApproximateDate(2024, 5, 10), "text": "real a"},
+            {"date": ApproximateDate(2024, 5, 10), "text": "real b"},
+            {"date": ApproximateDate(2024, 7, 12), "text": "real c"},
+            {"date": ApproximateDate(2024, 7, 12), "text": "real d"},
+            {"date": ApproximateDate(2024, 7, 12), "text": "real e"},
+            {"date": ApproximateDate(2024, 7, 12), "text": "real f"},
+            {"date": None, "text": "undated"},
+        ],
+    )
+    archive = ArchiveService(runtime)
+    tl = archive.timeline()
+    assert tl.showing == 9
+    assert tl.undated_count == 1
+    assert tl.dated_count == 6  # plausible only
+    keys = [b.key for b in tl.bins]
+    assert not any(k.startswith("0507") or k.startswith("2405") for k in keys)
+    assert any(k.startswith("2024") for k in keys)
+    # Real spikes present; axis span stays in the plausible window.
+    assert sum(b.count for b in tl.bins) == 6
+    assert archive.available_years() == [2024]
+
+    nb = archive.list_notebooks()[0]
+    assert nb.date_start == ApproximateDate(2024, 5, 10)
+    assert nb.date_end == ApproximateDate(2024, 7, 12)
+
+
+def test_notebook_bounds_prefer_precision_over_bare_year(tmp_path: Path):
+    """Bare prose years must not stretch card bounds past day stamps."""
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "sand",
+        title="Sand",
+        page_specs=[
+            {"date": ApproximateDate(713), "text": "folio 713"},
+            {"date": ApproximateDate(4302), "text": "VAT 4302"},
+            {"date": ApproximateDate(1947), "text": "1947 change of scenery?"},
+            {"date": ApproximateDate(2026, 5, 23), "text": "260523 stamp"},
+            {"date": ApproximateDate(2026, 7, 28), "text": "260728 stamp"},
+        ],
+    )
+    archive = ArchiveService(runtime)
+    nb = archive.list_notebooks()[0]
+    assert nb.date_start == ApproximateDate(2026, 5, 23)
+    assert nb.date_end == ApproximateDate(2026, 7, 28)
+    assert nb.date_start.format_display() != "1947"
+    assert "713" not in (nb.date_start.format_display() + nb.date_end.format_display())
+
+
+def test_notebook_bounds_keep_year_only_when_that_is_all(tmp_path: Path):
+    runtime = _runtime(tmp_path)
+    _make_notebook(
+        runtime,
+        "hist",
+        title="Hist",
+        page_specs=[
+            {"date": ApproximateDate(1947), "text": "cover"},
+            {"date": ApproximateDate(1948), "text": "later"},
+        ],
+    )
+    archive = ArchiveService(runtime)
+    nb = archive.list_notebooks()[0]
+    assert nb.date_start == ApproximateDate(1947)
+    assert nb.date_end == ApproximateDate(1948)
+
+
 def test_year_filter_hides_unrelated_notebooks(tmp_path: Path):
     runtime = _runtime(tmp_path)
     _make_notebook(
@@ -555,6 +631,32 @@ def test_ensure_index_ignores_result_mtime_without_generation_bump(tmp_path: Pat
     archive.ensure_index()
     assert archive._ensure_calls == calls
     assert archive.search("after-silent").showing == 0
+
+
+def test_ensure_index_updates_root_after_folder_rename(tmp_path: Path):
+    """Renaming the notebook folder must refresh archive root even if content is unchanged."""
+    runtime = _runtime(tmp_path)
+    root, _projects = _make_notebook(
+        runtime,
+        "old_name",
+        title="Renamed",
+        page_specs=[{"date": ApproximateDate(2020, 1, 1), "text": "stay"}],
+    )
+    archive = ArchiveService(runtime)
+    archive.ensure_index(force=True)
+    before = archive.list_notebooks()
+    assert len(before) == 1
+    assert before[0].root == root.resolve()
+
+    new_root = runtime.projects_dir / "new_name"
+    root.rename(new_root)
+    archive._validated_at = None
+    archive.ensure_index()
+    after = archive.list_notebooks()
+    assert len(after) == 1
+    assert after[0].title == "Renamed"
+    assert after[0].root == new_root.resolve()
+    assert after[0].project_id == before[0].project_id
 
 
 def test_corrupt_archive_cache_deletes_and_rebuilds(tmp_path: Path):

@@ -304,9 +304,19 @@ def extract_page_date(
     return candidates[0][0]
 
 
+def is_plausible_diary_year(year: int, *, today: date | None = None) -> bool:
+    """True when ``year`` is in the diary-plausible window (1900 .. today+slack).
+
+    Used by OCR extract and archive timeline spikes so page numbers / codes
+    (e.g. 507, 2405) do not stretch charts across impossible centuries.
+    """
+    ref = today or date.today()
+    return _EXTRACT_YEAR_MIN <= year <= ref.year + _EXTRACT_YEAR_FUTURE_SLACK
+
+
 def _plausible_extracted_year(year: int, *, today: date) -> bool:
     """Reject far-future / pre-1900 years that are usually page numbers or codes."""
-    return _EXTRACT_YEAR_MIN <= year <= today.year + _EXTRACT_YEAR_FUTURE_SLACK
+    return is_plausible_diary_year(year, today=today)
 
 
 def _early_text_end(text: str) -> int:

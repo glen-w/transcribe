@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
+
 import streamlit as st
 
 from transcribe.domain.dates import ApproximateDate, bin_key_to_date
@@ -16,10 +19,46 @@ from transcribe.services.archive import (
 )
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
-from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, SectionId
-from transcribe.ui.action_menus.nav import load_live_notebook_context
+from transcribe.ui.action_menus.catalog import help_for
+from transcribe.ui.action_menus.context import ActionContext
+from transcribe.ui.action_menus.ids import ActionId, NavStyle, ReturnMode, SectionId
+from transcribe.ui.action_menus.nav import load_live_notebook_context, navigate_open
 from transcribe.ui.action_menus.render import render_configured_actions
 from transcribe.ui.page_viewer import open_page_context
+
+# Layout slots (no crop): View pins width beside the chart; Archive pins height in the strip.
+VIEW_COVER_WIDTH_PX = 112
+VIEW_ROW_CHART_HEIGHT = 120
+ARCHIVE_COVER_HEIGHT_PX = 160
+
+
+def _cover_open_key(instance_prefix: str, project_id: str) -> str:
+    digest = hashlib.sha1(
+        f"{instance_prefix}|{project_id}|cover_open".encode()
+    ).hexdigest()[:10]
+    return f"tx_cover_{instance_prefix}_{project_id}_{digest}"
+
+
+def _render_clickable_cover(
+    thumb: Path,
+    ctx: ActionContext,
+    *,
+    key: str,
+    width: int | str = "stretch",
+) -> None:
+    """Cover thumbnail: click runs the same navigation as the Open action."""
+    st.image(str(thumb), width=width)
+    can_open = bool(ctx.project_exists and ctx.has_pages and ctx.page_ids)
+    if st.button(
+        "Open",
+        key=key,
+        type="tertiary",
+        width="stretch",
+        disabled=not can_open,
+        help=help_for(ActionId.OPEN) if can_open else "No pages to open.",
+    ):
+        if navigate_open(ctx, rerun=False):
+            st.rerun()
 
 
 def _filters_from_widgets(
@@ -50,12 +89,23 @@ def _filters_from_widgets(
 def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, height: int) -> None:
     if not bins:
         return
+    axis_format = {
+        "day": "%d %b %Y",
+        "week": "%d %b %Y",
+        "month": "%b %Y",
+        "year": "%Y",
+    }.get(grain, "%b %Y")
+    tick_count = min(10, max(4, len(bins)))
     try:
         import altair as alt
         import pandas as pd
 
         rows = [
-            {"when": bin_key_to_date(b.key, grain), "pages": b.count, "label": b.key}
+            {
+                "when": pd.Timestamp(bin_key_to_date(b.key, grain)),
+                "pages": b.count,
+                "label": b.key,
+            }
             for b in bins
         ]
         df = pd.DataFrame(rows)
@@ -63,17 +113,40 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
             alt.Chart(df)
             .mark_bar()
             .encode(
-                x=alt.X("when:T", title=None),
+                x=alt.X(
+                    "when:T",
+                    title=None,
+                    axis=alt.Axis(
+                        format=axis_format,
+                        labelAngle=-35,
+                        labelOverlap=True,
+                        tickCount=tick_count,
+                        grid=False,
+                    ),
+                ),
                 y=alt.Y("pages:Q", title="Pages"),
-                tooltip=["label", "pages"],
+                tooltip=[
+                    alt.Tooltip("when:T", title="When", format=axis_format),
+                    alt.Tooltip("pages:Q", title="Pages"),
+                ],
             )
             .properties(height=height)
         )
         st.altair_chart(chart, width="stretch")
     except Exception:
+        # Readable categorical fallback when Altair/pandas is unavailable.
+        labels = []
+        for b in bins:
+            d = bin_key_to_date(b.key, grain)
+            if grain == "year":
+                labels.append(f"{d.year}")
+            elif grain == "month":
+                labels.append(d.strftime("%b %Y"))
+            else:
+                labels.append(d.strftime("%d %b %Y"))
         st.bar_chart(
-            {"bin": [b.key for b in bins], "pages": [b.count for b in bins]},
-            x="bin",
+            {"when": labels, "pages": [b.count for b in bins]},
+            x="when",
             y="pages",
             height=height,
         )
@@ -169,13 +242,15 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         range_end=range_end,
     )
     timeline = archive.timeline(filters)
+    excluded = timeline.showing - timeline.dated_count
+    if excluded <= 0:
+        spike_note = ""
+    elif excluded == timeline.undated_count:
+        spike_note = f" · {excluded} undated (excluded from spikes)"
+    else:
+        spike_note = f" · {excluded} undated/out-of-range (excluded from spikes)"
     st.markdown(
-        f"Showing **{timeline.showing}** of **{timeline.total}** pages"
-        + (
-            f" · {timeline.undated_count} undated (excluded from spikes)"
-            if timeline.undated_count
-            else ""
-        )
+        f"Showing **{timeline.showing}** of **{timeline.total}** pages" + spike_note
     )
 
     if timeline.bins:
@@ -217,33 +292,44 @@ def _notebook_card(
     return_mode: ReturnMode,
 ) -> None:
     try:
+        ctx = load_live_notebook_context(
+            project_id=nb.project_id,
+            project_root=nb.root,
+            projects_dir=projects_dir,
+            return_mode=return_mode,
+            nav_style=NavStyle.CLICK_RERUN,
+            instance_prefix="archive",
+        )
+    except Exception:  # noqa: BLE001
+        ctx = None
+
+    try:
         paths = open_project_paths(nb.root)
         projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
         project = projects.load(reconcile=False)
     except Exception as exc:  # noqa: BLE001
         st.caption(f"{nb.title}: {exc}")
-        try:
-            ctx = load_live_notebook_context(
-                project_id=nb.project_id,
-                project_root=nb.root,
-                projects_dir=projects_dir,
-                return_mode=return_mode,
-                nav_style=NavStyle.CLICK_RERUN,
-                instance_prefix="archive",
-            )
-            render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
-        except Exception:  # noqa: BLE001
+        if ctx is not None:
+            try:
+                render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+            except Exception:  # noqa: BLE001
+                st.caption("Actions unavailable.")
+        else:
             st.caption("Actions unavailable.")
         return
 
-    thumbs = ThumbnailService(paths)
-    cover_id = thumbs.cover_page_id(project)
-    if cover_id:
-        thumb = thumbs.ensure_thumb(project, cover_id)
-        if thumb and thumb.exists():
-            img_col, _ = st.columns([1, 3])
-            with img_col:
-                st.image(str(thumb), width="stretch")
+    if ctx is not None:
+        thumbs = ThumbnailService(paths)
+        cover_id = thumbs.cover_page_id(project)
+        if cover_id:
+            thumb = thumbs.ensure_thumb(project, cover_id)
+            if thumb and thumb.exists():
+                _render_clickable_cover(
+                    thumb,
+                    ctx,
+                    key=_cover_open_key("archive", nb.project_id),
+                    width="content",
+                )
     date_label = "Undated"
     if nb.date_start or nb.date_end:
         a = nb.date_start.format_display() if nb.date_start else "?"
@@ -253,17 +339,12 @@ def _notebook_card(
     st.caption(date_label)
     rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
     st.caption(f"{nb.page_count} pages · {rate}")
-    try:
-        ctx = load_live_notebook_context(
-            project_id=nb.project_id,
-            project_root=nb.root,
-            projects_dir=projects_dir,
-            return_mode=return_mode,
-            nav_style=NavStyle.CLICK_RERUN,
-            instance_prefix="archive",
-        )
-        render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
-    except Exception:  # noqa: BLE001
+    if ctx is not None:
+        try:
+            render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+        except Exception:  # noqa: BLE001
+            st.caption("Actions unavailable.")
+    else:
         st.caption("Actions unavailable.")
 
 
@@ -283,7 +364,19 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
         st.info("No notebooks in the projects directory.")
         return
     for nb in notebooks:
-        left, right = st.columns([1, 4])
+        try:
+            ctx = load_live_notebook_context(
+                project_id=nb.project_id,
+                project_root=nb.root,
+                projects_dir=runtime.projects_dir,
+                return_mode=ReturnMode.VIEW,
+                nav_style=NavStyle.CLICK_RERUN,
+                instance_prefix="view",
+            )
+        except Exception:  # noqa: BLE001
+            ctx = None
+        # Narrow cover column; chart/actions take the rest. Cover width is fixed in px.
+        left, right = st.columns([1, 8], gap="medium")
         with left:
             paths = open_project_paths(nb.root)
             projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
@@ -291,13 +384,18 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 project = projects.load(reconcile=False)
             except Exception:
                 project = None
-            if project:
+            if project is not None and ctx is not None:
                 thumbs = ThumbnailService(paths)
                 cover_id = thumbs.cover_page_id(project)
                 if cover_id:
                     thumb = thumbs.ensure_thumb(project, cover_id)
                     if thumb and thumb.exists():
-                        st.image(str(thumb), width="stretch")
+                        _render_clickable_cover(
+                            thumb,
+                            ctx,
+                            key=_cover_open_key("view", nb.project_id),
+                            width=VIEW_COVER_WIDTH_PX,
+                        )
         with right:
             st.markdown(f"**{nb.title}**")
             if nb.date_start or nb.date_end:
@@ -320,18 +418,13 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                     grain = "year"
                 elif nb.activity and len(nb.activity[0].key) == 10:
                     grain = "day"
-                _activity_chart(nb.activity, grain, height=120)
-            try:
-                ctx = load_live_notebook_context(
-                    project_id=nb.project_id,
-                    project_root=nb.root,
-                    projects_dir=runtime.projects_dir,
-                    return_mode=ReturnMode.VIEW,
-                    nav_style=NavStyle.CLICK_RERUN,
-                    instance_prefix="view",
-                )
-                render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
-            except Exception:  # noqa: BLE001
+                _activity_chart(nb.activity, grain, height=VIEW_ROW_CHART_HEIGHT)
+            if ctx is not None:
+                try:
+                    render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
+                except Exception:  # noqa: BLE001
+                    st.caption("Actions unavailable.")
+            else:
                 st.caption("Actions unavailable.")
         st.divider()
 

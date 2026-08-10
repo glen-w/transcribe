@@ -19,6 +19,7 @@ from typing import Literal
 from transcribe.domain.dates import (
     ApproximateDate,
     fill_bin_series,
+    is_plausible_diary_year,
     max_date,
     min_date,
     normalize_tags,
@@ -175,11 +176,32 @@ def _source_media_type(project: Project, source_id: str) -> str:
     return "unknown"
 
 
+def _spike_dates(dates: list[ApproximateDate]) -> list[ApproximateDate]:
+    """Dates eligible for activity spikes (plausible diary years only)."""
+    return [d for d in dates if is_plausible_diary_year(d.year)]
+
+
+def _bounds_dates(dates: list[ApproximateDate]) -> list[ApproximateDate]:
+    """Dates for notebook start/end labels.
+
+    Plausible years only. When any month/day-precision stamp exists, ignore
+    bare years so prose years (e.g. ``1947 change of scenery?``) and folio
+    codes do not stretch the card range past real diary stamps.
+    """
+    dated = _spike_dates(dates)
+    precise = [d for d in dated if d.precision != "year"]
+    return precise if precise else dated
+
+
 def _notebook_bounds(project: Project) -> tuple[ApproximateDate | None, ApproximateDate | None]:
-    dated = [p.date for p in project.pages if p.date is not None]
-    derived_start, derived_end = min_date(dated), max_date(dated)  # type: ignore[arg-type]
+    dated = _bounds_dates([p.date for p in project.pages if p.date is not None])
+    derived_start, derived_end = min_date(dated), max_date(dated)
     start = project.date_start if project.date_start is not None else derived_start
     end = project.date_end if project.date_end is not None else derived_end
+    if start is not None and not is_plausible_diary_year(start.year):
+        start = derived_start
+    if end is not None and not is_plausible_diary_year(end.year):
+        end = derived_end
     return start, end
 
 
@@ -202,7 +224,11 @@ def _page_in_period(page_date: ApproximateDate | None, filters: ArchiveFilters) 
 def _choose_grain(dates: list[ApproximateDate]) -> str:
     if not dates:
         return "month"
-    years = {d.year for d in dates}
+    years = sorted({d.year for d in dates})
+    span_years = years[-1] - years[0] + 1
+    # Long spans: year ticks stay readable; monthly fill would be thousands of bins.
+    if span_years >= 8 or len(years) >= 6:
+        return "year"
     if len(years) >= 3:
         return "month"
     if len(years) == 1:
@@ -390,9 +416,9 @@ class ArchiveService:
                             "TEXT NOT NULL DEFAULT '[]'"
                         )
                     known = {
-                        row["project_id"]: row["signature"]
+                        row["project_id"]: (row["signature"], row["root"])
                         for row in conn.execute(
-                            "SELECT project_id, signature FROM notebooks"
+                            "SELECT project_id, signature, root FROM notebooks"
                         )
                     }
                     seen: set[str] = set()
@@ -407,7 +433,15 @@ class ArchiveService:
                             continue
                         sig = self._project_signature(root, project)
                         seen.add(project.id)
-                        if not force and known.get(project.id) == sig:
+                        prev = known.get(project.id)
+                        # Folder renames keep content signature stable but must
+                        # refresh the stored root — stale roots break Open/actions.
+                        if (
+                            not force
+                            and prev is not None
+                            and prev[0] == sig
+                            and prev[1] == str(root)
+                        ):
                             continue
                         self._reindex_project(conn, root, project, projects, sig)
                     stale = set(known) - seen
@@ -617,7 +651,7 @@ class ArchiveService:
             years: set[int] = set()
             for row in conn.execute("SELECT date_json FROM pages WHERE date_json IS NOT NULL"):
                 d = self._parse_date(row["date_json"])
-                if d:
+                if d and is_plausible_diary_year(d.year):
                     years.add(d.year)
             return sorted(years)
 
@@ -645,14 +679,15 @@ class ArchiveService:
             rows = self._load_page_rows(conn)
             total = len(rows)
             matched = [r for r in rows if self._row_matches(r, filters)]
-            dated_dates: list[ApproximateDate] = []
+            all_dated: list[ApproximateDate] = []
             undated = 0
             for row in matched:
                 d = self._parse_date(row["date_json"])
                 if d is None:
                     undated += 1
                 else:
-                    dated_dates.append(d)
+                    all_dated.append(d)
+            dated_dates = _spike_dates(all_dated)
             grain = _choose_grain(dated_dates)
             counts: dict[str, int] = {}
             for d in dated_dates:
@@ -719,19 +754,25 @@ class ArchiveService:
                 elif filters.notebook_ids and nb["project_id"] not in filters.notebook_ids:
                     continue
 
-                dated_only = [
+                matched_dates = [
                     d
                     for d in (self._parse_date(r["date_json"]) for r in matched)
                     if d is not None
                 ]
+                dated_only = _spike_dates(matched_dates)
+                bounds_dates = _bounds_dates(matched_dates)
                 stored_start = self._parse_date(nb["date_start_json"])
                 stored_end = self._parse_date(nb["date_end_json"])
                 # Prefer stored overrides from reindex (_notebook_bounds already independent).
                 # When filters shrink the view, activity uses matched dates; bounds stay notebook-level.
                 start = stored_start
                 end = stored_end
+                if start is not None and not is_plausible_diary_year(start.year):
+                    start = None
+                if end is not None and not is_plausible_diary_year(end.year):
+                    end = None
                 if start is None or end is None:
-                    d_start, d_end = min_date(dated_only), max_date(dated_only)
+                    d_start, d_end = min_date(bounds_dates), max_date(bounds_dates)
                     if start is None:
                         start = d_start
                     if end is None:

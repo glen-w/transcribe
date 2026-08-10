@@ -7,23 +7,27 @@ from pathlib import Path
 
 import streamlit as st
 
+
 # Notebooks section
 _NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive")
-# Workflow section (import → OCR → review, then analyse / export)
+# Workflow section (create → import → OCR → review, then analyse / export)
 _WORKFLOW_MODES: tuple[str, ...] = (
+    "New notebook",
     "Import",
     "Transcribe",
     "Review",
     "Analyse",
     "Export",
 )
-# App settings (global prefs, not project OCR settings)
+# App settings (global prefs, not notebook OCR settings)
 _SETTINGS_MODES: tuple[str, ...] = ("Settings",)
 _MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES, *_SETTINGS_MODES)
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Notebooks": "View",
     "Workflow": "Import",
+    "Create": "New notebook",
+    "New": "New notebook",
     # Former Transcribe sub-tabs
     "Run OCR": "Transcribe",
     "Pages": "Review",
@@ -31,6 +35,10 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Analyze": "Analyse",
     "Run Analysis": "Analyse",
 }
+
+NOTEBOOK_SELECTOR_KEY = "notebook_selector"
+PENDING_NOTEBOOK_ROOT_KEY = "pending_notebook_root"
+SELECTBOX_PLACEHOLDER_NOTEBOOK = "— Select a notebook —"
 
 _ASSETS = Path(__file__).resolve().parent / "assets"
 _LOGO_PATH = _ASSETS / "logo.png"
@@ -318,6 +326,79 @@ def inject_global_styles() -> None:
         font-size: 0.8rem;
         line-height: 1;
     }
+    /* Cover click = Open (transparent button overlays the thumbnail) */
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_"]) {
+        position: relative;
+    }
+    [class*="st-key-tx_cover_"] {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 3;
+        margin: 0 !important;
+        opacity: 0 !important;
+    }
+    [class*="st-key-tx_cover_"] [data-testid="stButton"],
+    [class*="st-key-tx_cover_"] [data-testid="stButton"] > button,
+    [class*="st-key-tx_cover_"] button {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        cursor: pointer !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(
+            [class*="st-key-tx_cover_"] button:not(:disabled)
+        ):hover
+        [data-testid="stImage"]
+        img {
+        outline: 2px solid rgba(31, 119, 180, 0.5);
+        outline-offset: 2px;
+        cursor: pointer;
+    }
+    /* View list: fixed-width cover slot (112×160), contain — no crop.
+       Matches VIEW_COVER_WIDTH_PX / chart row in archive_views. */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tx_cover_view_"]) {
+        align-items: flex-start !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_view_"]) {
+        width: 112px !important;
+        min-width: 112px !important;
+        max-width: 112px !important;
+        height: 160px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_view_"])
+        [data-testid="stImage"],
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_view_"])
+        [data-testid="stImage"] > div {
+        width: 112px !important;
+        height: 160px !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_view_"])
+        [data-testid="stImage"]
+        img {
+        width: auto !important;
+        max-width: 112px !important;
+        height: auto !important;
+        max-height: 160px !important;
+        object-fit: contain !important;
+    }
+    /* Archive strip: fixed cover height, width follows aspect — no crop.
+       Matches ARCHIVE_COVER_HEIGHT_PX in archive_views. */
+    div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_archive_"])
+        [data-testid="stImage"]
+        img {
+        width: auto !important;
+        max-width: 100% !important;
+        height: 160px !important;
+        max-height: 160px !important;
+        object-fit: contain !important;
+    }
 </style>
 """,
         unsafe_allow_html=True,
@@ -361,7 +442,14 @@ def set_ui_mode(mode: str) -> None:
     """Switch top-level UI mode and rerun (clears page-viewer overlay)."""
     mode = normalize_ui_mode(mode)
     st.session_state["ui_mode"] = mode
+    # Clear full viewer nav — not just the overlay flag — so Review cannot
+    # resurrect Prev/Next entries for a notebook opened earlier then deleted.
     st.session_state["show_page_viewer"] = False
+    st.session_state.pop("view_page_id", None)
+    st.session_state.pop("view_page_ids", None)
+    st.session_state.pop("view_entries", None)
+    st.session_state.pop("view_highlight", None)
+    st.session_state.pop("page_return_mode", None)
     st.rerun()
 
 
@@ -369,8 +457,10 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
     is_active = current == mode
     text = f"**{label}**" if is_active else label
     btn_type = "primary" if is_active else "secondary"
+    # Streamlit keys cannot contain spaces.
+    safe = mode.replace(" ", "_")
     kwargs = {
-        "key": f"{key_prefix}_{mode}",
+        "key": f"{key_prefix}_{safe}",
         "type": btn_type,
         "width": "stretch",
     }
@@ -382,7 +472,94 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
             set_ui_mode(mode)
 
 
-def render_mode_nav(current: str) -> str:
+def _selectbox_index_kwargs(
+    *,
+    key: str,
+    options: list[str],
+    preferred: str | None,
+    fallback_index: int = 0,
+) -> dict[str, int]:
+    """Return ``index=`` only when the widget key is not already in session state."""
+    if key in st.session_state:
+        current = st.session_state.get(key)
+        if current not in options:
+            st.session_state[key] = (
+                preferred if preferred in options else options[fallback_index]
+            )
+        return {}
+    if preferred and preferred in options:
+        return {"index": options.index(preferred)}
+    return {"index": fallback_index}
+
+
+def render_notebook_picker(
+    *,
+    options: list[tuple[str, str]],
+    current_root: str | None,
+) -> str | None:
+    """TX-style notebook selectbox; return selected root path or None for placeholder.
+
+    ``options`` is ``(root_path, display_title)`` for existing notebooks.
+    Selecting a notebook sets workspace context for Workflow pages.
+    """
+    roots = [root for root, _title in options]
+    labels = {root: (title.strip() or Path(root).name) for root, title in options}
+    choices = [""] + roots
+
+    # Apply queued external navigation before the widget instantiates.
+    if PENDING_NOTEBOOK_ROOT_KEY in st.session_state:
+        pending = st.session_state.pop(PENDING_NOTEBOOK_ROOT_KEY)
+        if pending == "":
+            st.session_state[NOTEBOOK_SELECTOR_KEY] = ""
+        else:
+            try:
+                resolved = str(Path(pending).expanduser().resolve())
+            except OSError:
+                resolved = pending
+            if resolved in choices:
+                st.session_state[NOTEBOOK_SELECTOR_KEY] = resolved
+            elif pending in choices:
+                st.session_state[NOTEBOOK_SELECTOR_KEY] = pending
+
+    preferred: str | None = None
+    if current_root:
+        try:
+            resolved = str(Path(current_root).expanduser().resolve())
+        except OSError:
+            resolved = current_root
+        if resolved in roots:
+            preferred = resolved
+        elif current_root in roots:
+            preferred = current_root
+    selected = st.selectbox(
+        "Notebook",
+        choices,
+        format_func=lambda x: (
+            SELECTBOX_PLACEHOLDER_NOTEBOOK
+            if x == ""
+            else labels.get(x, Path(x).name)
+        ),
+        key=NOTEBOOK_SELECTOR_KEY,
+        label_visibility="collapsed",
+        **_selectbox_index_kwargs(
+            key=NOTEBOOK_SELECTOR_KEY,
+            options=choices,
+            preferred=preferred,
+        ),
+    )
+    return selected if selected else None
+
+
+def sync_notebook_selector(root: str | None) -> None:
+    """Queue sidebar selectbox alignment (safe after the widget has run)."""
+    st.session_state[PENDING_NOTEBOOK_ROOT_KEY] = root or ""
+
+
+def render_mode_nav(
+    current: str,
+    *,
+    notebook_options: list[tuple[str, str]] | None = None,
+) -> str:
     """Left-sidebar mode buttons under Notebooks / Workflow subheads."""
     current = normalize_ui_mode(current)
     st.session_state["ui_mode"] = current
@@ -390,6 +567,29 @@ def render_mode_nav(current: str) -> str:
     render_nav_section("Notebooks")
     for mode in _NOTEBOOK_MODES:
         _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
+
+    # Active notebook context (TX transcript-picker analogue).
+    opts = list(notebook_options or [])
+    if opts:
+        previous = st.session_state.get("root")
+        selected = render_notebook_picker(
+            options=opts,
+            current_root=previous,
+        )
+        if selected:
+            st.session_state["root"] = selected
+            if selected != previous:
+                st.session_state["show_page_viewer"] = False
+                st.session_state.pop("view_page_id", None)
+                st.session_state.pop("view_page_ids", None)
+                st.session_state.pop("view_entries", None)
+                st.session_state.pop("view_highlight", None)
+        else:
+            st.session_state.pop("root", None)
+    else:
+        st.caption("No notebooks yet — use Workflow → New notebook.")
+        st.session_state.pop("root", None)
+        sync_notebook_selector(None)
 
     render_nav_section("Workflow")
     for mode in _WORKFLOW_MODES:
@@ -411,3 +611,8 @@ def normalize_ui_mode(raw: str | None) -> str:
 
 def is_workflow_mode(mode: str) -> bool:
     return normalize_ui_mode(mode) in _WORKFLOW_MODES
+
+
+def is_open_notebook_workflow(mode: str) -> bool:
+    """Workflow modes that require an existing notebook selection."""
+    return is_workflow_mode(mode) and normalize_ui_mode(mode) != "New notebook"

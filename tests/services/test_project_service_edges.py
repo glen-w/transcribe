@@ -13,7 +13,9 @@ from transcribe.ingest import IngestService
 from transcribe.persistence.locks import JobLock
 from transcribe.services.project import (
     ProjectService,
+    allocate_notebook_root,
     delete_managed_notebook,
+    notebook_dir_slug,
     open_project_paths,
 )
 from tests.conftest import FakeClock, SequentialIds
@@ -31,6 +33,20 @@ def test_create_refuses_existing_project(tmp_path: Path) -> None:
     projects.create("Once")
     with pytest.raises(ProjectError, match="already exists"):
         projects.create("Twice")
+
+
+def test_allocate_notebook_root_unique(tmp_path: Path) -> None:
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    assert notebook_dir_slug("Travel 2024") == "Travel-2024"
+    first = allocate_notebook_root(projects, "Travel 2024")
+    assert first == projects / "Travel-2024"
+    first.mkdir()
+    second = allocate_notebook_root(projects, "Travel 2024")
+    assert second == projects / "Travel-2024-2"
+    second.mkdir()
+    third = allocate_notebook_root(projects, "Travel 2024")
+    assert third == projects / "Travel-2024-3"
 
 
 def test_load_missing_manifest_raises(tmp_path: Path) -> None:

@@ -114,6 +114,20 @@ def test_extract_rejects_implausible_bare_years():
     assert extract_page_date("440523 notes", today=today) is None
 
 
+def test_is_plausible_diary_year():
+    from datetime import date
+
+    from transcribe.domain.dates import is_plausible_diary_year
+
+    today = date(2026, 8, 10)
+    assert is_plausible_diary_year(1900, today=today)
+    assert is_plausible_diary_year(2026, today=today)
+    assert is_plausible_diary_year(2027, today=today)
+    assert not is_plausible_diary_year(1899, today=today)
+    assert not is_plausible_diary_year(507, today=today)
+    assert not is_plausible_diary_year(2405, today=today)
+    assert not is_plausible_diary_year(2028, today=today)
+
 def test_canonicalize_invariants():
     assert canonicalize_page_date_state(None, False, None) == (None, True, None)
     d = ApproximateDate(2020, 1, 2)
