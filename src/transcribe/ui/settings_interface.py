@@ -123,7 +123,7 @@ def render_interface_panel() -> None:
         options=["Built-in", "Custom"],
         key="iface_std_mode",
         horizontal=True,
-        help="Built-in is Open · Transcribe · Run Analysis · Export.",
+        help="Built-in is Open · Transcribe · Analyse · Export.",
         disabled=draft.recovery,
     )
     if st.session_state.get("iface_std_mode") == "Custom":
@@ -230,23 +230,37 @@ def render_interface_panel() -> None:
 def render_settings_page() -> None:
     """Top-level Settings hub (TX-shaped tabs, Transcribe-scoped)."""
     from transcribe.ui.settings_analysis import render_analysis_presets_panel
+    from transcribe.ui.settings_detection import render_detection_settings_panel
     from transcribe.ui.settings_hub import (
         render_configuration_panel,
         render_models_panel,
         render_profiles_panel,
     )
+    from transcribe.ui.settings_prompts import render_prompts_panel
 
     tabs = st.tabs(
-        ["Configuration", "Analysis", "Models", "Profiles", "Interface"]
+        [
+            "Configuration",
+            "Analysis",
+            "Detection",
+            "Prompts",
+            "Models",
+            "Profiles",
+            "Interface",
+        ]
     )
     with tabs[0]:
         render_configuration_panel()
     with tabs[1]:
         render_analysis_presets_panel()
     with tabs[2]:
-        render_models_panel()
+        render_detection_settings_panel()
     with tabs[3]:
-        render_profiles_panel()
+        render_prompts_panel()
     with tabs[4]:
+        render_models_panel()
+    with tabs[5]:
+        render_profiles_panel()
+    with tabs[6]:
         st.markdown("### Interface")
         render_interface_panel()

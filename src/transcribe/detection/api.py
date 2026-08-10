@@ -10,13 +10,15 @@ from transcribe.analysis.llm_runtime import TextLLMContext, set_text_llm_client
 from transcribe.detection.custom import (
     CustomDetectorDefinition,
     compile_custom_detector,
+    delete_custom_detector,
+    list_custom_detector_payloads,
     load_custom_detectors,
     save_custom_detector,
 )
 from transcribe.detection.definition import DetectorDefinition
 from transcribe.detection.findings import DetectionFinding
 from transcribe.detection.freshness import FreshnessStatus, detector_freshness
-from transcribe.detection.registry import get_builtin_detectors, list_all_detectors, resolve_detector
+from transcribe.detection.registry import list_all_detectors, resolve_detector
 from transcribe.detection.runner import DetectionRunner
 from transcribe.detection.storage import DetectionStorage
 from transcribe.providers.vision_llm import VisionLLMContext
@@ -72,11 +74,15 @@ class DetectionService:
         *,
         page_ids: list[str] | None = None,
         force: bool = False,
+        cancel_check: Any | None = None,
+        progress_callback: Any | None = None,
     ) -> dict[str, Any]:
         return self.runner.run_detector(
             detector_id,
             page_ids=page_ids,
             force=force,
+            cancel_check=cancel_check,
+            progress_callback=progress_callback,
         )
 
     def list_findings(self, detector_id: str) -> list[DetectionFinding]:
@@ -87,6 +93,12 @@ class DetectionService:
             DetectionFinding.from_dict(row)
             for row in (published.get("findings") or [])
         ]
+
+    def list_all_findings(self) -> list[DetectionFinding]:
+        out: list[DetectionFinding] = []
+        for info in self.list_detectors():
+            out.extend(self.list_findings(info.detector_id))
+        return out
 
     def findings_for_page(self, page_id: str) -> list[DetectionFinding]:
         out: list[DetectionFinding] = []
@@ -132,12 +144,22 @@ class DetectionService:
         return self.storage.update_finding_review(detector_id, finding_id, status)
 
     @staticmethod
-    def register_custom_detector(definition: CustomDetectorDefinition) -> DetectorDefinition | None:
+    def register_custom_detector(
+        definition: CustomDetectorDefinition,
+    ) -> DetectorDefinition | None:
         compiled = compile_custom_detector(definition)
         if compiled is None:
             return None
         save_custom_detector(definition)
         return compiled
+
+    @staticmethod
+    def delete_custom_detector(custom_id: str) -> bool:
+        return delete_custom_detector(custom_id)
+
+    @staticmethod
+    def list_custom_detector_defs() -> list[dict[str, Any]]:
+        return list_custom_detector_payloads()
 
     @staticmethod
     def use_recorded_text_client(client: Any) -> None:

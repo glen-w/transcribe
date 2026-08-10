@@ -14,7 +14,12 @@ from transcribe.detection.candidates import select_candidates
 from transcribe.detection.custom import load_custom_detectors
 from transcribe.detection.definition import DetectorDefinition
 from transcribe.detection.envelope import build_detection_envelope
-from transcribe.detection.findings import DetectionFinding, findings_to_dicts, utc_now_iso
+from transcribe.detection.findings import (
+    DetectionFinding,
+    carry_forward_reviews,
+    findings_to_dicts,
+    utc_now_iso,
+)
 from transcribe.detection.inputs import load_render_bytes, scope_fingerprint
 from transcribe.detection.registry import resolve_detector
 from transcribe.detection.routing import resolve_model_route
@@ -23,10 +28,32 @@ from transcribe.detection.storage import DetectionStorage
 from transcribe.persistence.locks import mutation_lock
 from transcribe.prompt_engine.definition import InputMode
 from transcribe.prompt_engine.execute import execute_prompt
-from transcribe.prompt_engine.registry import get_prompt
+from transcribe.prompt_engine.hub import resolve_for_input_mode, resolve_prompt
 from transcribe.providers.vision_llm import VisionLLMContext, bind_vision_llm_context
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
+
+
+def _detector_data_from_raw(parsed: dict[str, Any], finding_type: str) -> dict[str, Any]:
+    data: dict[str, Any] = {}
+    if finding_type == "poetry" and parsed.get("title"):
+        data["title"] = parsed["title"]
+    if finding_type == "todo_lists":
+        if parsed.get("items"):
+            data["items"] = parsed["items"][:40]
+        if parsed.get("list_style"):
+            data["list_style"] = parsed["list_style"]
+    if finding_type == "lists":
+        for key in ("list_kind", "item_count_estimate", "sample_items"):
+            if key in parsed:
+                data[key] = parsed[key]
+    if finding_type == "quotations":
+        for key in ("quote_kind", "attribution", "excerpt"):
+            if key in parsed and parsed[key] is not None:
+                data[key] = parsed[key]
+    if parsed.get("title") and "title" not in data:
+        data["title"] = parsed["title"]
+    return data
 
 
 class DetectionRunner:
@@ -71,7 +98,7 @@ class DetectionRunner:
         *,
         page_ids: list[str] | None = None,
     ) -> tuple[str, str, dict[str, Any]]:
-        project = self.project_service.load()
+        project = self.project_service.load(reconcile=False)
         page_inputs, _ = select_candidates(
             detector,
             project,
@@ -79,9 +106,10 @@ class DetectionRunner:
             self.paths,
             page_ids=page_ids,
         )
-        prompt = get_prompt(
+        prompt = resolve_prompt(
             detector.prompt_ref.prompt_id,
             version=detector.prompt_ref.version,
+            project_prompts_dir=self.paths.prompts_dir,
         )
         if prompt is None:
             raise ValueError(f"unknown prompt: {detector.prompt_ref}")
@@ -93,6 +121,15 @@ class DetectionRunner:
             vision_ctx=vision_ctx,
             page_has_text=bool(page_inputs),
         )
+        # Re-resolve prompt for vision twin when route is vision
+        if route is not None and route.input_mode == InputMode.VISION:
+            vision_prompt = resolve_for_input_mode(
+                detector.prompt_ref.prompt_id,
+                want_vision=True,
+                project_prompts_dir=self.paths.prompts_dir,
+            )
+            if vision_prompt is not None:
+                prompt = vision_prompt
         gen = llm_generation_options(snapshot_for_operation())
         identity_obj = build_cache_identity_object(
             notebook_id=project.id,
@@ -113,6 +150,7 @@ class DetectionRunner:
         page_ids: list[str] | None = None,
         force: bool = False,
         cancel_check: Any | None = None,
+        progress_callback: Any | None = None,
     ) -> dict[str, Any]:
         custom = load_custom_detectors()
         detector = resolve_detector(detector_id, custom_detectors=custom)
@@ -132,7 +170,7 @@ class DetectionRunner:
                 return cached
 
         attempt_id = self.ids.new_id()
-        project = self.project_service.load()
+        project = self.project_service.load(reconcile=False)
         running = build_detection_envelope(
             notebook_id=project.id,
             detector_id=detector_id,
@@ -158,7 +196,12 @@ class DetectionRunner:
                 planned_cache_identity=planned_id,
                 page_ids=page_ids,
                 cancel_check=cancel_check,
+                progress_callback=progress_callback,
             )
+
+        # Snapshot custom detector definition into project on first successful path
+        if detector_id.startswith("custom/"):
+            self._snapshot_custom_detector(detector)
 
         current_id, _, _ = self.planned_cache_identity(detector, page_ids=page_ids)
         with mutation_lock(self.paths.mutation_lock):
@@ -171,6 +214,31 @@ class DetectionRunner:
             )
         return terminal
 
+    def _snapshot_custom_detector(self, detector: DetectorDefinition) -> None:
+        from transcribe.persistence.atomic import write_json_atomic
+
+        dest_dir = self.paths.detection_dir / "custom"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        slug = detector.detector_id.split("/", 1)[-1]
+        path = dest_dir / f"{slug}.json"
+        payload = {
+            "format": "transcribe.custom-detector",
+            "schema_version": 1,
+            "detector_id": detector.detector_id,
+            "version": detector.version,
+            "title": detector.title,
+            "description": detector.description,
+            "prompt_ref": detector.prompt_ref.as_dict(),
+            "scope": detector.scope.value,
+            "input_mode": detector.input_mode.value,
+            "window_size": detector.window_size,
+            "window_overlap": detector.window_overlap,
+            "confidence_threshold": detector.confidence_threshold,
+            "finding_type": detector.finding_type,
+            "extra_config": detector.extra_config,
+        }
+        write_json_atomic(path, payload)
+
     def _execute_run(
         self,
         detector: DetectorDefinition,
@@ -179,8 +247,9 @@ class DetectionRunner:
         planned_cache_identity: str,
         page_ids: list[str] | None,
         cancel_check: Any | None,
+        progress_callback: Any | None = None,
     ) -> dict[str, Any]:
-        project = self.project_service.load()
+        project = self.project_service.load(reconcile=False)
         page_inputs, warnings = select_candidates(
             detector,
             project,
@@ -189,9 +258,10 @@ class DetectionRunner:
             page_ids=page_ids,
         )
         scope_fp = scope_fingerprint(page_inputs)
-        prompt = get_prompt(
+        prompt = resolve_prompt(
             detector.prompt_ref.prompt_id,
             version=detector.prompt_ref.version,
+            project_prompts_dir=self.paths.prompts_dir,
         )
         if prompt is None:
             return build_detection_envelope(
@@ -254,13 +324,29 @@ class DetectionRunner:
                 attempt_id=attempt_id,
             )
 
+        if route.input_mode == InputMode.VISION:
+            vision_prompt = resolve_for_input_mode(
+                detector.prompt_ref.prompt_id,
+                want_vision=True,
+                project_prompts_dir=self.paths.prompts_dir,
+            )
+            if vision_prompt is not None:
+                prompt = vision_prompt
+
         gen = llm_generation_options(snapshot_for_operation())
         windows = plan_windows(detector, page_inputs)
-        ordered_page_ids = [p.page_id for p in sorted(page_inputs, key=lambda x: x.page_order_index)]
+        ordered_page_ids = [
+            p.page_id for p in sorted(page_inputs, key=lambda x: x.page_order_index)
+        ]
         raw_hits = []
         window_failures = 0
 
-        for window in windows:
+        for wi, window in enumerate(windows):
+            if progress_callback:
+                try:
+                    progress_callback(wi + 1, len(windows))
+                except Exception:  # noqa: BLE001
+                    pass
             if cancel_check and cancel_check():
                 return build_detection_envelope(
                     notebook_id=project.id,
@@ -278,7 +364,10 @@ class DetectionRunner:
                     attempt_id=attempt_id,
                 )
             try:
-                slots: dict[str, str] = {"content": window.combined_text, "page_labels": window.page_labels}
+                slots: dict[str, str] = {
+                    "content": window.combined_text,
+                    "page_labels": window.page_labels,
+                }
                 if detector.extra_config.get("instruction"):
                     slots["instruction"] = str(detector.extra_config["instruction"])
                 image_bytes: list[bytes] = []
@@ -289,8 +378,21 @@ class DetectionRunner:
                         if data:
                             image_bytes.append(data)
                 executor = (
-                    vision_ctx.client if route.input_mode == InputMode.VISION else text_ctx.client
+                    vision_ctx.client
+                    if route.input_mode == InputMode.VISION and vision_ctx
+                    else text_ctx.client
+                    if text_ctx
+                    else None
                 )
+                if executor is None:
+                    window_failures += 1
+                    warnings.append(
+                        {
+                            "code": "window_failed",
+                            "message": f"window {window.window_id}: no executor",
+                        }
+                    )
+                    continue
                 result = execute_prompt(
                     prompt,
                     slots=slots,
@@ -329,7 +431,7 @@ class DetectionRunner:
         )
         now = utc_now_iso()
         findings: list[DetectionFinding] = []
-        prompt_prov = detector.prompt_ref.as_dict()
+        prompt_prov = {"prompt_id": prompt.prompt_id, "version": prompt.version}
         model_prov = {
             "model_name": route.model_name,
             "model_digest": route.model_digest,
@@ -349,19 +451,26 @@ class DetectionRunner:
                     evidence={
                         "reason": raw.reason,
                         "snippets": [raw.reason[:500]] if raw.reason else [],
-                        "window_raw": raw.raw,
+                        "window_raw": {
+                            k: v
+                            for k, v in (raw.raw or {}).items()
+                            if k != "items" or True
+                        },
                     },
                     prompt_provenance=prompt_prov,
                     model_provenance=model_prov,
                     input_fingerprint=raw.input_fingerprint,
                     created_at=now,
                     updated_at=now,
-                    detector_data={"title": raw.title} if raw.title else {},
+                    detector_data=_detector_data_from_raw(raw.raw or {}, raw.finding_type),
                 )
             )
+        findings = carry_forward_reviews(
+            findings, self.storage.read_published(detector.detector_id)
+        )
 
         partial = window_failures > 0
-        outcome = "success" if findings or not window_failures else "success"
+        outcome = "success"
         if window_failures and not findings:
             outcome = "failed" if window_failures == len(windows) else "success"
 

@@ -346,10 +346,20 @@ def render_page_viewer(
         det_svc = DetectionService(projects)
         page_findings = det_svc.findings_for_page(page.page_id)
         if page_findings:
-            labels = ", ".join(
-                f"{f.finding_type} ({f.confidence:.0%})" for f in page_findings[:5]
-            )
-            st.caption(f"Detections: {labels}")
+            st.caption("Detections")
+            for f in page_findings[:8]:
+                fresh = det_svc.freshness(f.detector_id)
+                stale = "" if fresh == "ok" else f" · {fresh}"
+                cols = st.columns([6, 1, 1])
+                cols[0].write(
+                    f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}{stale}"
+                )
+                if cols[1].button("✓", key=f"pv_ap_{f.finding_id}", help="Approve"):
+                    det_svc.set_review_status(f.detector_id, f.finding_id, "approved")
+                    st.rerun()
+                if cols[2].button("✗", key=f"pv_rj_{f.finding_id}", help="Reject"):
+                    det_svc.set_review_status(f.detector_id, f.finding_id, "rejected")
+                    st.rerun()
     except Exception:  # noqa: BLE001 — optional surface; never break viewer
         pass
 

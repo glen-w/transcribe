@@ -84,3 +84,70 @@ class DetectionFinding:
 
 def findings_to_dicts(findings: list[DetectionFinding]) -> list[dict[str, Any]]:
     return [f.as_dict() for f in findings]
+
+
+def review_span_key(
+    *,
+    finding_type: str,
+    start_page_id: str,
+    end_page_id: str,
+) -> tuple[str, str, str]:
+    return (finding_type, start_page_id, end_page_id)
+
+
+def carry_forward_reviews(
+    new_findings: list[DetectionFinding],
+    prior_published: dict[str, Any] | None,
+) -> list[DetectionFinding]:
+    """Preserve approved/rejected when span identity matches a prior published finding.
+
+    Unmatched new findings stay ``unreviewed``. Prior reviews without a match are dropped.
+    """
+    if not prior_published:
+        return new_findings
+    prior_rows = prior_published.get("findings") or []
+    by_span: dict[tuple[str, str, str], str] = {}
+    for row in prior_rows:
+        status = str(row.get("review_status") or "unreviewed")
+        if status not in ("approved", "rejected"):
+            continue
+        key = review_span_key(
+            finding_type=str(row.get("finding_type") or ""),
+            start_page_id=str(row.get("start_page_id") or ""),
+            end_page_id=str(row.get("end_page_id") or ""),
+        )
+        by_span[key] = status
+    out: list[DetectionFinding] = []
+    for finding in new_findings:
+        key = review_span_key(
+            finding_type=finding.finding_type,
+            start_page_id=finding.start_page_id,
+            end_page_id=finding.end_page_id,
+        )
+        status = by_span.get(key)
+        if status is None:
+            out.append(finding)
+            continue
+        out.append(
+            DetectionFinding(
+                finding_id=finding.finding_id,
+                detector_id=finding.detector_id,
+                detector_version=finding.detector_version,
+                notebook_id=finding.notebook_id,
+                start_page_id=finding.start_page_id,
+                end_page_id=finding.end_page_id,
+                finding_type=finding.finding_type,
+                confidence=finding.confidence,
+                evidence=finding.evidence,
+                prompt_provenance=finding.prompt_provenance,
+                model_provenance=finding.model_provenance,
+                input_fingerprint=finding.input_fingerprint,
+                created_at=finding.created_at,
+                updated_at=finding.updated_at,
+                review_status=status,
+                detector_data=finding.detector_data,
+                start_boundary=finding.start_boundary,
+                end_boundary=finding.end_boundary,
+            )
+        )
+    return out

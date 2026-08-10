@@ -240,16 +240,26 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     if section == "Analyse":
         st.caption(f"Project: `{paths.root}`")
         from transcribe.ui.run_analysis import analysis_run_in_progress
+        from transcribe.ui.run_detection import render_detection_workspace
 
+        focus_detect = bool(st.session_state.pop("analyse_focus_detect", False))
         analysis_coord = get_analysis_coordinator(str(paths.root))
-        running = render_run_analysis_form(
-            projects=projects, project=project, coord=analysis_coord
-        )
-        if running or analysis_run_in_progress(analysis_coord):
-            return
-        st.divider()
-        st.markdown("#### Published results")
-        _render_analysis_result_tabs(paths, projects, project)
+        analyse_tabs = st.tabs(["Run Analysis", "Published results", "Detect"])
+        with analyse_tabs[0]:
+            running = render_run_analysis_form(
+                projects=projects, project=project, coord=analysis_coord
+            )
+        with analyse_tabs[1]:
+            if running or analysis_run_in_progress(analysis_coord):
+                st.info("Published results available when the current run finishes.")
+            else:
+                _render_analysis_result_tabs(paths, projects, project)
+        with analyse_tabs[2]:
+            render_detection_workspace(
+                projects=projects, project_root=str(paths.root)
+            )
+        if focus_detect:
+            st.info("Opened Detect from notebook actions.")
         return
 
     st.caption(f"Project: `{paths.root}`")
@@ -467,7 +477,17 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         with st.expander("Models with unknown capabilities"):
             st.write(", ".join(unknown))
 
-    prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
+    from transcribe.prompt_engine.definition import PromptFamily
+    from transcribe.prompt_engine.hub import list_catalogue
+
+    ocr_entries = list_catalogue(family=PromptFamily.OCR)
+    ocr_ids = [e.definition.prompt_id for e in ocr_entries] or [
+        "faithful_markdown",
+        "faithful_text",
+    ]
+    default_prompt = project.settings.prompt_id or "faithful_markdown"
+    prompt_index = ocr_ids.index(default_prompt) if default_prompt in ocr_ids else 0
+    prompt_id = st.selectbox("Prompt", ocr_ids, index=prompt_index)
     custom = st.text_area(
         "Custom prompt override (optional)", value=project.settings.custom_prompt or ""
     )
