@@ -22,6 +22,7 @@ A project root contains:
 | `pages/<source_id>/<page_index>/<render_id>.png` | Versioned page renders |
 | `results/<page_id>.json` | Per-page OCR attempts and edits |
 | `analysis/` | Durable per-notebook analysis artifacts (optional until first write; see [analysis-run-storage.md](analysis-run-storage.md)) |
+| `detection/` | Durable per-notebook detection findings (optional until first write; see [detection-run-storage.md](detection-run-storage.md)) |
 | `exports/` | Default export destination inside the project |
 | `prompts/` | Reserved for project prompt assets |
 | `jobs/` | Ephemeral-ish OCR job run records (not page authority) |
@@ -40,7 +41,13 @@ Relative paths stored in the manifest must resolve inside the project root (path
 - Existing managed projects without `analysis/` remain valid.
 - Introducing analysis under `analysis/` **is not** a project-layout migration: absence of `analysis/` is conformant; writers create it on demand.
 
-Other contracts (including analysis-run-storage) **reference** these paths and must not independently redefine the top-level project tree.
+### `detection/` optionality
+
+- The `detection/` directory is **optional until the first detection artifact is written**.
+- Existing managed projects without `detection/` remain valid.
+- Introducing detection under `detection/` **is not** a project-layout migration: writers create it on demand.
+
+Other contracts (including analysis-run-storage and detection-run-storage) **reference** these paths and must not independently redefine the top-level project tree.
 
 ## `project.json`
 

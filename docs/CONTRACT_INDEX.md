@@ -18,9 +18,14 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Canonical analysis input, content fingerprint, `source_ref`, spans | [contracts/analysis-document.md](contracts/analysis-document.md) |
 | Analysis result envelope, outcomes vs attempts, capability UI states, provenance, evidence | [contracts/analysis-result.md](contracts/analysis-result.md) |
 | Analysis persistence, cache identity, hard/optional parents, atomic publish | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
+| Prompt definitions, rendering boundary, schema identity | [contracts/prompt-definition.md](contracts/prompt-definition.md) |
+| Detector definitions, scope, candidate strategy | [contracts/detection-definition.md](contracts/detection-definition.md) |
+| Detection findings, cross-page spans, review status | [contracts/detection-finding.md](contracts/detection-finding.md) |
+| Detection result envelope, outcomes, capability | [contracts/detection-result.md](contracts/detection-result.md) |
+| Detection persistence, cache identity, aggregation | [contracts/detection-run-storage.md](contracts/detection-run-storage.md) |
 | Sole notebook eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Durable UI action-menu prefs (`interface_menus.json` schema v1) | [contracts/interface-menus.md](contracts/interface-menus.md) |
 | Workspace settings, profiles, knob precedence, analysis config versions | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
 | Future TranscriptX handoff (non-shipped) | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) |
 
-Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, plus prospective `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Prospective corpus formats are **not** required for `transcribe.project` v1 conformance until the [activation gate](contracts/notebook-corpus.md#activation-gate).
+Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, plus prospective `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Prospective corpus formats are **not** required for `transcribe.project` v1 conformance until the [activation gate](contracts/notebook-corpus.md#activation-gate).

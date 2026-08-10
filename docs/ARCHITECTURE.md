@@ -18,7 +18,8 @@ CLI ──────────────────┘              │
                     │     ├── project.json
                     │     ├── sources/ + pages/ renders
                     │     ├── results/<page_id>.json
-                    │     └── analysis/   (optional until first analysis artifact)
+                    │     ├── analysis/   (optional until first analysis artifact)
+                    │     └── detection/  (optional until first detection artifact)
                     └── cache/archive.sqlite   (disposable)
 ```
 
@@ -33,6 +34,7 @@ CLI ──────────────────┘              │
 | Durable notebook directory layout + per-notebook journal | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
 | Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
+| Prompt definitions / detection findings / detection runs | [contracts/prompt-definition.md](contracts/prompt-definition.md) · [contracts/detection-definition.md](contracts/detection-definition.md) · [contracts/detection-finding.md](contracts/detection-finding.md) · [contracts/detection-run-storage.md](contracts/detection-run-storage.md) |
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
 | OCR HTTP | `VisionOCRProvider` (Ollama implementation) |
 | UI widgets | `transcribe.ui` only — must not invent OCR/persistence rules |
@@ -48,6 +50,7 @@ CLI ──────────────────┘              │
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
 - **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
 - **AnalysisRunner / AnalysisStorage** — project-local core analysis modules over `AnalysisDocument`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities)
+- **DetectionRunner / DetectionStorage / prompt_engine** — prompt-backed page/window detectors; publish findings under `detection/`; freshness via `detector_freshness` / planned cache identity
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
 ## Explicit non-goals for the core architecture

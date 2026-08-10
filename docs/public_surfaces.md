@@ -21,6 +21,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
 | `export <project> [dest]` | Write notebook JSON + Markdown + plain text |
 | `status <project>` | Print per-page status |
+| `detect <project>` | Run a content detector (`--detector poetry`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
 
 ### UI modes

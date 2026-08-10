@@ -144,6 +144,19 @@ def render_page_viewer(
     if page.tags:
         st.caption("Tags: " + ", ".join(page.tags))
 
+    try:
+        from transcribe.detection.api import DetectionService
+
+        det_svc = DetectionService(projects)
+        page_findings = det_svc.findings_for_page(page.page_id)
+        if page_findings:
+            labels = ", ".join(
+                f"{f.finding_type} ({f.confidence:.0%})" for f in page_findings[:5]
+            )
+            st.caption(f"Detections: {labels}")
+    except Exception:  # noqa: BLE001 — optional surface; never break viewer
+        pass
+
     left, right = st.columns([3, 2])
     with left:
         st.image(str(img_path), width="stretch")

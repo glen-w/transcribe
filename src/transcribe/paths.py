@@ -60,6 +60,11 @@ class ProjectPaths:
         return self.root / "analysis"
 
     @property
+    def detection_dir(self) -> Path:
+        """Durable detection artifacts; create on first write only."""
+        return self.root / "detection"
+
+    @property
     def analysis_cache_dir(self) -> Path:
         return self.cache_dir / "analysis"
 

@@ -100,6 +100,7 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. |
 | **Prompt management UI** | Browse/edit versioned OCR and analysis prompts (project `prompts/` reserved); beyond today’s per-job pick + optional override. |
+| **Prompt-backed Detection** | Scan notebook pages for built-in or custom phenomena (poetry, lists, etc.); cross-page spans; findings under `detection/` with provenance. See detection contracts. |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
 | **Review UX** | Faster correction and approval of OCR text and dates. |
 | **Export / readability** | Clearer notebooks for reading and sharing outside the app. |
