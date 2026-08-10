@@ -14,6 +14,11 @@ class CommonSettingField:
 
 COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
     CommonSettingField("ingest.render_dpi", "Import", "PDF render DPI"),
+    CommonSettingField(
+        "ingest.visual_declutter_enabled",
+        "Import",
+        "Visual declutter on import",
+    ),
     CommonSettingField("ocr.base_url", "OCR defaults", "Default Ollama base URL"),
     CommonSettingField("ocr.preprocess_profile", "OCR defaults", "Preprocess profile"),
     CommonSettingField("ocr.max_workers", "OCR defaults", "Max OCR workers"),

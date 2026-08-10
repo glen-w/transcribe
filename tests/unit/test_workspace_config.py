@@ -126,7 +126,38 @@ def test_ingest_config_clamps_render_dpi() -> None:
     assert IngestConfig.from_dict({"render_dpi": 50}).render_dpi == 72
     assert IngestConfig.from_dict({"render_dpi": 900}).render_dpi == 600
     assert IngestConfig.from_dict(None).render_dpi == 200
-    assert IngestConfig.from_dict({"render_dpi": 200}).as_dict() == {"render_dpi": 200}
+    assert IngestConfig.from_dict({"render_dpi": 200}).as_dict() == {
+        "render_dpi": 200,
+        "visual_declutter_enabled": True,
+    }
+
+
+def test_visual_declutter_missing_defaults_true() -> None:
+    assert IngestConfig.from_dict({}).visual_declutter_enabled is True
+    assert IngestConfig.from_dict({"render_dpi": 150}).visual_declutter_enabled is True
+    assert (
+        IngestConfig.from_dict({"visual_declutter_enabled": False}).visual_declutter_enabled
+        is False
+    )
+
+
+def test_visual_declutter_workspace_round_trip(runtime: RuntimePaths) -> None:
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {"render_dpi": 180, "visual_declutter_enabled": False},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ingest.visual_declutter_enabled is False
+    assert view.effective.ingest.render_dpi == 180
+    loaded = load_workspace_settings(runtime=runtime)
+    assert loaded.config["ingest"]["visual_declutter_enabled"] is False
 
 
 def test_precedence_env_over_workspace(runtime: RuntimePaths, monkeypatch: pytest.MonkeyPatch) -> None:

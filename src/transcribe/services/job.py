@@ -714,7 +714,23 @@ def build_coordinator(
         except Exception:
             pass
     prov = provider or OllamaVisionProvider(base_url)
-    ingest = IngestService(paths, clock=clock, ids=ids)
+    declutter = True
+    dpi = 200
+    try:
+        from transcribe.config.facade import get_config
+
+        ingest_cfg = get_config().effective.ingest
+        declutter = bool(ingest_cfg.visual_declutter_enabled)
+        dpi = int(ingest_cfg.render_dpi)
+    except Exception:
+        pass
+    ingest = IngestService(
+        paths,
+        clock=clock,
+        ids=ids,
+        default_dpi=dpi,
+        visual_declutter_enabled=declutter,
+    )
     ingest.cleanup_staging()
     coord = JobCoordinator(
         paths,

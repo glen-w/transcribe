@@ -98,8 +98,20 @@ class ProjectService:
         if self.paths.ingest_journal.exists():
             from transcribe.ingest import IngestService
 
+            declutter = True
+            try:
+                from transcribe.config.facade import get_config
+
+                declutter = bool(
+                    get_config().effective.ingest.visual_declutter_enabled
+                )
+            except Exception:
+                pass
             IngestService(
-                self.paths, clock=self.clock, ids=self.ids
+                self.paths,
+                clock=self.clock,
+                ids=self.ids,
+                visual_declutter_enabled=declutter,
             ).recover_incomplete_ingest()
         with mutation_lock(self.paths.mutation_lock):
             project = self._load_unlocked(reconcile=reconcile)
@@ -182,7 +194,9 @@ class ProjectService:
             old_source = page.date_source
             result = self._load_page_result_unlocked(page_id)
             text = result.effective_text() if result else None
-            self._apply_suggestion(current.pages, idx, text)
+            self._apply_suggestion(
+                current.pages, idx, text, cover_page_id=current.cover_page_id
+            )
             page = current.pages[idx]
             value_changed = old_date != page.date
             state_changed = (
@@ -199,6 +213,10 @@ class ProjectService:
     def fill_page_dates_ordered(self) -> int:
         """Walk pages in order; apply extract→inherit; one manifest write.
 
+        Cover page (explicit ``cover_page_id``, else first page) inherits from the
+        first dated page when it has no extractable stamp — done in a post-pass
+        so later pages can donate a date.
+
         Returns number of pages whose date **value** changed.
         """
         with mutation_lock(self.paths.mutation_lock):
@@ -206,16 +224,9 @@ class ProjectService:
             current = Project.from_dict(payload)
             value_changed = 0
             any_change = False
-            for idx, page in enumerate(current.pages):
-                if page.date is not None and page.date_approved:
-                    continue
-                old_date = page.date
-                old_approved = page.date_approved
-                old_source = page.date_source
-                result = self._load_page_result_unlocked(page.page_id)
-                text = result.effective_text() if result else None
-                self._apply_suggestion(current.pages, idx, text)
-                page = current.pages[idx]
+
+            def _note(page: PageIndex, old_date, old_approved, old_source) -> None:
+                nonlocal value_changed, any_change
                 if old_date != page.date:
                     value_changed += 1
                 if (
@@ -224,6 +235,40 @@ class ProjectService:
                     or old_source != page.date_source
                 ):
                     any_change = True
+
+            for idx, page in enumerate(current.pages):
+                if page.date is not None and page.date_approved:
+                    continue
+                old_date = page.date
+                old_approved = page.date_approved
+                old_source = page.date_source
+                result = self._load_page_result_unlocked(page.page_id)
+                text = result.effective_text() if result else None
+                self._apply_suggestion(
+                    current.pages,
+                    idx,
+                    text,
+                    cover_page_id=current.cover_page_id,
+                )
+                _note(current.pages[idx], old_date, old_approved, old_source)
+
+            cover_idx = self._cover_page_index(current.pages, current.cover_page_id)
+            if cover_idx is not None:
+                cover = current.pages[cover_idx]
+                if cover.date is None or not cover.date_approved:
+                    old_date = cover.date
+                    old_approved = cover.date_approved
+                    old_source = cover.date_source
+                    result = self._load_page_result_unlocked(cover.page_id)
+                    text = result.effective_text() if result else None
+                    self._apply_suggestion(
+                        current.pages,
+                        cover_idx,
+                        text,
+                        cover_page_id=current.cover_page_id,
+                    )
+                    _note(current.pages[cover_idx], old_date, old_approved, old_source)
+
             if any_change:
                 current.updated_at = to_iso(self.clock.now())
                 validate_project(current)
@@ -237,11 +282,25 @@ class ProjectService:
                 return page
         raise ProjectError(f"unknown page_id: {page_id}")
 
+    @staticmethod
+    def _cover_page_index(
+        pages: list[PageIndex], cover_page_id: str | None
+    ) -> int | None:
+        if not pages:
+            return None
+        if cover_page_id:
+            for i, page in enumerate(pages):
+                if page.page_id == cover_page_id:
+                    return i
+        return 0
+
     def _apply_suggestion(
         self,
         pages: list[PageIndex],
         idx: int,
         text: str | None,
+        *,
+        cover_page_id: str | None = None,
     ) -> None:
         page = pages[idx]
         if page.date is not None and page.date_approved:
@@ -256,6 +315,16 @@ class ProjectService:
             if prev.date is not None:
                 page.set_date_state(
                     prev.date, approved=False, source=DATE_SOURCE_INHERITED
+                )
+                return
+        # Cover pages rarely carry a diary stamp; inherit the first dated page.
+        cover_idx = self._cover_page_index(pages, cover_page_id)
+        if cover_idx == idx:
+            for other in pages:
+                if other.page_id == page.page_id or other.date is None:
+                    continue
+                page.set_date_state(
+                    other.date, approved=False, source=DATE_SOURCE_INHERITED
                 )
                 return
         page.set_date_state(None, approved=True, source=None)

@@ -92,6 +92,50 @@ def test_fill_page_dates_ordered_single_write(tmp_path: Path):
     assert pages[2].date_source == "inherited"
 
 
+def test_cover_inherits_first_dated_page(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "cover_date")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("C")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("cover.png", _png_bytes())
+    project = ingest.import_bytes("p1.png", _png_bytes(color=(1, 2, 3)))
+    project = ingest.import_bytes("p2.png", _png_bytes(color=(4, 5, 6)))
+    assert project.cover_page_id == project.pages[0].page_id
+    ids_pages = [p.page_id for p in project.pages]
+    _seed_page_text(projects, ids_pages[0], "Notebook title only", clock)
+    _seed_page_text(projects, ids_pages[1], "260523 first entry", clock)
+    _seed_page_text(projects, ids_pages[2], "plain", clock)
+
+    n = projects.fill_page_dates_ordered()
+    assert n == 3
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date == ApproximateDate(2026, 5, 23)
+    assert pages[0].date_approved is False
+    assert pages[0].date_source == "inherited"
+    assert pages[1].date == ApproximateDate(2026, 5, 23)
+    assert pages[1].date_source == "extracted"
+    assert pages[2].date_source == "inherited"
+
+
+def test_cover_suggest_looks_ahead_when_later_page_already_dated(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "cover_ahead")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("A")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("cover.png", _png_bytes())
+    project = ingest.import_bytes("p1.png", _png_bytes(color=(2, 2, 2)))
+    cover_id, p1 = project.pages[0].page_id, project.pages[1].page_id
+    _seed_page_text(projects, cover_id, "cover art", clock)
+    _seed_page_text(projects, p1, "260523 entry", clock)
+    assert projects.suggest_page_date(p1) is True
+    assert projects.suggest_page_date(cover_id) is True
+    cover = projects.load(reconcile=False).pages[0]
+    assert cover.date == ApproximateDate(2026, 5, 23)
+    assert cover.date_source == "inherited"
+
+
 def test_approved_date_not_overwritten_by_suggest(tmp_path: Path):
     paths = open_project_paths(tmp_path / "appr")
     clock, ids = FakeClock(), SequentialIds()

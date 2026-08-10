@@ -10,6 +10,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Handwriting quality varies widely by model, lighting, and page density
 - Vision model availability and architectures differ across Ollama builds (a listed “vision” model may still fail to load)
 - Preprocess default is **none**; `gentle_contrast` is optional and Pillow-based (no OpenCV in v1)
+- **Visual declutter** (import-time, separate from OCR preprocess) defaults **on** (`ingest.visual_declutter_enabled`). v1 ships grey scanner-border crop only; detection is conservative (many pages no-op). Failures fall back to the pre-declutter PNG and never fail import. Changing declutter settings does **not** rewrite existing notebooks — only new imports (or future explicit reprocess).
 - Optional **OCR cleanup** (Run tab / `--cleanup`) adds a **second text-model Ollama call per page** after vision OCR. This can materially increase latency, memory use, and Ollama contention. Cleanup runs sequentially on the page worker after OCR (no extra parallelism). Failures and validator rejections keep raw OCR and never fail the page; rejected model output is discarded
 - Cleanup sends OCR text (not page images) to the configured Ollama host; remote hosts still exfiltrate that text by design of that configuration
 

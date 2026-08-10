@@ -74,6 +74,21 @@ Within a notebook (normative; doctor/`validate_project` must enforce):
 5. **Dimension coherence:** `page.width`/`page.height` equal the active render’s `width`/`height`.
 6. **No unreferenced authoritative renders/sources** unless explicitly permitted as a documented soft state. Default: every `sources[]` entry is referenced by ≥1 page; every `renders` map entry is the active render of exactly one page **or** is retained under an explicit future multi-render policy. Until multi-render history is a product feature, unreferenced renders are doctor **errors** (or warnings only if a migration note marks them transitional—default error for bulk-import generation).
 
+### Visual declutter provenance (additive)
+
+Import may run **visual declutter** on the staged page PNG before it becomes the active render (workspace `ingest.visual_declutter_enabled`, default on). This is **not** OCR preprocess.
+
+When present on a render, declutter fields are authoritative for that render’s pixels:
+
+| Field group | Role |
+|-------------|------|
+| `declutter_state` | One of `disabled`, `enabled_noop`, `enabled_cropped`, `error_fallback` |
+| `declutter_version` / `declutter_ops` / `declutter_params` / `declutter_identity_sha256` | Frozen declutter identity (enabled flag + version + ordered ops + detection params) |
+| Crop geometry | `declutter_original_*`, `declutter_crop_*`, `declutter_inset_*` |
+| `declutter_note` | Bounded diagnostic (required non-empty for noop/error) |
+
+Absence of these fields means a pre-declutter-era render. Changing declutter config/version does **not** rewrite existing notebooks; the next import (or future explicit reprocess) creates a new `render_id` under the current identity. Ingest journals freeze `declutter_identity_sha256` with page sha/geometry; crash recovery must not promote a journal whose identity no longer matches the effective setting.
+
 ## Duplicate taxonomy
 
 Classify before applying policy—never silently merge:

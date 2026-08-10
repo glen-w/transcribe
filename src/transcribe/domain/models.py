@@ -197,14 +197,138 @@ class RenderProvenance:
     width: int
     height: int
     image_relpath: str
+    # Additive visual-declutter provenance (absent on pre-declutter renders)
+    declutter_state: str | None = None
+    declutter_version: int | None = None
+    declutter_ops: list[str] | None = None
+    declutter_identity_sha256: str | None = None
+    declutter_params: dict[str, Any] | None = None
+    declutter_original_width: int | None = None
+    declutter_original_height: int | None = None
+    declutter_crop_left: int | None = None
+    declutter_crop_top: int | None = None
+    declutter_crop_right: int | None = None
+    declutter_crop_bottom: int | None = None
+    declutter_inset_left: int | None = None
+    declutter_inset_top: int | None = None
+    declutter_inset_right: int | None = None
+    declutter_inset_bottom: int | None = None
+    declutter_note: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = {
+            "render_id": self.render_id,
+            "source_sha256": self.source_sha256,
+            "pdf_page_index": self.pdf_page_index,
+            "render_dpi": self.render_dpi,
+            "renderer": self.renderer,
+            "renderer_version": self.renderer_version,
+            "rendered_image_sha256": self.rendered_image_sha256,
+            "width": self.width,
+            "height": self.height,
+            "image_relpath": self.image_relpath,
+        }
+        if self.declutter_state is not None:
+            payload["declutter_state"] = self.declutter_state
+            payload["declutter_version"] = self.declutter_version
+            payload["declutter_ops"] = list(self.declutter_ops or [])
+            payload["declutter_identity_sha256"] = self.declutter_identity_sha256
+            payload["declutter_params"] = dict(self.declutter_params or {})
+            payload["declutter_original_width"] = self.declutter_original_width
+            payload["declutter_original_height"] = self.declutter_original_height
+            payload["declutter_crop_left"] = self.declutter_crop_left
+            payload["declutter_crop_top"] = self.declutter_crop_top
+            payload["declutter_crop_right"] = self.declutter_crop_right
+            payload["declutter_crop_bottom"] = self.declutter_crop_bottom
+            payload["declutter_inset_left"] = self.declutter_inset_left
+            payload["declutter_inset_top"] = self.declutter_inset_top
+            payload["declutter_inset_right"] = self.declutter_inset_right
+            payload["declutter_inset_bottom"] = self.declutter_inset_bottom
+            payload["declutter_note"] = self.declutter_note or ""
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> RenderProvenance:
-        return cls(**{k: data[k] for k in cls.__dataclass_fields__})
-
+        return cls(
+            render_id=data["render_id"],
+            source_sha256=data["source_sha256"],
+            pdf_page_index=data["pdf_page_index"],
+            render_dpi=int(data["render_dpi"]),
+            renderer=data["renderer"],
+            renderer_version=data["renderer_version"],
+            rendered_image_sha256=data["rendered_image_sha256"],
+            width=int(data["width"]),
+            height=int(data["height"]),
+            image_relpath=data["image_relpath"],
+            declutter_state=data.get("declutter_state"),
+            declutter_version=(
+                int(data["declutter_version"])
+                if data.get("declutter_version") is not None
+                else None
+            ),
+            declutter_ops=(
+                list(data["declutter_ops"])
+                if data.get("declutter_ops") is not None
+                else None
+            ),
+            declutter_identity_sha256=data.get("declutter_identity_sha256"),
+            declutter_params=(
+                dict(data["declutter_params"])
+                if data.get("declutter_params") is not None
+                else None
+            ),
+            declutter_original_width=(
+                int(data["declutter_original_width"])
+                if data.get("declutter_original_width") is not None
+                else None
+            ),
+            declutter_original_height=(
+                int(data["declutter_original_height"])
+                if data.get("declutter_original_height") is not None
+                else None
+            ),
+            declutter_crop_left=(
+                int(data["declutter_crop_left"])
+                if data.get("declutter_crop_left") is not None
+                else None
+            ),
+            declutter_crop_top=(
+                int(data["declutter_crop_top"])
+                if data.get("declutter_crop_top") is not None
+                else None
+            ),
+            declutter_crop_right=(
+                int(data["declutter_crop_right"])
+                if data.get("declutter_crop_right") is not None
+                else None
+            ),
+            declutter_crop_bottom=(
+                int(data["declutter_crop_bottom"])
+                if data.get("declutter_crop_bottom") is not None
+                else None
+            ),
+            declutter_inset_left=(
+                int(data["declutter_inset_left"])
+                if data.get("declutter_inset_left") is not None
+                else None
+            ),
+            declutter_inset_top=(
+                int(data["declutter_inset_top"])
+                if data.get("declutter_inset_top") is not None
+                else None
+            ),
+            declutter_inset_right=(
+                int(data["declutter_inset_right"])
+                if data.get("declutter_inset_right") is not None
+                else None
+            ),
+            declutter_inset_bottom=(
+                int(data["declutter_inset_bottom"])
+                if data.get("declutter_inset_bottom") is not None
+                else None
+            ),
+            declutter_note=data.get("declutter_note"),
+        )
 
 @dataclass
 class SourceDocument:

@@ -101,6 +101,19 @@ def test_extract_ignores_mid_prose_yymmdd_and_years():
     assert extract_page_date(text) is None
 
 
+def test_extract_rejects_implausible_bare_years():
+    from datetime import date
+
+    today = date(2026, 8, 10)
+    assert extract_page_date("2044\nnotes", today=today) is None
+    assert extract_page_date("1899\nnotes", today=today) is None
+    assert extract_page_date("2026\nnotes", today=today) == ApproximateDate(2026)
+    assert extract_page_date("2027\nnotes", today=today) == ApproximateDate(2027)
+    assert extract_page_date("2028\nnotes", today=today) is None
+    # YYMMDD that expands past the plausible window (44 → 2044).
+    assert extract_page_date("440523 notes", today=today) is None
+
+
 def test_canonicalize_invariants():
     assert canonicalize_page_date_state(None, False, None) == (None, True, None)
     d = ApproximateDate(2020, 1, 2)

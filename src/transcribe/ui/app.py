@@ -82,7 +82,14 @@ def _services(project_root: str):
     from transcribe.ingest import IngestService
 
     dpi = int(get_config().effective.ingest.render_dpi)
-    ingest = IngestService(paths, clock=clock, ids=ids, default_dpi=dpi)
+    declutter = bool(get_config().effective.ingest.visual_declutter_enabled)
+    ingest = IngestService(
+        paths,
+        clock=clock,
+        ids=ids,
+        default_dpi=dpi,
+        visual_declutter_enabled=declutter,
+    )
     return paths, projects, ingest
 
 
@@ -95,15 +102,94 @@ def _render_job_progress(progress: JobProgress) -> None:
         st.caption("Current page(s): " + ", ".join(p[:8] for p in progress.current_page_ids))
     if progress.message:
         st.caption(progress.message)
+    done = progress.completed + progress.failed
+    if progress.total > 0 and progress.status in {
+        "running",
+        "completed",
+        "cancelled",
+        "failed",
+    }:
+        st.progress(min(1.0, done / progress.total))
     if progress.status == "running":
-        done = progress.completed + progress.failed
-        if progress.total > 0:
-            st.progress(min(1.0, done / progress.total))
         st.info(
             "OCR is running in the background. Progress also prints in the "
             "Streamlit terminal as `[transcribe] …` lines. The first page can "
             "take several minutes while Ollama loads the vision model."
         )
+
+
+def _failed_page_ids(projects: ProjectService, project) -> list[str]:
+    failed: list[str] = []
+    for page in project.pages:
+        result = projects.load_page_result(page.page_id)
+        if result is not None and result.status == "failed":
+            failed.append(page.page_id)
+    return failed
+
+
+def _render_transcribe_complete_actions(
+    *,
+    projects: ProjectService,
+    project,
+    coord: JobCoordinator,
+    progress: JobProgress,
+) -> None:
+    from transcribe.ui.components.action_links import render_action_link
+
+    st.markdown("#### Next")
+    failed_ids = _failed_page_ids(projects, project)
+    cols = st.columns(4, gap="small")
+    with cols[0]:
+        if render_action_link(
+            "View",
+            key="tx_done_view",
+            icon=":material/menu_book:",
+            help="Open this notebook on the View page.",
+        ):
+            set_ui_mode("View")
+    with cols[1]:
+        if render_action_link(
+            "Review",
+            key="tx_done_review",
+            icon=":material/rate_review:",
+            help="Browse and edit transcribed pages.",
+        ):
+            set_ui_mode("Review")
+    with cols[2]:
+        if render_action_link(
+            "Analyse",
+            key="tx_done_analyse",
+            icon=":material/analytics:",
+            help="Open Analyse for this notebook.",
+        ):
+            set_ui_mode("Analyse")
+    with cols[3]:
+        if render_action_link(
+            "Retry failed",
+            key="tx_done_retry",
+            icon=":material/replay:",
+            help="Re-run OCR on pages whose last attempt failed.",
+            disabled=not failed_ids,
+        ):
+            try:
+                coord.start(page_ids=failed_ids, force=False)
+                st.session_state["_job_was_running"] = True
+                st.session_state.pop("_transcribe_post_job_id", None)
+                st.rerun()
+            except (JobConflictError, TranscribeError) as exc:
+                st.error(str(exc))
+    if failed_ids:
+        st.caption(f"{len(failed_ids)} failed page(s) can be retried.")
+    elif progress.failed:
+        st.caption("Failed count was reported, but no failed pages remain on disk.")
+    if render_action_link(
+        "Change settings",
+        key="tx_done_settings",
+        icon=":material/settings:",
+        help="Return to model and OCR settings for another run.",
+    ):
+        st.session_state.pop("_transcribe_post_job_id", None)
+        st.rerun()
 
 
 def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
@@ -142,13 +228,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         _render_analysis_result_tabs(paths, projects, project)
         return
 
-    if section == "Import":
-        st.caption(f"Project: `{paths.root}`")
-    else:
-        back_cols = st.columns([1, 4])
-        if back_cols[0].button("← Archive", key=f"workflow_back_archive_{section}"):
-            set_ui_mode("Archive")
-        back_cols[1].caption(f"Project: `{paths.root}`")
+    st.caption(f"Project: `{paths.root}`")
 
     if section == "Export":
         _render_export_panel(runtime, paths, projects, project, root)
@@ -169,8 +249,11 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         from transcribe.config.facade import get_config
 
         dpi = int(get_config().effective.ingest.render_dpi)
+        declutter = bool(get_config().effective.ingest.visual_declutter_enabled)
         st.caption(
-            f"PDF render DPI: **{dpi}** (change under Settings → Configuration)"
+            f"PDF render DPI: **{dpi}** · Visual declutter: "
+            f"**{'on' if declutter else 'off'}** "
+            "(Settings → Configuration)"
         )
         if st.button("Import files") and uploaded:
             total = len(uploaded)
@@ -255,6 +338,45 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     live = coord.get_progress()
     was_running = st.session_state.get("_job_was_running", False)
     st.session_state["_job_was_running"] = live.status == "running"
+    is_running = live.status == "running"
+    post_job_id = st.session_state.get("_transcribe_post_job_id")
+    show_post = (
+        bool(post_job_id)
+        and live.job_id == post_job_id
+        and live.status in {"completed", "cancelled", "failed"}
+    )
+
+    if is_running:
+        poll = timedelta(seconds=2) if is_running or was_running else None
+
+        @st.fragment(run_every=poll)
+        def job_status_panel() -> None:
+            progress = coord.get_progress()
+            _render_job_progress(progress)
+            if (
+                st.session_state.get("_job_was_running")
+                and progress.status != "running"
+            ):
+                st.session_state["_job_was_running"] = False
+                st.session_state["_transcribe_post_job_id"] = progress.job_id
+                bump_archive_generation(runtime)
+                st.rerun()
+
+        job_status_panel()
+        if st.button("Stop after current page", key="transcribe_stop_running"):
+            coord.request_cancel()
+            st.info("Stopping after current page…")
+        return
+
+    if show_post:
+        _render_job_progress(live)
+        _render_transcribe_complete_actions(
+            projects=projects,
+            project=project,
+            coord=coord,
+            progress=live,
+        )
+        return
 
     base_url = st.text_input("Ollama base URL", value=project.settings.base_url)
     try:
@@ -366,11 +488,6 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     )
 
     if st.button("Save settings"):
-        if live.status == "running":
-            st.warning(
-                "A job is running; settings will apply to the next job only "
-                "(the active JobPlan is frozen)."
-            )
         settings = project.settings
         settings.base_url = normalized
         settings.model_name = model
@@ -386,28 +503,10 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         if cleanup_enabled:
             settings.cleanup_model_name = cleanup_model
         project = projects.save_settings(project, settings)
-        if live.status != "running":
-            coord.provider = OllamaVisionProvider(normalized)
+        coord.provider = OllamaVisionProvider(normalized)
         st.success("Settings saved")
 
-    poll = timedelta(seconds=2) if live.status == "running" or was_running else None
-
-    @st.fragment(run_every=poll)
-    def job_status_panel() -> None:
-        progress = coord.get_progress()
-        _render_job_progress(progress)
-        if (
-            st.session_state.get("_job_was_running")
-            and progress.status != "running"
-        ):
-            st.session_state["_job_was_running"] = False
-            bump_archive_generation(runtime)
-            st.rerun()
-
-    job_status_panel()
-
-    b1, b2 = st.columns(2)
-    if b1.button("Start transcription", disabled=live.status == "running"):
+    if st.button("Start transcription"):
         if remote and not allow_remote:
             st.error("Enable the remote-host acknowledgement first.")
         else:
@@ -429,12 +528,10 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
                 coord.provider = OllamaVisionProvider(normalized)
                 coord.start(force=force)
                 st.session_state["_job_was_running"] = True
+                st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
-    if b2.button("Stop after current page", disabled=live.status != "running"):
-        coord.request_cancel()
-        st.info("Stopping after current page…")
 
 
 def _render_export_panel(runtime, paths, projects, project, root: str) -> None:

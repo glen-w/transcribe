@@ -320,12 +320,16 @@ class OcrWorkspaceConfig:
 
 @dataclass(frozen=True)
 class IngestConfig:
-    """Workspace ingest defaults (PDF rasterisation, etc.)."""
+    """Workspace ingest defaults (PDF rasterisation, visual declutter, etc.)."""
 
     render_dpi: int = 200
+    visual_declutter_enabled: bool = True
 
     def as_dict(self) -> dict[str, Any]:
-        return {"render_dpi": self.render_dpi}
+        return {
+            "render_dpi": self.render_dpi,
+            "visual_declutter_enabled": self.visual_declutter_enabled,
+        }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> IngestConfig:
@@ -335,8 +339,12 @@ class IngestConfig:
             dpi = 72
         elif dpi > 600:
             dpi = 600
-        return cls(render_dpi=dpi)
-
+        # Missing key resolves to the intended default (on).
+        declutter = data.get("visual_declutter_enabled", True)
+        return cls(
+            render_dpi=dpi,
+            visual_declutter_enabled=bool(declutter),
+        )
 
 KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset({"analysis", "llm", "ocr", "ingest"})
 

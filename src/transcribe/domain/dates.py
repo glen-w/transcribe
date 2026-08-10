@@ -15,6 +15,10 @@ DATE_SOURCES = frozenset({DATE_SOURCE_EXTRACTED, DATE_SOURCE_INHERITED})
 _EARLY_TEXT_MAX_CHARS = 280
 _EARLY_TEXT_MAX_LINES = 5
 
+# Auto-extract only diary-plausible calendar years (rejects page numbers / codes).
+_EXTRACT_YEAR_MIN = 1900
+_EXTRACT_YEAR_FUTURE_SLACK = 1
+
 _PRECISION_RANK = {"day": 3, "month": 2, "year": 1}
 
 # pattern_id used only as final tie-break (lower wins).
@@ -213,13 +217,23 @@ def parse_date_input(raw: str) -> ApproximateDate | None:
     raise ValueError(f"Unrecognized date: {raw!r}")
 
 
-def extract_page_date(text: str | None) -> ApproximateDate | None:
+def extract_page_date(
+    text: str | None,
+    *,
+    today: date | None = None,
+) -> ApproximateDate | None:
     """Best diary date from transcription text, or None."""
     if not text or not text.strip():
         return None
+    ref = today or date.today()
     early_end = _early_text_end(text)
     candidates: list[tuple[ApproximateDate, int, int, int, int]] = []
     # (date, start, precision_rank, span_len, pattern_id)
+
+    def _accept(d: ApproximateDate, start: int, span: int, pat: int) -> None:
+        if not _plausible_extracted_year(d.year, today=ref):
+            return
+        candidates.append((d, start, _PRECISION_RANK[d.precision], span, pat))
 
     for m in re.finditer(
         r"(?<![A-Za-z0-9])(\d{6})(?:[ \t]+(\d{4}|\d{1,2}:\d{2}))?(?![A-Za-z0-9])",
@@ -231,7 +245,7 @@ def extract_page_date(text: str | None) -> ApproximateDate | None:
             d = _parse_yymmdd(m.group(1))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_YYMMDD))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_YYMMDD)
 
     for m in re.finditer(
         r"(?<!\d)(\d{4})([-./])(\d{1,2})\2(\d{1,2})(?!\d)",
@@ -241,7 +255,7 @@ def extract_page_date(text: str | None) -> ApproximateDate | None:
             d = ApproximateDate(year=int(m.group(1)), month=int(m.group(3)), day=int(m.group(4)))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_YMD))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_YMD)
 
     for m in re.finditer(
         r"(?<!\d)(\d{1,2})([-./])(\d{1,2})\2(\d{4})(?!\d)",
@@ -251,7 +265,7 @@ def extract_page_date(text: str | None) -> ApproximateDate | None:
             d = ApproximateDate(year=int(m.group(4)), month=int(m.group(3)), day=int(m.group(1)))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["day"], m.end() - m.start(), _PAT_DMY))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_DMY)
 
     for m in re.finditer(r"(?<!\d)(\d{4})([-./])(\d{1,2})(?!\d)", text):
         # Avoid matching the YYYY-MM prefix of an already-matched YYYY-MM-DD.
@@ -262,14 +276,14 @@ def extract_page_date(text: str | None) -> ApproximateDate | None:
             d = ApproximateDate(year=int(m.group(1)), month=int(m.group(3)))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["month"], m.end() - m.start(), _PAT_YM))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_YM)
 
     for m in re.finditer(r"(?<!\d)(\d{1,2})/(\d{4})(?!\d)", text):
         try:
             d = ApproximateDate(year=int(m.group(2)), month=int(m.group(1)))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["month"], m.end() - m.start(), _PAT_MY))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_MY)
 
     for m in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text):
         if m.start() >= early_end:
@@ -282,12 +296,17 @@ def extract_page_date(text: str | None) -> ApproximateDate | None:
             d = ApproximateDate(year=int(m.group(1)))
         except ValueError:
             continue
-        candidates.append((d, m.start(), _PRECISION_RANK["year"], m.end() - m.start(), _PAT_YEAR))
+        _accept(d, m.start(), m.end() - m.start(), _PAT_YEAR)
 
     if not candidates:
         return None
     candidates.sort(key=lambda c: (c[1], -c[2], -c[3], c[4]))
     return candidates[0][0]
+
+
+def _plausible_extracted_year(year: int, *, today: date) -> bool:
+    """Reject far-future / pre-1900 years that are usually page numbers or codes."""
+    return _EXTRACT_YEAR_MIN <= year <= today.year + _EXTRACT_YEAR_FUTURE_SLACK
 
 
 def _early_text_end(text: str) -> int:

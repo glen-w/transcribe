@@ -66,6 +66,24 @@ Suggested implementation order after activation work starts: corpus index → Im
 
 ---
 
+## Next — Preprocessing system — [?] candidate / partial
+
+Two separate lanes. Do not conflate human-facing scan cleanup with OCR input transforms.
+
+| Lane | Audience | Default | Intent |
+|------|----------|---------|--------|
+| **1. Visual declutter** | Human (reading / review of scans) | **On** for imports; global off-switch in settings | Clean up scanned page images for people. **Shipped (v1):** `remove_scan_borders` (Pillow, deterministic contract). Applies at import only; existing notebooks are not rewritten until explicit re-import/reprocess. Render provenance records state, geometry, and declutter identity. |
+| **2. OCR optimisation** | Vision model input | **Off** (`none`); opt-in | Transforms meant to help OCR. Shipped today: optional Pillow **`gentle_contrast`**. Further OCR preprocess profiles are **deferred**. |
+
+**Rules of thumb**
+
+- Visual declutter defaults help the common “dump of scans” path; power users can disable it workspace-wide (`ingest.visual_declutter_enabled`).
+- OCR preprocess stays conservative and off-by-default so fingerprints / skip-resume stay predictable; expanding profiles is a deliberate product choice, not creep from declutter work.
+- Declutter identity (`enabled` + `DECLUTTER_VERSION` + ordered ops + frozen detection params) is frozen into ingest journal / render provenance; crash recovery never pairs mismatched pixels and metadata. OCR invalidation follows the final active render SHA.
+- Re-OCR / reprocessing (lifecycle below) may eventually re-apply either lane with explicit user choice; that does not change the defaults above.
+
+---
+
 ## Next — Corpus & product lifecycle — [?] candidates
 
 Primary post-hardening product direction once corpus contracts activate. Rank after the hardening exit gate; **not ordered; not committed**. These matter more than additional analysis modules as users accumulate notebooks and OCR models improve.
@@ -181,11 +199,12 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 ## Product scope beyond analysis modules
 
-Still the more central product surface than speculative analysis work. Detail and sequencing live in the **corpus / bulk import**, **corpus & product lifecycle**, and **release / onboarding** sections above.
+Still the more central product surface than speculative analysis work. Detail and sequencing live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above.
 
 Summary:
 
 - **OCR pipeline** — import, vision OCR, optional second-pass cleanup; eventual re-OCR / reprocessing
+- **Preprocessing** — visual declutter (human, on by default at import) vs OCR optimisation (`gentle_contrast` only today, off by default; other OCR profiles deferred) — see **Preprocessing system** above
 - **Notebook corpus** — contracts first; bulk import gated; import recovery / inbox as the user-facing continuation
 - **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX
 - **Longevity** — backup/restore/portability; upgrade/migration story; archive readable without Transcribe where feasible

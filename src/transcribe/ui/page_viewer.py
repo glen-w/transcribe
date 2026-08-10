@@ -90,8 +90,15 @@ def render_page_viewer(
         st.error(f"Page {page_id[:8]}… not found in {project.title}")
         return project
 
-    # Same refresh rule as OCR / post-job: missing or unapproved → suggest.
-    if page.date is None or not page.date_approved:
+    # Refresh unapproved suggestions. Cover pages also re-try while undated so they
+    # can inherit the first dated page after later pages are filled.
+    effective_cover_id = project.cover_page_id or (
+        project.pages[0].page_id if project.pages else None
+    )
+    needs_date_suggest = (not page.date_approved) or (
+        page.date is None and page.page_id == effective_cover_id
+    )
+    if needs_date_suggest:
         try:
             if projects.suggest_page_date(page.page_id):
                 bump_archive_generation(build_runtime_paths())
@@ -197,11 +204,42 @@ def render_page_viewer(
         )
         if page.date is not None and not page.date_approved:
             if page.date_source == DATE_SOURCE_EXTRACTED:
-                st.caption("Suggested from transcription — not yet approved")
+                suggest_label = "Suggested from transcription — not yet approved"
             elif page.date_source == DATE_SOURCE_INHERITED:
-                st.caption("Carried from previous page — not yet approved")
+                suggest_label = "Carried from previous page — not yet approved"
             else:
-                st.caption("Suggested — not yet approved")
+                suggest_label = "Suggested — not yet approved"
+            cap_col, ok_col, no_col = st.columns([8, 1, 1], vertical_alignment="center")
+            with cap_col:
+                st.caption(suggest_label)
+            with ok_col:
+                if st.button(
+                    "✓",
+                    key=f"date_approve_{page.page_id}",
+                    help="Approve suggested date",
+                    type="tertiary",
+                ):
+                    try:
+                        projects.approve_page_date(page.page_id, page.date)
+                        bump_archive_generation(build_runtime_paths())
+                        st.session_state.pop(f"date_{page.page_id}", None)
+                        st.rerun()
+                    except (ValueError, TranscribeError) as exc:
+                        st.error(str(exc))
+            with no_col:
+                if st.button(
+                    "✕",
+                    key=f"date_ignore_{page.page_id}",
+                    help="Ignore suggestion (clear date)",
+                    type="tertiary",
+                ):
+                    try:
+                        projects.approve_page_date(page.page_id, None)
+                        bump_archive_generation(build_runtime_paths())
+                        st.session_state.pop(f"date_{page.page_id}", None)
+                        st.rerun()
+                    except (ValueError, TranscribeError) as exc:
+                        st.error(str(exc))
         tags_in = st.text_input(
             "Tags (comma-separated)",
             value=", ".join(page.tags),

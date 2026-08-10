@@ -37,7 +37,7 @@ def render_configuration_panel() -> None:
         )
 
     st.markdown("#### Import")
-    st.caption("Used when importing PDFs (Workflow → Import). Default 200 DPI.")
+    st.caption("Used when importing PDFs and images (Workflow → Import).")
     dpi = st.number_input(
         "PDF render DPI",
         min_value=72,
@@ -45,11 +45,19 @@ def render_configuration_panel() -> None:
         value=int(view.effective.ingest.render_dpi),
         key="settings_ingest_render_dpi",
     )
+    declutter = st.checkbox(
+        "Visual declutter (remove scanner borders on import)",
+        value=bool(view.effective.ingest.visual_declutter_enabled),
+        key="settings_ingest_visual_declutter",
+        help="On by default. Affects new imports only; existing notebooks are not rewritten.",
+    )
     if st.button("Save import defaults", type="primary", key="settings_ingest_save"):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
-            cfg.setdefault("ingest", {})["render_dpi"] = int(dpi)
+            ingest_cfg = cfg.setdefault("ingest", {})
+            ingest_cfg["render_dpi"] = int(dpi)
+            ingest_cfg["visual_declutter_enabled"] = bool(declutter)
             save_workspace_settings(config=cfg, activations=loaded.activations)
             clear_config_cache()
             reload_config()
