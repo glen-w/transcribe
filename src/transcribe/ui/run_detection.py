@@ -85,7 +85,11 @@ def _render_run(projects: ProjectService) -> None:
     st.markdown("#### Freshness")
     for d in dets:
         fresh = svc.freshness(d.detector_id)
-        st.caption(f"`{d.detector_id}`: **{fresh}**")
+        attempt_state = svc.latest_attempt_state(d.detector_id)
+        note = ""
+        if attempt_state in ("interrupted", "cancelled", "failed", "running"):
+            note = f" · last attempt: **{attempt_state}**"
+        st.caption(f"`{d.detector_id}`: **{fresh}**{note}")
 
 
 def _render_findings(projects: ProjectService, project_root: str) -> None:

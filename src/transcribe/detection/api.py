@@ -135,6 +135,13 @@ class DetectionService:
             detector_version=detector.version,
         )
 
+    def latest_attempt_state(self, detector_id: str) -> str | None:
+        attempt = self.storage.latest_attempt(detector_id)
+        if attempt is None:
+            return None
+        state = attempt.get("attempt_state")
+        return str(state) if state else None
+
     def set_review_status(
         self,
         detector_id: str,
