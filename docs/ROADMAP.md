@@ -23,12 +23,12 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 
 Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open.
 
-Phased checklist (see product hardening plan): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
+Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
 
 | Phase | Status | Outcome |
 |-------|--------|---------|
 | **1** — #10, #3, #4 | [x] | Analyse has one launcher and one freshness authority |
-| **2** — #1, #2 | [ ] | Runs survive UI/process interruption and execute from frozen inputs |
+| **2** — #1, #2 | [x] | Runs survive UI/process interruption and execute from frozen inputs |
 | **3** — #5, #6 | [ ] | Users can trust exactly what a preset will run |
 | **4** — #11, #12 | [ ] | Every analysis surface gives the same answer to “is this current and healthy?” |
 | **5** — #13 | [ ] | Exports identify exactly which notebook revision produced them |

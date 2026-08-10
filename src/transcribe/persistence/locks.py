@@ -1,4 +1,4 @@
-"""Project mutation lock and long-lived OCR job lock."""
+"""Project mutation lock and long-lived OCR / analysis job locks."""
 
 from __future__ import annotations
 
@@ -12,6 +12,10 @@ from pathlib import Path
 
 _PROCESS_LOCKS: dict[str, threading.Lock] = {}
 _PROCESS_LOCKS_GUARD = threading.Lock()
+# Paths whose JobLock/AnalysisLock is held in this process (flock probes alone
+# are unreliable for same-process holders on Linux).
+_HELD_LONG_LOCKS: set[str] = set()
+_HELD_LONG_LOCKS_GUARD = threading.Lock()
 
 
 def _process_lock_for(path: Path) -> threading.Lock:
@@ -22,6 +26,13 @@ def _process_lock_for(path: Path) -> threading.Lock:
             lock = threading.Lock()
             _PROCESS_LOCKS[key] = lock
         return lock
+
+
+def _long_lock_key(path: Path) -> str:
+    try:
+        return str(path.resolve())
+    except OSError:
+        return str(path.absolute())
 
 
 class LockTimeoutError(TimeoutError):
@@ -97,15 +108,19 @@ def mutation_lock(path: Path, *, timeout: float = 30.0) -> Iterator[None]:
 
 
 class JobLock:
-    """Long-lived exclusive OCR job lock for one project."""
+    """Long-lived exclusive OCR/analysis job lock for one project."""
 
     def __init__(self, path: Path) -> None:
         self._lock = FileLock(path, timeout=0.0)
         self._held = False
+        self._key = _long_lock_key(path)
 
     def try_acquire(self) -> bool:
         ok = self._lock.acquire(blocking=False)
         self._held = ok
+        if ok:
+            with _HELD_LONG_LOCKS_GUARD:
+                _HELD_LONG_LOCKS.add(self._key)
         return ok
 
     def acquire(self, *, timeout: float = 0.0) -> bool:
@@ -115,12 +130,16 @@ class JobLock:
         try:
             self._lock.acquire(blocking=True)
             self._held = True
+            with _HELD_LONG_LOCKS_GUARD:
+                _HELD_LONG_LOCKS.add(self._key)
             return True
         except LockTimeoutError:
             return False
 
     def release(self) -> None:
         if self._held:
+            with _HELD_LONG_LOCKS_GUARD:
+                _HELD_LONG_LOCKS.discard(self._key)
             self._lock.release()
             self._held = False
 
@@ -138,9 +157,22 @@ class JobLock:
 
 
 def job_lock_held(path: Path) -> bool:
-    """Non-blocking probe: True if another process holds the job lock."""
+    """Non-blocking probe: True if this or another process holds the job lock."""
+    key = _long_lock_key(path)
+    with _HELD_LONG_LOCKS_GUARD:
+        if key in _HELD_LONG_LOCKS:
+            return True
     probe = JobLock(path)
     if probe.try_acquire():
         probe.release()
         return False
     return True
+
+
+# Analysis batch runs reuse the same cross-process FileLock semantics as OCR jobs.
+AnalysisLock = JobLock
+
+
+def analysis_lock_held(path: Path) -> bool:
+    """Non-blocking probe: True if this or another process holds the analysis lock."""
+    return job_lock_held(path)

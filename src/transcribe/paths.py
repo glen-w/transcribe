@@ -60,6 +60,11 @@ class ProjectPaths:
         return self.root / "analysis"
 
     @property
+    def analysis_runs_dir(self) -> Path:
+        """Batch analysis run records under analysis/; create on first write only."""
+        return self.analysis_dir / "runs"
+
+    @property
     def detection_dir(self) -> Path:
         """Durable detection artifacts; create on first write only."""
         return self.root / "detection"
@@ -75,6 +80,10 @@ class ProjectPaths:
     @property
     def job_lock(self) -> Path:
         return self.root / ".transcribe.job.lock"
+
+    @property
+    def analysis_lock(self) -> Path:
+        return self.root / ".transcribe.analysis.lock"
 
     @property
     def ingest_journal(self) -> Path:

@@ -1,6 +1,7 @@
 """Streamlit UI for Transcribe.
 
-JobCoordinator is owned via st.cache_resource so reruns do not drop live jobs.
+JobCoordinator and AnalysisCoordinator are owned via st.cache_resource so
+reruns do not drop live OCR / analysis jobs.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from transcribe.analysis.coordinator import AnalysisCoordinator, build_analysis_coordinator
 from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
     suitable_text_model_names,
@@ -58,6 +60,16 @@ def get_coordinator(project_root: str) -> JobCoordinator:
         clock=SystemClock(),
         ids=UuidGenerator(),
         archive_runtime=build_runtime_paths(),
+    )
+    return coord
+
+
+@st.cache_resource
+def get_analysis_coordinator(project_root: str) -> AnalysisCoordinator:
+    _paths, _projects, coord = build_analysis_coordinator(
+        project_root,
+        clock=SystemClock(),
+        ids=UuidGenerator(),
     )
     return coord
 
@@ -229,8 +241,11 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         st.caption(f"Project: `{paths.root}`")
         from transcribe.ui.run_analysis import analysis_run_in_progress
 
-        running = render_run_analysis_form(projects=projects, project=project)
-        if running or analysis_run_in_progress():
+        analysis_coord = get_analysis_coordinator(str(paths.root))
+        running = render_run_analysis_form(
+            projects=projects, project=project, coord=analysis_coord
+        )
+        if running or analysis_run_in_progress(analysis_coord):
             return
         st.divider()
         st.markdown("#### Published results")

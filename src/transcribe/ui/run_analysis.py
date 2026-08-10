@@ -6,12 +6,14 @@ from typing import Any, Sequence
 
 import streamlit as st
 
+from transcribe.analysis.coordinator import AnalysisCoordinator, AnalysisProgress
 from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
     suitable_text_model_names,
 )
 from transcribe.analysis.module_catalog import format_module_label
 from transcribe.analysis.parents import batch_module_order
+from transcribe.analysis.plan import build_analysis_run_plan
 from transcribe.analysis.presets import (
     PRESET_HELP,
     PRESET_LABELS,
@@ -23,14 +25,13 @@ from transcribe.analysis.presets import (
     resolve_analysis_preset,
     suitable_module_ids,
 )
-from transcribe.analysis.runner import AnalysisRunner
+from transcribe.errors import JobConflictError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
 from transcribe.services.project import ProjectService
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import (
     SNAPSHOT_KEY,
-    StreamlitProgressCallback,
     make_initial_snapshot,
     render_progress_panel,
 )
@@ -49,10 +50,47 @@ _KEY_PREFIX = "run_analysis"
 _PENDING_LAUNCH_KEY = "run_analysis_pending_launch"
 _IN_PROGRESS_KEY = "analysis_run_in_progress"
 _LAST_RESULTS_KEY = "run_analysis_last_results"
+_ACTIVE_RUN_ID_KEY = "run_analysis_active_run_id"
 
 
-def analysis_run_in_progress() -> bool:
+def analysis_run_in_progress(coord: AnalysisCoordinator | None = None) -> bool:
+    if coord is not None and coord.is_running():
+        return True
     return bool(st.session_state.get(_IN_PROGRESS_KEY, False))
+
+
+def progress_to_snapshot(progress: AnalysisProgress) -> dict[str, Any]:
+    """Map AnalysisCoordinator progress into the Streamlit progress panel snapshot."""
+    done = progress.completed + progress.failed + progress.skipped
+    total = progress.total
+    pct = (done / total * 100.0) if total else 0.0
+    status = progress.status
+    if status == "cancelled":
+        panel_status = "failed"
+        phase = "failed"
+    elif status in ("completed", "failed"):
+        panel_status = status
+        phase = status
+    else:
+        panel_status = "running"
+        phase = "running_pipeline"
+    return {
+        "status": panel_status,
+        "phase": phase,
+        "current_module": progress.current_module_id,
+        "completed": progress.completed,
+        "skipped": progress.skipped,
+        "failed": progress.failed,
+        "total": total,
+        "pct": pct,
+        "latest_event": progress.message or "",
+        "recent_logs": list(
+            st.session_state.get(SNAPSHOT_KEY, {}).get("recent_logs") or []
+        )
+        if isinstance(st.session_state.get(SNAPSHOT_KEY), dict)
+        else [],
+        "error": progress.error,
+    }
 
 
 def apply_pending_review_module_removal(session_state: Any) -> None:
@@ -177,60 +215,27 @@ def _render_post_analysis_actions() -> None:
             st.toast("Published results are below.")
 
 
-def _execute_pending_launch(
-    pending: dict[str, Any],
-    *,
-    projects: ProjectService,
-    progress: StreamlitProgressCallback,
-) -> None:
-    """Run snapshotted modules; sole launch authority after Run click."""
-    launch_ids = list(pending.get("modules") or [])
-    question_text = pending.get("question_text")
-    st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
-    progress.refresh_panel()
+def _sync_snapshot_from_coord(coord: AnalysisCoordinator) -> AnalysisProgress:
+    progress = coord.get_progress()
+    snap = progress_to_snapshot(progress)
+    # Append a log line when the latest event changes.
+    prev = st.session_state.get(SNAPSHOT_KEY)
+    logs = list(prev.get("recent_logs") or []) if isinstance(prev, dict) else []
+    event = snap.get("latest_event") or ""
+    if event and (not logs or not logs[-1].endswith(event)):
+        import datetime
 
-    runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-    results: dict[str, dict[str, Any]] = {}
-    completed = failed = skipped = 0
-    total = len(launch_ids)
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        logs.append(f"[{ts}] {event}")
+        snap["recent_logs"] = logs[-100:]
+    else:
+        snap["recent_logs"] = logs
+    st.session_state[SNAPSHOT_KEY] = snap
+    return progress
 
-    try:
-        for index, mid in enumerate(launch_ids, start=1):
-            progress.module_started(mid, index=index, total=total)
-            try:
-                if mid == "llm_custom_qa" and question_text:
-                    env = runner.run_module(mid, question_text=question_text)
-                else:
-                    env = runner.run_module(mid)
-            except Exception as exc:  # noqa: BLE001
-                env = {
-                    "module_id": mid,
-                    "outcome": "failed",
-                    "capability": "failed",
-                    "payload": {"error": {"message": str(exc)}},
-                }
-            results[mid] = env
-            outcome = str(env.get("outcome") or "failed")
-            if outcome == "failed":
-                failed += 1
-            else:
-                completed += 1
-            progress.module_finished(
-                mid,
-                outcome=outcome,
-                completed=completed,
-                failed=failed,
-                skipped=skipped,
-                total=total,
-            )
-        progress.run_completed()
-    except Exception as exc:  # noqa: BLE001
-        progress.run_failed(str(exc))
-    finally:
-        st.session_state[_IN_PROGRESS_KEY] = False
-        st.session_state.pop(_PENDING_LAUNCH_KEY, None)
-        progress.refresh_panel()
 
+def _finalize_run(coord: AnalysisCoordinator, progress: AnalysisProgress) -> None:
+    results = coord.get_results()
     st.session_state[_LAST_RESULTS_KEY] = {
         mid: {
             "outcome": env.get("outcome"),
@@ -238,12 +243,66 @@ def _execute_pending_launch(
         }
         for mid, env in results.items()
     }
+    st.session_state[_IN_PROGRESS_KEY] = False
+    st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+    st.session_state.pop(_ACTIVE_RUN_ID_KEY, None)
+    if progress.status == "failed":
+        # Keep error visible on the snapshot.
+        pass
+
+
+def _start_coordinator_run(
+    pending: dict[str, Any],
+    *,
+    projects: ProjectService,
+    coord: AnalysisCoordinator,
+) -> None:
+    """Freeze AnalysisRunPlan and start the async coordinator (non-blocking)."""
+    launch_ids = list(pending.get("modules") or [])
+    question_text = pending.get("question_text")
+    preset_label = pending.get("preset_label")
+    st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
+    try:
+        plan = build_analysis_run_plan(
+            project_service=projects,
+            module_ids=launch_ids,
+            question_text=question_text,
+            preset_label=preset_label,
+            clock=SystemClock(),
+            ids=UuidGenerator(),
+        )
+        run_id = coord.start(plan)
+        st.session_state[_ACTIVE_RUN_ID_KEY] = run_id
+        pending["started"] = True
+        pending["run_id"] = run_id
+        st.session_state[_PENDING_LAUNCH_KEY] = pending
+    except JobConflictError as exc:
+        st.session_state[_IN_PROGRESS_KEY] = False
+        st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+        st.session_state[SNAPSHOT_KEY] = {
+            **make_initial_snapshot(len(launch_ids)),
+            "status": "failed",
+            "phase": "failed",
+            "error": str(exc),
+            "latest_event": str(exc),
+        }
+    except Exception as exc:  # noqa: BLE001
+        st.session_state[_IN_PROGRESS_KEY] = False
+        st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+        st.session_state[SNAPSHOT_KEY] = {
+            **make_initial_snapshot(len(launch_ids)),
+            "status": "failed",
+            "phase": "failed",
+            "error": str(exc),
+            "latest_event": str(exc),
+        }
 
 
 def _render_config_and_launch(
     *,
     projects: ProjectService,
     project: Any,
+    coord: AnalysisCoordinator,
 ) -> None:
     apply_pending_review_module_removal(st.session_state)
 
@@ -348,8 +407,10 @@ def _render_config_and_launch(
                 st.warning("Select a text model before running LLM modules.")
 
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
-    run_disabled = not launch_ids or (
-        needs_llm and not (project.settings.text_model_name or "").strip()
+    run_disabled = (
+        not launch_ids
+        or (needs_llm and not (project.settings.text_model_name or "").strip())
+        or coord.is_running()
     )
 
     if st.button(
@@ -363,6 +424,7 @@ def _render_config_and_launch(
         st.session_state[_PENDING_LAUNCH_KEY] = {
             "modules": list(launch_ids),
             "question_text": q,
+            "preset_label": format_preset_label(preset),
             "form_cleared": False,
             "started": False,
             "footer_summary": (
@@ -379,65 +441,97 @@ def render_run_analysis_form(
     *,
     projects: ProjectService,
     project: Any,
+    coord: AnalysisCoordinator | None = None,
 ) -> bool:
     """Configure and launch a notebook analysis run from a TX-style preset.
 
     Returns True while a run is in progress (caller should hide published tabs).
     """
+    if coord is None:
+        from transcribe.analysis.coordinator import AnalysisCoordinator
+
+        coord = AnalysisCoordinator(
+            projects, clock=SystemClock(), ids=UuidGenerator()
+        )
+
     render_page_shell(
         "Run Analysis",
         "Choose an analysis preset (or custom modules), optional Ask-notebook "
         "question, then run.",
     )
 
+    running = analysis_run_in_progress(coord)
+
     # Post-run strip only when idle so links never point at a mid-run state.
-    if not analysis_run_in_progress():
+    if not running:
         _render_post_analysis_actions()
 
     pending = st.session_state.get(_PENDING_LAUNCH_KEY)
-    if analysis_run_in_progress() and isinstance(pending, dict):
+    if running and isinstance(pending, dict):
         summary = pending.get("footer_summary") or "Running analysis…"
         st.markdown(summary)
         progress_slot = st.empty()
-        snapshot = st.session_state.get(SNAPSHOT_KEY)
-        if snapshot is not None:
-            with progress_slot.container():
-                render_progress_panel(snapshot)
-        else:
-            with progress_slot.container():
-                st.info("Analysis is running…")
 
-        # Three-phase launch (TX model):
-        # 1) click stores pending + rerun
-        # 2) paint progress only + form_cleared + rerun (ends script → clears form)
-        # 3) paint progress + execute (blocking; form stays gone)
+        # Phase 1: clear form widgets via rerun before starting the thread.
         if not pending.get("form_cleared"):
             pending["form_cleared"] = True
             st.session_state[_PENDING_LAUNCH_KEY] = pending
+            snapshot = st.session_state.get(SNAPSHOT_KEY)
+            if snapshot is not None:
+                with progress_slot.container():
+                    render_progress_panel(snapshot)
             st.rerun()
             return True
+
+        # Phase 2: freeze plan + start async coordinator (non-blocking).
         if not pending.get("started"):
-            pending["started"] = True
-            st.session_state[_PENDING_LAUNCH_KEY] = pending
-            progress = StreamlitProgressCallback(render_slot=progress_slot)
-            _execute_pending_launch(pending, projects=projects, progress=progress)
+            _start_coordinator_run(pending, projects=projects, coord=coord)
+            progress = _sync_snapshot_from_coord(coord)
+            with progress_slot.container():
+                render_progress_panel(st.session_state[SNAPSHOT_KEY])
+            if progress.status in ("failed",) and not coord.is_running():
+                _finalize_run(coord, progress)
             st.rerun()
+            return True
+
+        # Phase 3: poll coordinator progress across Streamlit reruns.
+        progress = _sync_snapshot_from_coord(coord)
+        with progress_slot.container():
+            render_progress_panel(st.session_state[SNAPSHOT_KEY])
+        if st.button("Cancel analysis", key="run_analysis_cancel"):
+            coord.cancel()
+            st.rerun()
+        if coord.is_running() or progress.status == "running":
+            import time
+
+            time.sleep(0.35)
+            st.rerun()
+            return True
+        _finalize_run(coord, progress)
+        st.rerun()
         return True
 
-    if analysis_run_in_progress():
-        snapshot = st.session_state.get(SNAPSHOT_KEY)
-        if snapshot is not None:
-            render_progress_panel(snapshot)
-        else:
-            st.info("Analysis is running…")
+    # Coordinator still running after session flags cleared (e.g. navigation).
+    if coord.is_running():
+        st.session_state[_IN_PROGRESS_KEY] = True
+        progress = _sync_snapshot_from_coord(coord)
+        st.markdown(progress.message or "Running analysis…")
+        render_progress_panel(st.session_state[SNAPSHOT_KEY])
+        if st.button("Cancel analysis", key="run_analysis_cancel_orphan"):
+            coord.cancel()
+        import time
+
+        time.sleep(0.35)
+        st.rerun()
         return True
 
+    # Idle: show last progress + form.
     last_snapshot = st.session_state.get(SNAPSHOT_KEY)
     if last_snapshot and last_snapshot.get("status") in ("completed", "failed"):
         with st.expander("Last run progress", expanded=False):
             render_progress_panel(last_snapshot)
 
-    _render_config_and_launch(projects=projects, project=project)
+    _render_config_and_launch(projects=projects, project=project, coord=coord)
 
     last = st.session_state.get(_LAST_RESULTS_KEY)
     if isinstance(last, dict) and last:

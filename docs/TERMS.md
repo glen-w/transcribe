@@ -9,6 +9,7 @@ Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODU
 | Page result | Per-page JSON of attempts + edits | [contracts/page-result.md](contracts/page-result.md) |
 | Effective text | Edit if present, else active raw OCR | [contracts/page-result.md](contracts/page-result.md) |
 | JobPlan | Frozen OCR execution inputs for one run | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| AnalysisRunPlan | Frozen Analyse batch inputs (modules, EffectiveConfig, text-model identity) | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
 | Fingerprint | Canonical hash of OCR inputs for skip/resume | [contracts/page-result.md](contracts/page-result.md) |
 | Ingest journal | Crash journal for multi-file import commit | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | Archive index | Rebuildable SQLite FTS cache for the workspace | [ARCHITECTURE.md](ARCHITECTURE.md) |

@@ -24,12 +24,13 @@ Exact filenames, staging directories, and payload file formats under `analysis/`
 
 ```text
 analysis/
+  runs/<run_id>.json        # batch AnalysisRunPlan + progress (optional)
   <module_id>/
     published.json          # current published reusable artifact (if any)
     attempts/<attempt_id>.json
 ```
 
-Creating `analysis/` on first write is not a project-layout migration; projects without it remain valid.
+Creating `analysis/` on first write is not a project-layout migration; projects without it remain valid. The `runs/` directory is reserved and is never treated as a module id.
 
 ## Project identity binding
 
@@ -57,16 +58,28 @@ Attempt file writes and published-pointer swaps use `write_json_atomic`. Partial
 ### Layout
 
 ```text
-analysis/<module_id>/
-  published.json
-  attempts/<attempt_id>.json
+analysis/
+  runs/<run_id>.json
+  <module_id>/
+    published.json
+    attempts/<attempt_id>.json
 ```
 
-Creating `analysis/` on first write is not a layout migration.
+Creating `analysis/` on first write is not a layout migration. Skip the reserved `runs/` name when scanning module directories.
+
+### Analysis batch lock
+
+At most one analysis batch run per project across processes, held via `.transcribe.analysis.lock` (see [project-on-disk.md](project-on-disk.md)). Long module compute holds this lock for the run lifetime and must **not** hold `mutation_lock`.
+
+### Frozen AnalysisRunPlan
+
+Batch Analyse launches freeze an immutable **AnalysisRunPlan** before any module runs: ordered module ids, optional question text, EffectiveConfig snapshot + config fingerprint, and text-model identity when LLM modules are included. Workers consume the plan (bound config + frozen model identity), not live UI/settings. Mid-run settings / text-model / module-list changes apply to the **next** run only. Notebook content edits mid-run still use publish revalidation (`stale_at_publish`) — text is not frozen as execution authority.
+
+Durable run records (`format: transcribe.analysis-run`) live under `analysis/runs/<run_id>.json`. They are history/progress only and never replace module publish authority.
 
 ### Reopen reconciliation
 
-When the project is opened/loaded and the analysis mutation path is free: every attempt still `running` becomes `interrupted`. Reconciliation **must not** clear or rewrite a valid `published.json`.
+When the project is opened/loaded and the **analysis** lock is free: every attempt still `running` becomes `interrupted`, and every non-terminal run record becomes `interrupted`. Reconciliation **must not** clear or rewrite a valid `published.json`. Do **not** gate analysis reconcile on the OCR job lock. Process death does not auto-resume a batch; the user re-launches and published cache hits skip completed modules.
 
 ### Cache-hit validation
 

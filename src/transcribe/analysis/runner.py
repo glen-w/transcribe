@@ -55,6 +55,8 @@ LLM_MODULES = frozenset(
     {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
 )
 
+_UNSET = object()
+
 
 def _module_config(module: Any) -> dict[str, Any]:
     fn = getattr(module, "cache_config", None)
@@ -413,13 +415,17 @@ class AnalysisRunner:
         *,
         project: Any,
         question_text: str | None,
+        llm_ctx: TextLLMContext | None | object = _UNSET,
     ) -> dict[str, Any]:
-        llm_ctx: TextLLMContext | None = None
-        if module.module_id in LLM_MODULES:
-            llm_ctx = bind_text_llm_context(
-                text_model_name=getattr(project.settings, "text_model_name", None),
-                base_url=getattr(project.settings, "base_url", None),
-            )
+        if llm_ctx is _UNSET:
+            resolved_llm: TextLLMContext | None = None
+            if module.module_id in LLM_MODULES:
+                resolved_llm = bind_text_llm_context(
+                    text_model_name=getattr(project.settings, "text_model_name", None),
+                    base_url=getattr(project.settings, "base_url", None),
+                )
+        else:
+            resolved_llm = llm_ctx  # type: ignore[assignment]
 
         def expected_identity(parent_id: str) -> str | None:
             return self.planned_cache_identity(
@@ -443,7 +449,7 @@ class AnalysisRunner:
                     "capability_reason": "invalid_document",
                 },
                 eligibility_meta=None,
-                llm_ctx=llm_ctx,
+                llm_ctx=resolved_llm,
                 question_text=question_text,
                 empty_document=True,
                 empty_code=exc.code,
@@ -460,7 +466,7 @@ class AnalysisRunner:
                     parents=[],
                     result=skip,
                     eligibility_meta=eligibility_meta,
-                    llm_ctx=llm_ctx,
+                    llm_ctx=resolved_llm,
                     question_text=question_text,
                 )
             assert filtered is not None
@@ -479,7 +485,7 @@ class AnalysisRunner:
                 parents=[],
                 result=hard_fail,
                 eligibility_meta=eligibility_meta,
-                llm_ctx=llm_ctx,
+                llm_ctx=resolved_llm,
                 question_text=question_text,
             )
 
@@ -496,7 +502,7 @@ class AnalysisRunner:
         llm_bits = _llm_fields_from_context(
             module,
             document,
-            llm_ctx=llm_ctx,
+            llm_ctx=resolved_llm,
             question_text=question_text,
             parent_payload_map=payloads,
         )
@@ -551,7 +557,7 @@ class AnalysisRunner:
             result = module.run(
                 document,
                 parents=payloads,
-                llm_ctx=llm_ctx,
+                llm_ctx=resolved_llm,
                 question_text=question_text,
             )
             outcome = result["outcome"]
@@ -639,6 +645,68 @@ class AnalysisRunner:
                         "capability": "failed",
                         "payload": {"error": {"message": str(exc)}},
                     }
+        return results
+
+    def run_batch_from_plan(
+        self,
+        plan: Any,
+        *,
+        cancel_event: Any | None = None,
+        on_module_started: Any | None = None,
+        on_module_finished: Any | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Execute modules under a frozen AnalysisRunPlan (one bound EffectiveConfig).
+
+        Does not acquire the analysis lock — AnalysisCoordinator owns that.
+        """
+        from transcribe.analysis.plan import AnalysisRunPlan
+
+        if not isinstance(plan, AnalysisRunPlan):
+            raise TypeError("plan must be an AnalysisRunPlan")
+
+        # Reconcile only when no live analysis lock (coordinator holds it during run).
+        project = self.project_service.load(reconcile=True)
+        modules = get_registered_modules()
+        results: dict[str, dict[str, Any]] = {}
+        frozen_llm = plan.build_llm_context() if plan.needs_llm() else None
+        total = len(plan.module_ids)
+
+        with bind_operation_config(plan.effective_config):
+            for index, mid in enumerate(plan.module_ids, start=1):
+                if cancel_event is not None and cancel_event.is_set():
+                    break
+                if on_module_started is not None:
+                    on_module_started(mid, index=index, total=total)
+                question = plan.question_text if mid == "llm_custom_qa" else None
+                try:
+                    module = modules.get(mid)
+                    if module is None:
+                        raise KeyError(f"unknown module_id: {mid}")
+                    # Prefer frozen LLM identity when plan includes text-model freeze.
+                    if mid in LLM_MODULES:
+                        env = self._run_module_unlocked(
+                            module,
+                            project=project,
+                            question_text=question,
+                            llm_ctx=frozen_llm,
+                        )
+                    else:
+                        env = self._run_module_unlocked(
+                            module,
+                            project=project,
+                            question_text=question,
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    env = {
+                        "module_id": mid,
+                        "attempt_state": "failed",
+                        "outcome": "failed",
+                        "capability": "failed",
+                        "payload": {"error": {"message": str(exc)}},
+                    }
+                results[mid] = env
+                if on_module_finished is not None:
+                    on_module_finished(mid, env)
         return results
 
     def _revalidate_identity(

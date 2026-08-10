@@ -41,10 +41,12 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 ## Analysis
 
 - Core analysis modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
-- Prefer **OCR cleanup / second-pass LLM verification** and human edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
+- Prefer **OCR cleanup / second-pass LLM verification** and human review edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
 - Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
 - LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
 - Batch Analyse runs from the preset form only; result tabs are read-models. Ask notebook remains an ad-hoc action
+- Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
+- Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume
 - Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI
 - Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
 - Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
