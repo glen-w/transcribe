@@ -91,6 +91,28 @@ def test_poetry_spans_multiple_pages(tmp_path: Path):
     start_idx = page_ids.index(span["start_page_id"])
     end_idx = page_ids.index(span["end_page_id"])
     assert end_idx - start_idx >= 1
+    # Terminal attempt must not have been clobbered to interrupted by mid-run reconcile.
+    assert result.get("attempt_state") == "succeeded"
+
+
+def test_poetry_midrun_load_does_not_interrupt_attempt(tmp_path: Path):
+    """Regression: project.load(reconcile=True) during execute must not mark attempt interrupted."""
+    projects = _project_with_poem(tmp_path)
+    client = RecordedDoubleClient(
+        responses={
+            "default": _poetry_response(
+                detected=True, continues_before=False, continues_after=False
+            ),
+        },
+        digest="test-digest",
+    )
+    svc = DetectionService(projects, text_ctx=_bind(client))
+    result = svc.run_detector("poetry", force=True)
+    assert result["attempt_state"] == "succeeded"
+    assert result["outcome"] == "success"
+    published = svc.runner.storage.read_published("poetry")
+    assert published is not None
+    assert published.get("attempt_state") == "succeeded"
 
 
 def _bind(client: RecordedDoubleClient):

@@ -71,7 +71,8 @@ class DetectionRunner:
         *,
         page_ids: list[str] | None = None,
     ) -> tuple[str, str, dict[str, Any]]:
-        project = self.project_service.load()
+        # Mid-run loads must not reconcile: that would mark this attempt interrupted.
+        project = self.project_service.load(reconcile=False)
         page_inputs, _ = select_candidates(
             detector,
             project,
@@ -132,7 +133,7 @@ class DetectionRunner:
                 return cached
 
         attempt_id = self.ids.new_id()
-        project = self.project_service.load()
+        project = self.project_service.load(reconcile=False)
         running = build_detection_envelope(
             notebook_id=project.id,
             detector_id=detector_id,
@@ -180,7 +181,8 @@ class DetectionRunner:
         page_ids: list[str] | None,
         cancel_check: Any | None,
     ) -> dict[str, Any]:
-        project = self.project_service.load()
+        # Active attempt is on disk as running; reconcile would mark it interrupted.
+        project = self.project_service.load(reconcile=False)
         page_inputs, warnings = select_candidates(
             detector,
             project,

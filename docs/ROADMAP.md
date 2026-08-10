@@ -14,7 +14,7 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is product hardening: durable analysis execution, freshness/health semantics, provenance-aware export, and simplification of Analyse UX. No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): finish Analyse trust/hardening (U0–U1), then first-run operability and daily workbench (U2–U3), with corpus inbox gated (U4). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are usability and corpus-lifecycle concerns** (trustworthy Analyse chrome, first-run operability, daily Review/reading/search, then living with many notebooks), not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
@@ -35,7 +35,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 | **3** — #5, #6 | [ ] | Users can trust exactly what a preset will run | **U0** |
 | **4** — #11, #12 | [ ] | Every analysis surface gives the same answer to “is this current and healthy?” | **U0** |
 | **5** — #13 | [ ] | Exports identify exactly which notebook revision produced them | **U0** |
-| **6** — #7–9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics | **U1** |
+| **6** — #7, #8, #9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics | **U1** |
 
 | Track | Intent |
 |-------|--------|
