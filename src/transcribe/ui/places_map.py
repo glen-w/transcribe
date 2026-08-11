@@ -17,6 +17,7 @@ from transcribe.services.places import (
     load_notebook_places,
     map_points,
     resolve_places,
+    write_ner_locations_artifact,
 )
 from transcribe.ui.analysis_health_view import render_module_health_banner
 
@@ -75,6 +76,7 @@ def render_places_panel(
     scope: str,
     show_notebook: bool = False,
     ner_health: ModuleHealth | None = None,
+    project_root: Path | None = None,
 ) -> None:
     """Shared panel: people list, place table, optional geocode + map."""
     if ner_health is not None:
@@ -115,7 +117,8 @@ def render_places_panel(
         key=_geocode_opt_in_key(scope),
         help=(
             "Cached lookups stay local. New names are resolved via "
-            "nominatim.openstreetmap.org only when this is checked."
+            "nominatim.openstreetmap.org only when this is checked "
+            "(TranscriptX defaults geocoding on; Transcribe keeps it opt-in)."
         ),
     )
 
@@ -125,6 +128,21 @@ def render_places_panel(
         cache,
         allow_network=bool(allow),
     )
+    # TX always writes ner-locations beside NER; persist when we have coords.
+    if project_root is not None and any(g.status == "ok" for g in geocoded):
+        nb_id = next((p.notebook_id for p in snapshot.places if p.notebook_id), None)
+        nb_title = next(
+            (p.notebook_title for p in snapshot.places if p.notebook_title), None
+        )
+        written = write_ner_locations_artifact(
+            project_root,
+            geocoded,
+            notebook_id=nb_id,
+            notebook_title=nb_title,
+        )
+        if written is not None:
+            st.caption(f"Locations artifact: `{written.name}` under analysis/ner/")
+
     _render_map(geocoded)
     st.markdown("#### Place mentions")
     _render_place_table(geocoded, show_notebook=show_notebook)
@@ -156,6 +174,7 @@ def render_notebook_places_tab(
         scope="notebook",
         show_notebook=False,
         ner_health=ner_health,
+        project_root=Path(project_root),
     )
 
 

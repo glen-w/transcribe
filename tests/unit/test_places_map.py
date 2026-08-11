@@ -275,8 +275,11 @@ def test_resolve_places_respects_lookup_budget(tmp_path: Path) -> None:
     )
     runtime.ensure_layout()
     cache = GeocodeCache(runtime)
+    # Frequency-rank: City2 (count=9) should be the only live lookup when budget=1.
     places = [
-        PlaceMention(surface=f"City{i}", label="GPE", count=1) for i in range(3)
+        PlaceMention(surface="City0", label="GPE", count=1),
+        PlaceMention(surface="City1", label="GPE", count=2),
+        PlaceMention(surface="City2", label="GPE", count=9),
     ]
     calls: list[str] = []
 
@@ -298,10 +301,126 @@ def test_resolve_places_respects_lookup_budget(tmp_path: Path) -> None:
         max_network_lookups=1,
         sleep_fn=lambda _s: None,
     )
-    assert len(calls) == 1
-    assert resolved[0].status == "ok"
-    assert resolved[1].status == "pending"
-    assert resolved[2].status == "pending"
+    assert calls == ["City2"]
+    by_name = {r.surface: r for r in resolved}
+    assert by_name["City2"].status == "ok"
+    assert by_name["City0"].status == "pending"
+    assert by_name["City1"].status == "pending"
+
+
+def test_resolve_places_caches_errors(tmp_path: Path) -> None:
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=tmp_path / "data",
+        projects_dir=tmp_path / "projects",
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    runtime.ensure_layout()
+    cache = GeocodeCache(runtime)
+    places = [PlaceMention(surface="Flaky", label="GPE", count=1)]
+    calls = {"n": 0}
+
+    def flaky(q: str) -> dict:
+        calls["n"] += 1
+        return {
+            "status": "error",
+            "lat": None,
+            "lon": None,
+            "message": "timeout",
+            "provider": "fake",
+        }
+
+    first = resolve_places(
+        places, cache, allow_network=True, geocode_fn=flaky, sleep_fn=lambda _s: None
+    )
+    assert first[0].status == "error"
+    assert calls["n"] == 1
+
+    second = resolve_places(
+        places,
+        cache,
+        allow_network=True,
+        geocode_fn=lambda q: (_ for _ in ()).throw(AssertionError("no retry")),
+        sleep_fn=lambda _s: None,
+    )
+    assert second[0].status == "error"
+    assert calls["n"] == 1
+
+
+def test_ner_locations_artifact_shape(tmp_path: Path) -> None:
+    from transcribe.services.places import (
+        GeocodedPlace,
+        build_ner_locations_artifact,
+        write_ner_locations_artifact,
+    )
+
+    geocoded = [
+        GeocodedPlace(
+            surface="Paris",
+            query="Paris",
+            lat=48.85,
+            lon=2.35,
+            display_name="Paris, France",
+            status="ok",
+            label="GPE",
+            count=2,
+            page_ids=("p1",),
+            sample_quote="in Paris",
+        ),
+        GeocodedPlace(
+            surface="Atlantis",
+            query="Atlantis",
+            lat=None,
+            lon=None,
+            display_name=None,
+            status="not_found",
+            label="GPE",
+            count=1,
+        ),
+    ]
+    payload = build_ner_locations_artifact(
+        geocoded, notebook_id="nb1", notebook_title="Travel"
+    )
+    assert payload["format"] == "transcribe.ner-locations"
+    assert payload["schema_version"] == 1
+    assert len(payload["places"]) == 1
+    assert payload["places"][0]["name"] == "Paris"
+    assert payload["places"][0]["sentence"] == "in Paris"
+    assert payload["places"][0]["page_ids"] == ["p1"]
+
+    nb = tmp_path / "proj"
+    (nb / "analysis" / "ner").mkdir(parents=True)
+    (nb / "project.json").write_text("{}", encoding="utf-8")
+    path = write_ner_locations_artifact(
+        nb, geocoded, notebook_id="nb1", notebook_title="Travel"
+    )
+    assert path is not None
+    assert path.name == "locations.json"
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["places"][0]["lat"] == pytest.approx(48.85)
+
+
+def test_place_labels_include_tx_parity_plus_fac() -> None:
+    from transcribe.services.places import PLACE_LABELS, PLACE_LABELS_TX
+
+    assert PLACE_LABELS_TX == frozenset({"GPE", "LOC"})
+    assert "FAC" in PLACE_LABELS
+    assert PLACE_LABELS_TX <= PLACE_LABELS
+
+
+def test_extract_attaches_evidence_quote() -> None:
+    snap = extract_from_ner_payload(
+        {
+            "entities": [
+                {"surface": "Paris", "label": "GPE", "unit_id": "p1"},
+            ]
+        },
+        evidence=[
+            {"label": "GPE", "surface": "Paris", "quote": "visited Paris yesterday"},
+        ],
+    )
+    assert snap.places[0].sample_quote == "visited Paris yesterday"
 
 
 def test_resolve_places_caches_not_found(tmp_path: Path) -> None:
