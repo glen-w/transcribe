@@ -15,7 +15,17 @@ from transcribe.config.models import (
 
 # Reserved names across all targets (Save As must reject).
 RESERVED_PROFILE_NAMES: frozenset[str] = frozenset(
-    {"default", "quick", "thorough", "careful", "fast", "short"}
+    {
+        "default",
+        "quick",
+        "thorough",
+        "careful",
+        "fast",
+        "short",
+        "compact",
+        "readable",
+        "large_print",
+    }
 )
 
 
@@ -92,6 +102,42 @@ def builtin_profile_config(target: ProfileTargetId, name: str) -> dict[str, Any]
                 ).as_dict()
             }
         return None
+    if target == "export":
+        from transcribe.services.export_options import ExportConfig, ExportTypography
+
+        if name == "default":
+            return {}
+        if name == "readable":
+            return {"export": ExportConfig().as_dict()}
+        if name == "compact":
+            return {
+                "export": ExportConfig(
+                    page_breaks="continuous",
+                    typography=ExportTypography(
+                        body_font="sans",
+                        body_size_pt=10.0,
+                        line_height=1.25,
+                        paragraph_spacing_em=0.35,
+                        margin_in=0.5,
+                        heading_scale=1.15,
+                    ),
+                ).as_dict()
+            }
+        if name == "large_print":
+            return {
+                "export": ExportConfig(
+                    page_breaks="per_page",
+                    typography=ExportTypography(
+                        body_font="serif",
+                        body_size_pt=14.0,
+                        line_height=1.6,
+                        paragraph_spacing_em=0.8,
+                        margin_in=1.0,
+                        heading_scale=1.35,
+                    ),
+                ).as_dict()
+            }
+        return None
     return None
 
 
@@ -102,6 +148,8 @@ def builtin_names_for(target: ProfileTargetId) -> tuple[str, ...]:
         return ("default", "careful", "fast")
     if target == "llm":
         return ("default", "short")
+    if target == "export":
+        return ("default", "readable", "compact", "large_print")
     return ("default",)
 
 

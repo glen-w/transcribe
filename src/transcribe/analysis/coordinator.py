@@ -10,8 +10,10 @@ from typing import Any, Callable
 
 from transcribe.analysis.plan import (
     AnalysisRunPlan,
+    PlanHashMismatchError,
     build_analysis_run_plan,
     run_record_payload,
+    verify_plan_hash,
 )
 from transcribe.analysis.runner import AnalysisRunner
 from transcribe.errors import JobConflictError
@@ -127,6 +129,10 @@ class AnalysisCoordinator:
         *,
         on_progress: Callable[[AnalysisProgress], None] | None = None,
     ) -> str:
+        if not verify_plan_hash(plan):
+            raise PlanHashMismatchError(
+                "analysis plan_hash does not match recomputed plan body"
+            )
         with self._lock:
             if self._run is not None and self._run.thread and self._run.thread.is_alive():
                 raise JobConflictError(
@@ -168,6 +174,10 @@ class AnalysisCoordinator:
         on_progress: Callable[[AnalysisProgress], None] | None = None,
     ) -> AnalysisProgress:
         """CLI-friendly synchronous run (still uses analysis lock)."""
+        if not verify_plan_hash(plan):
+            raise PlanHashMismatchError(
+                "analysis plan_hash does not match recomputed plan body"
+            )
         if not self._analysis_file_lock.try_acquire():
             raise JobConflictError(
                 "another process holds the analysis lock for this project"

@@ -56,13 +56,15 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Notebook UI surfaces ↔ core modules
 
-Shipped Workflow tabs are marked **UI**. People & places / Patterns remain payload feeds without dedicated tabs.
+Shipped Workflow tabs are marked **UI**. Patterns remain payload feeds without a dedicated tab. **People & places** is an Analyse tab plus **Notebooks → Places** (corpus map): both are read-models over published `ner` (optional Nominatim geocode + local cache).
 
 | Surface | Status | Core feeds |
 |---------|--------|----------------|
 | **Overview** | UI | `stats`, `lexical_diversity`, `ner`, `keyphrases`, `topic_modeling`, `wordclouds`, `understandability` |
 | **Themes** | UI | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
-| **People & places** | payload only | `ner`, `entity_sentiment` |
+| **People & places** | UI | `ner` (map/list); `entity_sentiment` remains available as payload polish |
+
+Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations artifact, intentional divergences): [dev/places_tx_alignment.md](dev/places_tx_alignment.md).
 | **Mood & tone** | UI | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
 | **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops deferred with reinterpretation / later rows |
 | **Moments** | UI | `moments`, `highlights` |

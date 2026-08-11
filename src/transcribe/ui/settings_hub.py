@@ -155,6 +155,7 @@ def render_models_panel() -> None:
                     workflow=acts.workflow,
                     ocr="default",
                     llm="default",
+                    export=acts.export,
                 )
             save_workspace_settings(config=cfg, activations=acts)
             clear_config_cache()
@@ -215,6 +216,7 @@ def render_profiles_panel() -> None:
                 workflow=chosen if target == "workflow" else loaded.activations.workflow,
                 ocr=chosen if target == "ocr" else loaded.activations.ocr,
                 llm=chosen if target == "llm" else loaded.activations.llm,
+                export=chosen if target == "export" else loaded.activations.export,
             )
             # Ensure profile resolves
             from transcribe.config.profiles import load_profile_overlay
@@ -246,6 +248,8 @@ def render_profiles_panel() -> None:
                 config = {"analysis": {"ui_presets": eff.analysis.ui_presets.as_dict()}}
             elif target == "ocr":
                 config = {"ocr": eff.ocr.as_dict()}
+            elif target == "export":
+                config = {"export": eff.export.as_dict()}
             else:
                 config = {"llm": eff.llm.as_dict()}
             save_user_profile(target, name, config, overwrite=False)  # type: ignore[arg-type]

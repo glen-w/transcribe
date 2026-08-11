@@ -3,7 +3,7 @@ Authority: Product hardening checklist and phase sequencing for Analyse robustne
 
 # Product hardening plan
 
-Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**. Usability-wave embedding: Phases **3–5 → track U0**, Phase **6 (#7–9) → track U1**.
+Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**. Usability-wave embedding: Phases **3–5 → track U0 (done)**, Phase **6 (#7–9) → track U1**.
 
 ## Checklist
 
@@ -14,11 +14,11 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 | #4 | One freshness authority (`module_freshness` / planned cache identity) | 1 | done |
 | #1 | Project-scoped async AnalysisCoordinator (survive UI interruption; honest crash/reopen) | 2 | done |
 | #2 | Durable AnalysisRunPlan + frozen snapshot (workers consume the plan, not live settings) | 2 | done |
-| #5 | Preflight plan-hash bind | 3 | planned |
-| #6 | Versioned presets | 3 | planned |
-| #11 | `content_revision` | 4 | planned |
-| #12 | Derived health shared across surfaces | 4 | planned |
-| #13 | Provenance-aware export under stable revision | 5 | planned |
+| #5 | Preflight plan-hash bind | 3 | done |
+| #6 | Versioned presets | 3 | done |
+| #11 | `content_revision` | 4 | done |
+| #12 | Derived health shared across surfaces | 4 | done |
+| #13 | Provenance-aware export under stable revision | 5 | done |
 | #7 | Product views (task-shaped Analyse read-models; demote module-id / JSON chrome) | 6 | planned |
 | #8 | Shared status strip (sole default freshness/health answer) | 6 | planned |
 | #9 | OCR Advanced (primary = model + run; power controls collapsed) | 6 | planned |

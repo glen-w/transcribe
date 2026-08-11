@@ -14,7 +14,7 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): finish Analyse trust/hardening (U0–U1), then first-run operability and daily workbench (U2–U3), with corpus inbox gated (U4). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust foundation (**U0**) is done; remaining focus is Analyse product UX (**U1**), then first-run operability and daily workbench (**U2–U3**), with corpus inbox gated (**U4**). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are usability and corpus-lifecycle concerns** (trustworthy Analyse chrome, first-run operability, daily Review/reading/search, then living with many notebooks), not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
@@ -32,16 +32,16 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 |-------|--------|---------|------------|
 | **1** — #10, #3, #4 | [x] | Analyse has one launcher and one freshness authority | done |
 | **2** — #1, #2 | [x] | Runs survive UI/process interruption and execute from frozen inputs | done |
-| **3** — #5, #6 | [ ] | Users can trust exactly what a preset will run | **U0** |
-| **4** — #11, #12 | [ ] | Every analysis surface gives the same answer to “is this current and healthy?” | **U0** |
-| **5** — #13 | [ ] | Exports identify exactly which notebook revision produced them | **U0** |
+| **3** — #5, #6 | [x] | Users can trust exactly what a preset will run | **U0** (done) |
+| **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” | **U0** (done) |
+| **5** — #13 | [x] | Exports identify exactly which notebook revision produced them | **U0** (done) |
 | **6** — #7, #8, #9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics | **U1** |
 
 | Track | Intent |
 |-------|--------|
 | **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
 | **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as **product** read-models (not module consoles) |
-| **Payload polish** | Optional dedicated People & places or Patterns tabs, and deliberate keyphrase enrichment for wordclouds/topics, only when they improve the **current** module set — not as a back door for deferred reinterpretations |
+| **Payload polish** | People & places map tab shipped (NER read-model + opt-in geocode). Patterns tab and deliberate keyphrase enrichment for wordclouds/topics remain optional polish — not a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 
 Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
@@ -125,10 +125,10 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Prompt-backed Detection** | Scan notebook pages for built-in or custom phenomena (poetry, lists, etc.); cross-page spans; findings under `detection/` with provenance. See detection contracts. | parallel |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** |
-| **Export / readability** | Clearer notebooks for reading and sharing outside the app. | partial via U0 #13; further readability candidate |
+| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). | partial / active |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. | **U1** |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
-| **People & places / Patterns** | Dedicated surfaces only if usage justifies it. | optional polish |
+| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. | Places shipped; Patterns optional |
 
 ---
 
@@ -163,6 +163,7 @@ Worth recording without scheduling:
 | Capability | Shipped |
 |------------|---------|
 | **Notebook metrics** | stats, lexical diversity, understandability |
+| **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
 | **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
 | **Themes** | wordclouds, topic modeling, BERTopic, semantic similarity, topic shift |
 | **Mood & salience** | emotion family, affect tension, moments |

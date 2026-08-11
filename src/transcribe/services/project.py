@@ -124,6 +124,20 @@ class ProjectService:
             DetectionStorage(self.paths).reconcile_interrupted()
         return project
 
+    def content_revision(self, project: Project | None = None) -> str:
+        """Compute notebook content_revision from a coherent on-disk snapshot."""
+        from transcribe.domain.content_revision import content_revision_hex
+
+        with mutation_lock(self.paths.mutation_lock):
+            snap = self._load_unlocked(reconcile=False) if project is None else project
+            # When caller passes project, still re-read page results under lock for coherence.
+            if project is not None:
+                snap = project
+            results: dict[str, PageResult | None] = {}
+            for page in snap.pages:
+                results[page.page_id] = self._load_page_result_unlocked(page.page_id)
+            return content_revision_hex(snap, results)
+
     def save_settings(self, project: Project, settings: OCRSettings) -> Project:
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")

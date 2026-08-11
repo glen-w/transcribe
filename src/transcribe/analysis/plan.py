@@ -73,7 +73,11 @@ class AnalysisRunPlan:
     effective_config: EffectiveConfig
     config_fingerprint: str
     text_model: FrozenTextModel | None
+    plan_hash: str
     preset_label: str | None = None
+    preset_key: str | None = None
+    preset_content_version: int | None = None
+    preset_policy_fingerprint: str | None = None
     created_at: str | None = None
 
     def needs_llm(self) -> bool:
@@ -100,7 +104,11 @@ class AnalysisRunPlan:
             "effective_config": self.effective_config.as_dict(),
             "config_fingerprint": self.config_fingerprint,
             "text_model": self.text_model.as_dict() if self.text_model else None,
+            "plan_hash": self.plan_hash,
             "preset_label": self.preset_label,
+            "preset_key": self.preset_key,
+            "preset_content_version": self.preset_content_version,
+            "preset_policy_fingerprint": self.preset_policy_fingerprint,
             "created_at": self.created_at,
         }
 
@@ -110,7 +118,16 @@ class AnalysisRunPlan:
         cfg_raw = data.get("effective_config")
         if not isinstance(cfg_raw, Mapping):
             cfg_raw = {}
-        return cls(
+        version_raw = data.get("preset_content_version")
+        content_version: int | None
+        if version_raw is None:
+            content_version = None
+        else:
+            try:
+                content_version = int(version_raw)
+            except (TypeError, ValueError):
+                content_version = None
+        plan = cls(
             run_id=str(data.get("run_id") or ""),
             project_id=str(data.get("project_id") or ""),
             module_ids=modules,
@@ -122,15 +139,69 @@ class AnalysisRunPlan:
             effective_config=EffectiveConfig.from_dict(cfg_raw),
             config_fingerprint=str(data.get("config_fingerprint") or ""),
             text_model=FrozenTextModel.from_dict(
-                data.get("text_model") if isinstance(data.get("text_model"), Mapping) else None
+                data.get("text_model")
+                if isinstance(data.get("text_model"), Mapping)
+                else None
             ),
+            plan_hash=str(data.get("plan_hash") or ""),
             preset_label=(
                 str(data["preset_label"]) if data.get("preset_label") is not None else None
+            ),
+            preset_key=(
+                str(data["preset_key"]) if data.get("preset_key") is not None else None
+            ),
+            preset_content_version=content_version,
+            preset_policy_fingerprint=(
+                str(data["preset_policy_fingerprint"])
+                if data.get("preset_policy_fingerprint") is not None
+                else None
             ),
             created_at=(
                 str(data["created_at"]) if data.get("created_at") is not None else None
             ),
         )
+        return plan
+
+
+def compute_plan_hash(plan: AnalysisRunPlan | Mapping[str, Any]) -> str:
+    """SHA-256 of execution-significant plan fields (excludes run_id / created_at / plan_hash)."""
+    if isinstance(plan, AnalysisRunPlan):
+        body = {
+            "project_id": plan.project_id,
+            "module_ids": list(plan.module_ids),
+            "question_text": plan.question_text,
+            "effective_config": plan.effective_config.as_dict(),
+            "text_model": plan.text_model.as_dict() if plan.text_model else None,
+            "config_fingerprint": plan.config_fingerprint,
+            "preset_key": plan.preset_key,
+            "preset_content_version": plan.preset_content_version,
+            "preset_policy_fingerprint": plan.preset_policy_fingerprint,
+        }
+    else:
+        cfg = plan.get("effective_config")
+        body = {
+            "project_id": plan.get("project_id"),
+            "module_ids": list(plan.get("module_ids") or ()),
+            "question_text": plan.get("question_text"),
+            "effective_config": cfg if isinstance(cfg, Mapping) else {},
+            "text_model": plan.get("text_model"),
+            "config_fingerprint": plan.get("config_fingerprint"),
+            "preset_key": plan.get("preset_key"),
+            "preset_content_version": plan.get("preset_content_version"),
+            "preset_policy_fingerprint": plan.get("preset_policy_fingerprint"),
+        }
+    return hashlib.sha256(canonical_json_bytes(body)).hexdigest()
+
+
+def verify_plan_hash(plan: AnalysisRunPlan) -> bool:
+    """True when stored plan_hash matches recomputation."""
+    if not plan.plan_hash:
+        return False
+    return plan.plan_hash == compute_plan_hash(plan)
+
+
+class PlanHashMismatchError(ValueError):
+    """Pending / stored plan_hash does not match recomputed plan body."""
 
 
 def config_fingerprint_for_plan(
@@ -155,6 +226,9 @@ def build_analysis_run_plan(
     module_ids: Sequence[str],
     question_text: str | None = None,
     preset_label: str | None = None,
+    preset_key: str | None = None,
+    preset_content_version: int | None = None,
+    preset_policy_fingerprint: str | None = None,
     clock: Clock,
     ids: IdGenerator,
     project: Any | None = None,
@@ -194,7 +268,7 @@ def build_analysis_run_plan(
         module_ids=ordered,
         question_text=q,
     )
-    return AnalysisRunPlan(
+    draft = AnalysisRunPlan(
         run_id=run_id,
         project_id=project.id,
         module_ids=ordered,
@@ -202,8 +276,27 @@ def build_analysis_run_plan(
         effective_config=effective,
         config_fingerprint=fp,
         text_model=text_model,
+        plan_hash="",  # filled below
         preset_label=preset_label,
+        preset_key=preset_key,
+        preset_content_version=preset_content_version,
+        preset_policy_fingerprint=preset_policy_fingerprint,
         created_at=to_iso(clock.now()),
+    )
+    return AnalysisRunPlan(
+        run_id=draft.run_id,
+        project_id=draft.project_id,
+        module_ids=draft.module_ids,
+        question_text=draft.question_text,
+        effective_config=draft.effective_config,
+        config_fingerprint=draft.config_fingerprint,
+        text_model=draft.text_model,
+        plan_hash=compute_plan_hash(draft),
+        preset_label=draft.preset_label,
+        preset_key=draft.preset_key,
+        preset_content_version=draft.preset_content_version,
+        preset_policy_fingerprint=draft.preset_policy_fingerprint,
+        created_at=draft.created_at,
     )
 
 
@@ -230,8 +323,12 @@ def run_record_payload(
         "module_ids": list(plan.module_ids),
         "question_text": plan.question_text,
         "config_fingerprint": plan.config_fingerprint,
+        "plan_hash": plan.plan_hash,
         "text_model": plan.text_model.as_dict() if plan.text_model else None,
         "preset_label": plan.preset_label,
+        "preset_key": plan.preset_key,
+        "preset_content_version": plan.preset_content_version,
+        "preset_policy_fingerprint": plan.preset_policy_fingerprint,
         "effective_config": plan.effective_config.as_dict(),
         "total": len(plan.module_ids),
         "completed": completed,

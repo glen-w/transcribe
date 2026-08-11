@@ -25,17 +25,38 @@ OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
 **new projects only**. Workspace `ingest.render_dpi` (default **200**, range
 72–600) is the PDF rasterisation DPI for Workflow → Import.
 
+Workspace `export.*` controls default export formats, structure, and typography
+(see [notebook-export.md](notebook-export.md)).
+
 ## Profiles
 
 Activation-pointer model: workspace stores `active_*_profile`; profile content overlays at resolve time (never copied into workspace). Editing a profile-supplied value detaches that target to `default` and writes workspace overrides. Builtins are immutable; Save As rejects reserved names.
 
-Targets: `workflow`, `ocr`, `llm`.
+Targets: `workflow`, `ocr`, `llm`, `export`.
+
+Builtin export profiles: `default`, `readable`, `compact`, `large_print`
+(typography / structure overlays under the `export` config subtree).
 
 ## EffectiveConfig snapshots
 
 Analysis batches / OCR apply operations capture one immutable `EffectiveConfig`. Modules and `config_fingerprint` consume that snapshot (bound via context), not live `get_config()` mid-run.
 
 `ANALYSIS_CONFIG_VERSION` and `PRESET_POLICY_VERSION` are included in fingerprint-relevant config subsets.
+
+### Analysis UI presets (`analysis.ui_presets`)
+
+Each named preset policy (`quick` / `balanced` / `thorough`) carries:
+
+| Field | Role |
+|-------|------|
+| policy knobs | `allow_llm`, allowlists, `include_excluded_from_default`, optional `module_ids` override |
+| `content_version` | integer content generation; builtins default to `1`; missing on load → `1` |
+
+`PRESET_POLICY_VERSION` is schema/shape only. **Content identity** is `content_version` plus the policy body fingerprint (SHA-256 of knobs **excluding** `content_version`).
+
+Settings writes that change a named preset’s policy body **must** bump that preset’s `content_version`. Unchanged saves must not bump. Custom selections on Run Analysis are not workspace presets: they use `preset_key=custom`, `content_version=0`, and a fingerprint of the selected module list.
+
+Frozen `AnalysisRunPlan` records `preset_key`, `preset_content_version`, and `preset_policy_fingerprint` so a run identifies exactly which preset generation produced it (see [analysis-run-storage.md](analysis-run-storage.md)).
 
 ## Recovery
 

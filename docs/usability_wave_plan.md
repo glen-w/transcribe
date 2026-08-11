@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Analyse Phases 1–2 are done; U0–U4 remain the open tracks.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Analyse Phases 1–5 are done (**U0** landed via [PR #5](https://github.com/glen-w/transcribe/pull/5)); open tracks are **U1–U4**.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
@@ -52,7 +52,7 @@ Detection Prompt Hub / Detect UI remains a **parallel** track (draft PRs #4 / #6
 
 | Artifact | Role in this wave |
 |----------|-------------------|
-| [product_hardening_plan.md](product_hardening_plan.md) Phases **3–5** (#5/#6/#11/#12/#13) | **U0** — land (draft [PR #5](https://github.com/glen-w/transcribe/pull/5) is the implementation vehicle) |
+| [product_hardening_plan.md](product_hardening_plan.md) Phases **3–5** (#5/#6/#11/#12/#13) | **U0** — **done** on `main` ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | Hardening Phase **6** (#7–9) | **U1** — Analyse / OCR chrome simplification on top of shared health |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
 | Detection drafts #4 / #6 | Parallel; coordinate only where Prompt Hub / page-viewer findings share chrome |
@@ -82,7 +82,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 
 | Track | Intent | Hardening IDs | Status |
 |-------|--------|---------------|--------|
-| **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | Vehicle: PR #5 (draft) |
+| **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | Planned |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
 | **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | Planned |
@@ -94,9 +94,9 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 
 **Outcome:** Users can trust exactly what a preset will run; every analysis surface shares one health answer; exports cite a notebook revision.
 
-**Vehicle:** Merge or rebase [PR #5](https://github.com/glen-w/transcribe/pull/5) (`cursor/hardening-phases-3-5-4764`) onto `main`, then close hardening checklist rows #5/#6/#11/#12/#13.
+**Status:** **[x] done** on `main` via [PR #5](https://github.com/glen-w/transcribe/pull/5) (`cursor/hardening-phases-3-5-4764`). Hardening checklist rows #5/#6/#11/#12/#13 are closed.
 
-### Deliverables (already specified on PR #5 — do not fork semantics)
+### Deliverables (landed — do not fork semantics)
 
 | ID | Deliverable | Contract authority |
 |----|-------------|-------------------|
@@ -108,7 +108,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 
 ### Acceptance
 
-- Offline tests for plan-hash bind, preset version bumps, revision stability, health aggregate priority, export stamp coherence (suite already claimed on PR #5).
+- Offline tests for plan-hash bind, preset version bumps, revision stability, health aggregate priority, export stamp coherence (landed with PR #5).
 - ROADMAP hardening table marks Phases 3–5 `[x]`.
 - Known limitations updated for health / plan_hash / preset versions / export stamps.
 - **Does not** remove module-id banners or `st.json` dumps — that is U1.
@@ -379,7 +379,7 @@ U4 may remain open after the usability wave is declared done for U0–U3; say so
 | [public_surfaces.md](public_surfaces.md) | Product views, Reading mode, Diagnostics, Inbox (only when supported) |
 | [user_guide.md](user_guide.md) | First-run, Review queue, Reading |
 | [known_limitations.md](known_limitations.md) | Health, presets, export revision, Review date caveats |
-| [TERMS.md](TERMS.md) | `plan_hash`, `content_revision`, `AnalysisHealth` when U0 lands |
+| [TERMS.md](TERMS.md) | `plan_hash`, `content_revision`, `AnalysisHealth` (landed with U0) |
 | [USER_INDEX.md](USER_INDEX.md) / [DEV_INDEX.md](DEV_INDEX.md) / [index.md](index.md) | Link this plan |
 
 ---
@@ -387,9 +387,9 @@ U4 may remain open after the usability wave is declared done for U0–U3; say so
 ## 12. Implementation checklist (track-level)
 
 ### U0
-- [ ] Land PR #5 (or equivalent) on `main`
-- [ ] Mark hardening Phases 3–5 done in ROADMAP + product_hardening_plan
-- [ ] Confirm offline phase 3–5 tests on `main`
+- [x] Land PR #5 (or equivalent) on `main`
+- [x] Mark hardening Phases 3–5 done in ROADMAP + product_hardening_plan
+- [x] Confirm offline phase 3–5 tests on `main`
 
 ### U1
 - [ ] #8 Status strip wired as sole default health chrome

@@ -11,6 +11,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Vision model availability and architectures differ across Ollama builds (a listed “vision” model may still fail to load)
 - Preprocess default is **none**; `gentle_contrast` is optional and Pillow-based (no OpenCV in v1)
 - **Visual declutter** (import-time, separate from OCR preprocess) defaults **on** (`ingest.visual_declutter_enabled`). v1 ships grey scanner-border crop only; detection is conservative (many pages no-op). Failures fall back to the pre-declutter PNG and never fail import. Changing declutter settings does **not** rewrite existing notebooks — only new imports (or future explicit reprocess).
+- **Page ink / blankness metrics** (Review strip + Analyse Overview rollup) are approximate Pillow heuristics over the active render. Ruled lines, shadows, stains, and colour casts can inflate “ink”; hue labels (`black` / `blue` / …) are coarse peaks, not calibrated colour science. Metrics invalidate when active render bytes change; they are not Analyse text modules and do not affect OCR.
 - Optional **OCR cleanup** (Run tab / `--cleanup`) adds a **second text-model Ollama call per page** after vision OCR. This can materially increase latency, memory use, and Ollama contention. Cleanup runs sequentially on the page worker after OCR (no extra parallelism). Failures and validator rejections keep raw OCR and never fail the page; rejected model output is discarded
 - Cleanup sends OCR text (not page images) to the configured Ollama host; remote hosts still exfiltrate that text by design of that configuration
 
@@ -48,7 +49,12 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
 - Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume
 - Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI
-- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the **usability wave**, not deferred reinterpretation modules — [usability_wave_plan.md](usability_wave_plan.md))
+- Analyse tabs share derived `AnalysisHealth` (same `content_revision` + aggregate rules); Ask notebook remains ad-hoc and does not update batch health
+- Batch launches freeze an `AnalysisRunPlan` with `plan_hash` at confirm; start refuses hash mismatch and does not re-snapshot settings
+- Named presets carry `content_version` (bumped on Settings save); runs record preset identity
+- Exports stamp notebook `content_revision` on JSON, manifest, Markdown, and plain text
+- Dedicated Patterns tab is not shipped; payloads feed Themes instead (optional polish under the **usability wave**, not deferred reinterpretation modules — [usability_wave_plan.md](usability_wave_plan.md))
+- **People & places** tab maps NER place labels (GPE/LOC/FAC) for the open notebook; **Notebooks → Places** aggregates across notebooks. Geocoding via OpenStreetMap Nominatim is opt-in and cached under `data/cache/geocode.json`
 - Deferred reinterpretation modules are not scheduled; product focus is the usability wave (trust, Analyse product UX, first-run, daily workbench) for the shipped surfaces — [ROADMAP.md](ROADMAP.md) **Now**
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 

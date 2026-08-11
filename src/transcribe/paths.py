@@ -70,6 +70,11 @@ class ProjectPaths:
         return self.root / "detection"
 
     @property
+    def page_metrics_dir(self) -> Path:
+        """Durable page ink/blankness metrics; create on first write only."""
+        return self.root / "page_metrics"
+
+    @property
     def analysis_cache_dir(self) -> Path:
         return self.cache_dir / "analysis"
 
