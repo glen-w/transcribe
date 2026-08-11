@@ -101,6 +101,7 @@ def resolve_effective_config(
         "active_workflow_profile",
         "active_ocr_profile",
         "active_llm_profile",
+        "active_export_profile",
     ):
         merged.pop(act_key, None)
     _flatten_provenance(
@@ -109,6 +110,7 @@ def resolve_effective_config(
             "llm": merged["llm"],
             "ocr": merged["ocr"],
             "ingest": merged["ingest"],
+            "export": merged.get("export") or {},
         },
         "default",
         into=provenance,
@@ -119,6 +121,7 @@ def resolve_effective_config(
         "llm": dict(workspace_config.get("llm") or {}),
         "ocr": dict(workspace_config.get("ocr") or {}),
         "ingest": dict(workspace_config.get("ingest") or {}),
+        "export": dict(workspace_config.get("export") or {}),
     }
     if any(ws.values()):
         merged = deep_merge_dict(merged, ws)
@@ -128,6 +131,7 @@ def resolve_effective_config(
         ("workflow", activations.workflow),
         ("ocr", activations.ocr),
         ("llm", activations.llm),
+        ("export", activations.export),
     ):
         overlay = load_profile_overlay(target, name, runtime=runtime)
         if overlay:
@@ -152,6 +156,7 @@ def resolve_effective_config(
     provenance["active_workflow_profile"] = "workspace"
     provenance["active_ocr_profile"] = "workspace"
     provenance["active_llm_profile"] = "workspace"
+    provenance["active_export_profile"] = "workspace"
 
     return ResolvedConfig(
         effective=effective,

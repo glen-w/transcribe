@@ -213,6 +213,7 @@ def render_analysis_presets_panel() -> None:
                     workflow="default",
                     ocr=acts.ocr,
                     llm=acts.llm,
+                    export=acts.export,
                 )
             save_workspace_settings(config=cfg, activations=acts)
             clear_config_cache()

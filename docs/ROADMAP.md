@@ -109,7 +109,7 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Prompt-backed Detection** | Scan notebook pages for built-in or custom phenomena (poetry, lists, etc.); cross-page spans; findings under `detection/` with provenance. See detection contracts. |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
 | **Review UX** | Faster correction and approval of OCR text and dates. |
-| **Export / readability** | Clearer notebooks for reading and sharing outside the app. |
+| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
 | **People & places / Patterns** | Dedicated surfaces only if usage justifies it. |

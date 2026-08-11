@@ -235,9 +235,10 @@ def render_settings_page() -> None:
         render_models_panel,
         render_profiles_panel,
     )
+    from transcribe.ui.export_panel import render_export_settings_panel
 
     tabs = st.tabs(
-        ["Configuration", "Analysis", "Models", "Profiles", "Interface"]
+        ["Configuration", "Analysis", "Models", "Profiles", "Export", "Interface"]
     )
     with tabs[0]:
         render_configuration_panel()
@@ -248,5 +249,7 @@ def render_settings_page() -> None:
     with tabs[3]:
         render_profiles_panel()
     with tabs[4]:
+        render_export_settings_panel()
+    with tabs[5]:
         st.markdown("### Interface")
         render_interface_panel()

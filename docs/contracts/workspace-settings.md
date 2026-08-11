@@ -25,11 +25,17 @@ OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
 **new projects only**. Workspace `ingest.render_dpi` (default **200**, range
 72–600) is the PDF rasterisation DPI for Workflow → Import.
 
+Workspace `export.*` controls default export formats, structure, and typography
+(see [notebook-export.md](notebook-export.md)).
+
 ## Profiles
 
 Activation-pointer model: workspace stores `active_*_profile`; profile content overlays at resolve time (never copied into workspace). Editing a profile-supplied value detaches that target to `default` and writes workspace overrides. Builtins are immutable; Save As rejects reserved names.
 
-Targets: `workflow`, `ocr`, `llm`.
+Targets: `workflow`, `ocr`, `llm`, `export`.
+
+Builtin export profiles: `default`, `readable`, `compact`, `large_print`
+(typography / structure overlays under the `export` config subtree).
 
 ## EffectiveConfig snapshots
 

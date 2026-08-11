@@ -22,6 +22,7 @@ _SUBTREE_PREFIXES = {
     "llm": ("llm",),
     "ocr": ("ocr",),
     "ingest": ("ingest",),
+    "export": ("export",),
 }
 
 
@@ -85,6 +86,7 @@ def reset_profile_activation(
         workflow="default" if target_id == "workflow" else loaded.activations.workflow,
         ocr="default" if target_id == "ocr" else loaded.activations.ocr,
         llm="default" if target_id == "llm" else loaded.activations.llm,
+        export="default" if target_id == "export" else loaded.activations.export,
     )
     return save_workspace_settings(
         config=loaded.config,
