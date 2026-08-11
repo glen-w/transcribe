@@ -19,7 +19,8 @@ CLI ──────────────────┘              │
                     │     ├── sources/ + pages/ renders
                     │     ├── results/<page_id>.json
                     │     ├── analysis/   (optional until first analysis artifact)
-                    │     └── detection/  (optional until first detection artifact)
+                    │     ├── detection/  (optional until first detection artifact)
+                    │     └── page_metrics/ (optional until first ink/blankness publish)
                     └── cache/archive.sqlite   (disposable)
 ```
 
@@ -35,6 +36,7 @@ CLI ──────────────────┘              │
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
 | Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Prompt definitions / detection findings / detection runs | [contracts/prompt-definition.md](contracts/prompt-definition.md) · [contracts/detection-definition.md](contracts/detection-definition.md) · [contracts/detection-finding.md](contracts/detection-finding.md) · [contracts/detection-run-storage.md](contracts/detection-run-storage.md) |
+| Page ink / blankness / hue metrics | [contracts/page-metrics.md](contracts/page-metrics.md) |
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
 | OCR HTTP | `VisionOCRProvider` (Ollama implementation) |
 | UI widgets | `transcribe.ui` only — must not invent OCR/persistence rules |
