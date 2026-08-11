@@ -19,7 +19,8 @@ CLI ──────────────────┘              │
                     │     ├── sources/ + pages/ renders
                     │     ├── results/<page_id>.json
                     │     ├── analysis/   (optional until first analysis artifact)
-                    │     └── detection/  (optional until first detection artifact)
+                    │     ├── detection/  (optional until first detection artifact)
+                    │     └── page_metrics/ (optional until first ink/blankness publish)
                     └── cache/archive.sqlite   (disposable)
 ```
 
@@ -35,6 +36,7 @@ CLI ──────────────────┘              │
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
 | Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Prompt definitions / detection findings / detection runs | [contracts/prompt-definition.md](contracts/prompt-definition.md) · [contracts/detection-definition.md](contracts/detection-definition.md) · [contracts/detection-finding.md](contracts/detection-finding.md) · [contracts/detection-run-storage.md](contracts/detection-run-storage.md) |
+| Page ink / blankness / hue metrics | [contracts/page-metrics.md](contracts/page-metrics.md) |
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
 | OCR HTTP | `VisionOCRProvider` (Ollama implementation) |
 | UI widgets | `transcribe.ui` only — must not invent OCR/persistence rules |
@@ -51,6 +53,7 @@ CLI ──────────────────┘              │
 - **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
 - **AnalysisCoordinator / AnalysisRunPlan / AnalysisRunner / AnalysisStorage** — project-scoped async batch runs freeze an `AnalysisRunPlan` (modules, EffectiveConfig, text-model identity) and execute under `.transcribe.analysis.lock`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities). Mid-run settings apply to the next run only; crash/reopen marks orphaned attempts/runs `interrupted` without clobbering published results
 - **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides; freshness via `detector_freshness` / planned cache identity
+- **PageMetricsService** — Pillow ink coverage / blankness / dominant hue over active renders; publish under `page_metrics/`; cache identity = algorithm version + ordered `(page_id, render_sha256)` (not text Analyse)
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
 ## Explicit non-goals for the core architecture

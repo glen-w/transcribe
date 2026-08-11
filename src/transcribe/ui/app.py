@@ -253,7 +253,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             if running or analysis_run_in_progress(analysis_coord):
                 st.info("Published results available when the current run finishes.")
             else:
-                _render_analysis_result_tabs(paths, projects, project)
+                _render_analysis_result_tabs(runtime, paths, projects, project)
         with analyse_tabs[2]:
             render_detection_workspace(
                 projects=projects, project_root=str(paths.root)
@@ -586,28 +586,19 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
 
 
 def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
-    export_dest = st.text_input(
-        "Export directory",
-        value=str(runtime.export_dir / Path(root).name),
-    )
-    if st.button("Export"):
-        dest = Path(export_dest) if export_dest.strip() else None
-        written = ExportService(paths, projects).export_all(project, dest)
-        for kind, path in written.items():
-            st.write(f"**{kind}:** `{path}`")
-        st.download_button(
-            "Download notebook JSON",
-            data=path_read(written["notebook"]),
-            file_name="notebook.transcribe.json",
-        )
+    from transcribe.ui.export_panel import render_export_panel
+
+    archive = get_archive(str(runtime.projects_dir), str(runtime.data_dir))
+    render_export_panel(runtime, paths, projects, project, root, archive=archive)
 
 
-def _render_analysis_result_tabs(paths, projects, project) -> None:
+def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     (
         tab_overview,
         tab_themes,
         tab_mood,
         tab_moments,
+        tab_places,
         tab_summaries,
         tab_ask,
     ) = st.tabs(
@@ -616,173 +607,171 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             "Themes",
             "Mood & tone",
             "Moments",
+            "People & places",
             "Summaries",
             "Ask notebook",
         ]
     )
 
-    with tab_overview:
-        from transcribe.analysis.modules import (
-            THROUGH_OVERVIEW,
-            get_registered_modules,
-        )
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
+    from transcribe.analysis.health import derive_analysis_health, scope_analysis_health
+    from transcribe.analysis.modules import (
+        THROUGH_OVERVIEW,
+        THROUGH_THEMES,
+        get_registered_modules,
+    )
+    from transcribe.analysis.runner import AnalysisRunner, module_freshness
+    from transcribe.analysis.storage import AnalysisStorage
+    from transcribe.ports import SystemClock, UuidGenerator
+    from transcribe.ui.analysis_health_view import (
+        read_model_compat,
+        render_aggregate_caption,
+        render_module_health_banner,
+    )
 
+    runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+    storage = AnalysisStorage(paths)
+    content_revision = projects.content_revision(project)
+
+    overview_ids = list(get_registered_modules(through=THROUGH_OVERVIEW).keys())
+    theme_ids = [
+        "keyphrases",
+        "topic_modeling",
+        "semantic_similarity",
+        "topic_shift",
+        "bertopic",
+    ]
+    mood_ids = [
+        "sentiment",
+        "emotion",
+        "contextual_emotion",
+        "fine_grained_emotion",
+        "affect_tension",
+        "epistemic_markers",
+    ]
+    synth_ids = [
+        "topic_modeling",
+        "highlights",
+        "summary",
+        "insights",
+        "llm_summary",
+        "llm_action_items",
+        "narrative_summary",
+    ]
+    batch_ids = list(
+        dict.fromkeys(overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids)
+    )
+    batch_health = derive_analysis_health(
+        storage=storage,
+        runner=runner,
+        module_ids=batch_ids,
+        content_revision=content_revision,
+    )
+    overview_health = scope_analysis_health(batch_health, overview_ids)
+    themes_health = scope_analysis_health(batch_health, theme_ids)
+    mood_health = scope_analysis_health(batch_health, mood_ids)
+    moments_health = scope_analysis_health(batch_health, ["moments"])
+    summaries_health = scope_analysis_health(batch_health, synth_ids)
+
+    with tab_overview:
         st.subheader("Overview")
         st.caption(
             "Read-model of validated published analysis results "
             "(stats, lexical diversity, understandability, wordclouds, "
-            "ner, sentiment, epistemic markers). Run analysis from the "
-            "preset form above."
+            "ner, sentiment, epistemic markers), plus page ink/blankness "
+            "from active renders. Run text analysis from the preset form above."
         )
-        runner = AnalysisRunner(
-            projects, clock=SystemClock(), ids=UuidGenerator()
-        )
-        storage = AnalysisStorage(paths)
-        modules = get_registered_modules(through=THROUGH_OVERVIEW)
-        read_models = {
-            rm["module_id"]: rm
-            for rm in module_freshness(runner, storage, list(modules.keys()))
-        }
+        render_aggregate_caption(overview_health)
 
-        for mid in modules:
-            model = read_models.get(mid) or {
-                "status": "unavailable",
-                "module_id": mid,
-                "envelope": None,
-                "live_evidence": [],
-            }
-            status = model["status"]
-            env = model.get("envelope")
-            if status == "unavailable":
-                st.warning(f"**{mid}:** unavailable (no validated published result)")
-            elif status == "stale":
-                st.warning(
-                    f"**{mid}:** stale relative to current notebook text "
-                    f"(last outcome `{env.get('outcome') if env else '?'}`)"
-                )
-            elif env is not None:
-                cap = env.get("capability")
-                outcome = env.get("outcome")
-                if outcome == "failed":
-                    st.error(f"**{mid}:** failed")
-                elif outcome == "insufficient_data":
-                    st.info(f"**{mid}:** insufficient_data")
-                elif cap in {"unavailable_extra", "unavailable_model"}:
-                    st.warning(f"**{mid}:** {cap}")
-                elif cap == "partial":
-                    st.success(f"**{mid}:** success (partial)")
-                else:
-                    st.success(f"**{mid}:** success ({cap})")
-                payload = env.get("payload") or {}
-                if mid == "wordclouds" and outcome == "success":
-                    tokens = payload.get("tokens") or []
-                    if isinstance(tokens, list) and tokens:
-                        chart_rows = {
-                            "token": [t.get("token", "") for t in tokens[:40]],
-                            "weight": [float(t.get("weight") or 0) for t in tokens[:40]],
-                        }
-                        st.bar_chart(chart_rows, x="token", y="weight")
-                    else:
-                        st.warning(
-                            f"**{mid}:** published success but token list missing/empty"
-                        )
-                if mid == "ner" and outcome == "success":
-                    counts = payload.get("entity_counts") or {}
-                    if counts:
-                        items = list(counts.items())[:20]
-                        st.bar_chart(
-                            {
-                                "entity": [k for k, _ in items],
-                                "count": [int(v) for _, v in items],
-                            },
-                            x="entity",
-                            y="count",
-                        )
-                    else:
-                        st.caption("No named entities found.")
-                if mid == "sentiment" and outcome == "success":
-                    units = payload.get("units") or []
-                    if units:
-                        st.line_chart(
-                            {
-                                "order": [u.get("order") for u in units],
-                                "compound": [float(u.get("compound") or 0) for u in units],
-                            },
-                            x="order",
-                            y="compound",
-                        )
-                if mid == "epistemic_markers" and outcome == "success":
-                    g = payload.get("global_stats") or {}
-                    st.caption(
-                        f"hedge_share={g.get('hedge_share')} "
-                        f"booster_share={g.get('booster_share')} "
-                        f"hits={g.get('total_marker_hits')}"
-                    )
-                evidence = env.get("evidence") or []
-                if evidence and mid in {"ner", "epistemic_markers"}:
-                    live = model.get("live_evidence") or []
-                    if not live and model.get("status") != "ok":
-                        live = []
-                    stale_n = len(evidence) - len(live)
-                    if stale_n:
-                        st.warning(
-                            f"**{mid}:** {stale_n} stale evidence citation(s) hidden"
-                        )
-                with st.expander(f"{mid} payload"):
-                    st.json(payload)
-            else:
+        try:
+            from transcribe.ui.page_metrics_view import render_overview_page_metrics
+
+            render_overview_page_metrics(projects, project)
+            st.divider()
+        except Exception:  # noqa: BLE001 — optional surface
+            pass
+
+        for mid in overview_ids:
+            mh = overview_health.modules.get(mid)
+            if mh is None:
                 st.warning(f"**{mid}:** unavailable")
+                continue
+            model = read_model_compat(mh)
+            show = render_module_health_banner(mh, style="overview")
+            env = mh.envelope
+            if not show or env is None:
+                continue
+            payload = env.get("payload") or {}
+            outcome = env.get("outcome")
+            if mid == "wordclouds" and outcome == "success":
+                tokens = payload.get("tokens") or []
+                if isinstance(tokens, list) and tokens:
+                    chart_rows = {
+                        "token": [t.get("token", "") for t in tokens[:40]],
+                        "weight": [float(t.get("weight") or 0) for t in tokens[:40]],
+                    }
+                    st.bar_chart(chart_rows, x="token", y="weight")
+                else:
+                    st.warning(
+                        f"**{mid}:** published success but token list missing/empty"
+                    )
+            if mid == "ner" and outcome == "success":
+                counts = payload.get("entity_counts") or {}
+                if counts:
+                    items = list(counts.items())[:20]
+                    st.bar_chart(
+                        {
+                            "entity": [k for k, _ in items],
+                            "count": [int(v) for _, v in items],
+                        },
+                        x="entity",
+                        y="count",
+                    )
+                else:
+                    st.caption("No named entities found.")
+            if mid == "sentiment" and outcome == "success":
+                units = payload.get("units") or []
+                if units:
+                    st.line_chart(
+                        {
+                            "order": [u.get("order") for u in units],
+                            "compound": [float(u.get("compound") or 0) for u in units],
+                        },
+                        x="order",
+                        y="compound",
+                    )
+            if mid == "epistemic_markers" and outcome == "success":
+                g = payload.get("global_stats") or {}
+                st.caption(
+                    f"hedge_share={g.get('hedge_share')} "
+                    f"booster_share={g.get('booster_share')} "
+                    f"hits={g.get('total_marker_hits')}"
+                )
+            evidence = env.get("evidence") or []
+            if evidence and mid in {"ner", "epistemic_markers"}:
+                live = model.get("live_evidence") or []
+                stale_n = len(evidence) - len(live)
+                if stale_n:
+                    st.warning(
+                        f"**{mid}:** {stale_n} stale evidence citation(s) hidden"
+                    )
+            with st.expander(f"{mid} payload"):
+                st.json(payload)
 
     with tab_themes:
-        from transcribe.analysis.modules import (
-            THROUGH_THEMES,
-            get_registered_modules,
-        )
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
-
         st.subheader("Themes")
         st.caption(
             "Keyphrases, topics, semantic motifs, and topic shifts along page order. "
             "BERTopic remains an optional extra (`unavailable_extra` when missing). "
             "Run analysis from the preset form above."
         )
-        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        theme_ids = [
-            "keyphrases",
-            "topic_modeling",
-            "semantic_similarity",
-            "topic_shift",
-            "bertopic",
-        ]
-        storage = AnalysisStorage(paths)
         themes = get_registered_modules(through=THROUGH_THEMES)
         assert set(theme_ids).issubset(set(themes))
-        for rm in module_freshness(runner, storage, theme_ids):
-            mid = rm["module_id"]
-            env = rm.get("envelope")
-            if not env:
-                st.info(f"**{mid}:** unavailable — run analysis first")
+        render_aggregate_caption(themes_health)
+        for mid in theme_ids:
+            mh = themes_health.modules[mid]
+            if not render_module_health_banner(mh):
                 continue
-            if rm.get("status") == "stale":
-                st.warning(
-                    f"**{mid}:** stale relative to current notebook — refresh analysis"
-                )
-                continue
-            cap = env.get("capability")
-            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
-            if cap == "unavailable_extra":
-                st.warning(banner + " (optional extra not available)")
-            elif cap in {"insufficient_data", "skipped_not_applicable"}:
-                st.info(banner)
-            elif cap == "failed":
-                st.error(banner)
-            else:
-                st.markdown(banner)
+            env = mh.envelope or {}
             payload = env.get("payload") or {}
             if mid == "keyphrases" and payload.get("phrases"):
                 st.write(
@@ -808,47 +797,18 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_mood:
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
-
         st.subheader("Mood & tone")
         st.caption(
             "Emotion chronology, contextual smoothing, affect tension, and hedging. "
             "Fine-grained emotion stays an optional extra. "
             "Run analysis from the preset form above."
         )
-        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        mood_ids = [
-            "sentiment",
-            "emotion",
-            "contextual_emotion",
-            "fine_grained_emotion",
-            "affect_tension",
-            "epistemic_markers",
-        ]
-        storage = AnalysisStorage(paths)
-        for rm in module_freshness(runner, storage, mood_ids):
-            mid = rm["module_id"]
-            env = rm.get("envelope")
-            if not env:
-                st.info(f"**{mid}:** unavailable — run analysis first")
+        render_aggregate_caption(mood_health)
+        for mid in mood_ids:
+            mh = mood_health.modules[mid]
+            if not render_module_health_banner(mh):
                 continue
-            if rm.get("status") == "stale":
-                st.warning(
-                    f"**{mid}:** stale relative to current notebook — refresh analysis"
-                )
-                continue
-            cap = env.get("capability")
-            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
-            if cap == "unavailable_extra":
-                st.warning(banner + " (optional extra not available)")
-            elif cap == "unavailable_dependency":
-                st.warning(banner + " (needs emotion + sentiment parents)")
-            elif cap in {"insufficient_data", "skipped_not_applicable"}:
-                st.info(banner)
-            else:
-                st.markdown(banner)
+            env = mh.envelope or {}
             payload = env.get("payload") or {}
             if mid == "emotion" and payload.get("global_stats"):
                 st.caption(
@@ -863,31 +823,16 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
                 st.json(payload)
 
     with tab_moments:
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
-
         st.subheader("Moments")
         st.caption(
             "Notebook salience fork (no TX momentum). Soft features from emotion, "
             "sentiment, and topic_shift enrich scores when available. "
             "Run analysis from the preset form above."
         )
-        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        storage = AnalysisStorage(paths)
-        rm = module_freshness(runner, storage, ["moments"])[0]
-        env = rm.get("envelope")
-        if not env:
-            st.info("**moments:** unavailable — run analysis first")
-        elif rm.get("status") == "stale":
-            st.warning(
-                "**moments:** stale relative to current notebook — refresh analysis"
-            )
-        else:
-            cap = env.get("capability")
-            st.markdown(
-                f"**moments:** capability=`{cap}` outcome=`{env.get('outcome')}`"
-            )
+        render_aggregate_caption(moments_health)
+        mh = moments_health.modules["moments"]
+        if render_module_health_banner(mh):
+            env = mh.envelope or {}
             payload = env.get("payload") or {}
             for row in payload.get("moments") or []:
                 st.write(
@@ -898,70 +843,44 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             with st.expander("moments payload"):
                 st.json(payload)
 
-    with tab_summaries:
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
+    with tab_places:
+        from transcribe.ui.places_map import render_notebook_places_tab
 
+        ner_mh = batch_health.modules.get("ner")
+        render_notebook_places_tab(
+            project_root=paths.root,
+            runtime=runtime,
+            ner_health=ner_mh,
+        )
+
+    with tab_summaries:
         st.subheader("Summaries")
         st.caption(
             "Deterministic highlights → summary → insights, plus optional LLM "
             "outputs (honesty-labeled). Works offline when Ollama is down. "
             "Run analysis from the preset form above."
         )
-        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-        storage = AnalysisStorage(paths)
-        synth_ids = [
-            "topic_modeling",
-            "highlights",
-            "summary",
-            "insights",
-            "llm_summary",
-            "llm_action_items",
-            "narrative_summary",
-        ]
-        for rm in module_freshness(runner, storage, synth_ids):
-            mid = rm["module_id"]
-            env = rm.get("envelope")
-            if not env:
-                st.info(f"**{mid}:** unavailable — run analysis first")
+        render_aggregate_caption(summaries_health)
+        for mid in synth_ids:
+            mh = summaries_health.modules[mid]
+            if not render_module_health_banner(mh):
                 continue
-            if rm.get("status") == "stale":
-                st.warning(
-                    f"**{mid}:** stale relative to current notebook — refresh analysis"
-                )
-                continue
-            cap = env.get("capability")
-            payload = env.get("payload") or {}
-            honesty = payload.get("honesty_label")
-            banner = f"**{mid}:** capability=`{cap}` outcome=`{env.get('outcome')}`"
-            if honesty:
-                banner += f" — _{honesty}_"
-            if cap == "unavailable_model":
-                st.warning(banner + " (LLM offline)")
-            else:
-                st.markdown(banner)
-            live = rm.get("live_evidence") or []
+            env = mh.envelope or {}
+            live = mh.live_evidence
             if live:
                 st.caption(f"{len(live)} live evidence citation(s)")
             with st.expander(f"{mid} payload"):
-                st.json(payload)
+                st.json(env.get("payload") or {})
 
     with tab_ask:
-        from transcribe.analysis.runner import AnalysisRunner, module_freshness
-        from transcribe.analysis.storage import AnalysisStorage
-        from transcribe.ports import SystemClock, UuidGenerator
-
         st.subheader("Ask notebook")
         st.caption(
             "Grounded QA with unit evidence. Unsupported answers abstain — "
             "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
         )
+        render_aggregate_caption(batch_health)
         question = st.text_input("Question", key="ask_notebook_question")
         if st.button("Ask", disabled=not (question or "").strip()):
-            runner = AnalysisRunner(
-                projects, clock=SystemClock(), ids=UuidGenerator()
-            )
             with st.spinner("Asking notebook…"):
                 env = runner.run_module(
                     "llm_custom_qa", question_text=question.strip()
@@ -990,12 +909,8 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             with st.expander("Raw payload"):
                 st.json(payload)
 
-        storage = AnalysisStorage(paths)
-        ask_runner = AnalysisRunner(
-            projects, clock=SystemClock(), ids=UuidGenerator()
-        )
         rm = module_freshness(
-            ask_runner,
+            runner,
             storage,
             ["llm_custom_qa"],
             question_text=(question or "").strip() or None,
@@ -1004,14 +919,15 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             st.divider()
             if rm.get("status") == "stale":
                 st.caption(
-                    "Last published Ask notebook result is stale — re-ask to refresh"
+                    "Last published Ask notebook result is stale — re-ask to refresh "
+                    "(stale payload hidden)"
                 )
             else:
                 st.caption("Last published Ask notebook result")
                 live = rm.get("live_evidence") or []
                 if live:
                     st.json(live)
-            st.json((rm["envelope"] or {}).get("payload") or {})
+                st.json((rm["envelope"] or {}).get("payload") or {})
 
 
 
@@ -1027,6 +943,10 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     "Search": (
         "Search",
         "Find text across transcribed notebook pages.",
+    ),
+    "Places": (
+        "Places",
+        "Map places mentioned across all notebooks (from published NER).",
     ),
     "New notebook": (
         "New notebook",
@@ -1050,7 +970,7 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     ),
     "Export": (
         "Export",
-        "Export notebook JSON, Markdown, and plain text.",
+        "Export notebook JSON, Markdown, plain text, HTML, EPUB, and PDF.",
     ),
     "Settings": (
         "Settings",
@@ -1155,6 +1075,10 @@ def main() -> None:
         render_notebooks(runtime, archive)
     elif mode == "Search":
         render_search(runtime, archive)
+    elif mode == "Places":
+        from transcribe.ui.places_map import render_corpus_places_page
+
+        render_corpus_places_page(runtime)
     elif mode == "Settings":
         render_settings_page()
     elif mode == "New notebook":

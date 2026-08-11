@@ -23,9 +23,11 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Detection findings, cross-page spans, review status | [contracts/detection-finding.md](contracts/detection-finding.md) |
 | Detection result envelope, outcomes, capability | [contracts/detection-result.md](contracts/detection-result.md) |
 | Detection persistence, cache identity, aggregation | [contracts/detection-run-storage.md](contracts/detection-run-storage.md) |
+| Page ink / blankness / hue metrics (Pillow; active renders) | [contracts/page-metrics.md](contracts/page-metrics.md) |
 | Sole notebook eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Durable UI action-menu prefs (`interface_menus.json` schema v1) | [contracts/interface-menus.md](contracts/interface-menus.md) |
 | Workspace settings, profiles, knob precedence, analysis config versions | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
 | Future TranscriptX handoff (non-shipped) | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) |
 
-Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, `transcribe.prompt-definition`, plus prospective `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Prospective corpus formats are **not** required for `transcribe.project` v1 conformance until the [activation gate](contracts/notebook-corpus.md#activation-gate).
+Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, `transcribe.prompt-definition`, `transcribe.page-metrics`, plus prospective `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Prospective corpus formats are **not** required for `transcribe.project` v1 conformance until the [activation gate](contracts/notebook-corpus.md#activation-gate).
+

@@ -11,6 +11,7 @@ from transcribe.analysis.module_catalog import (
     is_heavy_module,
     list_catalog_modules,
 )
+from transcribe.analysis.presets import bump_preset_content_versions
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.models import (
@@ -196,10 +197,13 @@ def render_analysis_presets_panel() -> None:
     if save:
         try:
             loaded = load_workspace_settings()
+            previous = get_config().effective.analysis.ui_presets.as_dict()
+            bumped = bump_preset_content_versions(
+                previous,
+                {key: dict(draft_root[key]) for key in _PRESET_KEYS},
+            )
             cfg = deep_merge_dict({}, loaded.config)
-            cfg.setdefault("analysis", {})["ui_presets"] = {
-                key: dict(draft_root[key]) for key in _PRESET_KEYS
-            }
+            cfg.setdefault("analysis", {})["ui_presets"] = bumped
             # Validate via model round-trip
             UiPresetsConfig.from_dict(cfg["analysis"]["ui_presets"])
             acts = loaded.activations
@@ -209,6 +213,7 @@ def render_analysis_presets_panel() -> None:
                     workflow="default",
                     ocr=acts.ocr,
                     llm=acts.llm,
+                    export=acts.export,
                 )
             save_workspace_settings(config=cfg, activations=acts)
             clear_config_cache()

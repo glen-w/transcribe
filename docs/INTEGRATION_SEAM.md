@@ -25,7 +25,7 @@ Portable export rules: [contracts/notebook-export.md](contracts/notebook-export.
 
 ## What Transcribe guarantees (export)
 
-- Portable `format: "transcribe.notebook"` interchange with page order, effective/raw/edited text, content fingerprints, and provenance
+- Portable `format: "transcribe.notebook"` interchange with page order, effective/raw/edited text, content fingerprints, provenance, and notebook `content_revision` when present
 - No required absolute filesystem paths in the export
 - Page-first domain (not timed speaker segments)
 

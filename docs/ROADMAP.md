@@ -29,16 +29,16 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 |-------|--------|---------|
 | **1** — #10, #3, #4 | [x] | Analyse has one launcher and one freshness authority |
 | **2** — #1, #2 | [x] | Runs survive UI/process interruption and execute from frozen inputs |
-| **3** — #5, #6 | [ ] | Users can trust exactly what a preset will run |
-| **4** — #11, #12 | [ ] | Every analysis surface gives the same answer to “is this current and healthy?” |
-| **5** — #13 | [ ] | Exports identify exactly which notebook revision produced them |
+| **3** — #5, #6 | [x] | Users can trust exactly what a preset will run |
+| **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” |
+| **5** — #13 | [x] | Exports identify exactly which notebook revision produced them |
 | **6** — #7–9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics |
 
 | Track | Intent |
 |-------|--------|
 | **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
 | **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as read-models |
-| **Payload polish** | Optional dedicated People & places or Patterns tabs, and deliberate keyphrase enrichment for wordclouds/topics, only when they improve the **current** module set — not as a back door for deferred reinterpretations |
+| **Payload polish** | People & places map tab shipped (NER read-model + opt-in geocode). Patterns tab and deliberate keyphrase enrichment for wordclouds/topics remain optional polish — not a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 
 Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
@@ -109,10 +109,10 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Prompt-backed Detection** | **Shipped (wave 2):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See detection contracts. |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
 | **Review UX** | Faster correction and approval of OCR text and dates. |
-| **Export / readability** | Clearer notebooks for reading and sharing outside the app. |
+| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
-| **People & places / Patterns** | Dedicated surfaces only if usage justifies it. |
+| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. |
 
 ---
 
@@ -146,6 +146,7 @@ Worth recording without scheduling:
 | Capability | Shipped |
 |------------|---------|
 | **Notebook metrics** | stats, lexical diversity, understandability |
+| **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
 | **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
 | **Themes** | wordclouds, topic modeling, BERTopic, semantic similarity, topic shift |
 | **Mood & salience** | emotion family, affect tension, moments |

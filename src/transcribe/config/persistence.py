@@ -102,6 +102,7 @@ def _validate_document(raw: Any, *, path: Path) -> tuple[dict[str, Any], Profile
         workflow=str(raw.get("active_workflow_profile") or "default"),
         ocr=str(raw.get("active_ocr_profile") or "default"),
         llm=str(raw.get("active_llm_profile") or "default"),
+        export=str(raw.get("active_export_profile") or "default"),
     )
     return strip_unknown_config_keys(cfg), activations, ver
 
@@ -182,6 +183,7 @@ def save_workspace_settings(
         ("workflow", activations.workflow),
         ("ocr", activations.ocr),
         ("llm", activations.llm),
+        ("export", activations.export),
     ):
         load_profile_overlay(target, name, runtime=rt)
 

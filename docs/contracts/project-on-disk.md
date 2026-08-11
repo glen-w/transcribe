@@ -24,6 +24,7 @@ A project root contains:
 | `analysis/` | Durable per-notebook analysis artifacts (optional until first write; see [analysis-run-storage.md](analysis-run-storage.md)) |
 | `analysis/runs/` | Batch analysis run records (plan + progress; not publish authority) |
 | `detection/` | Durable per-notebook detection findings (optional until first write; see [detection-run-storage.md](detection-run-storage.md)) |
+| `page_metrics/` | Durable per-notebook page ink/blankness/hue metrics (optional until first write; see [page-metrics.md](page-metrics.md)) |
 | `exports/` | Default export destination inside the project |
 | `prompts/` | Reserved for project prompt assets |
 | `jobs/` | Ephemeral-ish OCR job run records (not page authority) |
@@ -49,7 +50,13 @@ Relative paths stored in the manifest must resolve inside the project root (path
 - Existing managed projects without `detection/` remain valid.
 - Introducing detection under `detection/` **is not** a project-layout migration: writers create it on demand.
 
-Other contracts (including analysis-run-storage and detection-run-storage) **reference** these paths and must not independently redefine the top-level project tree.
+### `page_metrics/` optionality
+
+- The `page_metrics/` directory is **optional until the first page-metrics artifact is written**.
+- Existing managed projects without `page_metrics/` remain valid.
+- Introducing metrics under `page_metrics/` **is not** a project-layout migration: writers create it on demand.
+
+Other contracts (including analysis-run-storage, detection-run-storage, and page-metrics) **reference** these paths and must not independently redefine the top-level project tree.
 
 ## `project.json`
 
@@ -63,6 +70,31 @@ Other contracts (including analysis-run-storage and detection-run-storage) **ref
 - Page diary dates may be auto-suggested (`date_source: extracted|inherited`) or human-approved. Invariants: `date=null` ⇒ `date_approved=true` and `date_source=null`; approved dates have `date_source=null`; unapproved dates require a source. Legacy manifests without these keys load as approved.
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
+
+## `content_revision` (notebook content identity)
+
+`content_revision` is the hex SHA-256 of a canonical JSON object describing **exportable notebook content** (all pages in project order). It is distinct from analysis `content_fingerprint` ([analysis-document.md](analysis-document.md)), which may omit blank/excluded pages and use analysis split profiles.
+
+**Algorithm (`content_revision_version: 1`):**
+
+```
+SHA-256(canonical_json({
+  content_revision_version: 1,
+  project_id,
+  pages: [
+    { page_id, global_index, text, edited, status,
+      date, date_approved, date_source, tags }  // tags sorted; text = effective text
+    // one entry per project.pages order
+  ]
+}))
+```
+
+Rules:
+
+- Membership = **all** project pages (export view)
+- Authority = recompute from a coherent Project + page-result load (e.g. under mutation lock / `ExportSnapshot`)
+- Optional caches of the hex are allowed; recompute wins
+- Used by Analyse derived health and provenance-aware export ([notebook-export.md](notebook-export.md))
 
 ## Ingest durability
 

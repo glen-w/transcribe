@@ -60,7 +60,7 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
-3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook.
+3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
 4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, and quotations (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
 Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles tabs hold LLM budgets and named profile activations.
@@ -86,10 +86,17 @@ CLI detection:
 ```bash
 ./transcribe.sh cli export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 # or: … export <project> /path/to/dest
+# formats / typography:
+#   … export <project> --format pdf --format epub --profile large_print
+# multi-notebook anthology:
+#   … export --notebooks nb-a nb-b --title "Spring journals" /path/to/dest
 ```
 
-In the UI: **Workflow → Export**.
-Produces notebook JSON, Markdown, plain text, and an export manifest. Contract: [contracts/notebook-export.md](contracts/notebook-export.md).
+In the UI: **Workflow → Export** (formats, typography, profiles, multi-notebook).
+Produces JSON, Markdown, plain text, HTML, EPUB, PDF, and an export manifest
+(formats selectable). Profiles: `readable` / `compact` / `large_print` under
+Settings → Profiles (target **export**). Contract:
+[contracts/notebook-export.md](contracts/notebook-export.md).
 
 ## 7. Integrity check
 

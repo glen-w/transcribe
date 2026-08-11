@@ -8,10 +8,13 @@ SUPPORTED: dict[str, int] = {
     "transcribe.project": 1,
     "transcribe.page-result": 1,
     "transcribe.notebook": 1,
+    "transcribe.export-manifest": 1,
+    "transcribe.export-bundle": 1,
     "transcribe.analysis-document": 1,
     "transcribe.analysis-result": 1,
     "transcribe.detection-result": 1,
     "transcribe.prompt-definition": 1,
+    "transcribe.page-metrics": 1,
     # Bulk-import generation (prospective until activation gate)
     "transcribe.corpus-index": 1,
     "transcribe.import-run": 1,
