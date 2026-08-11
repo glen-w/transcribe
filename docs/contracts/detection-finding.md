@@ -41,3 +41,7 @@ The published artifact for `(notebook_id, detector_id)` contains a `findings[]` 
 ## Identity rules
 
 - Use `page_id`, `notebook_id`, `finding_id` — never filesystem paths or filenames as identity.
+
+## Review carry-forward
+
+On a successful republish for the same detector, preserve `approved` / `rejected` when the new finding matches a prior published finding on span identity `(finding_type, start_page_id, end_page_id)`. Unmatched new findings start as `unreviewed`. Prior reviews without a match are dropped with the old published set.

@@ -140,6 +140,23 @@ class DetectionStorage:
                     changed.append(str(path))
         return changed
 
+    def latest_attempt(self, detector_id: str) -> dict[str, Any] | None:
+        """Most recently written attempt for a detector (by mtime), or None."""
+        attempts = self.attempts_dir(detector_id)
+        if not attempts.exists():
+            return None
+        paths = sorted(
+            attempts.glob("*.json"),
+            key=lambda p: p.stat().st_mtime_ns,
+            reverse=True,
+        )
+        for path in paths:
+            try:
+                return read_json(path)
+            except (OSError, ValueError, TypeError):
+                continue
+        return None
+
     def update_finding_review(
         self,
         detector_id: str,

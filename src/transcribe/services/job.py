@@ -25,7 +25,7 @@ from transcribe.persistence.atomic import write_json_atomic
 from transcribe.persistence.locks import JobLock
 from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.preprocess import PREPROCESS_VERSION, apply_preprocess
-from transcribe.prompts import render_prompt
+from transcribe.prompts import render_prompt as legacy_render_prompt
 from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.ocr_cleanup import (
@@ -300,10 +300,18 @@ class JobCoordinator:
         if not settings.model_name:
             raise ProviderError("No model selected", code="model_missing")
         targets = tuple(page_ids or [p.page_id for p in project.pages])
-        prompt_id, prompt_version, prompt_text = render_prompt(
-            prompt_id=settings.prompt_id,
-            custom_prompt=settings.custom_prompt,
-        )
+        try:
+            from transcribe.prompt_engine.hub import ocr_render_for_job
+
+            prompt_id, prompt_version, prompt_text = ocr_render_for_job(
+                prompt_id=settings.prompt_id,
+                custom_prompt=settings.custom_prompt,
+            )
+        except Exception:  # noqa: BLE001
+            prompt_id, prompt_version, prompt_text = legacy_render_prompt(
+                prompt_id=settings.prompt_id,
+                custom_prompt=settings.custom_prompt,
+            )
         prompt_sha = sha256_text(prompt_text)
         digest: str | None = None
         verified = False

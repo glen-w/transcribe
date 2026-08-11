@@ -22,7 +22,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 
 ## Now — Usability wave — [~] active
 
-Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI remains a **parallel** track (not this wave’s definition of done; avoid calling it the product “Wave 2” in usability docs).
+Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](detection_wave2_plan.md); not this wave’s definition of done — avoid calling Detection the product “Wave 2” in usability docs).
 
 ### U0–U1 — Product hardening (embedded)
 
@@ -121,8 +121,8 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | candidate |
 | **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. | **U3** |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
-| **Prompt management UI** | Browse/edit versioned OCR and analysis prompts (project `prompts/` reserved); beyond today’s per-job pick + optional override. | parallel / Detection |
-| **Prompt-backed Detection** | Scan notebook pages for built-in or custom phenomena (poetry, lists, etc.); cross-page spans; findings under `detection/` with provenance. See detection contracts. | parallel |
+| **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
+| **Prompt-backed Detection** | **Shipped (Detection wave 2):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See [detection_wave2_plan.md](detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** |
 | **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). | partial / active |

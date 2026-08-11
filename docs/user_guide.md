@@ -61,8 +61,9 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
 3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
+4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, and quotations (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
-Edit what each preset includes under **App → Settings → Analysis** (workspace policies; see [contracts/workspace-settings.md](contracts/workspace-settings.md)). Models / Profiles tabs hold LLM budgets and named profile activations.
+Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles tabs hold LLM budgets and named profile activations.
 
 | Preset | Modules |
 |--------|---------|
@@ -72,6 +73,13 @@ Edit what each preset includes under **App → Settings → Analysis** (workspac
 | **Custom** | Pick modules (seeded from Balanced) |
 
 Use a **text** Ollama model for LLM modules. Deterministic synthesis works without it. Capability banners (`unavailable_model`, `unavailable_extra`, `insufficient_data`, …) are intentional honesty, not blank failures. Roadmap: [ROADMAP.md](ROADMAP.md).
+
+CLI detection:
+
+```bash
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
+```
 
 ## 6. Export
 

@@ -340,7 +340,7 @@ Suggested eng order (from ROADMAP): index → ImportRun/plan → duplicate polic
 
 | Track | Coordination rule |
 |-------|-------------------|
-| Detection Wave 2 (PRs #4/#6) | May share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U0–U1 |
+| Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
 | Visual declutter expansion | Remains ROADMAP preprocessing candidate; not required for usability-wave exit |
 | Re-OCR compare/promote | Lifecycle candidate; U3 may link “force re-OCR” honesty but full compare/promote is post-wave unless pulled |
 | Quality thumbs / prompt management UI | Candidates; Detection Prompt Hub may absorb prompt browse — do not duplicate |
