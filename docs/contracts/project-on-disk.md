@@ -24,6 +24,7 @@ A project root contains:
 | `analysis/` | Durable per-notebook analysis artifacts (optional until first write; see [analysis-run-storage.md](analysis-run-storage.md)) |
 | `analysis/runs/` | Batch analysis run records (plan + progress; not publish authority) |
 | `detection/` | Durable per-notebook detection findings (optional until first write; see [detection-run-storage.md](detection-run-storage.md)) |
+| `page_metrics/` | Durable per-notebook page ink/blankness/hue metrics (optional until first write; see [page-metrics.md](page-metrics.md)) |
 | `exports/` | Default export destination inside the project |
 | `prompts/` | Reserved for project prompt assets |
 | `jobs/` | Ephemeral-ish OCR job run records (not page authority) |
@@ -49,7 +50,13 @@ Relative paths stored in the manifest must resolve inside the project root (path
 - Existing managed projects without `detection/` remain valid.
 - Introducing detection under `detection/` **is not** a project-layout migration: writers create it on demand.
 
-Other contracts (including analysis-run-storage and detection-run-storage) **reference** these paths and must not independently redefine the top-level project tree.
+### `page_metrics/` optionality
+
+- The `page_metrics/` directory is **optional until the first page-metrics artifact is written**.
+- Existing managed projects without `page_metrics/` remain valid.
+- Introducing metrics under `page_metrics/` **is not** a project-layout migration: writers create it on demand.
+
+Other contracts (including analysis-run-storage, detection-run-storage, and page-metrics) **reference** these paths and must not independently redefine the top-level project tree.
 
 ## `project.json`
 

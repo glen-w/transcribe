@@ -146,6 +146,7 @@ Worth recording without scheduling:
 | Capability | Shipped |
 |------------|---------|
 | **Notebook metrics** | stats, lexical diversity, understandability |
+| **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
 | **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
 | **Themes** | wordclouds, topic modeling, BERTopic, semantic similarity, topic shift |
 | **Mood & salience** | emotion family, affect tension, moments |
