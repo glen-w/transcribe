@@ -60,7 +60,7 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
-3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook.
+3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
 
 Edit what each preset includes under **App → Settings → Analysis** (workspace policies; see [contracts/workspace-settings.md](contracts/workspace-settings.md)). Models / Profiles tabs hold LLM budgets and named profile activations.
 

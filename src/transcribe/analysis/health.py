@@ -1,4 +1,4 @@
-"""Derived Analyse health shared across Overview / Themes / Mood / Moments / Summaries."""
+"""Derived Analyse health shared across Overview / Themes / Mood / Moments / People & places / Summaries."""
 
 from __future__ import annotations
 
