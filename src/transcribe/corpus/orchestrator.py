@@ -162,6 +162,17 @@ class ImportOrchestrator:
             raise ValidationError(f"unknown import op: {item.op!r}")
 
         project = self._load_project(root)
+        if self._project_has_planned_item(project, item):
+            return self._set_outcome(
+                run,
+                ImportRunItemOutcome(
+                    item_id=item.item_id,
+                    state="committed",
+                    resulting_ids=self._planned_ids(item),
+                ),
+                crash_hook=crash_hook,
+            )
+
         classification = classify_duplicate(self.paths, item, target_project=project)
         if should_skip_for_policy(classification, run.import_policy_id):
             return self._set_outcome(
@@ -176,18 +187,6 @@ class ImportOrchestrator:
             )
 
         project_paths = open_project_paths(root)
-        if self._project_has_planned_item(project, item):
-            return self._set_outcome(
-                run,
-                ImportRunItemOutcome(
-                    item_id=item.item_id,
-                    state="committed",
-                    resulting_ids=self._planned_ids(item),
-                    skip_classification=classification.classification,
-                ),
-                crash_hook=crash_hook,
-            )
-
         self._commit_source(project_paths, item, run.import_run_id, crash_hook=crash_hook)
         return self._set_outcome(
             run,
