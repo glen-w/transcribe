@@ -657,10 +657,18 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         st.caption(
             "Read-model of validated published analysis results "
             "(stats, lexical diversity, understandability, wordclouds, "
-            "ner, sentiment, epistemic markers). Run analysis from the "
-            "preset form above."
+            "ner, sentiment, epistemic markers), plus page ink/blankness "
+            "from active renders. Run text analysis from the preset form above."
         )
         render_aggregate_caption(overview_health)
+
+        try:
+            from transcribe.ui.page_metrics_view import render_overview_page_metrics
+
+            render_overview_page_metrics(projects, project)
+            st.divider()
+        except Exception:  # noqa: BLE001 — optional surface
+            pass
 
         for mid in overview_ids:
             mh = overview_health.modules.get(mid)

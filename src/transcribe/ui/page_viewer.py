@@ -356,6 +356,17 @@ def render_page_viewer(
     left, right = st.columns([3, 2])
     with left:
         st.image(str(img_path), width="stretch")
+        try:
+            from transcribe.ui.page_metrics_view import (
+                ensure_page_metrics,
+                render_page_metrics_strip,
+            )
+
+            metrics_doc = ensure_page_metrics(projects, project)
+            row = metrics_doc.row_for_page(page.page_id) if metrics_doc else None
+            render_page_metrics_strip(row)
+        except Exception:  # noqa: BLE001 — optional surface; never break viewer
+            pass
     with right:
         status = result.status if result else "pending"
         st.write(f"Status: **{status}**")
