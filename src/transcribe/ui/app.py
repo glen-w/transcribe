@@ -768,6 +768,10 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
         "Places",
         "Map places mentioned across all notebooks (from published NER).",
     ),
+    "Inbox": (
+        "Inbox",
+        "Bulk-import a folder of scans and review what committed, skipped, or failed.",
+    ),
     "New notebook": (
         "New notebook",
         "Create a notebook, then import pages and run OCR.",
@@ -902,6 +906,10 @@ def main() -> None:
         from transcribe.ui.places_map import render_corpus_places_page
 
         render_corpus_places_page(runtime)
+    elif mode == "Inbox":
+        from transcribe.ui.import_inbox import render_import_inbox
+
+        render_import_inbox(runtime)
     elif mode == "Settings":
         render_settings_page()
     elif mode == "New notebook":

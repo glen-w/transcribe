@@ -129,11 +129,55 @@ def main(argv: list[str] | None = None) -> int:
         help="List available detectors and exit",
     )
 
+    p_bulk = sub.add_parser(
+        "bulk-import",
+        help="Plan/commit a folder into the notebook corpus (ImportRun)",
+    )
+    bulk_sub = p_bulk.add_subparsers(dest="bulk_cmd", required=True)
+    p_bulk_plan = bulk_sub.add_parser(
+        "folder",
+        help="Scan a folder, create an ImportRun, and commit it",
+    )
+    p_bulk_plan.add_argument("folder", type=Path, help="Folder of JPEG/PNG/PDF files")
+    p_bulk_plan.add_argument(
+        "--title",
+        default=None,
+        help="Notebook title (default: folder name)",
+    )
+    p_bulk_plan.add_argument(
+        "--policy",
+        choices=["skip_existing_v1", "create_duplicate_v1"],
+        default="skip_existing_v1",
+    )
+    p_bulk_plan.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the plan and exit without committing",
+    )
+    p_bulk_status = bulk_sub.add_parser("status", help="Show ImportRun outcomes")
+    p_bulk_status.add_argument("import_run_id")
+    p_bulk_resume = bulk_sub.add_parser("resume", help="Resume a non-terminal ImportRun")
+    p_bulk_resume.add_argument("import_run_id")
+    p_corpus_doctor = sub.add_parser(
+        "corpus-doctor",
+        help="Validate workspace corpus index integrity",
+    )
+    p_corpus_doctor.add_argument(
+        "--deep",
+        action="store_true",
+        help="Also deep-doctor each registered notebook",
+    )
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
 
     try:
+        if args.cmd == "bulk-import":
+            return _cmd_bulk_import(args, clock=clock, ids=ids)
+        if args.cmd == "corpus-doctor":
+            return _cmd_corpus_doctor(args)
+
         if args.cmd == "init":
             paths = open_project_paths(args.project)
             ProjectService(paths, clock=clock, ids=ids).create(title=args.title)
@@ -337,6 +381,87 @@ def _cmd_export(args: argparse.Namespace, *, clock, ids) -> int:
     for kind, path in written.items():
         print(f"{kind}: {path}")
     return 0
+
+
+def _cmd_bulk_import(args: argparse.Namespace, *, clock, ids) -> int:
+    from transcribe.corpus.adapters import plan_from_folder
+    from transcribe.corpus.import_run import ImportRunStore
+    from transcribe.corpus.orchestrator import ImportOrchestrator
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.corpus.plan import (
+        POLICY_CREATE_DUPLICATE_V1,
+        POLICY_SKIP_EXISTING_V1,
+    )
+
+    corpus = CorpusPaths.from_runtime(PATHS)
+    orchestrator = ImportOrchestrator(corpus, clock=clock, ids=ids)
+    if args.bulk_cmd == "folder":
+        policy = (
+            POLICY_CREATE_DUPLICATE_V1
+            if args.policy == "create_duplicate_v1"
+            else POLICY_SKIP_EXISTING_V1
+        )
+        plan = plan_from_folder(
+            args.folder,
+            ids=ids,
+            title=args.title,
+            import_policy_id=policy,
+        )
+        print(
+            f"plan_id={plan.plan_id} items={len(plan.items)} "
+            f"policy={plan.import_policy_id} fingerprint={plan.fingerprint()[:12]}…"
+        )
+        for item in plan.items:
+            print(
+                f"  {item.op} {item.original_filename or item.item_id} "
+                f"pages={len(item.page_indexes)} notebook={item.notebook_id}"
+            )
+        if args.dry_run:
+            return 0
+        run = orchestrator.create_run_from_plan(plan)
+        completed = orchestrator.commit_run(run.import_run_id)
+        print(f"import_run_id={completed.import_run_id} status={completed.status}")
+        for item in completed.items:
+            skip = f" skip={item.skip_classification}" if item.skip_classification else ""
+            err = f" error={item.error_message}" if item.error_message else ""
+            print(f"  {item.item_id} {item.state}{skip}{err}")
+        return 0 if completed.status in {"complete", "partial"} else 1
+
+    if args.bulk_cmd == "status":
+        run = ImportRunStore(corpus).load(args.import_run_id)
+        print(
+            f"import_run_id={run.import_run_id} status={run.status} "
+            f"plan_id={run.plan_id} policy={run.import_policy_id}"
+        )
+        for item in run.items:
+            skip = f" skip={item.skip_classification}" if item.skip_classification else ""
+            err = f" error={item.error_message}" if item.error_message else ""
+            print(f"  {item.item_id} {item.state}{skip}{err}")
+        return 0
+
+    if args.bulk_cmd == "resume":
+        completed = orchestrator.commit_run(args.import_run_id)
+        print(f"import_run_id={completed.import_run_id} status={completed.status}")
+        for item in completed.items:
+            print(f"  {item.item_id} {item.state}")
+        return 0 if completed.status in {"complete", "partial"} else 1
+
+    print(f"error: unknown bulk-import subcommand {args.bulk_cmd}", file=sys.stderr)
+    return 2
+
+
+def _cmd_corpus_doctor(args: argparse.Namespace) -> int:
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.services.corpus_doctor import CorpusDoctorService
+
+    report = CorpusDoctorService(CorpusPaths.from_runtime(PATHS)).run(deep=args.deep)
+    for finding in report.findings:
+        print(f"{finding.severity}: [{finding.code}] {finding.message}")
+    if report.ok and not report.findings:
+        print("ok: corpus integrity checks passed")
+    elif report.ok:
+        print("ok: no errors (warnings above)")
+    return 0 if report.ok else 1
 
 
 if __name__ == "__main__":

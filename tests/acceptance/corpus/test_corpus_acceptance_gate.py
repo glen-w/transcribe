@@ -72,7 +72,16 @@ def _plan(item: ImportPlanItem, *, policy: str = POLICY_SKIP_EXISTING_V1) -> Imp
 
 
 @pytest.mark.parametrize(
-    "boundary", ["source_promotion", "render_promotion", "project_json_commit"]
+    "boundary",
+    [
+        "notebook_creation",
+        "corpus_registration",
+        "source_promotion",
+        "render_promotion",
+        "project_json_commit",
+        "import_run_item_commit",
+        "final_run_state",
+    ],
 )
 def test_crash_injection_resume_is_idempotent(tmp_path: Path, boundary: str) -> None:
     corpus = _corpus(tmp_path)

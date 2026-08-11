@@ -53,9 +53,14 @@ from transcribe.persistence.atomic import read_json, write_bytes_atomic, write_j
 from transcribe.persistence.locks import mutation_lock
 from transcribe.persistence.schema import require_format
 from transcribe.ports import Clock, IdGenerator, to_iso
-from transcribe.services.project import _seed_ocr_settings, open_project_paths
 
 CrashHook = Callable[[str], None]
+
+
+def _project_helpers():
+    from transcribe.services.project import _seed_ocr_settings, open_project_paths
+
+    return open_project_paths, _seed_ocr_settings
 
 
 class CrashHookTriggered(RuntimeError):
@@ -186,6 +191,7 @@ class ImportOrchestrator:
                 crash_hook=crash_hook,
             )
 
+        open_project_paths, _ = _project_helpers()
         project_paths = open_project_paths(root)
         self._commit_source(project_paths, item, run.import_run_id, crash_hook=crash_hook)
         return self._set_outcome(
@@ -206,6 +212,7 @@ class ImportOrchestrator:
         *,
         crash_hook: CrashHook | None,
     ) -> Path:
+        open_project_paths, _seed_ocr_settings = _project_helpers()
         project_paths = open_project_paths(root)
         now = to_iso(self.clock.now())
         with ordered_corpus_then_notebook_lock(

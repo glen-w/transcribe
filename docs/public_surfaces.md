@@ -23,10 +23,13 @@ Authority: self — supported public entrypoints and support policy for how user
 | `status <project>` | Print per-page status |
 | `detect <project>` | Run a content detector (`--detector poetry`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
+| `bulk-import folder <dir>` | Plan/commit a folder of scans into the corpus (`--policy`, `--dry-run`) |
+| `bulk-import status\|resume <id>` | Inspect or resume an ImportRun |
+| `corpus-doctor` | Workspace corpus index integrity (`--deep`) |
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow.
+**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** plans/commits a folder via ImportRun and shows recovery outcomes (committed / skipped / failed).
 
 **Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
