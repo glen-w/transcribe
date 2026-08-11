@@ -23,13 +23,10 @@ Authority: self — supported public entrypoints and support policy for how user
 | `status <project>` | Print per-page status |
 | `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
-| `bulk-import folder <dir>` | Plan/commit a folder of scans into the corpus (`--policy`, `--dry-run`) |
-| `bulk-import status\|resume <id>` | Inspect or resume an ImportRun |
-| `corpus-doctor` | Workspace corpus index integrity (`--deep`) |
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** plans/commits a folder via ImportRun and shows recovery outcomes (committed / skipped / failed).
+**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** is a foundation surface for ImportRun recovery — see **Corpus foundation** below before treating it as fully supported.
 
 **Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
@@ -40,6 +37,17 @@ Authority: self — supported public entrypoints and support policy for how user
 ### Helper script
 
 `./transcribe.sh` resolves a project-local `.venv` and accepts: `ui|web` (default), `cli|run …`, `install|setup`, `install-dev`, or passthrough argv to the CLI.
+
+## Corpus foundation (not fully supported until activation gate)
+
+Bulk-import generation ships as **foundation code** while contracts remain prospective and the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is still closing. Do **not** treat these as unconditionally supported production surfaces yet:
+
+| Surface | How to invoke | Notes |
+|---------|---------------|-------|
+| CLI `bulk-import folder <dir>` | `transcribe bulk-import folder …` (`--policy`, `--dry-run`) | Plan/commit folder scans into the corpus |
+| CLI `bulk-import status\|resume <id>` | `transcribe bulk-import status\|resume …` | Inspect or resume an ImportRun |
+| CLI `corpus-doctor` | `transcribe corpus-doctor` (`--deep`) | Workspace corpus index integrity |
+| UI **Notebooks → Inbox** | Streamlit Inbox mode | Plans/commits a folder via ImportRun; shows committed / skipped / failed recovery outcomes |
 
 ## Explicitly unsupported
 

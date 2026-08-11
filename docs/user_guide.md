@@ -107,6 +107,24 @@ Settings → Profiles (target **export**). Contract:
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --deep
 ```
 
+## 8. Bulk import / Inbox (foundation)
+
+Corpus bulk import is **activation in progress** — usable for recovery experiments, not yet marked fully supported ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate).
+
+**UI:** **Notebooks → Inbox** — choose a folder of scans, plan/commit an ImportRun, and review committed / skipped / failed outcomes.
+
+**CLI:**
+
+```bash
+./transcribe.sh cli bulk-import folder ./scans --dry-run
+./transcribe.sh cli bulk-import folder ./scans --policy skip_existing_v1
+./transcribe.sh cli bulk-import status <import_run_id>
+./transcribe.sh cli bulk-import resume <import_run_id>
+./transcribe.sh cli corpus-doctor --deep
+```
+
+Single-file import (§2) remains the everyday path for one notebook at a time.
+
 ## Privacy reminder
 
 Prefer loopback Ollama. Remote hosts send page images off-machine and require acknowledgement. See [known_limitations.md](known_limitations.md).
