@@ -83,6 +83,11 @@ All selected formats are derived from the same frozen load(s) of `project.json`
 + page results. Writers stage into a temporary directory under the destination,
 then promote atomically so a failed export does not leave a mixed old/new set.
 
+If EPUB is requested but `ebooklib` is not installed, and at least one other
+format was requested, EPUB is **skipped** and recorded under
+`skipped_formats` / `skipped_format_reasons` on the manifest. EPUB-only export
+raises when the dependency is missing.
+
 ## Future consumers
 
 A future TranscriptX adapter may consume `transcribe.notebook` after TranscriptX 1.0. Prefer `content_revision` when present. That seam is product/architecture guidance only today: [INTEGRATION_SEAM.md](../INTEGRATION_SEAM.md).

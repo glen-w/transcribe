@@ -106,6 +106,7 @@ class ExportService:
         try:
             staged: dict[str, Path] = {}
             file_names: dict[str, str] = {}
+            skipped_formats: list[str] = []
 
             if opts.wants("json"):
                 if len(snapshots) == 1:
@@ -168,9 +169,17 @@ class ExportService:
                 file_names["pdf"] = "notebook.pdf"
 
             if opts.wants("epub"):
-                staged["epub"] = staging / "notebook.epub"
-                write_epub(staged["epub"], document, opts)
-                file_names["epub"] = "notebook.epub"
+                try:
+                    epub_path = staging / "notebook.epub"
+                    write_epub(epub_path, document, opts)
+                    staged["epub"] = epub_path
+                    file_names["epub"] = "notebook.epub"
+                except EpubDependencyError:
+                    # Optional dependency — skip when other formats remain.
+                    other = [f for f in opts.formats if f != "epub"]
+                    if not other:
+                        raise
+                    skipped_formats.append("epub")
 
             checksums = {
                 name: sha256_bytes(path.read_bytes()) for name, path in staged.items()
@@ -197,6 +206,11 @@ class ExportService:
                 "files": file_names,
                 "sha256": checksums,
             }
+            if skipped_formats:
+                manifest["skipped_formats"] = skipped_formats
+                manifest["skipped_format_reasons"] = {
+                    "epub": "ebooklib not installed (pip install transcribe[export])"
+                }
             write_json_atomic(staging / "export.manifest.json", manifest)
 
             final: dict[str, Path] = {"manifest": out / "export.manifest.json"}
