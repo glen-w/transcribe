@@ -61,8 +61,9 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
 3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. A shared status strip shows whether results are current. Technical module details live under **Advanced**. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
+4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, and quotations (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
-Edit what each preset includes under **App → Settings → Analysis** (workspace policies; see [contracts/workspace-settings.md](contracts/workspace-settings.md)). Models / Profiles tabs hold LLM budgets and named profile activations.
+Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles tabs hold LLM budgets and named profile activations.
 
 | Preset | Modules |
 |--------|---------|
@@ -74,6 +75,13 @@ Edit what each preset includes under **App → Settings → Analysis** (workspac
 Use a **text** Ollama model for LLM modules. Deterministic synthesis works without it. When a model or optional component is missing, Analyse says so in plain language (for example “Needs a text model”) rather than raw capability enums. Roadmap: [ROADMAP.md](ROADMAP.md).
 
 **Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**.
+
+CLI detection:
+
+```bash
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
+```
 
 ## 6. Export
 

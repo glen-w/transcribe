@@ -242,9 +242,16 @@ def run_ocr_cleanup(
             candidate_length=0,
         )
 
-    prompt_id, prompt_version, prompt_text = render_cleanup_prompt(
-        mode=plan.mode, ocr_text=vision_text
-    )
+    try:
+        from transcribe.prompt_engine.hub import cleanup_render_for_job
+
+        prompt_id, prompt_version, prompt_text = cleanup_render_for_job(
+            mode=plan.mode, ocr_text=vision_text
+        )
+    except Exception:  # noqa: BLE001
+        prompt_id, prompt_version, prompt_text = render_cleanup_prompt(
+            mode=plan.mode, ocr_text=vision_text
+        )
     prompt_sha = sha256_text(prompt_text)
     num_predict = compute_num_predict(len(vision_text))
     options = {"temperature": 0.0, "num_predict": num_predict}

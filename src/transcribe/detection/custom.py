@@ -86,12 +86,20 @@ def compile_custom_detector(payload: dict[str, Any] | CustomDetectorDefinition) 
         model_mode = ModelMode(custom.model_mode)
     except ValueError:
         model_mode = ModelMode.AUTO
+    prompt_id = (
+        "custom_detect_vision_v1"
+        if model_mode == ModelMode.VISION
+        else "custom_detect_v1"
+    )
+    version = "1"
+    if isinstance(payload, dict) and payload.get("version"):
+        version = str(payload["version"])
     return DetectorDefinition(
         detector_id=f"custom/{slug}",
-        version="1",
+        version=version,
         title=custom.name,
         description=instruction[:200],
-        prompt_ref=PromptRef(prompt_id="custom_detect_v1", version="1"),
+        prompt_ref=PromptRef(prompt_id=prompt_id, version="1"),
         scope=scope,
         input_mode=model_mode,
         candidate_strategy=CandidateStrategy.ALL_PAGES,
@@ -105,6 +113,8 @@ def compile_custom_detector(payload: dict[str, Any] | CustomDetectorDefinition) 
 
 
 def save_custom_detector(definition: CustomDetectorDefinition) -> Path:
+    from transcribe.persistence.atomic import write_json_atomic
+
     root = _custom_config_dir()
     root.mkdir(parents=True, exist_ok=True)
     slug = definition.slug()
@@ -119,8 +129,33 @@ def save_custom_detector(definition: CustomDetectorDefinition) -> Path:
         "model_mode": definition.model_mode,
         "confidence_threshold": definition.confidence_threshold,
         "custom_id": slug,
+        "version": "1",
     }
-    from transcribe.persistence.atomic import write_json_atomic
-
     write_json_atomic(path, payload)
     return path
+
+
+def delete_custom_detector(custom_id: str) -> bool:
+    root = _custom_config_dir()
+    path = root / f"{custom_id}.json"
+    if not path.exists():
+        # try slugified
+        slug = _SLUG_RE.sub("-", custom_id.strip().lower()).strip("-")
+        path = root / f"{slug}.json"
+    if not path.exists():
+        return False
+    path.unlink(missing_ok=True)
+    return True
+
+
+def list_custom_detector_payloads() -> list[dict[str, Any]]:
+    root = _custom_config_dir()
+    if not root.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for path in sorted(root.glob("*.json")):
+        try:
+            out.append(read_json(path))
+        except (OSError, ValueError, TypeError):
+            continue
+    return out
