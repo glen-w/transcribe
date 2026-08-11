@@ -418,6 +418,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         normalized = project.settings.base_url
         remote = False
 
+    # Phase 6 #9 — privacy ack stays visible / confirm-gated (never buried alone).
     allow_remote = False
     if remote:
         st.warning(
@@ -463,17 +464,8 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         ),
         help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
     )
-    if unknown:
-        with st.expander("Models with unknown capabilities"):
-            st.write(", ".join(unknown))
 
-    prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
-    custom = st.text_area(
-        "Custom prompt override (optional)", value=project.settings.custom_prompt or ""
-    )
-    preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
-    workers = st.selectbox("Workers", [1, 2], index=0)
-    force = st.checkbox("Force re-run (ignore matching fingerprints)")
+    # Primary path: optional one-line cleanup toggle (#9).
     cleanup_enabled = st.checkbox(
         "Clean OCR with text model",
         value=bool(project.settings.cleanup_enabled),
@@ -482,41 +474,59 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             "Adds one Ollama call per page; failures keep raw OCR."
         ),
     )
-    cleanup_mode_labels = {
-        "strip_leak": "Strip prompt leakage only",
-        "sanitize_light": "Strip leakage + light sanitize",
-        "rewrite": "Broader rewrite / normalize",
-    }
-    cleanup_mode = st.selectbox(
-        "Cleanup mode",
-        options=list(cleanup_mode_labels.keys()),
-        format_func=lambda m: cleanup_mode_labels[m],
-        index=(
-            list(cleanup_mode_labels.keys()).index(project.settings.cleanup_mode)
-            if project.settings.cleanup_mode in cleanup_mode_labels
-            else 0
-        ),
-        disabled=not cleanup_enabled,
-    )
-    cleanup_model_options = text_model_options
-    cleanup_model = st.selectbox(
-        "Cleanup model",
-        options=cleanup_model_options,
-        index=(
-            cleanup_model_options.index(project.settings.cleanup_model_name)
-            if project.settings.cleanup_model_name in cleanup_model_options
-            else (
-                cleanup_model_options.index(project.settings.text_model_name)
-                if project.settings.text_model_name in cleanup_model_options
+
+    # Advanced: power controls collapsed off the primary path.
+    with st.expander("Advanced", expanded=False):
+        if unknown:
+            st.caption("Models with unknown capabilities")
+            st.write(", ".join(unknown))
+        prompt_id = st.selectbox("Prompt", ["faithful_markdown", "faithful_text"])
+        custom = st.text_area(
+            "Custom prompt override (optional)",
+            value=project.settings.custom_prompt or "",
+        )
+        preprocess = st.selectbox("Preprocess", ["none", "gentle_contrast"])
+        workers = st.selectbox("Workers", [1, 2], index=0)
+        force = st.checkbox("Force re-run (ignore matching fingerprints)")
+        cleanup_mode_labels = {
+            "strip_leak": "Strip prompt leakage only",
+            "sanitize_light": "Strip leakage + light sanitize",
+            "rewrite": "Broader rewrite / normalize",
+        }
+        cleanup_mode = st.selectbox(
+            "Cleanup mode",
+            options=list(cleanup_mode_labels.keys()),
+            format_func=lambda m: cleanup_mode_labels[m],
+            index=(
+                list(cleanup_mode_labels.keys()).index(project.settings.cleanup_mode)
+                if project.settings.cleanup_mode in cleanup_mode_labels
                 else 0
-            )
-        ),
-        disabled=not cleanup_enabled,
-        help=(
-            "Text model for cleanup (vision/embedding filtered out). "
-            "Falls back to the text analysis model if unset."
-        ),
-    )
+            ),
+            disabled=not cleanup_enabled,
+        )
+        cleanup_model_options = text_model_options
+        cleanup_model = st.selectbox(
+            "Cleanup model",
+            options=cleanup_model_options,
+            index=(
+                cleanup_model_options.index(project.settings.cleanup_model_name)
+                if project.settings.cleanup_model_name in cleanup_model_options
+                else (
+                    cleanup_model_options.index(project.settings.text_model_name)
+                    if project.settings.text_model_name in cleanup_model_options
+                    else 0
+                )
+            ),
+            disabled=not cleanup_enabled,
+            help=(
+                "Text model for cleanup (vision/embedding filtered out). "
+                "Falls back to the text analysis model if unset."
+            ),
+        )
+        st.caption(
+            "Unverified model identity may increase cost or surprise quality — "
+            "prefer discovered vision-capable tags when listed."
+        )
 
     if st.button("Save settings"):
         settings = project.settings
@@ -573,26 +583,6 @@ def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
 
 
 def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
-    (
-        tab_overview,
-        tab_themes,
-        tab_mood,
-        tab_moments,
-        tab_places,
-        tab_summaries,
-        tab_ask,
-    ) = st.tabs(
-        [
-            "Overview",
-            "Themes",
-            "Mood & tone",
-            "Moments",
-            "People & places",
-            "Summaries",
-            "Ask notebook",
-        ]
-    )
-
     from transcribe.analysis.health import derive_analysis_health, scope_analysis_health
     from transcribe.analysis.modules import (
         THROUGH_OVERVIEW,
@@ -602,10 +592,14 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     from transcribe.analysis.runner import AnalysisRunner, module_freshness
     from transcribe.analysis.storage import AnalysisStorage
     from transcribe.ports import SystemClock, UuidGenerator
-    from transcribe.ui.analysis_health_view import (
-        read_model_compat,
-        render_aggregate_caption,
-        render_module_health_banner,
+    from transcribe.ui.analysis_health_view import render_status_strip
+    from transcribe.ui.analysis_product_views import (
+        render_ask_product,
+        render_moments_product,
+        render_mood_product,
+        render_overview_product,
+        render_summaries_product,
+        render_themes_product,
     )
 
     runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
@@ -640,11 +634,26 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     batch_ids = list(
         dict.fromkeys(overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids)
     )
+    analysis_coord = get_analysis_coordinator(str(paths.root))
+    active_run_status = "running" if analysis_coord.is_running() else None
+    if active_run_status is None:
+        # Surface interrupted reopen state on the shared strip when present.
+        try:
+            runs_dir = storage.runs_dir()
+            if runs_dir.is_dir():
+                for path in sorted(runs_dir.glob("*.json"), reverse=True):
+                    rec = storage.read_run_record(path.stem)
+                    if rec and rec.get("status") == "interrupted":
+                        active_run_status = "interrupted"
+                        break
+        except Exception:  # noqa: BLE001 — strip is best-effort
+            pass
     batch_health = derive_analysis_health(
         storage=storage,
         runner=runner,
         module_ids=batch_ids,
         content_revision=content_revision,
+        active_run_status=active_run_status,
     )
     overview_health = scope_analysis_health(batch_health, overview_ids)
     themes_health = scope_analysis_health(batch_health, theme_ids)
@@ -652,176 +661,55 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     moments_health = scope_analysis_health(batch_health, ["moments"])
     summaries_health = scope_analysis_health(batch_health, synth_ids)
 
-    with tab_overview:
-        st.subheader("Overview")
-        st.caption(
-            "Read-model of validated published analysis results "
-            "(stats, lexical diversity, understandability, wordclouds, "
-            "ner, sentiment, epistemic markers), plus page ink/blankness "
-            "from active renders. Run text analysis from the preset form above."
-        )
-        render_aggregate_caption(overview_health)
+    # Phase 6 #8 — sole default freshness/health answer across batch tabs.
+    render_status_strip(batch_health)
 
-        try:
+    (
+        tab_overview,
+        tab_themes,
+        tab_mood,
+        tab_moments,
+        tab_places,
+        tab_summaries,
+        tab_ask,
+    ) = st.tabs(
+        [
+            "Overview",
+            "Themes",
+            "Mood & tone",
+            "Moments",
+            "People & places",
+            "Summaries",
+            "Ask notebook",
+        ]
+    )
+
+    with tab_overview:
+
+        def _page_metrics() -> None:
             from transcribe.ui.page_metrics_view import render_overview_page_metrics
 
             render_overview_page_metrics(projects, project)
-            st.divider()
-        except Exception:  # noqa: BLE001 — optional surface
-            pass
 
-        for mid in overview_ids:
-            mh = overview_health.modules.get(mid)
-            if mh is None:
-                st.warning(f"**{mid}:** unavailable")
-                continue
-            model = read_model_compat(mh)
-            show = render_module_health_banner(mh, style="overview")
-            env = mh.envelope
-            if not show or env is None:
-                continue
-            payload = env.get("payload") or {}
-            outcome = env.get("outcome")
-            if mid == "wordclouds" and outcome == "success":
-                tokens = payload.get("tokens") or []
-                if isinstance(tokens, list) and tokens:
-                    chart_rows = {
-                        "token": [t.get("token", "") for t in tokens[:40]],
-                        "weight": [float(t.get("weight") or 0) for t in tokens[:40]],
-                    }
-                    st.bar_chart(chart_rows, x="token", y="weight")
-                else:
-                    st.warning(
-                        f"**{mid}:** published success but token list missing/empty"
-                    )
-            if mid == "ner" and outcome == "success":
-                counts = payload.get("entity_counts") or {}
-                if counts:
-                    items = list(counts.items())[:20]
-                    st.bar_chart(
-                        {
-                            "entity": [k for k, _ in items],
-                            "count": [int(v) for _, v in items],
-                        },
-                        x="entity",
-                        y="count",
-                    )
-                else:
-                    st.caption("No named entities found.")
-            if mid == "sentiment" and outcome == "success":
-                units = payload.get("units") or []
-                if units:
-                    st.line_chart(
-                        {
-                            "order": [u.get("order") for u in units],
-                            "compound": [float(u.get("compound") or 0) for u in units],
-                        },
-                        x="order",
-                        y="compound",
-                    )
-            if mid == "epistemic_markers" and outcome == "success":
-                g = payload.get("global_stats") or {}
-                st.caption(
-                    f"hedge_share={g.get('hedge_share')} "
-                    f"booster_share={g.get('booster_share')} "
-                    f"hits={g.get('total_marker_hits')}"
-                )
-            evidence = env.get("evidence") or []
-            if evidence and mid in {"ner", "epistemic_markers"}:
-                live = model.get("live_evidence") or []
-                stale_n = len(evidence) - len(live)
-                if stale_n:
-                    st.warning(
-                        f"**{mid}:** {stale_n} stale evidence citation(s) hidden"
-                    )
-            with st.expander(f"{mid} payload"):
-                st.json(payload)
+        render_overview_product(
+            overview_health, overview_ids, render_page_metrics=_page_metrics
+        )
 
     with tab_themes:
-        st.subheader("Themes")
-        st.caption(
-            "Keyphrases, topics, semantic motifs, and topic shifts along page order. "
-            "BERTopic remains an optional extra (`unavailable_extra` when missing). "
-            "Run analysis from the preset form above."
-        )
         themes = get_registered_modules(through=THROUGH_THEMES)
         assert set(theme_ids).issubset(set(themes))
-        render_aggregate_caption(themes_health)
-        for mid in theme_ids:
-            mh = themes_health.modules[mid]
-            if not render_module_health_banner(mh):
-                continue
-            env = mh.envelope or {}
-            payload = env.get("payload") or {}
-            if mid == "keyphrases" and payload.get("phrases"):
-                st.write(
-                    ", ".join(
-                        p.get("phrase", "") for p in payload["phrases"][:12] if p.get("phrase")
-                    )
-                )
-            elif mid == "topic_modeling" and payload.get("topics"):
-                for topic in payload["topics"][:5]:
-                    terms = ", ".join(topic.get("terms") or [])
-                    st.write(f"- **{topic.get('label')}**: {terms}")
-            elif mid == "semantic_similarity":
-                motifs = payload.get("motifs") or []
-                st.caption(
-                    f"{payload.get('n_units', 0)} units · {len(motifs)} motif pair(s)"
-                )
-            elif mid == "topic_shift":
-                shifts = payload.get("shifts") or []
-                st.caption(
-                    f"{payload.get('n_units', 0)} units · {len(shifts)} shift boundary(ies)"
-                )
-            with st.expander(f"{mid} payload"):
-                st.json(payload)
+        render_themes_product(themes_health, theme_ids)
 
     with tab_mood:
-        st.subheader("Mood & tone")
-        st.caption(
-            "Emotion chronology, contextual smoothing, affect tension, and hedging. "
-            "Fine-grained emotion stays an optional extra. "
-            "Run analysis from the preset form above."
-        )
-        render_aggregate_caption(mood_health)
-        for mid in mood_ids:
-            mh = mood_health.modules[mid]
-            if not render_module_health_banner(mh):
-                continue
-            env = mh.envelope or {}
-            payload = env.get("payload") or {}
-            if mid == "emotion" and payload.get("global_stats"):
-                st.caption(
-                    f"intensity_mean={payload['global_stats'].get('intensity_mean')}"
-                )
-            elif mid == "affect_tension" and payload.get("global_stats"):
-                st.caption(
-                    f"tension_mean={payload['global_stats'].get('tension_mean')} · "
-                    f"conflicts={payload['global_stats'].get('n_conflicting')}"
-                )
-            with st.expander(f"{mid} payload"):
-                st.json(payload)
+        render_mood_product(mood_health, mood_ids)
 
     with tab_moments:
-        st.subheader("Moments")
-        st.caption(
-            "Notebook salience fork (no TX momentum). Soft features from emotion, "
-            "sentiment, and topic_shift enrich scores when available. "
-            "Run analysis from the preset form above."
-        )
-        render_aggregate_caption(moments_health)
-        mh = moments_health.modules["moments"]
-        if render_module_health_banner(mh):
-            env = mh.envelope or {}
-            payload = env.get("payload") or {}
-            for row in payload.get("moments") or []:
-                st.write(
-                    f"- score=`{row.get('score')}` · `{row.get('quote', '')[:120]}`"
-                )
-            for w in env.get("warnings") or []:
-                st.caption(w.get("message") or w.get("code"))
-            with st.expander("moments payload"):
-                st.json(payload)
+        def _jump_to_page(page_id: str) -> None:
+            st.session_state["review_page_id"] = page_id
+            st.session_state["nav_section"] = "Review"
+            st.rerun()
+
+        render_moments_product(moments_health, on_jump=_jump_to_page)
 
     with tab_places:
         from transcribe.ui.places_map import render_notebook_places_tab
@@ -834,80 +722,31 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         )
 
     with tab_summaries:
-        st.subheader("Summaries")
-        st.caption(
-            "Deterministic highlights → summary → insights, plus optional LLM "
-            "outputs (honesty-labeled). Works offline when Ollama is down. "
-            "Run analysis from the preset form above."
-        )
-        render_aggregate_caption(summaries_health)
-        for mid in synth_ids:
-            mh = summaries_health.modules[mid]
-            if not render_module_health_banner(mh):
-                continue
-            env = mh.envelope or {}
-            live = mh.live_evidence
-            if live:
-                st.caption(f"{len(live)} live evidence citation(s)")
-            with st.expander(f"{mid} payload"):
-                st.json(env.get("payload") or {})
+        render_summaries_product(summaries_health, synth_ids)
 
     with tab_ask:
-        st.subheader("Ask notebook")
-        st.caption(
-            "Grounded QA with unit evidence. Unsupported answers abstain — "
-            "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
-        )
-        render_aggregate_caption(batch_health)
-        question = st.text_input("Question", key="ask_notebook_question")
-        if st.button("Ask", disabled=not (question or "").strip()):
-            with st.spinner("Asking notebook…"):
-                env = runner.run_module(
-                    "llm_custom_qa", question_text=question.strip()
-                )
-            st.write(
-                f"outcome=`{env.get('outcome')}` capability=`{env.get('capability')}`"
-            )
-            payload = env.get("payload") or {}
-            if payload.get("honesty_label"):
-                st.caption(f"Honesty: {payload['honesty_label']}")
-            if payload.get("answer"):
-                st.markdown(payload["answer"])
-            evidence = env.get("evidence") or []
-            from transcribe.analysis.envelope import filter_live_evidence
-
-            live = filter_live_evidence(
-                evidence,
-                current_content_fingerprint=env.get("content_fingerprint"),
-            )
-            if live and env.get("published"):
-                st.json(live)
-            elif evidence and env.get("published"):
-                st.caption("Evidence citations omitted (fingerprint mismatch)")
-            for w in env.get("warnings") or []:
-                st.warning(w.get("message") or w.get("code"))
-            with st.expander("Raw payload"):
-                st.json(payload)
-
+        st.caption("Ask notebook is ad-hoc and does not update batch analysis health.")
+        render_ask_product(runner=runner)
+        question = st.session_state.get("ask_notebook_question") or ""
         rm = module_freshness(
             runner,
             storage,
             ["llm_custom_qa"],
-            question_text=(question or "").strip() or None,
+            question_text=question.strip() or None,
         )[0]
         if rm.get("envelope"):
             st.divider()
             if rm.get("status") == "stale":
                 st.caption(
-                    "Last published Ask notebook result is stale — re-ask to refresh "
-                    "(stale payload hidden)"
+                    "Last Ask answer is out of date — ask again to refresh."
                 )
             else:
-                st.caption("Last published Ask notebook result")
-                live = rm.get("live_evidence") or []
-                if live:
-                    st.json(live)
-                st.json((rm["envelope"] or {}).get("payload") or {})
+                st.caption("Last Ask answer")
+                payload = (rm["envelope"] or {}).get("payload") or {}
+                if payload.get("answer"):
+                    st.markdown(payload["answer"])
+                with st.expander("Advanced · last Ask"):
+                    st.json(payload)
 
 
 

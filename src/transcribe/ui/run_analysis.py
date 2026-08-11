@@ -582,13 +582,23 @@ def render_run_analysis_form(
 
     last = st.session_state.get(_LAST_RESULTS_KEY)
     if isinstance(last, dict) and last:
+        from transcribe.ui.analysis_health_view import last_run_product_summary
+
         st.subheader("Last run")
-        ok = sum(1 for v in last.values() if v.get("outcome") == "success")
-        st.caption(f"{ok}/{len(last)} succeeded")
-        for mid, row in last.items():
-            st.write(
-                f"**{format_module_label(mid)}:** outcome=`{row.get('outcome')}` "
-                f"capability=`{row.get('capability')}`"
-            )
+        preset_label = st.session_state.get(_PRESET_KEY)
+        if isinstance(preset_label, str):
+            try:
+                preset_label = format_preset_label(label_to_preset(preset_label))
+            except Exception:  # noqa: BLE001
+                pass
+        else:
+            preset_label = None
+        st.caption(last_run_product_summary(last, preset_label=preset_label))
+        with st.expander("Advanced · per-module outcomes"):
+            for mid, row in last.items():
+                st.write(
+                    f"**{format_module_label(mid)}:** "
+                    f"{row.get('outcome')} / {row.get('capability')}"
+                )
 
     return False

@@ -19,7 +19,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 
 ---
 
-## Now — Product hardening — [~] active
+## Now — Product hardening — [x] done (exit gate: acceptance suite)
 
 Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open.
 
@@ -32,7 +32,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 | **3** — #5, #6 | [x] | Users can trust exactly what a preset will run |
 | **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” |
 | **5** — #13 | [x] | Exports identify exactly which notebook revision produced them |
-| **6** — #7–9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics |
+| **6** — #7–9 | [x] | Analyse surfaces are simplified around user tasks rather than module mechanics |
 
 | Track | Intent |
 |-------|--------|

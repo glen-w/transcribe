@@ -19,7 +19,9 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 | #11 | `content_revision` | 4 | done |
 | #12 | Derived health shared across surfaces | 4 | done |
 | #13 | Provenance-aware export under stable revision | 5 | done |
-| #7–9 | Analyse UX simplification (product views, status strip, OCR Advanced) | 6 | planned |
+| #7 | Product views (task-shaped Analyse read-models) | 6 | done |
+| #8 | Shared Analyse status strip (sole default health chrome) | 6 | done |
+| #9 | OCR Advanced (primary = model + run; power controls collapsed) | 6 | done |
 
 ## Phase outcomes
 
@@ -38,5 +40,11 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 - Process death does **not** auto-resume; reopen marks orphaned attempts/runs `interrupted`; re-run uses published cache hits.
 - Mid-run settings / text-model / module-list changes apply to the **next** run only.
 - Ask notebook remains an ad-hoc action (not a durable batch run).
+
+## Phase 6 notes
+
+- **#8** One status strip above Analyse result tabs answers revision · aggregate · active/interrupted. Per-tab aggregate captions and default capability banners are removed.
+- **#7** Overview / Themes / Mood / Moments / Summaries / Ask / Last run are product read-models; module ids, capability enums, and `st.json` live under **Advanced**.
+- **#9** Transcribe primary chrome is vision model + Start (+ optional cleanup toggle). Workers, force re-OCR, cleanup detail, and capability dumps sit under **Advanced**. Remote-host privacy acknowledgement stays visible/confirm-gated.
 
 Governing contracts: [analysis-run-storage](contracts/analysis-run-storage.md) · [analysis-result](contracts/analysis-result.md) · [project-on-disk](contracts/project-on-disk.md).
