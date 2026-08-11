@@ -18,6 +18,7 @@ from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
     suitable_text_model_names,
 )
+from transcribe.corpus.paths import CorpusPaths
 from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import (
@@ -828,9 +829,12 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
         try:
             root = allocate_notebook_root(runtime.projects_dir, cleaned)
             paths = open_project_paths(root)
-            ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).create(
-                title=cleaned
-            )
+            ProjectService(
+                paths,
+                clock=SystemClock(),
+                ids=UuidGenerator(),
+                corpus_paths=CorpusPaths.from_runtime(runtime),
+            ).create(title=cleaned)
             bump_archive_generation(runtime)
             archive.ensure_index()
             st.cache_resource.clear()
