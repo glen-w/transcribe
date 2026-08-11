@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [ ] planned — authoritative sequencing for the next product focus after Analyse Phases 1–2.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Analyse Phases 1–2 are done; U0–U4 remain the open tracks.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 

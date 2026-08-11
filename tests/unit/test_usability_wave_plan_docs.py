@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 DOCS = Path(__file__).resolve().parents[2] / "docs"
+ROOT = DOCS.parent
 
 
 def test_usability_wave_plan_exists_with_tracks():
@@ -13,6 +14,7 @@ def test_usability_wave_plan_exists_with_tracks():
     assert plan.is_file(), "docs/usability_wave_plan.md missing"
     text = plan.read_text(encoding="utf-8")
     assert "Type: PRODUCT" in text
+    assert "[~] active" in text
     for track in ("U0", "U1", "U2", "U3", "U4"):
         assert track in text, f"plan missing track {track}"
     assert "not the centerpiece" in text
@@ -33,6 +35,25 @@ def test_indexes_and_roadmap_link_usability_wave():
         assert "usability_wave_plan.md" in text, f"{rel} missing usability_wave_plan link"
 
 
+def test_readme_direction_links_usability_wave():
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "usability_wave_plan.md" in text
+    assert "usability wave" in text.lower()
+
+
+def test_history_docs_point_at_usability_wave_now():
+    for rel in (
+        "analysis_wave1_plan.md",
+        "analysis_wave1_hardening_plan.md",
+        "analysis_module_porting.md",
+    ):
+        text = (DOCS / rel).read_text(encoding="utf-8")
+        assert "Now — Product hardening" not in text, f"{rel} has stale Now heading"
+        assert "usability_wave_plan.md" in text or "Usability wave" in text, (
+            f"{rel} should point at usability wave"
+        )
+
+
 def test_hardening_checklist_splits_phase6_items():
     text = (DOCS / "product_hardening_plan.md").read_text(encoding="utf-8")
     assert "| #7 |" in text
@@ -49,3 +70,8 @@ def test_roadmap_now_is_usability_wave():
     assert "**U0**" in text and "**U1**" in text
     assert "U2 First-run" in text or "**U2" in text
     assert "U4" in text
+
+
+def test_detection_contract_documents_midrun_reconcile_rule():
+    text = (DOCS / "contracts" / "detection-run-storage.md").read_text(encoding="utf-8")
+    assert "reconcile=False" in text

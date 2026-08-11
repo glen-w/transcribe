@@ -4,7 +4,7 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 # Transcribe roadmap
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
-**Usability wave (next focus):** [usability_wave_plan.md](usability_wave_plan.md)  
+**Usability wave (active focus):** [usability_wave_plan.md](usability_wave_plan.md)  
 **Analysis porting map:** [analysis_module_porting.md](analysis_module_porting.md)  
 **Core delivery history (internal):** [analysis_wave1_plan.md](analysis_wave1_plan.md)  
 **Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  

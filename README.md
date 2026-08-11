@@ -83,7 +83,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; next product work is **robustness and Analyse UX** for that set. Deferred reinterpretations and `ocr_quality` are **not scheduled** — [ROADMAP.md](docs/ROADMAP.md). Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** (trust / Analyse product UX → first-run operability → daily workbench; corpus inbox gated) — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 
@@ -94,5 +94,5 @@ By default Transcribe talks to `http://localhost:11434` (native) or `http://host
 - [Product](docs/PRODUCT.md) · [User index](docs/USER_INDEX.md) · [Developer index](docs/DEV_INDEX.md) · [Contract index](docs/CONTRACT_INDEX.md)
 - [User guide](docs/user_guide.md) · [Developer quickstart](docs/developer_quickstart.md)
 - [Architecture](docs/ARCHITECTURE.md) · [Installation](docs/runtime/installation.md) · [Docker](docs/runtime/docker.md)
-- [Known limitations](docs/known_limitations.md) · [Roadmap](docs/ROADMAP.md) · [Terms](docs/TERMS.md)
+- [Known limitations](docs/known_limitations.md) · [Roadmap](docs/ROADMAP.md) · [Usability wave](docs/usability_wave_plan.md) · [Terms](docs/TERMS.md)
 - License: MIT · Third-party: [NOTICE](NOTICE)

@@ -43,7 +43,7 @@ Update the **owning** doc:
 | Export files / notebook JSON | [contracts/notebook-export.md](../contracts/notebook-export.md) |
 | CLI/UI entrypoints | [public_surfaces.md](../public_surfaces.md) + README links |
 | Ownership / component shape | [ARCHITECTURE.md](../ARCHITECTURE.md) |
-| Vision / roadmap | [PRODUCT.md](../PRODUCT.md) / [ROADMAP.md](../ROADMAP.md) |
+| Vision / roadmap | [PRODUCT.md](../PRODUCT.md) / [ROADMAP.md](../ROADMAP.md) / [usability_wave_plan.md](../usability_wave_plan.md) (active focus) / [product_hardening_plan.md](../product_hardening_plan.md) (U0/U1 checklist) |
 
 Then skim guides for stale summaries (replace normative drift with a one-line summary + link).
 

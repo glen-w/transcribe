@@ -48,8 +48,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
 - Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume
 - Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI
-- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
-- Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
+- Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the **usability wave**, not deferred reinterpretation modules — [usability_wave_plan.md](usability_wave_plan.md))
+- Deferred reinterpretation modules are not scheduled; product focus is the usability wave (trust, Analyse product UX, first-run, daily workbench) for the shipped surfaces — [ROADMAP.md](ROADMAP.md) **Now**
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
 ## Integration

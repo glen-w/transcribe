@@ -14,7 +14,7 @@ Authority: curated navigation only — does not own product rules or contracts
 | [CONTRACT_INDEX.md](CONTRACT_INDEX.md) | Where invariants live |
 | [TERMS.md](TERMS.md) | Glossary pointing at contracts |
 | [ROADMAP.md](ROADMAP.md) | Product priorities: usability wave now; deferred analysis unscheduled |
-| [usability_wave_plan.md](usability_wave_plan.md) | Next product focus: trust, Analyse UX, first-run, daily workbench (PRODUCT) |
+| [usability_wave_plan.md](usability_wave_plan.md) | Active product focus: trust, Analyse UX, first-run, daily workbench (PRODUCT) |
 | [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core analysis delivery history (internal; shipped) |
 
 Start here if you are new: [../README.md](../README.md) → [user_guide.md](user_guide.md).
