@@ -37,6 +37,21 @@ Analysis batches / OCR apply operations capture one immutable `EffectiveConfig`.
 
 `ANALYSIS_CONFIG_VERSION` and `PRESET_POLICY_VERSION` are included in fingerprint-relevant config subsets.
 
+### Analysis UI presets (`analysis.ui_presets`)
+
+Each named preset policy (`quick` / `balanced` / `thorough`) carries:
+
+| Field | Role |
+|-------|------|
+| policy knobs | `allow_llm`, allowlists, `include_excluded_from_default`, optional `module_ids` override |
+| `content_version` | integer content generation; builtins default to `1`; missing on load → `1` |
+
+`PRESET_POLICY_VERSION` is schema/shape only. **Content identity** is `content_version` plus the policy body fingerprint (SHA-256 of knobs **excluding** `content_version`).
+
+Settings writes that change a named preset’s policy body **must** bump that preset’s `content_version`. Unchanged saves must not bump. Custom selections on Run Analysis are not workspace presets: they use `preset_key=custom`, `content_version=0`, and a fingerprint of the selected module list.
+
+Frozen `AnalysisRunPlan` records `preset_key`, `preset_content_version`, and `preset_policy_fingerprint` so a run identifies exactly which preset generation produced it (see [analysis-run-storage.md](analysis-run-storage.md)).
+
 ## Recovery
 
 Corrupt/unsupported settings: never silent overwrite. Preserve file; surface stable error codes (`settings_corrupt`, `settings_schema_unsupported`). In-memory defaults only under explicit `defaults_readonly` recovery; Saves disabled until Reset workspace (archives then writes fresh defaults).

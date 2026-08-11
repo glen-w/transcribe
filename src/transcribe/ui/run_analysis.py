@@ -13,7 +13,12 @@ from transcribe.analysis.llm_runtime import (
 )
 from transcribe.analysis.module_catalog import format_module_label
 from transcribe.analysis.parents import batch_module_order
-from transcribe.analysis.plan import build_analysis_run_plan
+from transcribe.analysis.plan import (
+    AnalysisRunPlan,
+    PlanHashMismatchError,
+    build_analysis_run_plan,
+    verify_plan_hash,
+)
 from transcribe.analysis.presets import (
     PRESET_HELP,
     PRESET_LABELS,
@@ -257,26 +262,35 @@ def _start_coordinator_run(
     projects: ProjectService,
     coord: AnalysisCoordinator,
 ) -> None:
-    """Freeze AnalysisRunPlan and start the async coordinator (non-blocking)."""
+    """Start from a frozen AnalysisRunPlan already bound in pending (no re-snapshot)."""
+    plan_raw = pending.get("plan")
     launch_ids = list(pending.get("modules") or [])
-    question_text = pending.get("question_text")
-    preset_label = pending.get("preset_label")
     st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
     try:
-        plan = build_analysis_run_plan(
-            project_service=projects,
-            module_ids=launch_ids,
-            question_text=question_text,
-            preset_label=preset_label,
-            clock=SystemClock(),
-            ids=UuidGenerator(),
-        )
+        if not isinstance(plan_raw, dict):
+            raise PlanHashMismatchError("pending launch is missing a frozen analysis plan")
+        plan = AnalysisRunPlan.from_dict(plan_raw)
+        expected = str(pending.get("plan_hash") or plan.plan_hash or "")
+        if not expected or plan.plan_hash != expected or not verify_plan_hash(plan):
+            raise PlanHashMismatchError(
+                "pending plan_hash does not match the frozen analysis plan"
+            )
         run_id = coord.start(plan)
         st.session_state[_ACTIVE_RUN_ID_KEY] = run_id
         pending["started"] = True
         pending["run_id"] = run_id
         st.session_state[_PENDING_LAUNCH_KEY] = pending
     except JobConflictError as exc:
+        st.session_state[_IN_PROGRESS_KEY] = False
+        st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+        st.session_state[SNAPSHOT_KEY] = {
+            **make_initial_snapshot(len(launch_ids)),
+            "status": "failed",
+            "phase": "failed",
+            "error": str(exc),
+            "latest_event": str(exc),
+        }
+    except PlanHashMismatchError as exc:
         st.session_state[_IN_PROGRESS_KEY] = False
         st.session_state.pop(_PENDING_LAUNCH_KEY, None)
         st.session_state[SNAPSHOT_KEY] = {
@@ -365,6 +379,8 @@ def _render_config_and_launch(
         resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
     )
     parts = [f"**{format_preset_label(preset)}** · {len(plan.module_ids)} modules"]
+    if resolved.preset != "custom":
+        parts.append(f"v{resolved.content_version}")
     if plan.llm_count:
         parts.append(f"{plan.llm_count} use an LLM")
     if plan.heavy_count:
@@ -421,18 +437,49 @@ def _render_config_and_launch(
         key="run_analysis_launch",
     ):
         q = (question_text or "").strip() or None
+        try:
+            frozen = build_analysis_run_plan(
+                project_service=projects,
+                module_ids=launch_ids,
+                question_text=q,
+                preset_label=format_preset_label(preset),
+                preset_key=resolved.preset,
+                preset_content_version=resolved.content_version,
+                preset_policy_fingerprint=resolved.policy_fingerprint,
+                clock=SystemClock(),
+                ids=UuidGenerator(),
+                project=project,
+            )
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Could not freeze analysis plan: {exc}")
+            return
+
+        model_bit = (
+            f"`{frozen.text_model.model_name}`"
+            if frozen.text_model is not None
+            else "LLM unavailable (modules will report unavailable_model)"
+        )
+        version_bit = (
+            f" · preset v{resolved.content_version}"
+            if resolved.preset != "custom"
+            else " · custom"
+        )
         st.session_state[_PENDING_LAUNCH_KEY] = {
-            "modules": list(launch_ids),
+            "modules": list(frozen.module_ids),
             "question_text": q,
             "preset_label": format_preset_label(preset),
+            "preset_key": resolved.preset,
+            "preset_content_version": resolved.content_version,
+            "plan": frozen.as_dict(),
+            "plan_hash": frozen.plan_hash,
             "form_cleared": False,
             "started": False,
             "footer_summary": (
-                f"Running **{format_preset_label(preset)}** · "
-                f"{len(launch_ids)} modules"
+                f"Running **{format_preset_label(preset)}**{version_bit} · "
+                f"{len(frozen.module_ids)} modules · {model_bit}"
             ),
         }
-        st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
+        st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(frozen.module_ids))
         st.session_state[_IN_PROGRESS_KEY] = True
         st.rerun()
 

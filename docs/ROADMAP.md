@@ -29,9 +29,9 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 |-------|--------|---------|
 | **1** — #10, #3, #4 | [x] | Analyse has one launcher and one freshness authority |
 | **2** — #1, #2 | [x] | Runs survive UI/process interruption and execute from frozen inputs |
-| **3** — #5, #6 | [ ] | Users can trust exactly what a preset will run |
-| **4** — #11, #12 | [ ] | Every analysis surface gives the same answer to “is this current and healthy?” |
-| **5** — #13 | [ ] | Exports identify exactly which notebook revision produced them |
+| **3** — #5, #6 | [x] | Users can trust exactly what a preset will run |
+| **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” |
+| **5** — #13 | [x] | Exports identify exactly which notebook revision produced them |
 | **6** — #7–9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics |
 
 | Track | Intent |

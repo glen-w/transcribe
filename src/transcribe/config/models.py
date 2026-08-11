@@ -17,8 +17,10 @@ class PresetPolicyConfig:
     heavy_module_ids: tuple[str, ...] = ()
     include_excluded_from_default: bool = False
     module_ids: tuple[str, ...] | None = None
+    content_version: int = 1
 
-    def as_dict(self) -> dict[str, Any]:
+    def policy_body_dict(self) -> dict[str, Any]:
+        """Policy content without content_version (for change detection / fingerprints)."""
         return {
             "allow_llm": self.allow_llm,
             "llm_module_ids": list(self.llm_module_ids),
@@ -28,6 +30,11 @@ class PresetPolicyConfig:
             "module_ids": None if self.module_ids is None else list(self.module_ids),
         }
 
+    def as_dict(self) -> dict[str, Any]:
+        body = self.policy_body_dict()
+        body["content_version"] = int(self.content_version)
+        return body
+
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> PresetPolicyConfig:
         if not data:
@@ -35,6 +42,11 @@ class PresetPolicyConfig:
         mid = data.get("module_ids", None)
         if mid is not None:
             mid = tuple(str(x) for x in mid)
+        version_raw = data.get("content_version", 1)
+        try:
+            content_version = max(1, int(version_raw))
+        except (TypeError, ValueError):
+            content_version = 1
         return cls(
             allow_llm=bool(data.get("allow_llm", False)),
             llm_module_ids=tuple(str(x) for x in (data.get("llm_module_ids") or ())),
@@ -44,6 +56,7 @@ class PresetPolicyConfig:
                 data.get("include_excluded_from_default", False)
             ),
             module_ids=mid,
+            content_version=content_version,
         )
 
 

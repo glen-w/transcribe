@@ -48,6 +48,10 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
 - Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume
 - Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI
+- Analyse tabs share derived `AnalysisHealth` (same `content_revision` + aggregate rules); Ask notebook remains ad-hoc and does not update batch health
+- Batch launches freeze an `AnalysisRunPlan` with `plan_hash` at confirm; start refuses hash mismatch and does not re-snapshot settings
+- Named presets carry `content_version` (bumped on Settings save); runs record preset identity
+- Exports stamp notebook `content_revision` on JSON, manifest, Markdown, and plain text
 - Dedicated People & places / Patterns tabs are not shipped; payloads feed Overview / Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
 - Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)

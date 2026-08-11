@@ -64,6 +64,31 @@ Other contracts (including analysis-run-storage and detection-run-storage) **ref
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
 
+## `content_revision` (notebook content identity)
+
+`content_revision` is the hex SHA-256 of a canonical JSON object describing **exportable notebook content** (all pages in project order). It is distinct from analysis `content_fingerprint` ([analysis-document.md](analysis-document.md)), which may omit blank/excluded pages and use analysis split profiles.
+
+**Algorithm (`content_revision_version: 1`):**
+
+```
+SHA-256(canonical_json({
+  content_revision_version: 1,
+  project_id,
+  pages: [
+    { page_id, global_index, text, edited, status,
+      date, date_approved, date_source, tags }  // tags sorted; text = effective text
+    // one entry per project.pages order
+  ]
+}))
+```
+
+Rules:
+
+- Membership = **all** project pages (export view)
+- Authority = recompute from a coherent Project + page-result load (e.g. under mutation lock / `ExportSnapshot`)
+- Optional caches of the hex are allowed; recompute wins
+- Used by Analyse derived health and provenance-aware export ([notebook-export.md](notebook-export.md))
+
 ## Ingest durability
 
 Ingest stages bytes under `.staging/{attempt_id}/`, writes `.ingest-journal.json`, promotes files with same-filesystem replace, then commits `project.json`, then clears the journal.
