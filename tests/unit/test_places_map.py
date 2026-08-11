@@ -215,3 +215,183 @@ def test_shell_and_app_wire_places_surfaces() -> None:
     assert "People & places" in app
     assert "render_corpus_places_page" in app
     assert "render_notebook_places_tab" in app
+
+
+def test_places_service_has_no_streamlit_import() -> None:
+    source = Path("src/transcribe/services/places.py").read_text(encoding="utf-8")
+    assert "streamlit" not in source
+
+
+def test_nominatim_geocode_parses_mock_response() -> None:
+    from io import BytesIO
+    from transcribe.services.places import nominatim_geocode
+
+    class _Resp(BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    payload = b'[{"lat":"51.5","lon":"-0.12","display_name":"London, UK"}]'
+
+    def opener(req, timeout=12.0):
+        assert "nominatim.openstreetmap.org" in req.full_url
+        assert req.get_header("User-agent") or req.headers.get("User-agent")
+        return _Resp(payload)
+
+    result = nominatim_geocode("London", opener=opener)
+    assert result["status"] == "ok"
+    assert result["lat"] == pytest.approx(51.5)
+    assert result["lon"] == pytest.approx(-0.12)
+    assert "London" in (result["display_name"] or "")
+
+
+def test_nominatim_geocode_empty_list_is_not_found() -> None:
+    from io import BytesIO
+    from transcribe.services.places import nominatim_geocode
+
+    class _Resp(BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def opener(req, timeout=12.0):
+        return _Resp(b"[]")
+
+    result = nominatim_geocode("NowherevilleXYZ", opener=opener)
+    assert result["status"] == "not_found"
+
+
+def test_resolve_places_respects_lookup_budget(tmp_path: Path) -> None:
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=tmp_path / "data",
+        projects_dir=tmp_path / "projects",
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    runtime.ensure_layout()
+    cache = GeocodeCache(runtime)
+    places = [
+        PlaceMention(surface=f"City{i}", label="GPE", count=1) for i in range(3)
+    ]
+    calls: list[str] = []
+
+    def fake(q: str) -> dict:
+        calls.append(q)
+        return {
+            "status": "ok",
+            "lat": 1.0 + len(calls),
+            "lon": 2.0,
+            "display_name": q,
+            "provider": "fake",
+        }
+
+    resolved = resolve_places(
+        places,
+        cache,
+        allow_network=True,
+        geocode_fn=fake,
+        max_network_lookups=1,
+        sleep_fn=lambda _s: None,
+    )
+    assert len(calls) == 1
+    assert resolved[0].status == "ok"
+    assert resolved[1].status == "pending"
+    assert resolved[2].status == "pending"
+
+
+def test_resolve_places_caches_not_found(tmp_path: Path) -> None:
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=tmp_path / "data",
+        projects_dir=tmp_path / "projects",
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    runtime.ensure_layout()
+    cache = GeocodeCache(runtime)
+    places = [PlaceMention(surface="Xyzzy", label="GPE", count=1)]
+
+    def miss(q: str) -> dict:
+        return {
+            "status": "not_found",
+            "lat": None,
+            "lon": None,
+            "display_name": None,
+            "provider": "fake",
+        }
+
+    first = resolve_places(
+        places, cache, allow_network=True, geocode_fn=miss, sleep_fn=lambda _s: None
+    )
+    assert first[0].status == "not_found"
+
+    def boom(q: str) -> dict:
+        raise AssertionError("should use cache")
+
+    second = resolve_places(
+        places, cache, allow_network=True, geocode_fn=boom, sleep_fn=lambda _s: None
+    )
+    assert second[0].status == "not_found"
+
+
+def test_corrupt_ok_cache_without_coords_becomes_error(tmp_path: Path) -> None:
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=tmp_path / "data",
+        projects_dir=tmp_path / "projects",
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    runtime.ensure_layout()
+    cache = GeocodeCache(runtime)
+    cache.put("Broken", {"status": "ok", "lat": None, "lon": None})
+    resolved = resolve_places(
+        [PlaceMention(surface="Broken", label="FAC", count=1)],
+        cache,
+        allow_network=False,
+    )
+    assert resolved[0].status == "error"
+    assert map_points(resolved) == []
+
+
+def test_extract_fac_label() -> None:
+    snap = extract_from_ner_payload(
+        {
+            "entities": [
+                {"surface": "Louvre", "label": "FAC", "unit_id": "p1"},
+            ]
+        }
+    )
+    assert snap.places[0].label == "FAC"
+    assert snap.places[0].surface == "Louvre"
+
+
+def test_load_notebook_without_ner(tmp_path: Path) -> None:
+    nb = tmp_path / "empty"
+    nb.mkdir()
+    (nb / "project.json").write_text(
+        json.dumps(
+            {
+                "format": "transcribe.project",
+                "schema_version": 1,
+                "id": "empty",
+                "title": "Empty",
+                "created_at": "2020-01-01T00:00:00Z",
+                "updated_at": "2020-01-01T00:00:00Z",
+                "settings": {},
+                "sources": [],
+                "pages": [],
+                "renders": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    snap = load_notebook_places(nb)
+    assert snap.ner_available is False
+    assert snap.places == []
+    assert snap.notebooks_scanned == 1

@@ -483,21 +483,28 @@ def resolve_places(
         query = place.surface.strip()
         cached = cache.get(query)
         if cached and cached.get("status") in {"ok", "not_found"}:
+            lat = _as_float(cached.get("lat"))
+            lon = _as_float(cached.get("lon"))
+            status = str(cached.get("status"))
+            if status == "ok" and (lat is None or lon is None):
+                status = "error"
             out.append(
                 GeocodedPlace(
                     surface=place.surface,
                     query=query,
-                    lat=cached.get("lat"),
-                    lon=cached.get("lon"),
+                    lat=lat,
+                    lon=lon,
                     display_name=cached.get("display_name"),
-                    status=str(cached.get("status")),
+                    status=status,
                     label=place.label,
                     count=place.count,
                     page_ids=place.page_ids,
                     notebook_id=place.notebook_id,
                     notebook_title=place.notebook_title,
                     provider=cached.get("provider"),
-                    message=cached.get("message"),
+                    message=cached.get("message")
+                    if status != "error"
+                    else "cached ok entry missing coordinates",
                 )
             )
             continue
@@ -533,10 +540,20 @@ def resolve_places(
         result = geocode(query)
         last_network_at = time.monotonic()
         network_used += 1
+        lat = _as_float(result.get("lat"))
+        lon = _as_float(result.get("lon"))
+        status = str(result.get("status") or "error")
+        if status == "ok" and (lat is None or lon is None):
+            status = "error"
+            result = {
+                **result,
+                "status": status,
+                "message": result.get("message") or "geocoder returned ok without coordinates",
+            }
         entry = {
-            "status": result.get("status") or "error",
-            "lat": result.get("lat"),
-            "lon": result.get("lon"),
+            "status": status,
+            "lat": lat,
+            "lon": lon,
             "display_name": result.get("display_name"),
             "provider": result.get("provider") or "nominatim",
             "message": result.get("message"),
@@ -564,16 +581,30 @@ def resolve_places(
     return out
 
 
+def _as_float(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    if out != out:  # NaN
+        return None
+    return out
+
+
 def map_points(geocoded: list[GeocodedPlace]) -> list[dict[str, Any]]:
     """Rows suitable for ``st.map`` (lat/lon) plus tooltip metadata."""
     rows: list[dict[str, Any]] = []
     for g in geocoded:
-        if g.status != "ok" or g.lat is None or g.lon is None:
+        lat = _as_float(g.lat)
+        lon = _as_float(g.lon)
+        if g.status != "ok" or lat is None or lon is None:
             continue
         rows.append(
             {
-                "lat": float(g.lat),
-                "lon": float(g.lon),
+                "lat": lat,
+                "lon": lon,
                 "surface": g.surface,
                 "label": g.label,
                 "count": g.count,

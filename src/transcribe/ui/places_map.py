@@ -78,7 +78,12 @@ def render_places_panel(
 ) -> None:
     """Shared panel: people list, place table, optional geocode + map."""
     if ner_health is not None:
-        if not render_module_health_banner(ner_health):
+        # Banner is informational. Stale published NER may still power the map;
+        # only hard-stop when there is no validated envelope at all.
+        show = render_module_health_banner(ner_health)
+        if not show and (
+            ner_health.freshness == "unavailable" or ner_health.envelope is None
+        ):
             return
 
     if not snapshot.ner_available:
@@ -95,9 +100,7 @@ def render_places_panel(
         )
         return
 
-    if snapshot.notebooks_scanned and not show_notebook:
-        pass
-    elif show_notebook:
+    if show_notebook:
         st.caption(
             f"Scanned {snapshot.notebooks_scanned} notebook(s); "
             f"{snapshot.notebooks_with_ner} with successful NER."
