@@ -78,10 +78,17 @@ Use a **text** Ollama model for LLM modules. Deterministic synthesis works witho
 ```bash
 ./transcribe.sh cli export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 # or: … export <project> /path/to/dest
+# formats / typography:
+#   … export <project> --format pdf --format epub --profile large_print
+# multi-notebook anthology:
+#   … export --notebooks nb-a nb-b --title "Spring journals" /path/to/dest
 ```
 
-In the UI: **Workflow → Export**.
-Produces notebook JSON, Markdown, plain text, and an export manifest. Contract: [contracts/notebook-export.md](contracts/notebook-export.md).
+In the UI: **Workflow → Export** (formats, typography, profiles, multi-notebook).
+Produces JSON, Markdown, plain text, HTML, EPUB, PDF, and an export manifest
+(formats selectable). Profiles: `readable` / `compact` / `large_print` under
+Settings → Profiles (target **export**). Contract:
+[contracts/notebook-export.md](contracts/notebook-export.md).
 
 ## 7. Integrity check
 

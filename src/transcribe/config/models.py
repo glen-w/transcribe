@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping
 
-ProfileTargetId = Literal["workflow", "ocr", "llm"]
-PROFILE_TARGETS: tuple[ProfileTargetId, ...] = ("workflow", "ocr", "llm")
+ProfileTargetId = Literal["workflow", "ocr", "llm", "export"]
+PROFILE_TARGETS: tuple[ProfileTargetId, ...] = ("workflow", "ocr", "llm", "export")
 
 
 @dataclass(frozen=True)
@@ -359,7 +359,9 @@ class IngestConfig:
             visual_declutter_enabled=bool(declutter),
         )
 
-KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset({"analysis", "llm", "ocr", "ingest"})
+KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset(
+    {"analysis", "llm", "ocr", "ingest", "export"}
+)
 
 
 @dataclass(frozen=True)
@@ -367,12 +369,14 @@ class ProfileActivations:
     workflow: str = "default"
     ocr: str = "default"
     llm: str = "default"
+    export: str = "default"
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "active_workflow_profile": self.workflow,
             "active_ocr_profile": self.ocr,
             "active_llm_profile": self.llm,
+            "active_export_profile": self.export,
         }
 
     @classmethod
@@ -382,7 +386,14 @@ class ProfileActivations:
             workflow=str(data.get("active_workflow_profile") or "default"),
             ocr=str(data.get("active_ocr_profile") or "default"),
             llm=str(data.get("active_llm_profile") or "default"),
+            export=str(data.get("active_export_profile") or "default"),
         )
+
+
+def _default_export_config() -> Any:
+    from transcribe.services.export_options import ExportConfig
+
+    return ExportConfig()
 
 
 @dataclass(frozen=True)
@@ -393,6 +404,7 @@ class EffectiveConfig:
     llm: LlmConfig = field(default_factory=LlmConfig)
     ocr: OcrWorkspaceConfig = field(default_factory=OcrWorkspaceConfig)
     ingest: IngestConfig = field(default_factory=IngestConfig)
+    export: Any = field(default_factory=_default_export_config)
     activations: ProfileActivations = field(default_factory=ProfileActivations)
 
     def as_dict(self) -> dict[str, Any]:
@@ -401,17 +413,21 @@ class EffectiveConfig:
             "llm": self.llm.as_dict(),
             "ocr": self.ocr.as_dict(),
             "ingest": self.ingest.as_dict(),
+            "export": self.export.as_dict(),
             **self.activations.as_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> EffectiveConfig:
+        from transcribe.services.export_options import ExportConfig
+
         data = data or {}
         return cls(
             analysis=AnalysisConfig.from_dict(data.get("analysis")),
             llm=LlmConfig.from_dict(data.get("llm")),
             ocr=OcrWorkspaceConfig.from_dict(data.get("ocr")),
             ingest=IngestConfig.from_dict(data.get("ingest")),
+            export=ExportConfig.from_dict(data.get("export")),
             activations=ProfileActivations.from_dict(data),
         )
 
@@ -450,10 +466,12 @@ def workspace_document(
             "llm": body.get("llm", {}),
             "ocr": body.get("ocr", {}),
             "ingest": body.get("ingest", {}),
+            "export": body.get("export", {}),
         },
         "active_workflow_profile": activations.workflow,
         "active_ocr_profile": activations.ocr,
         "active_llm_profile": activations.llm,
+        "active_export_profile": activations.export,
     }
 
 
@@ -464,6 +482,7 @@ def strip_unknown_config_keys(data: Mapping[str, Any]) -> dict[str, Any]:
         "llm": dict(data.get("llm") or {}),
         "ocr": dict(data.get("ocr") or {}),
         "ingest": dict(data.get("ingest") or {}),
+        "export": dict(data.get("export") or {}),
     }
 
 

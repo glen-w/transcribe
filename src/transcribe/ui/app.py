@@ -566,27 +566,10 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
 
 
 def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
-    export_dest = st.text_input(
-        "Export directory",
-        value=str(runtime.export_dir / Path(root).name),
-    )
-    if st.button("Export"):
-        dest = Path(export_dest) if export_dest.strip() else None
-        service = ExportService(paths, projects)
-        written = service.export_all(project, dest)
-        from transcribe.persistence.atomic import read_json
+    from transcribe.ui.export_panel import render_export_panel
 
-        notebook = read_json(written["notebook"])
-        rev = str(notebook.get("content_revision") or "")
-        if rev:
-            st.success(f"Exported notebook revision `{rev[:16]}…`")
-        for kind, path in written.items():
-            st.write(f"**{kind}:** `{path}`")
-        st.download_button(
-            "Download notebook JSON",
-            data=path_read(written["notebook"]),
-            file_name="notebook.transcribe.json",
-        )
+    archive = get_archive(str(runtime.projects_dir), str(runtime.data_dir))
+    render_export_panel(runtime, paths, projects, project, root, archive=archive)
 
 
 def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
@@ -959,7 +942,7 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     ),
     "Export": (
         "Export",
-        "Export notebook JSON, Markdown, and plain text.",
+        "Export notebook JSON, Markdown, plain text, HTML, EPUB, and PDF.",
     ),
     "Settings": (
         "Settings",

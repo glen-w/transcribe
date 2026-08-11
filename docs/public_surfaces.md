@@ -19,7 +19,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `import <project> <source>` | Import JPEG/PNG/PDF (`--dpi` for PDFs) |
 | `models` | List vision-capable Ollama models (`--base-url`, `--all`, `--refresh`) |
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
-| `export <project> [dest]` | Write notebook JSON + Markdown + plain text |
+| `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `status <project>` | Print per-page status |
 | `detect <project>` | Run a content detector (`--detector poetry`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
