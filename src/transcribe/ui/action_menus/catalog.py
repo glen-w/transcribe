@@ -35,6 +35,12 @@ ACTIONS: tuple[ActionDef, ...] = (
         "Open Run Analysis for this notebook.",
     ),
     ActionDef(
+        ActionId.DETECT,
+        "Detect",
+        ":material/search_check:",
+        "Open Detect for poetry, lists, to-dos, and quotations.",
+    ),
+    ActionDef(
         ActionId.EXPORT,
         "Export",
         ":material/ios_share:",
@@ -61,6 +67,7 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
         ActionId.ANALYSE,
+        ActionId.DETECT,
         ActionId.EXPORT,
         ActionId.RENAME,
     ),
@@ -68,6 +75,7 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
         ActionId.ANALYSE,
+        ActionId.DETECT,
         ActionId.EXPORT,
         ActionId.RENAME,
         ActionId.DELETE,
@@ -92,6 +100,7 @@ BUILT_IN_STANDARD_MENU: tuple[ActionId, ...] = (
     ActionId.OPEN,
     ActionId.TRANSCRIBE,
     ActionId.ANALYSE,
+    ActionId.DETECT,
     ActionId.EXPORT,
 )
 

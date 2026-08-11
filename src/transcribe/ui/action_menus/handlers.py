@@ -106,6 +106,21 @@ def _render_analyse(ctx: ActionContext, *, section: SectionId, key: str) -> None
     _button(ctx, action=ActionId.ANALYSE, section=section, key=key, on_activate=_go)
 
 
+def _render_detect(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+    def _go() -> None:
+        import streamlit as st
+
+        st.session_state["analyse_focus_detect"] = True
+        navigate_workflow(
+            project_root_key=ctx.identity.project_root_key,
+            projects_dir_key=ctx.projects_dir_key,
+            mode=WorkflowMode.ANALYSE,
+            rerun=False,
+        )
+
+    _button(ctx, action=ActionId.DETECT, section=section, key=key, on_activate=_go)
+
+
 def _render_export(ctx: ActionContext, *, section: SectionId, key: str) -> None:
     def _go() -> None:
         navigate_workflow(
@@ -368,6 +383,7 @@ HANDLERS: dict[ActionId, ActionHandler] = {
     ActionId.OPEN: ActionHandler(_available_open, _render_open),
     ActionId.TRANSCRIBE: ActionHandler(_available_workflow, _render_transcribe),
     ActionId.ANALYSE: ActionHandler(_available_workflow, _render_analyse),
+    ActionId.DETECT: ActionHandler(_available_workflow, _render_detect),
     ActionId.EXPORT: ActionHandler(_available_workflow, _render_export),
     ActionId.RENAME: ActionHandler(_available_rename, _render_rename),
     ActionId.DELETE: ActionHandler(_available_delete, _render_delete),
