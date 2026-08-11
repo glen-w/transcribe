@@ -350,3 +350,65 @@ def test_resume_after_external_source_rename(tmp_path: Path) -> None:
     ).load(reconcile=False)
     assert len(project.sources) == 1
     assert project.sources[0].source_id == "src-ren"
+
+
+def test_bulk_cover_filename_sets_cover_page_id(tmp_path: Path) -> None:
+    corpus = CorpusPaths(data_dir=tmp_path / "data", projects_dir=tmp_path / "projects")
+    corpus.projects_dir.mkdir(parents=True)
+    clock, ids = FakeClock(), SequentialIds("cov")
+    cover = tmp_path / "cover.jpg"
+    other = tmp_path / "page-2.png"
+    cover_data = _png_bytes(color=(200, 100, 50))
+    other_data = _png_bytes(color=(50, 100, 200))
+    # JPEG extension with PNG bytes is fine for media detect? Use PNG named cover.png
+    cover = tmp_path / "cover.png"
+    cover.write_bytes(cover_data)
+    other.write_bytes(other_data)
+    items = [
+        ImportPlanItem(
+            item_id="cov-0",
+            op="create_notebook",
+            notebook_id="nb-cover",
+            source_sha256=sha256_bytes(cover_data),
+            media_type="image/png",
+            page_indexes=[0],
+            source_id="src-cover",
+            page_ids=["page-cover"],
+            render_ids=["render-cover"],
+            provenance={
+                "source_path": str(cover),
+                "title": "Covered",
+                "managed_relpath": "nb-cover",
+            },
+            original_filename="cover.png",
+        ),
+        ImportPlanItem(
+            item_id="cov-1",
+            op="import_into_notebook",
+            notebook_id="nb-cover",
+            source_sha256=sha256_bytes(other_data),
+            media_type="image/png",
+            page_indexes=[0],
+            source_id="src-other",
+            page_ids=["page-other"],
+            render_ids=["render-other"],
+            provenance={"source_path": str(other), "managed_relpath": "nb-cover"},
+            original_filename="page-2.png",
+        ),
+    ]
+    orch = ImportOrchestrator(corpus, clock=clock, ids=ids)
+    run = orch.create_run_from_plan(
+        ImportPlan(
+            plan_id="plan-cover",
+            import_policy_id=POLICY_SKIP_EXISTING_V1,
+            items=items,
+        )
+    )
+    completed = orch.commit_run(run.import_run_id)
+    assert completed.status == "complete"
+    project = ProjectService(
+        open_project_paths(corpus.projects_dir / "nb-cover"),
+        clock=clock,
+        ids=ids,
+    ).load(reconcile=False)
+    assert project.cover_page_id == "page-cover"
