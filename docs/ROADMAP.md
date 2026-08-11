@@ -38,7 +38,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 |-------|--------|
 | **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
 | **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as read-models |
-| **Payload polish** | Optional dedicated People & places or Patterns tabs, and deliberate keyphrase enrichment for wordclouds/topics, only when they improve the **current** module set — not as a back door for deferred reinterpretations |
+| **Payload polish** | People & places map tab shipped (NER read-model + opt-in geocode). Patterns tab and deliberate keyphrase enrichment for wordclouds/topics remain optional polish — not a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 
 Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
@@ -112,7 +112,7 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Export / readability** | Clearer notebooks for reading and sharing outside the app. |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
-| **People & places / Patterns** | Dedicated surfaces only if usage justifies it. |
+| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. |
 
 ---
 

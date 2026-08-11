@@ -249,7 +249,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             return
         st.divider()
         st.markdown("#### Published results")
-        _render_analysis_result_tabs(paths, projects, project)
+        _render_analysis_result_tabs(runtime, paths, projects, project)
         return
 
     st.caption(f"Project: `{paths.root}`")
@@ -589,12 +589,13 @@ def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
         )
 
 
-def _render_analysis_result_tabs(paths, projects, project) -> None:
+def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     (
         tab_overview,
         tab_themes,
         tab_mood,
         tab_moments,
+        tab_places,
         tab_summaries,
         tab_ask,
     ) = st.tabs(
@@ -603,6 +604,7 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             "Themes",
             "Mood & tone",
             "Moments",
+            "People & places",
             "Summaries",
             "Ask notebook",
         ]
@@ -830,6 +832,16 @@ def _render_analysis_result_tabs(paths, projects, project) -> None:
             with st.expander("moments payload"):
                 st.json(payload)
 
+    with tab_places:
+        from transcribe.ui.places_map import render_notebook_places_tab
+
+        ner_mh = batch_health.modules.get("ner")
+        render_notebook_places_tab(
+            project_root=paths.root,
+            runtime=runtime,
+            ner_health=ner_mh,
+        )
+
     with tab_summaries:
         st.subheader("Summaries")
         st.caption(
@@ -920,6 +932,10 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     "Search": (
         "Search",
         "Find text across transcribed notebook pages.",
+    ),
+    "Places": (
+        "Places",
+        "Map places mentioned across all notebooks (from published NER).",
     ),
     "New notebook": (
         "New notebook",
@@ -1048,6 +1064,10 @@ def main() -> None:
         render_notebooks(runtime, archive)
     elif mode == "Search":
         render_search(runtime, archive)
+    elif mode == "Places":
+        from transcribe.ui.places_map import render_corpus_places_page
+
+        render_corpus_places_page(runtime)
     elif mode == "Settings":
         render_settings_page()
     elif mode == "New notebook":
