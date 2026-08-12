@@ -22,6 +22,8 @@ APPLY_OCR_FIELD_ALLOWLIST: frozenset[str] = frozenset(
         "cleanup_mode",
         "cleanup_model_name",
         "text_model_name",
+        "prefer_mode",
+        "auto_activate_composite",
     }
 )
 
@@ -66,6 +68,11 @@ def preview_apply_ocr(
             continue
         if key == "cleanup_mode" and value not in CLEANUP_MODES:
             raise ConfigError(APPLY_OCR_INVALID, f"invalid cleanup_mode: {value!r}")
+        if key == "prefer_mode":
+            from transcribe.domain.models import PREFER_MODES
+
+            if value not in PREFER_MODES:
+                raise ConfigError(APPLY_OCR_INVALID, f"invalid prefer_mode: {value!r}")
         if key == "max_workers" and int(value) not in (1, 2):
             raise ConfigError(APPLY_OCR_INVALID, "max_workers must be 1 or 2")
         patch[key] = value

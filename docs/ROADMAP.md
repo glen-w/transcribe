@@ -108,6 +108,21 @@ Suggested sequence after scanner-bed borders: **generic uniform overscan** → *
 
 ---
 
+## Next — OCR lifecycle package — [~] active
+
+Ambitious OCR features on the durable attempt model: multipass multi-model runs, compare/prefer/promote, composite candidates, preference stats, fine-tune export. Contracts: [ocr-multipass](contracts/ocr-multipass.md), [ocr-preference](contracts/ocr-preference.md), [finetune-export](contracts/finetune-export.md), extended [page-result](contracts/page-result.md). Outline for external training: [finetune_export.md](finetune_export.md).
+
+| Wave | Status | Outcome |
+|------|--------|---------|
+| **W0** | [x] | Prefer/promote APIs, `activate` flag, prefer modes, settings |
+| **W1** | [x] | MultiPass orchestrator + CLI |
+| **W2** | [x] | Rank + composite (text model) |
+| **W3** | [x] | Compare/Prefer Review GUI + single-page re-run |
+| **W4** | [x] | Preference ledger + pre-run hints |
+| **W5** | [x] | Fine-tune export + docs |
+
+---
+
 ## Next — Corpus & product lifecycle — [?] candidates (partially pulled)
 
 Primary post-hardening direction for living with many notebooks. **Usability-wave U3** pulls Review UX, reading mode, search deepening, organisation polish, and model/runtime management as committed work on today’s project model (no bulk corpus activation required). **U4** covers import recovery / inbox (foundation shipping; acceptance gate still open). Remaining rows stay uncommitted candidates.
@@ -116,7 +131,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 |---------|--------|------|
 | **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump polish; entity/saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. | **U3** polish on existing fields; collections/archive-state candidate |
-| **Re-OCR / reprocessing** | Explicit “rerun this page/notebook with a better model / prompt / cleanup setting”; compare attempts; preserve human edits; safely promote a new result. | candidate |
+| **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (active) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (foundation shipping; gate open) |
 | **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** |
 | **Backup / restore / portability** | Product commitment that the whole corpus can be backed up, moved, restored, and verified without application-specific archaeology. | candidate |
@@ -230,7 +245,7 @@ Still the more central product surface than speculative analysis work. Detail an
 
 Summary:
 
-- **OCR pipeline** — import, vision OCR, optional second-pass cleanup; eventual re-OCR / reprocessing
+- OCR pipeline — import, vision OCR, optional second-pass cleanup; **multipass compare / prefer / promote / composite / fine-tune export** (OCR lifecycle package)
 - **Preprocessing** — visual declutter (human, on by default at import) vs OCR optimisation (`gentle_contrast` only today, off by default; other OCR profiles deferred) — see **Preprocessing system** above
 - **Notebook corpus** — contracts first; bulk import gated; import recovery / inbox as the user-facing continuation
 - **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX

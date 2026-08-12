@@ -13,7 +13,10 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | ImportRun / ImportPlan lifecycle, idempotency, crash/resume (**prospective**) | [contracts/import-run.md](contracts/import-run.md) |
 | Corpus/notebook doctor invariants, repair boundaries, bulk-import acceptance gate (**prospective**) | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 | Project directory layout, `project.json`, ingest journal, locks, optional `analysis/` | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
-| Page results, attempts, edits, fingerprints (persisted) | [contracts/page-result.md](contracts/page-result.md) |
+| Page results, attempts, edits, fingerprints, prefer/compare (persisted) | [contracts/page-result.md](contracts/page-result.md) |
+| OCR multipass job records, rank/composite phases | [contracts/ocr-multipass.md](contracts/ocr-multipass.md) |
+| OCR preference ledger / rollup | [contracts/ocr-preference.md](contracts/ocr-preference.md) |
+| Fine-tune dataset export package | [contracts/finetune-export.md](contracts/finetune-export.md) |
 | Portable notebook export | [contracts/notebook-export.md](contracts/notebook-export.md) |
 | Canonical analysis input, content fingerprint, `source_ref`, spans | [contracts/analysis-document.md](contracts/analysis-document.md) |
 | Analysis result envelope, outcomes vs attempts, capability UI states, provenance, evidence | [contracts/analysis-result.md](contracts/analysis-result.md) |

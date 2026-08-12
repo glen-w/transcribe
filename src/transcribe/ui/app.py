@@ -448,10 +448,22 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     names = [m.name for m in discovery.models]
     all_discovery = provider.list_models(refresh=False)
     unknown = [m.name for m in all_discovery.models if not m.capability_known]
+    from transcribe.services.ocr_preference_stats import (
+        preference_hint_for_model,
+        rollup_preference_stats,
+    )
+
+    pref_stats = rollup_preference_stats()
+
+    def _model_label(name: str) -> str:
+        hint = preference_hint_for_model(name, stats=pref_stats)
+        return f"{name} — {hint}" if hint else name
+
     model = st.selectbox(
         "Vision model",
         options=names or [project.settings.model_name or ""],
         index=0 if names else 0,
+        format_func=_model_label,
     )
     text_model_options = suitable_text_model_names(all_discovery.models)
     if (
@@ -544,6 +556,27 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
                 "Falls back to the text analysis model if unset."
             ),
         )
+        from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES
+
+        prefer_labels = {
+            "prefer_is_promote": "Prefer = promote",
+            "prefer_only": "Prefer only (no activate)",
+            "prefer_promote_with_edit_gate": "Prefer + promote with edit gate",
+        }
+        prefer_mode = st.selectbox(
+            "Prefer mode",
+            options=list(prefer_labels.keys()),
+            format_func=lambda m: prefer_labels[m],
+            index=(
+                list(prefer_labels.keys()).index(project.settings.prefer_mode)
+                if project.settings.prefer_mode in prefer_labels
+                else 0
+            ),
+        )
+        auto_activate_composite = st.checkbox(
+            "Auto-activate composite after multipass",
+            value=bool(project.settings.auto_activate_composite),
+        )
         st.caption(
             "Unverified model identity may increase cost or surprise quality — "
             "prefer discovered vision-capable tags when listed."
@@ -564,6 +597,8 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         settings.cleanup_mode = cleanup_mode
         if cleanup_enabled:
             settings.cleanup_model_name = cleanup_model
+        settings.prefer_mode = prefer_mode
+        settings.auto_activate_composite = bool(auto_activate_composite)
         project = projects.save_settings(project, settings)
         coord.provider = OllamaVisionProvider(normalized)
         st.success("Settings saved")
@@ -586,12 +621,70 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
                 settings.cleanup_mode = cleanup_mode
                 if cleanup_enabled:
                     settings.cleanup_model_name = cleanup_model
+                settings.prefer_mode = prefer_mode
+                settings.auto_activate_composite = bool(auto_activate_composite)
                 project = projects.save_settings(project, settings)
                 coord.provider = OllamaVisionProvider(normalized)
                 coord.start(force=force)
                 st.session_state["_job_was_running"] = True
                 st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
+            except (JobConflictError, TranscribeError) as exc:
+                st.error(str(exc))
+
+    st.divider()
+    st.subheader("Compare models")
+    st.caption(
+        "Run two or more vision models on this notebook, then rank and "
+        "optionally produce a composite candidate with the text model."
+    )
+    multi_models = st.multiselect(
+        "Vision models for multipass",
+        options=names,
+        default=[],
+        format_func=_model_label,
+        help="Select at least two models.",
+    )
+    no_auto_comp = st.checkbox(
+        "Do not auto-activate composite",
+        value=not bool(project.settings.auto_activate_composite),
+    )
+    if st.button("Start multipass compare"):
+        if remote and not allow_remote:
+            st.error("Enable the remote-host acknowledgement first.")
+        elif len(multi_models) < 2:
+            st.error("Select at least two vision models.")
+        else:
+            try:
+                from transcribe.services.multipass import MultiPassCoordinator
+                from transcribe.ports import SystemClock, UuidGenerator
+
+                settings = project.settings
+                settings.base_url = normalized
+                settings.text_model_name = text_model
+                settings.allow_non_loopback = allow_remote
+                if cleanup_enabled:
+                    settings.cleanup_model_name = cleanup_model
+                elif text_model and not settings.cleanup_model_name:
+                    settings.cleanup_model_name = text_model
+                project = projects.save_settings(project, settings)
+                coord.provider = OllamaVisionProvider(normalized)
+                multi = MultiPassCoordinator(
+                    jobs=coord,
+                    projects=projects,
+                    clock=SystemClock(),
+                    ids=UuidGenerator(),
+                )
+                with st.spinner("Running multipass (this may take a while)…"):
+                    progress = multi.run_blocking(
+                        model_names=list(multi_models),
+                        force=force,
+                        auto_activate_composite=not no_auto_comp,
+                    )
+                if progress.status == "completed":
+                    st.success(progress.message or "Multipass complete")
+                else:
+                    st.error(progress.message or progress.status)
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
 

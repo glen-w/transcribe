@@ -42,8 +42,14 @@ def list_catalogue(
     customs = {p.prompt_id: p for p in load_custom_prompts(rt)}
     entries: list[PromptCatalogueEntry] = []
 
-    # OCR + cleanup adapters
-    for defn in ocr_templates_as_definitions() + cleanup_templates_as_definitions():
+    # OCR + cleanup + compare adapters
+    from transcribe.services.ocr_compare import compare_templates_as_definitions
+
+    for defn in (
+        ocr_templates_as_definitions()
+        + cleanup_templates_as_definitions()
+        + compare_templates_as_definitions()
+    ):
         if defn.prompt_id in overrides:
             ov = overrides[defn.prompt_id]
             entries.append(PromptCatalogueEntry(definition=ov, source="override"))
@@ -119,9 +125,22 @@ def resolve_prompt(
     code = get_code_prompt(prompt_id, version=version)
     if code is not None:
         return code
-    for defn in ocr_templates_as_definitions() + cleanup_templates_as_definitions():
+    for defn in (
+        ocr_templates_as_definitions()
+        + cleanup_templates_as_definitions()
+    ):
         if defn.prompt_id == prompt_id and (version is None or defn.version == version):
             return defn
+    try:
+        from transcribe.services.ocr_compare import compare_templates_as_definitions
+
+        for defn in compare_templates_as_definitions():
+            if defn.prompt_id == prompt_id and (
+                version is None or defn.version == version
+            ):
+                return defn
+    except Exception:  # noqa: BLE001
+        pass
     return None
 
 

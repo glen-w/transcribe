@@ -17,7 +17,7 @@ On your machine you can:
 
 without requiring a cloud OCR provider or a TranscriptX dependency.
 
-Transcribe’s product direction is a **durable notebook corpus** (identity, managed originals, and human edits survive renames and re-OCR). OCR is one derived process over that corpus. Bulk multi-notebook import is gated on prospective contracts: [notebook-corpus](contracts/notebook-corpus.md), [source-asset](contracts/source-asset.md), [import-run](contracts/import-run.md), [corpus-integrity](contracts/corpus-integrity.md).
+Transcribe’s product direction is a **durable notebook corpus** (identity, managed originals, and human edits survive renames and re-OCR). OCR is one derived process over that corpus — including multipass compare, prefer/promote, and fine-tune export for external training. Bulk multi-notebook import is gated on prospective contracts: [notebook-corpus](contracts/notebook-corpus.md), [source-asset](contracts/source-asset.md), [import-run](contracts/import-run.md), [corpus-integrity](contracts/corpus-integrity.md).
 
 ## Audience
 

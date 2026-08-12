@@ -46,7 +46,7 @@ CLI ──────────────────┘              │
 
 - **ProjectService** — load/save settings and metadata with load→modify→validate→write under the mutation lock; reconciles interrupted attempts when the job lock is free
 - **IngestService** — stages, journals, promotes, then commits the manifest; recovers incomplete journals on open/load
-- **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings
+- **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings. Multipass reuses frozen single-model plans with `activate=false` / `pass_id`, then rank + composite ([contracts/ocr-multipass.md](contracts/ocr-multipass.md)).
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors

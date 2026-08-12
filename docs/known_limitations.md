@@ -14,6 +14,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - **Page ink / blankness metrics** (Review strip + Analyse Overview rollup) are approximate Pillow heuristics over the active render. Ruled lines, shadows, stains, and colour casts can inflate “ink”; hue labels (`black` / `blue` / …) are coarse peaks, not calibrated colour science. Metrics invalidate when active render bytes change; they are not Analyse text modules and do not affect OCR.
 - Optional **OCR cleanup** (Run tab / `--cleanup`) adds a **second text-model Ollama call per page** after vision OCR. This can materially increase latency, memory use, and Ollama contention. Cleanup runs sequentially on the page worker after OCR (no extra parallelism). Failures and validator rejections keep raw OCR and never fail the page; rejected model output is discarded
 - Cleanup sends OCR text (not page images) to the configured Ollama host; remote hosts still exfiltrate that text by design of that configuration
+- **Multipass compare** runs each selected vision model across the notebook, then a text-model **rank** (text-only v1) and optional **composite** merge. Cost scales with model count × pages plus rank/composite calls; composite is assistive, not ground truth. Rank failure falls back to chronological attempt order in Review.
 
 ## Import / PDF
 
