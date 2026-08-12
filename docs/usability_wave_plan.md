@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Analyse Phases 1–5 are done (**U0** landed via [PR #5](https://github.com/glen-w/transcribe/pull/5)); open tracks are **U1–U4**.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; open tracks are **U2–U4** (U4 foundation shipping; corpus acceptance gate still open).
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
@@ -12,7 +12,7 @@ Trust foundation          Daily workbench              Living corpus (gated)
 (phases 3–6)       →      (onboard · review · read)  →  (inbox · bulk · search+)
 ```
 
-Detection Prompt Hub / Detect UI remains a **parallel** track (draft PRs #4 / #6). It is not the centerpiece of this wave and must not steal naming (“Wave 2”).
+Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](detection_wave2_plan.md) via [PR #6](https://github.com/glen-w/transcribe/pull/6)). It is not the centerpiece of this wave and must not steal naming (“Wave 2”).
 
 ---
 
@@ -34,7 +34,7 @@ Detection Prompt Hub / Detect UI remains a **parallel** track (draft PRs #4 / #6
 | New analysis modules / deferred reinterpretations / `ocr_quality` | [ROADMAP.md](ROADMAP.md) deferral stands |
 | OpenCV preprocess pipelines | Pillow-only policy |
 | Cloud OCR providers | Product boundary |
-| Treating Detection Wave 2 as this wave’s definition of done | Parallel track |
+| Treating Detection Wave 2 as this wave’s definition of done | Parallel track (shipped) |
 | Shipping supported bulk-import UI/CLI before the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) | Contracts-first rule |
 | Corpus-level Analyse / cross-notebook links / bookmarks | Later candidates |
 
@@ -53,12 +53,12 @@ Detection Prompt Hub / Detect UI remains a **parallel** track (draft PRs #4 / #6
 | Artifact | Role in this wave |
 |----------|-------------------|
 | [product_hardening_plan.md](product_hardening_plan.md) Phases **3–5** (#5/#6/#11/#12/#13) | **U0** — **done** on `main` ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
-| Hardening Phase **6** (#7–9) | **U1** — Analyse / OCR chrome simplification on top of shared health |
+| Hardening Phase **6** (#7–9) | **U1** — **done** (product views, status strip, OCR Advanced) |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
-| Detection drafts #4 / #6 | Parallel; coordinate only where Prompt Hub / page-viewer findings share chrome |
-| Corpus contracts | **U4** product UX designed against contracts; runtime activation gated |
+| Detection wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6)) | **Shipped** parallel track; coordinate only where Prompt Hub / page-viewer findings share chrome |
+| Corpus contracts | **U4** foundation shipping (Inbox UI / bulk-import CLI); declare bulk fully supported only when acceptance gate is green |
 
-**Dependency rule:** Do not start U1 product-view cleanup that invents a second freshness model. Consume `AnalysisHealth` / `content_revision` from U0.
+**Dependency rule:** U1 consumes `AnalysisHealth` / `content_revision` from U0 (both landed). Do not invent a second freshness model.
 
 ```mermaid
 flowchart LR
@@ -83,10 +83,10 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 | Track | Intent | Hardening IDs | Status |
 |-------|--------|---------------|--------|
 | **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
-| **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | Planned |
+| **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
 | **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | Planned |
-| **U4** — Corpus UX (gated) | Inbox / import recovery / bulk import surfaces after acceptance gate | — | Planned / gated |
+| **U4** — Corpus UX (gated) | Inbox / import recovery / bulk import; foundation shipping, acceptance gate still open | — | **[~] foundation shipping** |
 
 ---
 
@@ -120,6 +120,8 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 ---
 
 ## 5. U1 — Analyse product UX (hardening Phase 6)
+
+**Status:** **[x] done** on `main` (hardening exit gate + Phase 6 notes).
 
 **Outcome:** Analyse and Transcribe surfaces read as **user tasks**, not module/OCR consoles. Builds on U0 health/revision.
 
@@ -171,7 +173,7 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 - [ ] Transcribe primary path is model + run (+ optional cleanup); power controls under Advanced.
 - [ ] Acceptance / UI contract tests: `tests/unit/test_analyse_ui_contract.py` (extend) asserts product copy for common unavailable states; smoke on port 8510.
 - [ ] [public_surfaces.md](public_surfaces.md) + [user_guide.md](user_guide.md) describe product views, not module consoles.
-- [ ] Hardening Phase 6 and ROADMAP hardening **exit gate** close when U0+U1 acceptance tests pass.
+- [x] Hardening Phase 6 and ROADMAP hardening **exit gate** close when U0+U1 acceptance tests pass.
 
 ### Key files
 
@@ -295,7 +297,7 @@ Transcribe panel already lists/refreshes models. Deepen:
 
 ## 8. U4 — Corpus UX (gated)
 
-**Outcome:** After the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green, ship the human continuation of bulk import: **inbox / import recovery** as the corpus home screen.
+**Outcome:** Human continuation of bulk import: **inbox / import recovery** as the corpus home screen. **Foundation is shipping** (index, ImportRun, Inbox UI, CLI); declare bulk-import **fully supported** only after the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green.
 
 ### Hard gate (do not violate)
 
@@ -392,10 +394,10 @@ U4 may remain open after the usability wave is declared done for U0–U3; say so
 - [x] Confirm offline phase 3–5 tests on `main`
 
 ### U1
-- [ ] #8 Status strip wired as sole default health chrome
-- [ ] #7 Product views for Overview / Themes / Mood / Moments / Summaries / Ask / Last run
-- [ ] #9 OCR Advanced grouping with privacy acknowledgement preserved
-- [ ] UI contract tests + docs; mark Phase 6 + hardening exit gate
+- [x] #8 Status strip wired as sole default health chrome
+- [x] #7 Product views for Overview / Themes / Mood / Moments / Summaries / Ask / Last run
+- [x] #9 OCR Advanced grouping with privacy acknowledgement preserved
+- [x] UI contract tests + docs; mark Phase 6 + hardening exit gate
 
 ### U2
 - [ ] Empty-state checklist + model guidance

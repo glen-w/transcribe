@@ -19,7 +19,10 @@ from transcribe.services.places import (
     resolve_places,
     write_ner_locations_artifact,
 )
-from transcribe.ui.analysis_health_view import render_module_health_banner
+from transcribe.ui.analysis_health_view import (
+    module_may_show_payload,
+    render_module_unavailable,
+)
 
 
 def _geocode_opt_in_key(scope: str) -> str:
@@ -80,13 +83,13 @@ def render_places_panel(
 ) -> None:
     """Shared panel: people list, place table, optional geocode + map."""
     if ner_health is not None:
-        # Banner is informational. Stale published NER may still power the map;
-        # only hard-stop when there is no validated envelope at all.
-        show = render_module_health_banner(ner_health)
-        if not show and (
-            ner_health.freshness == "unavailable" or ner_health.envelope is None
-        ):
+        # Stale published NER may still power the map; only hard-stop when
+        # there is no validated envelope at all.
+        if ner_health.freshness == "unavailable" or ner_health.envelope is None:
+            render_module_unavailable(ner_health, product_title="People & places")
             return
+        if not module_may_show_payload(ner_health) and ner_health.freshness == "stale":
+            st.caption("Named-entity results are out of date — map may reflect older text.")
 
     if not snapshot.ner_available:
         st.info(

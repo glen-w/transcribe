@@ -26,15 +26,28 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow.
+**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** is a foundation surface for ImportRun recovery — see **Corpus foundation** below before treating it as fully supported.
 
 **Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
-**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets, ported from TranscriptX) plus published-result tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
+**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus product read-model tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. A shared status strip above the tabs answers notebook revision and batch health. Module ids, capability enums, and raw JSON live under **Advanced** expanders — ordinary use does not require module/cache literacy. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
+
+**Transcribe (OCR)** primary chrome is vision model + Start transcription (+ optional cleanup toggle). Workers, force re-OCR, cleanup mode/model, and capability dumps sit under **Advanced**. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
 
 ### Helper script
 
 `./transcribe.sh` resolves a project-local `.venv` and accepts: `ui|web` (default), `cli|run …`, `install|setup`, `install-dev`, or passthrough argv to the CLI.
+
+## Corpus foundation (not fully supported until activation gate)
+
+Bulk-import generation ships as **foundation code** while contracts remain prospective and the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is still closing. Do **not** treat these as unconditionally supported production surfaces yet:
+
+| Surface | How to invoke | Notes |
+|---------|---------------|-------|
+| CLI `bulk-import folder <dir>` | `transcribe bulk-import folder …` (`--policy`, `--dry-run`) | Plan/commit folder scans into the corpus |
+| CLI `bulk-import status\|resume <id>` | `transcribe bulk-import status\|resume …` | Inspect or resume an ImportRun |
+| CLI `corpus-doctor` | `transcribe corpus-doctor` (`--deep`) | Workspace corpus index integrity |
+| UI **Notebooks → Inbox** | Streamlit Inbox mode | Plans/commits a folder via ImportRun; shows committed / skipped / failed recovery outcomes |
 
 ## Explicitly unsupported
 

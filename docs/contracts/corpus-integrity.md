@@ -71,10 +71,10 @@ Before writers emit optional SourceAsset linkage fields or ImportRun IDs into `t
 2. **Retry / idempotency** under exact `plan_id` + `plan_fingerprint` + `import_policy_id` equality: second commit is a no-op for committed items; failed items may progress without regenerating IDs
 3. **Duplicate policy**: `skip_existing` skips only same SHA in the **target** notebook; same bytes in another notebook are not silently skipped without explicit corpus-wide dedupe in the plan; `create_duplicate` always allocates the preallocated distinct IDs
 4. **Corpus-index corruption / rebuild**: corrupt index quarantined/reported; recovery re-registers from authoritative `project.json` IDs without inventing new `notebook_id`s; locator uniqueness restored
-5. **Deep doctor** green (or documented warnings only) after every supported recovery path on the synthetic corpus
-6. Fixture coverage includes: many notebooks × many pages, duplicate bytes, renamed external files, interrupted imports, missing managed sources, reordered pages, failed OCR, re-import, legacy schema v1 notebooks, Unicode/weird filenames, PDF split provenance, ordering ambiguity refused at validate, malformed journal quarantine
+5. **Deep doctor** green (or documented warnings only) after every supported recovery path on the synthetic corpus. Retained quarantine artifacts after a successful index rebuild are **warnings** (`corpus_quarantine_present`), not errors — operators may delete them after review.
+6. Fixture coverage includes: many notebooks × many pages, duplicate bytes, renamed external files, interrupted imports, missing managed sources, reordered pages, failed OCR, re-import, legacy schema v1 notebooks, Unicode/weird filenames, PDF split provenance, ordering ambiguity refused at validate, malformed journal quarantine. Cancel paths must distinguish `cancelled` vs `cancelled_with_commits` without rolling back committed items.
 
-**Acceptance bar:** no page identity loss; no silent overwrite of approved human metadata; deterministic resume; doctor green after every supported recovery path.
+**Acceptance bar:** no page identity loss; no silent overwrite of approved human metadata; deterministic resume; doctor green (warnings-only allowed for documented quarantine retention) after every supported recovery path.
 
 ## Non-goals
 

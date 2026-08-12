@@ -62,6 +62,10 @@ def test_hardening_checklist_splits_phase6_items():
     assert "product views" in text.lower() or "Product views" in text
     assert "status strip" in text.lower() or "Status strip" in text
     assert "OCR Advanced" in text
+    # Phase 6 landed with hardening exit gate on main
+    for line in text.splitlines():
+        if line.startswith("| #7 |") or line.startswith("| #8 |") or line.startswith("| #9 |"):
+            assert "| done |" in line, line
 
 
 def test_roadmap_now_is_usability_wave():
@@ -70,6 +74,8 @@ def test_roadmap_now_is_usability_wave():
     assert "**U0**" in text and "**U1**" in text
     assert "U2 First-run" in text or "**U2" in text
     assert "U4" in text
+    assert "U0–U1 — Product hardening" in text
+    assert "[x] done" in text  # hardening embedded done
 
 
 def test_detection_contract_documents_midrun_reconcile_rule():

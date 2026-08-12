@@ -14,9 +14,9 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust foundation (**U0**) is done; remaining focus is Analyse product UX (**U1**), then first-run operability and daily workbench (**U2–U3**), with corpus inbox gated (**U4**). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) are **done** (hardening exit gate); remaining focus is first-run operability and daily workbench (**U2–U3**), with corpus inbox foundation shipping while the acceptance gate stays open (**U4**). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
 
-The roadmap’s analysis surface is largely complete. **Remaining product gaps are usability and corpus-lifecycle concerns** (trustworthy Analyse chrome, first-run operability, daily Review/reading/search, then living with many notebooks), not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
+The roadmap’s analysis surface is largely complete. **Remaining product gaps are usability and corpus-lifecycle concerns** (first-run operability, daily Review/reading/search, then living with many notebooks), not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
 ---
 
@@ -24,7 +24,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 
 Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](detection_wave2_plan.md); not this wave’s definition of done — avoid calling Detection the product “Wave 2” in usability docs).
 
-### U0–U1 — Product hardening (embedded)
+### U0–U1 — Product hardening (embedded) — [x] done
 
 Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
 
@@ -35,7 +35,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 | **3** — #5, #6 | [x] | Users can trust exactly what a preset will run | **U0** (done) |
 | **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” | **U0** (done) |
 | **5** — #13 | [x] | Exports identify exactly which notebook revision produced them | **U0** (done) |
-| **6** — #7, #8, #9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics | **U1** |
+| **6** — #7, #8, #9 | [x] | Analyse surfaces are simplified around user tasks rather than module mechanics | **U1** (done) |
 
 | Track | Intent |
 |-------|--------|
@@ -46,26 +46,26 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 
 Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
 
-**Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals.
+**Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
-### U2–U3 — Operability & daily workbench (after / parallel-safe with U1)
+### U2–U3 — Operability & daily workbench
 
 Committed usability-wave outcomes (detail and acceptance in [usability_wave_plan.md](usability_wave_plan.md)):
 
 | Track | Intent |
 |-------|--------|
 | **U2 First-run & operability** | Setup checklist, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
-| **U3 Daily workbench** | Review as needs-attention queue, reading mode, search/Archive filter parity, organisation polish, model/runtime product copy — **without** activating bulk corpus contracts |
+| **U3 Daily workbench** | Review as needs-attention queue, reading mode, search/Archive filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
 
-### U4 — Corpus UX — gated
+### U4 — Corpus UX — [~] foundation shipping; gate open
 
-Bulk inbox / import recovery remains behind the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate). Pre-gate: do not market `TRANSCRIBE_INBOX_DIR` as functional import. See usability-wave **U4** and **Next — Notebook corpus** below.
+Bulk inbox / import recovery foundation ships on the corpus track below. Do **not** claim fully supported bulk-import until the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and **Next — Notebook corpus**.
 
 ---
 
-## Next — Notebook corpus / bulk import — [ ] planned (contracts first)
+## Next — Notebook corpus / bulk import — [~] active (activation in progress)
 
-Prospective **bulk-import generation** contracts are written; runtime remains `transcribe.project` v1 until the activation gate.
+Prospective **bulk-import generation** contracts are written; foundation (corpus index, ImportPlan/ImportRun, duplicate policy, orchestrator, doctor, CLI, Inbox UI) ships on this track. Runtime stays compatible with `transcribe.project` v1; declare generation **active** only when the acceptance gate below is green.
 
 | Gate | Authority |
 |------|-----------|
@@ -74,11 +74,13 @@ Prospective **bulk-import generation** contracts are written; runtime remains `t
 | ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
 | Doctor + executable acceptance suite | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 
-**Do not** ship bulk-import UI/CLI as supported until the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green (crash-injection, idempotency, duplicate policy, corpus-index recovery, deep doctor on a synthetic multi-notebook corpus).
+**Do not** mark bulk-import UI/CLI as fully supported until the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green (crash-injection, idempotency, duplicate policy, corpus-index recovery, deep doctor on a synthetic multi-notebook corpus). Suite: [tests/acceptance/corpus/](../tests/acceptance/corpus/).
 
 Suggested implementation order after activation work starts: corpus index → ImportRun/plan → duplicate policy on commit → corpus doctor → synthetic suite → only then bulk UI.
 
-**Related product outcome (not just ingestion mechanics):** an **import recovery / inbox** workflow — after dumping a large scan set, show what imported, what failed, what duplicated, what needs review, and let the user continue. This is usability-wave **U4** (gated) and may become the natural corpus home screen.
+**Shipped on this track:** corpus index registration + discovery, ImportPlan/ImportRun orchestrator with crash hooks, `skip_existing_v1` / `create_duplicate_v1`, folder adapter, CLI `bulk-import` / `corpus-doctor`, and **Notebooks → Inbox** import recovery surface.
+
+**Related product outcome (not just ingestion mechanics):** an **import recovery / inbox** workflow — after dumping a large scan set, show what imported, what failed, what duplicated, what needs review, and let the user continue. This is usability-wave **U4** (foundation shipping; gate still open) and may become the natural corpus home screen.
 
 ---
 
@@ -108,14 +110,14 @@ Suggested sequence after scanner-bed borders: **generic uniform overscan** → *
 
 ## Next — Corpus & product lifecycle — [?] candidates (partially pulled)
 
-Primary post-hardening direction for living with many notebooks. **Usability-wave U3** pulls Review UX, reading mode, search deepening, organisation polish, and model/runtime management as committed work on today’s project model (no bulk corpus activation). **U4** covers import recovery / inbox after the corpus gate. Remaining rows stay uncommitted candidates.
+Primary post-hardening direction for living with many notebooks. **Usability-wave U3** pulls Review UX, reading mode, search deepening, organisation polish, and model/runtime management as committed work on today’s project model (no bulk corpus activation required). **U4** covers import recovery / inbox (foundation shipping; acceptance gate still open). Remaining rows stay uncommitted candidates.
 
 | Outcome | Intent | Wave |
 |---------|--------|------|
 | **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump polish; entity/saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. | **U3** polish on existing fields; collections/archive-state candidate |
 | **Re-OCR / reprocessing** | Explicit “rerun this page/notebook with a better model / prompt / cleanup setting”; compare attempts; preserve human edits; safely promote a new result. | candidate |
-| **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gated) |
+| **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (foundation shipping; gate open) |
 | **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** |
 | **Backup / restore / portability** | Product commitment that the whole corpus can be backed up, moved, restored, and verified without application-specific archaeology. | candidate |
 | **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | candidate |
@@ -125,8 +127,8 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Prompt-backed Detection** | **Shipped (Detection wave 2):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See [detection_wave2_plan.md](detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** |
-| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). | partial / active |
-| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. | **U1** |
+| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
+| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. | **U1** (done) |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. | Places shipped; Patterns optional |
 

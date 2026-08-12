@@ -11,6 +11,7 @@ from transcribe.domain.dates import (
     DATE_SOURCE_EXTRACTED,
     DATE_SOURCE_INHERITED,
     extract_page_date,
+    looks_like_unparsed_date_stamp,
     normalize_tags,
 )
 from transcribe.domain.models import (
@@ -23,6 +24,7 @@ from transcribe.domain.models import (
 )
 from transcribe.domain.validation import validate_page_result, validate_project
 from transcribe.errors import JobConflictError, ProjectError
+from transcribe.corpus.paths import CorpusPaths
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
 from transcribe.persistence.locks import job_lock_held, mutation_lock
@@ -62,10 +64,12 @@ class ProjectService:
         *,
         clock: Clock,
         ids: IdGenerator,
+        corpus_paths: CorpusPaths | None = None,
     ) -> None:
         self.paths = paths
         self.clock = clock
         self.ids = ids
+        self.corpus_paths = corpus_paths
 
     def create(self, title: str = "Untitled notebook") -> Project:
         self.paths.ensure_layout()
@@ -82,6 +86,15 @@ class ProjectService:
         validate_project(project)
         with mutation_lock(self.paths.mutation_lock):
             write_json_atomic(self.paths.manifest, project.as_dict())
+        if self.corpus_paths is not None:
+            from transcribe.services.corpus_registry import ensure_registered
+
+            ensure_registered(
+                self.corpus_paths,
+                project_root=self.paths.root,
+                project_id=project.id,
+                clock=self.clock,
+            )
         return project
 
     def _load_unlocked(self, *, reconcile: bool = True) -> Project:
@@ -327,6 +340,10 @@ class ProjectService:
             page.set_date_state(
                 extracted, approved=False, source=DATE_SOURCE_EXTRACTED
             )
+            return
+        # Failed-looking stamp: stay undated for Review (do not inherit).
+        if looks_like_unparsed_date_stamp(text):
+            page.set_date_state(None, approved=True, source=None)
             return
         for prev in reversed(pages[:idx]):
             if prev.date is not None:

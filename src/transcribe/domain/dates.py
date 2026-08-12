@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Sequence
 
 DATE_SOURCE_EXTRACTED = "extracted"
 DATE_SOURCE_INHERITED = "inherited"
@@ -28,6 +28,43 @@ _PAT_DMY = 2
 _PAT_YM = 3
 _PAT_MY = 4
 _PAT_YEAR = 5
+_PAT_DMY_YY = 6
+_PAT_YMD_YY = 7
+_PAT_MONTH_NAME_DAY = 8
+_PAT_MONTH_NAME_MONTH = 9
+
+_MONTH_NAME_TO_NUM: dict[str, int] = {
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "feb": 2,
+    "march": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sept": 9,
+    "sep": 9,
+    "october": 10,
+    "oct": 10,
+    "november": 11,
+    "nov": 11,
+    "december": 12,
+    "dec": 12,
+}
+# Longer names first so "September" wins over "Sep".
+_MONTH_NAME_ALT = "|".join(
+    sorted(_MONTH_NAME_TO_NUM.keys(), key=len, reverse=True)
+)
+_MONTH_NAME_RE = rf"(?:{_MONTH_NAME_ALT})"
+_ORDINAL_SUFFIX_RE = r"(?:st|nd|rd|th)?"
 
 
 @dataclass(frozen=True)
@@ -104,6 +141,10 @@ class ApproximateDate:
             return f"{self.month:02d}/{self.year}"
         return str(self.year)
 
+    def clearly_before(self, other: ApproximateDate) -> bool:
+        """True when this date's range ends before ``other`` begins (no overlap)."""
+        return self.to_date_end() < other.to_date_start()
+
     def bin_key(self, grain: str) -> str:
         """Stable timeline bin label for day/week/month/year grains."""
         start = self.to_date_start()
@@ -122,6 +163,88 @@ def expand_yy(yy: int) -> int:
     if yy < 0 or yy > 99:
         raise ValueError(f"invalid YY: {yy}")
     return 1900 + yy if yy >= 70 else 2000 + yy
+
+
+@dataclass(frozen=True)
+class DateRegression:
+    """A notebook page whose date is clearly earlier than a prior dated page."""
+
+    page_number: int  # 1-based notebook order
+    page_id: str
+    date: ApproximateDate
+    previous_page_number: int
+    previous_page_id: str
+    previous_date: ApproximateDate
+
+    def format_display(self) -> str:
+        return (
+            f"Page {self.page_number}: {self.date.format_display()} "
+            f"(before page {self.previous_page_number}: "
+            f"{self.previous_date.format_display()})"
+        )
+
+
+def find_date_regressions(
+    pages: Sequence[tuple[str, ApproximateDate | None]],
+) -> list[DateRegression]:
+    """Flag dates that step backwards in notebook order.
+
+    Notebooks usually advance chronologically. A hit means the page's date range
+    is entirely before the previous dated page's range (overlapping partial dates
+    are not flagged). Undated pages are skipped.
+    """
+    out: list[DateRegression] = []
+    prev_number: int | None = None
+    prev_id: str | None = None
+    prev_date: ApproximateDate | None = None
+    for i, (page_id, date) in enumerate(pages, start=1):
+        if date is None:
+            continue
+        if (
+            prev_date is not None
+            and prev_number is not None
+            and prev_id is not None
+            and date.clearly_before(prev_date)
+        ):
+            out.append(
+                DateRegression(
+                    page_number=i,
+                    page_id=page_id,
+                    date=date,
+                    previous_page_number=prev_number,
+                    previous_page_id=prev_id,
+                    previous_date=prev_date,
+                )
+            )
+        prev_number = i
+        prev_id = page_id
+        prev_date = date
+    return out
+
+
+def format_approve_all_dates_help(
+    regressions: Sequence[DateRegression],
+    *,
+    max_listed: int = 8,
+) -> str:
+    """Tooltip for bulk date approval, including any suspicious regressions."""
+    base = "Approve all dates in this notebook"
+    if not regressions:
+        return (
+            f"{base}. Notebook dates normally increase with page order; "
+            "none look suspicious right now."
+        )
+    lines = [
+        f"{base}. Warning: {len(regressions)} date"
+        f"{'s' if len(regressions) != 1 else ''} look suspicious "
+        "(later page, earlier date):"
+    ]
+    for hit in regressions[:max_listed]:
+        lines.append(f"• {hit.format_display()}")
+    extra = len(regressions) - max_listed
+    if extra > 0:
+        lines.append(f"• …and {extra} more")
+    return "\n".join(lines)
 
 
 def canonicalize_page_date_state(
@@ -185,6 +308,10 @@ def parse_date_input(raw: str) -> ApproximateDate | None:
     if not text:
         return None
 
+    named = _parse_month_name_input(text)
+    if named is not None:
+        return named
+
     compact = re.fullmatch(
         r"(\d{6})(?:[ \t]+(\d{4}|\d{1,2}:\d{2}))?",
         text,
@@ -209,8 +336,10 @@ def parse_date_input(raw: str) -> ApproximateDate | None:
             return ApproximateDate(year=b, month=a)
         if len(parts) == 3:
             a, b, c = int(parts[0]), int(parts[1]), int(parts[2])
-            if a > 31:
+            if len(parts[0]) == 4 or a > 31:
                 return ApproximateDate(year=a, month=b, day=c)
+            if len(parts[2]) == 2:
+                return ApproximateDate(year=expand_yy(c), month=b, day=a)
             return ApproximateDate(year=c, month=b, day=a)
     except ValueError as exc:
         raise ValueError(f"Unrecognized date: {raw!r}") from exc
@@ -267,6 +396,94 @@ def extract_page_date(
             continue
         _accept(d, m.start(), m.end() - m.start(), _PAT_DMY)
 
+    # Short-year DMY (e.g. 9/1/18). Early window only — diary stamps.
+    for m in re.finditer(
+        r"(?<!\d)(\d{1,2})([-./])(\d{1,2})\2(\d{2})(?!\d)",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        try:
+            d = ApproximateDate(
+                year=expand_yy(int(m.group(4))),
+                month=int(m.group(3)),
+                day=int(m.group(1)),
+            )
+        except ValueError:
+            continue
+        _accept(d, m.start(), m.end() - m.start(), _PAT_DMY_YY)
+
+    # Short-year YMD with - or . only (e.g. 18-01-09). Slash stays DMY.
+    for m in re.finditer(
+        r"(?<!\d)(\d{2})([-./])(\d{1,2})\2(\d{1,2})(?!\d)",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        if m.group(2) == "/":
+            continue
+        try:
+            d = ApproximateDate(
+                year=expand_yy(int(m.group(1))),
+                month=int(m.group(3)),
+                day=int(m.group(4)),
+            )
+        except ValueError:
+            continue
+        _accept(d, m.start(), m.end() - m.start(), _PAT_YMD_YY)
+
+    for m in re.finditer(
+        rf"(?i)\b({_MONTH_NAME_RE})\s+(\d{{1,2}}){_ORDINAL_SUFFIX_RE},?\s+(\d{{4}})\b",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        try:
+            d = ApproximateDate(
+                year=int(m.group(3)),
+                month=_MONTH_NAME_TO_NUM[m.group(1).lower()],
+                day=int(m.group(2)),
+            )
+        except ValueError:
+            continue
+        _accept(d, m.start(), m.end() - m.start(), _PAT_MONTH_NAME_DAY)
+
+    for m in re.finditer(
+        rf"(?i)\b(\d{{1,2}}){_ORDINAL_SUFFIX_RE}\s+({_MONTH_NAME_RE}),?\s+(\d{{4}})\b",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        try:
+            d = ApproximateDate(
+                year=int(m.group(3)),
+                month=_MONTH_NAME_TO_NUM[m.group(2).lower()],
+                day=int(m.group(1)),
+            )
+        except ValueError:
+            continue
+        _accept(d, m.start(), m.end() - m.start(), _PAT_MONTH_NAME_DAY)
+
+    for m in re.finditer(
+        rf"(?i)\b({_MONTH_NAME_RE})\s+(\d{{4}})\b",
+        text,
+    ):
+        if m.start() >= early_end:
+            continue
+        # Skip "Jan 2, 2018" / "January 2018" prefix of a day-precision form.
+        after = text[m.end() : m.end() + 1]
+        if after and after[0].isdigit():
+            continue
+        # If a day digit sits between month and year, the day patterns above win.
+        try:
+            d = ApproximateDate(
+                year=int(m.group(2)),
+                month=_MONTH_NAME_TO_NUM[m.group(1).lower()],
+            )
+        except ValueError:
+            continue
+        _accept(d, m.start(), m.end() - m.start(), _PAT_MONTH_NAME_MONTH)
+
     for m in re.finditer(r"(?<!\d)(\d{4})([-./])(\d{1,2})(?!\d)", text):
         # Avoid matching the YYYY-MM prefix of an already-matched YYYY-MM-DD.
         after = m.end()
@@ -292,8 +509,13 @@ def extract_page_date(
         rest = text[m.end() : m.end() + 1]
         if rest in "-./":
             continue
+        token = m.group(1)
+        # Diary stamps are YYMMDD HHMM; a lone HHMM (e.g. 1902, 1947) must not
+        # become a calendar year — leave undated so inheritance can apply.
+        if looks_like_hhmm(token):
+            continue
         try:
-            d = ApproximateDate(year=int(m.group(1)))
+            d = ApproximateDate(year=int(token))
         except ValueError:
             continue
         _accept(d, m.start(), m.end() - m.start(), _PAT_YEAR)
@@ -304,6 +526,40 @@ def extract_page_date(
     return candidates[0][0]
 
 
+def looks_like_unparsed_date_stamp(
+    text: str | None,
+    *,
+    today: date | None = None,
+) -> bool:
+    """True when early text looks date-stamped but ``extract_page_date`` found nothing.
+
+    Used to refuse inheritance: a failed-looking stamp should stay undated for
+    Review rather than silently carrying a neighbor's day.
+    """
+    if not text or not text.strip():
+        return False
+    if extract_page_date(text, today=today) is not None:
+        return False
+    early = text[: _early_text_end(text)]
+    if re.search(
+        rf"(?i)\b{_MONTH_NAME_RE}\s+\d{{1,2}}{_ORDINAL_SUFFIX_RE},?\s+\d{{2,4}}\b",
+        early,
+    ):
+        return True
+    if re.search(
+        rf"(?i)\b\d{{1,2}}{_ORDINAL_SUFFIX_RE}\s+{_MONTH_NAME_RE},?\s+\d{{2,4}}\b",
+        early,
+    ):
+        return True
+    if re.search(rf"(?i)\b{_MONTH_NAME_RE}\s+\d{{4}}\b", early):
+        return True
+    if re.search(r"(?<!\d)\d{1,2}[-./]\d{1,2}[-./]\d{2,4}(?!\d)", early):
+        return True
+    if re.search(r"(?<![A-Za-z0-9])\d{6}(?![A-Za-z0-9])", early):
+        return True
+    return False
+
+
 def is_plausible_diary_year(year: int, *, today: date | None = None) -> bool:
     """True when ``year`` is in the diary-plausible window (1900 .. today+slack).
 
@@ -312,6 +568,20 @@ def is_plausible_diary_year(year: int, *, today: date | None = None) -> bool:
     """
     ref = today or date.today()
     return _EXTRACT_YEAR_MIN <= year <= ref.year + _EXTRACT_YEAR_FUTURE_SLACK
+
+
+def looks_like_hhmm(token: str) -> bool:
+    """True when ``token`` is a plausible 24h HHMM diary time (00:00–23:59)."""
+    if len(token) != 4 or not token.isdigit():
+        return False
+    hour = int(token[0:2])
+    minute = int(token[2:4])
+    return 0 <= hour <= 23 and 0 <= minute <= 59
+
+
+def is_hhmm_shaped_year(date: ApproximateDate) -> bool:
+    """True for year-only values that are more likely diary times than years."""
+    return date.precision == "year" and looks_like_hhmm(f"{date.year:04d}")
 
 
 def _plausible_extracted_year(year: int, *, today: date) -> bool:
@@ -332,6 +602,37 @@ def _parse_yymmdd(token: str) -> ApproximateDate:
     month = int(token[2:4])
     day = int(token[4:6])
     return ApproximateDate(year=expand_yy(yy), month=month, day=day)
+
+
+def _parse_month_name_input(text: str) -> ApproximateDate | None:
+    """Parse a whole UI date string that uses English month names."""
+    m = re.fullmatch(
+        rf"(?i)({_MONTH_NAME_RE})\s+(\d{{1,2}}){_ORDINAL_SUFFIX_RE},?\s+(\d{{4}})",
+        text,
+    )
+    if m:
+        return ApproximateDate(
+            year=int(m.group(3)),
+            month=_MONTH_NAME_TO_NUM[m.group(1).lower()],
+            day=int(m.group(2)),
+        )
+    m = re.fullmatch(
+        rf"(?i)(\d{{1,2}}){_ORDINAL_SUFFIX_RE}\s+({_MONTH_NAME_RE}),?\s+(\d{{4}})",
+        text,
+    )
+    if m:
+        return ApproximateDate(
+            year=int(m.group(3)),
+            month=_MONTH_NAME_TO_NUM[m.group(2).lower()],
+            day=int(m.group(1)),
+        )
+    m = re.fullmatch(rf"(?i)({_MONTH_NAME_RE})\s+(\d{{4}})", text)
+    if m:
+        return ApproximateDate(
+            year=int(m.group(2)),
+            month=_MONTH_NAME_TO_NUM[m.group(1).lower()],
+        )
+    return None
 
 
 def normalize_tags(tags: list[str] | None) -> list[str]:
@@ -402,6 +703,42 @@ def bin_key_to_date(key: str, grain: str) -> date:
         y, w = key.split("-W", 1)
         return date.fromisocalendar(int(y), int(w), 1)
     return date.fromisoformat(key)
+
+
+def bin_key_to_range(key: str, grain: str) -> tuple[ApproximateDate, ApproximateDate]:
+    """Inclusive approximate-date bounds covering a timeline bin.
+
+    Day-precision ends are used for month/week/day grains so archive range
+    filters (sort-key compare) include every page dated inside the bin.
+    """
+    start = bin_key_to_date(key, grain)
+    if grain == "year":
+        return ApproximateDate(start.year), ApproximateDate(start.year)
+    if grain == "month":
+        end = _advance_bin_start(start, "month") - timedelta(days=1)
+        return (
+            ApproximateDate(start.year, start.month, start.day),
+            ApproximateDate(end.year, end.month, end.day),
+        )
+    if grain == "week":
+        end = start + timedelta(days=6)
+        return (
+            ApproximateDate(start.year, start.month, start.day),
+            ApproximateDate(end.year, end.month, end.day),
+        )
+    return (
+        ApproximateDate(start.year, start.month, start.day),
+        ApproximateDate(start.year, start.month, start.day),
+    )
+
+
+def format_date_filter_input(value: ApproximateDate) -> str:
+    """Format an ApproximateDate for archive From/To text inputs."""
+    if value.day is not None and value.month is not None:
+        return f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+    if value.month is not None:
+        return f"{value.year:04d}-{value.month:02d}"
+    return f"{value.year:04d}"
 
 
 def _advance_bin_start(d: date, grain: str) -> date:
