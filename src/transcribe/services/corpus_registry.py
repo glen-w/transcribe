@@ -47,6 +47,18 @@ def register_project_in_corpus(
     )
 
 
+def unregister_notebook(
+    corpus_paths: CorpusPaths,
+    notebook_id: str,
+    *,
+    clock: Clock | None = None,
+) -> None:
+    """Remove a notebook from the corpus index (does not delete on-disk files)."""
+    CorpusIndexStore(corpus_paths, clock=clock or SystemClock()).unregister_notebook(
+        notebook_id
+    )
+
+
 def discover_roots(
     corpus_paths: CorpusPaths,
     *,

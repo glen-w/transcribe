@@ -130,6 +130,9 @@ def test_inbox_and_cli_wire_bulk_import_surfaces() -> None:
     assert "bulk-import" in main
     assert "corpus-doctor" in main
     assert "plan_from_folder" in main
+    assert "plan_from_folders" in main
+    assert "--on-existing" in main
+    assert "OVERWRITE ALL" in main
 
 
 def test_many_notebooks_many_pages_fixture(tmp_path: Path) -> None:

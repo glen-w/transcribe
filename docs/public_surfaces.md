@@ -44,10 +44,11 @@ Bulk-import generation ships as **foundation code** while contracts remain prosp
 
 | Surface | How to invoke | Notes |
 |---------|---------------|-------|
-| CLI `bulk-import folder <dir>` | `transcribe bulk-import folder …` (`--policy`, `--dry-run`) | Plan/commit folder scans into the corpus |
+| CLI `bulk-import folder <dir>` | `transcribe bulk-import folder …` (`--policy`, `--dry-run`) | Plan/commit one flat folder into one notebook |
+| CLI `bulk-import folders <parent>` | `transcribe bulk-import folders …` (`--on-existing skip\|overwrite`, `--confirm-overwrite 'OVERWRITE ALL'`, `--policy`, `--dry-run`) | Each child folder → one notebook named after it; overwrite requires exact confirmation |
 | CLI `bulk-import status\|resume <id>` | `transcribe bulk-import status\|resume …` | Inspect or resume an ImportRun |
 | CLI `corpus-doctor` | `transcribe corpus-doctor` (`--deep`) | Workspace corpus index integrity |
-| UI **Notebooks → Inbox** | Streamlit Inbox mode | Plans/commits a folder via ImportRun; shows committed / skipped / failed recovery outcomes |
+| UI **Notebooks → Inbox** | Streamlit Inbox mode | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes |
 
 ## Explicitly unsupported
 
