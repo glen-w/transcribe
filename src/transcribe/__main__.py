@@ -154,6 +154,36 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print the plan and exit without committing",
     )
+    p_bulk_folders = bulk_sub.add_parser(
+        "folders",
+        help="Scan a parent directory; each child folder becomes a notebook",
+    )
+    p_bulk_folders.add_argument(
+        "parent",
+        type=Path,
+        help="Parent directory whose immediate child folders become notebooks",
+    )
+    p_bulk_folders.add_argument(
+        "--policy",
+        choices=["skip_existing_v1", "create_duplicate_v1"],
+        default="skip_existing_v1",
+    )
+    p_bulk_folders.add_argument(
+        "--on-existing",
+        choices=["skip", "overwrite"],
+        default="skip",
+        help="When a child folder name already maps to a managed notebook",
+    )
+    p_bulk_folders.add_argument(
+        "--confirm-overwrite",
+        default=None,
+        help="Required for --on-existing overwrite; must be exactly 'OVERWRITE ALL'",
+    )
+    p_bulk_folders.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the scan/plan and exit without committing or deleting",
+    )
     p_bulk_status = bulk_sub.add_parser("status", help="Show ImportRun outcomes")
     p_bulk_status.add_argument("import_run_id")
     p_bulk_resume = bulk_sub.add_parser("resume", help="Resume a non-terminal ImportRun")
@@ -384,7 +414,8 @@ def _cmd_export(args: argparse.Namespace, *, clock, ids) -> int:
 
 
 def _cmd_bulk_import(args: argparse.Namespace, *, clock, ids) -> int:
-    from transcribe.corpus.adapters import plan_from_folder
+    from transcribe.corpus.adapters import plan_from_folder, plan_from_folders
+    from transcribe.corpus.folder_overwrite import prepare_folder_overwrite
     from transcribe.corpus.import_run import ImportRunStore
     from transcribe.corpus.orchestrator import ImportOrchestrator
     from transcribe.corpus.paths import CorpusPaths
@@ -418,6 +449,67 @@ def _cmd_bulk_import(args: argparse.Namespace, *, clock, ids) -> int:
             )
         if args.dry_run:
             return 0
+        run = orchestrator.create_run_from_plan(plan)
+        completed = orchestrator.commit_run(run.import_run_id)
+        print(f"import_run_id={completed.import_run_id} status={completed.status}")
+        for item in completed.items:
+            skip = f" skip={item.skip_classification}" if item.skip_classification else ""
+            err = f" error={item.error_message}" if item.error_message else ""
+            print(f"  {item.item_id} {item.state}{skip}{err}")
+        return 0 if completed.status in {"complete", "partial"} else 1
+
+    if args.bulk_cmd == "folders":
+        policy = (
+            POLICY_CREATE_DUPLICATE_V1
+            if args.policy == "create_duplicate_v1"
+            else POLICY_SKIP_EXISTING_V1
+        )
+        on_existing = args.on_existing
+        plan, scan = plan_from_folders(
+            args.parent,
+            ids=ids,
+            corpus_paths=corpus,
+            import_policy_id=policy,
+            on_existing=on_existing,
+        )
+        print(
+            f"scan parent={scan.parent} new={len(scan.new_folders)} "
+            f"already_imported={len(scan.already_imported)} "
+            f"empty_skipped={len(scan.empty_skipped)} on_existing={on_existing}"
+        )
+        for conflict in scan.already_imported:
+            print(
+                f"  already_imported {conflict.managed_relpath} "
+                f"notebook_id={conflict.notebook_id} title={conflict.title!r}"
+            )
+        for empty in scan.empty_skipped:
+            print(f"  empty_skipped {empty.name}")
+        print(
+            f"plan_id={plan.plan_id} items={len(plan.items)} "
+            f"policy={plan.import_policy_id} fingerprint={plan.fingerprint()[:12]}…"
+        )
+        notebooks: dict[str, list] = {}
+        for item in plan.items:
+            notebooks.setdefault(item.notebook_id, []).append(item)
+        for nb_id, items in notebooks.items():
+            title = (items[0].provenance or {}).get("title") or nb_id
+            print(
+                f"  notebook {title!r} id={nb_id} "
+                f"sources={len(items)} pages={sum(len(i.page_indexes) for i in items)}"
+            )
+        if args.dry_run:
+            return 0
+        if on_existing == "overwrite" and scan.already_imported:
+            prepare_folder_overwrite(
+                scan.already_imported,
+                corpus,
+                confirm=args.confirm_overwrite or "",
+                clock=clock,
+            )
+            print(
+                f"overwrite wiped={len(scan.already_imported)} "
+                f"managed notebook(s)"
+            )
         run = orchestrator.create_run_from_plan(plan)
         completed = orchestrator.commit_run(run.import_run_id)
         print(f"import_run_id={completed.import_run_id} status={completed.status}")

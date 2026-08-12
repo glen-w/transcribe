@@ -185,6 +185,26 @@ class CorpusIndexStore:
             write_json_atomic(self.paths.index_path, index.as_dict())
             return index
 
+    def unregister_notebook(self, notebook_id: str) -> CorpusIndex | None:
+        """Remove a notebook entry from the corpus index. No-op if absent/missing index."""
+        nid = notebook_id.strip()
+        if not nid:
+            raise ValidationError("notebook_id must be non-empty")
+        self.paths.ensure_layout()
+        now = to_iso(self.clock.now())
+        with mutation_lock(self.paths.lock_path):
+            if not self.paths.index_path.exists():
+                return None
+            index = CorpusIndex.from_dict(read_json(self.paths.index_path))
+            before = len(index.entries)
+            index.entries = [e for e in index.entries if e.notebook_id != nid]
+            if len(index.entries) == before:
+                return index
+            index.updated_at = now
+            validate_corpus_index(index, paths=self.paths)
+            write_json_atomic(self.paths.index_path, index.as_dict())
+            return index
+
 
 def ordered_corpus_then_notebook_lock(
     corpus_lock: Path,

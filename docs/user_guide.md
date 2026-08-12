@@ -111,19 +111,25 @@ Settings → Profiles (target **export**). Contract:
 
 Corpus bulk import is **activation in progress** — usable for recovery experiments, not yet marked fully supported ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate).
 
-**UI:** **Notebooks → Inbox** — choose a folder of scans, plan/commit an ImportRun, and review committed / skipped / failed outcomes.
+**UI:** **Notebooks → Inbox**
+
+- **One folder → one notebook** — path to a flat folder of scans.
+- **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
 **CLI:**
 
 ```bash
 ./transcribe.sh cli bulk-import folder ./scans --dry-run
 ./transcribe.sh cli bulk-import folder ./scans --policy skip_existing_v1
+./transcribe.sh cli bulk-import folders ./scan-batches --dry-run
+./transcribe.sh cli bulk-import folders ./scan-batches --on-existing skip
+./transcribe.sh cli bulk-import folders ./scan-batches --on-existing overwrite --confirm-overwrite 'OVERWRITE ALL'
 ./transcribe.sh cli bulk-import status <import_run_id>
 ./transcribe.sh cli bulk-import resume <import_run_id>
 ./transcribe.sh cli corpus-doctor --deep
 ```
 
-Single-file import (§2) remains the everyday path for one notebook at a time.
+Overwrite deletes **managed** notebook copies under the projects directory only; external originals outside that tree are untouched. Single-file import (§2) remains the everyday path for one notebook at a time.
 
 ## Privacy reminder
 
