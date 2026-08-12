@@ -42,6 +42,7 @@ def test_catalogue_includes_ocr_and_detection(tmp_path: Path):
     assert "cleanup_strip_leak" in ids
     assert "poetry_detect_text_v1" in ids
     assert "todo_lists_detect_text_v1" in ids
+    assert "beer_labels_detect_text_v1" in ids
 
 
 def test_override_wins_over_detector_version_pin(tmp_path: Path):

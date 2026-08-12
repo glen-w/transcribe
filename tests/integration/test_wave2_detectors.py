@@ -14,6 +14,7 @@ from transcribe.detection.api import DetectionService
 from transcribe.detection.registry import get_builtin_detector
 from transcribe.ingest import IngestService
 from transcribe.prompt_engine.validate import (
+    validate_beer_labels_window_response_v1,
     validate_lists_window_response_v1,
     validate_quotations_window_response_v1,
     validate_todo_window_response_v1,
@@ -73,6 +74,27 @@ def test_quotations_schema_valid():
     )
     assert out is not None
     assert out["attribution"] == "Auden"
+
+
+def test_beer_labels_schema_valid():
+    out = validate_beer_labels_window_response_v1(
+        {
+            "detected": True,
+            "confidence": 0.9,
+            "starts_on_this_window": True,
+            "continues_before": False,
+            "continues_after": False,
+            "label_kind": "bottle_label",
+            "beer_name": "Black Market",
+            "brewery_or_brand": "Craig Allan",
+            "style_hint": None,
+            "sample_text": "Black MARKET BEER",
+            "reason": "brand script on label",
+        }
+    )
+    assert out is not None
+    assert out["beer_name"] == "Black Market"
+    assert out["label_kind"] == "bottle_label"
 
 
 def test_cross_type_do_not_merge():
@@ -138,6 +160,11 @@ def _resp(**kwargs):
         "excerpt": "quoted",
         "boundaries": {},
         "title": None,
+        "label_kind": "bottle_label",
+        "beer_name": "Northern Lights",
+        "brewery_or_brand": "Whiplash",
+        "style_hint": "Micro IPA",
+        "sample_text": "WHIPLASH NORTHERN LIGHTS MICRO IPA",
     }
     base.update(kwargs)
     return json.dumps(base)
@@ -210,3 +237,41 @@ def test_quotations_multi_page(tmp_path: Path):
     assert result["outcome"] == "success"
     findings = result.get("findings") or []
     assert len(findings) >= 1
+
+
+def test_beer_labels_detector_runs(tmp_path: Path):
+    assert get_builtin_detector("beer_labels") is not None
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds("bl")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("n")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png())
+    page = projects.load().pages[0]
+    projects.save_user_edit(
+        page.page_id,
+        "WHIPLASH\nNORTHERN LIGHTS\nMICRO IPA\n5.2% ABV\nVienna Malt · Mosaic",
+    )
+    client = RecordedDoubleClient(
+        responses={
+            "default": _resp(
+                label_kind="bottle_label",
+                beer_name="Northern Lights",
+                brewery_or_brand="Whiplash",
+                style_hint="Micro IPA",
+                sample_text="NORTHERN LIGHTS MICRO IPA",
+            )
+        },
+        digest="d",
+    )
+    ctx = TextLLMContext(
+        client=client, model_name=client.model_name, resolved_model_digest="d"
+    )
+    svc = DetectionService(projects, text_ctx=ctx)
+    result = svc.run_detector("beer_labels", force=True)
+    assert result["outcome"] == "success"
+    finding = (result.get("findings") or [])[0]
+    assert finding["finding_type"] == "beer_labels"
+    data = finding.get("detector_data") or {}
+    assert data.get("beer_name") == "Northern Lights"
+    assert data.get("label_kind") == "bottle_label"

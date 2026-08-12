@@ -38,7 +38,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.DETECT,
         "Detect",
         ":material/search_check:",
-        "Open Detect for poetry, lists, to-dos, and quotations.",
+        "Open Detect for poetry, lists, to-dos, quotations, and beer labels.",
     ),
     ActionDef(
         ActionId.EXPORT,

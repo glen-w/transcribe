@@ -51,6 +51,16 @@ def _detector_data_from_raw(parsed: dict[str, Any], finding_type: str) -> dict[s
         for key in ("quote_kind", "attribution", "excerpt"):
             if key in parsed and parsed[key] is not None:
                 data[key] = parsed[key]
+    if finding_type == "beer_labels":
+        for key in (
+            "label_kind",
+            "beer_name",
+            "brewery_or_brand",
+            "style_hint",
+            "sample_text",
+        ):
+            if key in parsed and parsed[key] is not None:
+                data[key] = parsed[key]
     if parsed.get("title") and "title" not in data:
         data["title"] = parsed["title"]
     return data
