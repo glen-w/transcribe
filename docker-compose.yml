@@ -1,10 +1,11 @@
 # Transcribe: recommended Docker run path (no host Python install).
 #
 # Volumes:
-#   HOST_DATA_DIR     → /data              (optional scratch / caches)
-#   HOST_PROJECTS_DIR → /mnt/projects      (notebook projects; prefer outside repo)
-#   HOST_INBOX_DIR    → /mnt/inbox:ro      (scans / PDFs to import)
-#   HOST_EXPORT_DIR   → /mnt/exports       (markdown / notebook JSON exports)
+#   HOST_DATA_DIR         → /data              (optional scratch / caches)
+#   HOST_PROJECTS_DIR     → /mnt/projects      (notebook projects; prefer outside repo)
+#   HOST_INBOX_DIR        → /mnt/inbox:ro      (scans / PDFs to import)
+#   HOST_EXPORT_DIR       → /mnt/exports       (markdown / notebook JSON exports)
+#   HOST_BULK_IMPORT_DIR  → /mnt/notebooks     (optional; via docker-compose.override)
 #
 # HOST_* — compose mount sources on the host (set in .env).
 # TRANSCRIBE_* — app paths inside the container (set below).

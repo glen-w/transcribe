@@ -326,7 +326,9 @@ def inject_global_styles() -> None:
         font-size: 0.8rem;
         line-height: 1;
     }
-    /* Cover click = Open (transparent button overlays the thumbnail) */
+    /* Cover click = Open (transparent button overlays the thumbnail only).
+       Require direct-child cover key so ancestor page blocks / sibling
+       captions+actions are not part of the hit target or hover outline. */
     div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_"]) {
         position: relative;
     }
@@ -350,9 +352,9 @@ def inject_global_styles() -> None:
         cursor: pointer !important;
     }
     div[data-testid="stVerticalBlock"]:has(
-            [class*="st-key-tx_cover_"] button:not(:disabled)
+            > [class*="st-key-tx_cover_"] button:not(:disabled)
         ):hover
-        [data-testid="stImage"]
+        > [data-testid="stImage"]
         img {
         outline: 2px solid rgba(31, 119, 180, 0.5);
         outline-offset: 2px;

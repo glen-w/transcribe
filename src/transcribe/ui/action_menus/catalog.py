@@ -20,7 +20,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.OPEN,
         "Open",
         ":material/folder_open:",
-        "Open the page viewer on the first valid page of this notebook.",
+        "Open the page viewer on the notebook cover (or first page if none).",
     ),
     ActionDef(
         ActionId.TRANSCRIBE,

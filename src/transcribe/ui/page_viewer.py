@@ -16,13 +16,14 @@ from transcribe.domain.dates import (
     parse_date_input,
 )
 from transcribe.domain.models import CleanupRecord, OCRAttempt, Project
-from transcribe.errors import JobConflictError, TranscribeError
+from transcribe.errors import JobConflictError, ProjectError, TranscribeError
 from transcribe.paths import ProjectPaths
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
+from transcribe.ui.action_menus.nav import clear_page_viewer_state
 
 # User-facing implications for each cleanup mode (matches cleanup prompts + validator).
 _CLEANUP_MODE_HELP: dict[str, str] = {
@@ -103,14 +104,14 @@ def _cleanup_mode_help(cleanup: CleanupRecord) -> str:
 
 
 def _caption_with_info(body: str, help_text: str) -> None:
-    """Caption line with a hover `(i)` tooltip (no click / no rerun)."""
+    """Caption line with a hover ⓘ tooltip (no click / no rerun)."""
     tip = html.escape(help_text, quote=True)
     body_esc = html.escape(body)
     st.markdown(
         f'<p style="font-size:0.875rem;color:var(--text-color);opacity:0.6;'
         f'margin:0 0 0.35rem 0;">{body_esc} '
         f'<span title="{tip}" style="cursor:help;opacity:0.9;user-select:none;" '
-        f'aria-label="More info">(i)</span></p>',
+        f'aria-label="More info">ⓘ</span></p>',
         unsafe_allow_html=True,
     )
 
@@ -343,6 +344,105 @@ def _navigate_to_entry(entry: dict[str, str]) -> None:
     st.session_state["view_page_id"] = entry["page_id"]
     st.session_state["root"] = entry["project_root"]
     st.session_state["pending_notebook_root"] = str(entry["project_root"])
+
+
+def _scrub_viewer_after_page_delete(page_id: str, project_root: Path) -> None:
+    """Drop the deleted page from Prev/Next nav and select a neighbour."""
+    try:
+        root_key = str(project_root.resolve())
+    except OSError:
+        root_key = str(project_root)
+
+    entries = st.session_state.get("view_entries")
+    if isinstance(entries, list) and entries:
+        kept: list[dict[str, Any]] = []
+        removed_idx: int | None = None
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            pid = str(entry.get("page_id") or "")
+            raw_root = str(entry.get("project_root") or "")
+            try:
+                same_root = str(Path(raw_root).expanduser().resolve()) == root_key
+            except OSError:
+                same_root = raw_root == root_key
+            if same_root and pid == page_id:
+                removed_idx = i
+                continue
+            kept.append(entry)
+        if removed_idx is None:
+            # Fall through to page_ids scrub below.
+            pass
+        elif not kept:
+            clear_page_viewer_state()
+            return
+        else:
+            st.session_state["view_entries"] = kept
+            st.session_state["view_page_ids"] = [
+                str(e.get("page_id")) for e in kept if e.get("page_id")
+            ]
+            next_idx = min(removed_idx, len(kept) - 1)
+            neighbour = kept[next_idx]
+            _navigate_to_entry(
+                {
+                    "page_id": str(neighbour["page_id"]),
+                    "project_root": str(neighbour["project_root"]),
+                }
+            )
+            return
+
+    page_ids = [
+        pid
+        for pid in (st.session_state.get("view_page_ids") or [])
+        if pid and pid != page_id
+    ]
+    if not page_ids:
+        clear_page_viewer_state()
+        return
+    st.session_state["view_page_ids"] = page_ids
+    current = st.session_state.get("view_page_id")
+    if current == page_id or current not in page_ids:
+        st.session_state["view_page_id"] = page_ids[0]
+
+
+@st.dialog("Delete page")
+def _delete_page_dialog(
+    *,
+    page_id: str,
+    projects: ProjectService,
+    project_root: Path,
+) -> None:
+    st.markdown("Delete this page from the notebook?")
+    st.caption(
+        "Removes the page image, transcription, and related files from this "
+        "notebook. This cannot be undone."
+    )
+    err = st.session_state.pop(f"pv_delete_error__{page_id}", None)
+    if err:
+        st.error(err)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Cancel", key=f"pv_del_cancel__{page_id}", width="stretch"):
+            st.rerun()
+    with c2:
+        if st.button(
+            "Delete permanently",
+            key=f"pv_del_ok__{page_id}",
+            type="primary",
+            width="stretch",
+        ):
+            try:
+                projects.delete_page(page_id)
+            except (ProjectError, JobConflictError, TranscribeError, OSError) as exc:
+                st.session_state[f"pv_delete_error__{page_id}"] = str(exc)
+                st.session_state[f"pv_delete_pending__{page_id}"] = True
+                st.rerun()
+                return
+            bump_archive_generation(build_runtime_paths())
+            _scrub_viewer_after_page_delete(page_id, project_root)
+            st.toast("Page deleted")
+            st.rerun()
 
 
 def _normalize_entries(
@@ -774,12 +874,41 @@ def render_page_viewer(
         thumbs = ThumbnailService(paths)
         if st.button("Set as notebook cover"):
             try:
+                from transcribe.ui.action_menus.nav import viewer_page_ids
+
                 project = projects.update_notebook_metadata(cover_page_id=page.page_id)
                 thumbs.ensure_thumb(project, page.page_id)
                 bump_archive_generation(build_runtime_paths())
+                # Keep Prev/Next numbering cover-first for this notebook context.
+                ordered = viewer_page_ids(project)
+                root = str(paths.root)
+                entries = st.session_state.get("view_entries") or []
+                same_notebook = bool(entries) and all(
+                    str(e.get("project_root") or "") == root for e in entries
+                )
+                if same_notebook or not entries:
+                    st.session_state["view_page_ids"] = ordered
+                    st.session_state["view_entries"] = [
+                        {"page_id": pid, "project_root": root} for pid in ordered
+                    ]
                 st.success("Cover updated")
+                st.rerun()
             except TranscribeError as exc:
                 st.error(str(exc))
+
+        pending_delete = f"pv_delete_pending__{page.page_id}"
+        if st.session_state.pop(pending_delete, False):
+            _delete_page_dialog(
+                page_id=page.page_id,
+                projects=projects,
+                project_root=paths.root,
+            )
+        if st.button("Delete page"):
+            if len(project.pages) <= 1:
+                st.error("Cannot delete the last page; delete the notebook instead.")
+            else:
+                st.session_state[pending_delete] = True
+                st.rerun()
 
     return project
 

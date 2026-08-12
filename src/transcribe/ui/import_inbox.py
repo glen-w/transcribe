@@ -57,7 +57,11 @@ def _render_single_folder(
     folder_text = st.text_input(
         "Folder path",
         key="import_inbox_folder",
-        help="Absolute path to a folder of JPEG / PNG / PDF files",
+        help=(
+            "Absolute path to a folder of JPEG / PNG / PDF files. "
+            "In Docker use a container mount (e.g. /mnt/inbox or /mnt/notebooks), "
+            "not a host path like /Users/…"
+        ),
     )
     policy = st.selectbox(
         "Duplicate policy",
@@ -122,7 +126,11 @@ def _render_parent_folders(
     parent_text = st.text_input(
         "Parent folder path",
         key="import_inbox_parent",
-        help="Absolute path to a directory whose child folders become notebooks",
+        help=(
+            "Absolute path to a directory whose child folders become notebooks. "
+            "In Docker use a container mount (e.g. /mnt/inbox or /mnt/notebooks), "
+            "not a host path like /Users/…"
+        ),
     )
     policy = st.selectbox(
         "Duplicate policy (within each notebook)",

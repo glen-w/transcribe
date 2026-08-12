@@ -45,7 +45,7 @@ def _render_place_table(geocoded: list[GeocodedPlace], *, show_notebook: bool) -
         if show_notebook:
             row["notebook"] = g.notebook_title or ""
         rows.append(row)
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.dataframe(rows, width="stretch", hide_index=True)
 
 
 def _render_map(geocoded: list[GeocodedPlace]) -> None:

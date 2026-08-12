@@ -19,7 +19,7 @@ from transcribe.services.project import (
     open_project_paths,
 )
 from tests.conftest import FakeClock, SequentialIds
-from tests.ingest.test_ingest import _png_bytes
+from tests.ingest.test_ingest import _pdf_bytes, _png_bytes
 
 
 def _svc(tmp_path: Path, name: str = "nb") -> tuple[ProjectService, Path]:
@@ -187,3 +187,108 @@ def test_cover_page_roundtrip_after_ingest(tmp_path: Path) -> None:
     reloaded = projects.load(reconcile=False)
     assert reloaded.cover_page_id == page_id
     assert reloaded.date_start == ApproximateDate(2020)
+
+
+def test_delete_page_removes_single_image_source(tmp_path: Path) -> None:
+    projects, _ = _svc(tmp_path, "del-img")
+    projects.create("Two images")
+    ingest = IngestService(projects.paths, clock=projects.clock, ids=projects.ids)
+    project = ingest.import_bytes("a.png", _png_bytes(color=(1, 2, 3)))
+    project = ingest.import_bytes("b.png", _png_bytes(color=(4, 5, 6)))
+    assert len(project.pages) == 2
+    assert len(project.sources) == 2
+    first = project.pages[0]
+    first_id = first.page_id
+    first_source = first.source_id
+    render = project.renders[first.active_render_id]
+    img_path = projects.paths.resolve_contained(render.image_relpath)
+    source_path = projects.paths.resolve_contained(project.sources[0].stored_relpath)
+    assert img_path.is_file()
+    assert source_path.is_file()
+
+    updated = projects.delete_page(first_id)
+    assert len(updated.pages) == 1
+    assert first_id not in {p.page_id for p in updated.pages}
+    assert first_source not in {s.source_id for s in updated.sources}
+    assert first.active_render_id not in updated.renders
+    assert not img_path.exists()
+    assert not source_path.exists()
+    assert not projects.paths.result_path(first_id).exists()
+    reloaded = projects.load(reconcile=False)
+    assert len(reloaded.pages) == 1
+
+
+def test_delete_page_reindexes_pdf_source(tmp_path: Path) -> None:
+    projects, _ = _svc(tmp_path, "del-pdf")
+    projects.create("PDF")
+    ingest = IngestService(projects.paths, clock=projects.clock, ids=projects.ids)
+    project = ingest.import_bytes("scan.pdf", _pdf_bytes(3), render_dpi=100)
+    assert [p.page_index for p in project.pages] == [0, 1, 2]
+    middle = project.pages[1]
+    middle_id = middle.page_id
+    kept_ids = [project.pages[0].page_id, project.pages[2].page_id]
+
+    updated = projects.delete_page(middle_id)
+    assert [p.page_id for p in updated.pages] == kept_ids
+    assert [p.page_index for p in updated.pages] == [0, 1]
+    assert updated.sources[0].page_count == 2
+    for page in updated.pages:
+        render = updated.renders[page.active_render_id]
+        expected_prefix = f"pages/{page.source_id}/{page.page_index:04d}/"
+        assert render.image_relpath.startswith(expected_prefix)
+        assert projects.paths.resolve_contained(render.image_relpath).is_file()
+        assert render.pdf_page_index == page.page_index
+    assert not (
+        projects.paths.pages_dir / middle.source_id / "0002"
+    ).exists()
+
+
+def test_delete_first_pdf_page_reindexes_without_collision(tmp_path: Path) -> None:
+    projects, _ = _svc(tmp_path, "del-pdf-first")
+    projects.create("PDF first")
+    ingest = IngestService(projects.paths, clock=projects.clock, ids=projects.ids)
+    project = ingest.import_bytes("scan.pdf", _pdf_bytes(3), render_dpi=100)
+    first_id = project.pages[0].page_id
+    kept = [project.pages[1].page_id, project.pages[2].page_id]
+
+    updated = projects.delete_page(first_id)
+    assert [p.page_id for p in updated.pages] == kept
+    assert [p.page_index for p in updated.pages] == [0, 1]
+    for page in updated.pages:
+        render = updated.renders[page.active_render_id]
+        assert projects.paths.resolve_contained(render.image_relpath).is_file()
+        assert render.pdf_page_index == page.page_index
+
+
+def test_delete_page_clears_cover_and_refuses_last(
+    tmp_path: Path,
+) -> None:
+    projects, _ = _svc(tmp_path, "del-last")
+    projects.create("Cover clear")
+    ingest = IngestService(projects.paths, clock=projects.clock, ids=projects.ids)
+    project = ingest.import_bytes("a.png", _png_bytes(color=(1, 1, 1)))
+    project = ingest.import_bytes("b.png", _png_bytes(color=(2, 2, 2)))
+    cover_id = project.pages[0].page_id
+    projects.update_notebook_metadata(cover_page_id=cover_id)
+
+    updated = projects.delete_page(cover_id)
+    assert updated.cover_page_id is None
+    assert len(updated.pages) == 1
+
+    with pytest.raises(ProjectError, match="last page"):
+        projects.delete_page(updated.pages[0].page_id)
+
+
+def test_delete_page_refuses_when_job_lock_held(tmp_path: Path) -> None:
+    projects, _ = _svc(tmp_path, "del-busy")
+    projects.create("Busy")
+    ingest = IngestService(projects.paths, clock=projects.clock, ids=projects.ids)
+    project = ingest.import_bytes("a.png", _png_bytes(color=(1, 1, 1)))
+    project = ingest.import_bytes("b.png", _png_bytes(color=(2, 2, 2)))
+    held = JobLock(projects.paths.job_lock)
+    assert held.try_acquire()
+    try:
+        with pytest.raises(JobConflictError, match="OCR job is running"):
+            projects.delete_page(project.pages[0].page_id)
+    finally:
+        held.release()

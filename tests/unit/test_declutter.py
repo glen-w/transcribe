@@ -74,6 +74,59 @@ def test_crops_uniform_right_grey_bed() -> None:
     assert not (40 <= mean <= 200 and abs(mean - 128) < 5)
 
 
+def test_wide_grey_bed_beyond_max_band_cap_crops() -> None:
+    """Beds wider than max_band_cap_px must still crop (real scanner overscan)."""
+    paper = _paper(2000, 2400)
+    ImageDraw.Draw(paper).rectangle((40, 40, 120, 120), fill=(30, 60, 180))
+    # 450px bed > default max_band_cap_px (400); soft extension must find the edge.
+    src = _png_bytes(_with_right_grey_bed(paper, bed=450, grey=(160, 160, 160)))
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_right >= 450
+    assert abs(result.width - 2000) <= SCAN_BORDER_PARAMS.paper_inset_px + 1
+
+
+def test_noisy_mid_bed_variance_still_crops() -> None:
+    """Slightly textured grey columns mid-bed must not abort detection early."""
+    paper = _paper(800, 1000)
+    ImageDraw.Draw(paper).rectangle((40, 40, 120, 120), fill=(30, 60, 180))
+    bed = 120
+    canvas = Image.new("RGB", (800 + bed, 1000), (150, 150, 150))
+    canvas.paste(paper, (0, 0))
+    # Inject moderate noise in a mid-bed strip (var ~200–600, still bed-like).
+    for x in range(800 + 40, 800 + 80):
+        for y in range(0, 1000, 3):
+            canvas.putpixel((x, y), (130, 130, 130))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_right >= bed
+
+
+def test_soft_page_edge_shadow_still_crops() -> None:
+    """Soft luminance ramp at page edge must not fail the interior mean-delta check.
+
+    Real flatbed scans often have a ~20–40px transition; an immediate probe sits
+    in that shadow and used to no-op despite a clear grey bed.
+    """
+    paper = _paper(800, 1000, fill=(250, 250, 250))
+    ImageDraw.Draw(paper).rectangle((40, 40, 120, 120), fill=(30, 60, 180))
+    bed = 100
+    grey = (155, 155, 155)
+    canvas = Image.new("RGB", (800 + bed, 1000), grey)
+    canvas.paste(paper, (0, 0))
+    # Soft shadow: blend last 32px of paper toward bed grey
+    for x in range(800 - 32, 800):
+        t = (x - (800 - 32)) / 32.0
+        v = int(250 * (1 - t) + 155 * t)
+        for y in range(1000):
+            canvas.putpixel((x, y), (v, v, v))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_right >= bed
+
+
 def test_idempotent_on_successful_crop() -> None:
     src = _png_bytes(_with_right_grey_bed(_paper(400, 500), bed=80))
     first = apply_declutter(src, enabled=True)

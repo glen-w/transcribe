@@ -7,7 +7,12 @@ from pathlib import Path
 
 import streamlit as st
 
-from transcribe.domain.dates import ApproximateDate, bin_key_to_date
+from transcribe.domain.dates import (
+    ApproximateDate,
+    bin_key_to_date,
+    bin_key_to_range,
+    format_date_filter_input,
+)
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import (
@@ -24,9 +29,11 @@ from transcribe.ui.action_menus.context import ActionContext
 from transcribe.ui.action_menus.ids import ActionId, NavStyle, ReturnMode, SectionId
 from transcribe.ui.action_menus.nav import load_live_notebook_context, navigate_open
 from transcribe.ui.action_menus.render import render_configured_actions
+from transcribe.ui.activity_selection import BIN_SELECT, selected_bin_label
 from transcribe.ui.page_viewer import open_page_context
 
-# Layout slots (no crop): View pins width beside the chart; Archive pins height in the strip.
+# Layout slots (no crop): View pins cover width; chart is full-bleed under the header.
+# Archive pins cover height in the strip.
 VIEW_COVER_WIDTH_PX = 112
 VIEW_ROW_CHART_HEIGHT = 120
 ARCHIVE_COVER_HEIGHT_PX = 160
@@ -46,19 +53,24 @@ def _render_clickable_cover(
     key: str,
     width: int | str = "stretch",
 ) -> None:
-    """Cover thumbnail: click runs the same navigation as the Open action."""
-    st.image(str(thumb), width=width)
-    can_open = bool(ctx.project_exists and ctx.has_pages and ctx.page_ids)
-    if st.button(
-        "Open",
-        key=key,
-        type="tertiary",
-        width="stretch",
-        disabled=not can_open,
-        help=help_for(ActionId.OPEN) if can_open else "No pages to open.",
-    ):
-        if navigate_open(ctx, rerun=False):
-            st.rerun()
+    """Cover thumbnail: click runs the same navigation as the Open action.
+
+    Image + overlay button share a dedicated container so the absolute cover
+    hit-target cannot stretch over captions or the action strip below.
+    """
+    with st.container():
+        st.image(str(thumb), width=width)
+        can_open = bool(ctx.project_exists and ctx.has_pages and ctx.page_ids)
+        if st.button(
+            "Open",
+            key=key,
+            type="tertiary",
+            width="stretch",
+            disabled=not can_open,
+            help=help_for(ActionId.OPEN) if can_open else "No pages to open.",
+        ):
+            if navigate_open(ctx, rerun=False):
+                st.rerun()
 
 
 def _filters_from_widgets(
@@ -86,9 +98,22 @@ def _filters_from_widgets(
     )
 
 
-def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, height: int) -> None:
+def _activity_chart(
+    bins: list[TimelineBin] | list[ActivityBin],
+    grain: str,
+    *,
+    height: int,
+    key: str | None = None,
+) -> str | None:
+    """Render the date/page histogram.
+
+    When ``key`` is set, bars are selectable and a newly clicked non-empty bin
+    label is returned once (caller should act then ``st.rerun``). The chart
+    widget remounts after a click so the same bar can be selected again.
+    """
     if not bins:
-        return
+        return None
+    counts = {b.key: b.count for b in bins}
     axis_format = {
         "day": "%d %b %Y",
         "week": "%d %b %Y",
@@ -96,6 +121,7 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
         "year": "%Y",
     }.get(grain, "%b %Y")
     tick_count = min(10, max(4, len(bins)))
+    selected: str | None = None
     try:
         import altair as alt
         import pandas as pd
@@ -109,6 +135,11 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
             for b in bins
         ]
         df = pd.DataFrame(rows)
+        point = alt.selection_point(
+            name=BIN_SELECT,
+            fields=["label"],
+            toggle=False,
+        )
         chart = (
             alt.Chart(df)
             .mark_bar()
@@ -125,14 +156,42 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
                     ),
                 ),
                 y=alt.Y("pages:Q", title="Pages"),
+                opacity=alt.condition(point, alt.value(1.0), alt.value(0.55)),
                 tooltip=[
                     alt.Tooltip("when:T", title="When", format=axis_format),
                     alt.Tooltip("pages:Q", title="Pages"),
+                    alt.Tooltip("label:N", title="Bin"),
                 ],
             )
+            .add_params(point)
             .properties(height=height)
         )
-        st.altair_chart(chart, width="stretch")
+        # Altair defaults continuousWidth≈300 and sizes bars to the date span.
+        # Drop that cap and let Streamlit inject the parent width so every
+        # notebook histogram fills the same full row.
+        spec = chart.to_dict()
+        view_cfg = spec.setdefault("config", {}).setdefault("view", {})
+        view_cfg.pop("continuousWidth", None)
+        view_cfg.pop("continuousHeight", None)
+        spec["width"] = "container"
+        spec["autosize"] = {"type": "fit-x", "contains": "padding"}
+        # width="stretch" sizes the element; spec width="container" + fit-x
+        # make the Vega SVG follow the parent instead of staying content-sized.
+        if key:
+            gen = int(st.session_state.get(f"{key}_gen", 0))
+            event = st.vega_lite_chart(
+                spec,
+                width="stretch",
+                key=f"{key}__{gen}",
+                on_select="rerun",
+                selection_mode=BIN_SELECT,
+            )
+            label = selected_bin_label(event)
+            if label and counts.get(label, 0) > 0:
+                st.session_state[f"{key}_gen"] = gen + 1
+                selected = label
+        else:
+            st.vega_lite_chart(spec, width="stretch")
     except Exception:
         # Readable categorical fallback when Altair/pandas is unavailable.
         labels = []
@@ -149,27 +208,113 @@ def _activity_chart(bins: list[TimelineBin] | list[ActivityBin], grain: str, *, 
             x="when",
             y="pages",
             height=height,
+            width="stretch",
         )
+    return selected
+
+
+def _queue_archive_bin_filter(bin_key: str, grain: str) -> None:
+    """Stash a bin click so Period widgets can adopt it on the next run."""
+    start, end = bin_key_to_range(bin_key, grain)
+    if grain == "year":
+        st.session_state["_archive_bin_pending"] = {
+            "period": "Year",
+            "year": start.year,
+        }
+        return
+    st.session_state["_archive_bin_pending"] = {
+        "period": "Range",
+        "range_start": format_date_filter_input(start),
+        "range_end": format_date_filter_input(end),
+    }
+
+
+def _apply_pending_archive_bin_filter() -> None:
+    """Apply a queued bin click before Period widgets instantiate."""
+    pending = st.session_state.pop("_archive_bin_pending", None)
+    if not isinstance(pending, dict):
+        return
+    period = pending.get("period")
+    if period == "Year":
+        st.session_state["archive_period"] = "Year"
+        year = pending.get("year")
+        if isinstance(year, int):
+            st.session_state["archive_year"] = year
+        return
+    if period == "Range":
+        st.session_state["archive_period"] = "Range"
+        st.session_state["archive_range_start"] = str(pending.get("range_start") or "")
+        st.session_state["archive_range_end"] = str(pending.get("range_end") or "")
+
+
+def _open_notebook_at_bin(
+    nb: NotebookSummary,
+    bin_key: str,
+    grain: str,
+) -> bool:
+    """Open the page viewer on the first notebook page in ``bin_key``."""
+    try:
+        paths = open_project_paths(nb.root)
+        projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+        project = projects.load(reconcile=False)
+    except Exception:  # noqa: BLE001
+        return False
+    page_id = next(
+        (
+            page.page_id
+            for page in project.pages
+            if page.date is not None and page.date.bin_key(grain) == bin_key
+        ),
+        None,
+    )
+    if page_id is None:
+        return False
+    page_ids = [page.page_id for page in project.pages]
+    open_page_context(
+        page_id=page_id,
+        page_ids=page_ids,
+        project_root=nb.root,
+        return_mode=ReturnMode.VIEW.value,
+    )
+    st.session_state["ui_mode"] = ReturnMode.VIEW.value
+    return True
 
 
 def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
     from transcribe.domain.dates import parse_date_input
 
     archive.ensure_index()
+    _apply_pending_archive_bin_filter()
     years = archive.available_years()
     period_options = ["All", "Year", "Range"] if years else ["All", "Range"]
-    period = st.selectbox("Period", period_options, index=0)
+    if "archive_period" not in st.session_state:
+        st.session_state["archive_period"] = "All"
+    if st.session_state.get("archive_period") not in period_options:
+        st.session_state["archive_period"] = "All"
+    period = st.selectbox("Period", period_options, key="archive_period")
     year = None
     range_start = None
     range_end = None
     if period == "Year" and years:
-        year = st.selectbox("Year", years, index=len(years) - 1)
+        if "archive_year" not in st.session_state or st.session_state["archive_year"] not in years:
+            st.session_state["archive_year"] = years[-1]
+        year = st.selectbox("Year", years, key="archive_year")
         period_key = "year"
     elif period == "Range":
         period_key = "range"
         c1, c2 = st.columns(2)
-        start_raw = c1.text_input("From (YYYY / YYYY-MM / YYYY-MM-DD)", value="")
-        end_raw = c2.text_input("To (YYYY / YYYY-MM / YYYY-MM-DD)", value="")
+        if "archive_range_start" not in st.session_state:
+            st.session_state["archive_range_start"] = ""
+        if "archive_range_end" not in st.session_state:
+            st.session_state["archive_range_end"] = ""
+        start_raw = c1.text_input(
+            "From (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="archive_range_start",
+        )
+        end_raw = c2.text_input(
+            "To (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="archive_range_end",
+        )
         try:
             range_start = parse_date_input(start_raw) if start_raw.strip() else None
             range_end = parse_date_input(end_raw) if end_raw.strip() else None
@@ -254,8 +399,19 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
     )
 
     if timeline.bins:
-        _activity_chart(timeline.bins, timeline.grain, height=220)
-        st.caption(f"Activity by {timeline.grain} (zeros preserve gaps)")
+        clicked = _activity_chart(
+            timeline.bins,
+            timeline.grain,
+            height=220,
+            key="archive_timeline",
+        )
+        st.caption(
+            f"Activity by {timeline.grain} (zeros preserve gaps) · "
+            "click a bar to filter to that date"
+        )
+        if clicked:
+            _queue_archive_bin_filter(clicked, timeline.grain)
+            st.rerun()
     else:
         st.info("No dated pages match the current filters.")
 
@@ -375,7 +531,8 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
             )
         except Exception:  # noqa: BLE001
             ctx = None
-        # Narrow cover column; chart/actions take the rest. Cover width is fixed in px.
+        # Header row: narrow cover + meta. Chart/actions sit below at full width
+        # so Altair is not trapped in a column where container sizing fails.
         left, right = st.columns([1, 8], gap="medium")
         with left:
             paths = open_project_paths(nb.root)
@@ -410,22 +567,29 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 else "writing rate unavailable"
             )
             st.caption(f"{nb.page_count} pages ({rate})")
-            if nb.activity:
-                grain = "month"
-                if nb.activity and "W" in nb.activity[0].key:
-                    grain = "week"
-                elif nb.activity and len(nb.activity[0].key) == 4:
-                    grain = "year"
-                elif nb.activity and len(nb.activity[0].key) == 10:
-                    grain = "day"
-                _activity_chart(nb.activity, grain, height=VIEW_ROW_CHART_HEIGHT)
-            if ctx is not None:
-                try:
-                    render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
-                except Exception:  # noqa: BLE001
-                    st.caption("Actions unavailable.")
-            else:
+        if nb.activity:
+            grain = "month"
+            if nb.activity and "W" in nb.activity[0].key:
+                grain = "week"
+            elif nb.activity and len(nb.activity[0].key) == 4:
+                grain = "year"
+            elif nb.activity and len(nb.activity[0].key) == 10:
+                grain = "day"
+            clicked = _activity_chart(
+                nb.activity,
+                grain,
+                height=VIEW_ROW_CHART_HEIGHT,
+                key=f"view_activity_{nb.project_id}",
+            )
+            if clicked and _open_notebook_at_bin(nb, clicked, grain):
+                st.rerun()
+        if ctx is not None:
+            try:
+                render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
+            except Exception:  # noqa: BLE001
                 st.caption("Actions unavailable.")
+        else:
+            st.caption("Actions unavailable.")
         st.divider()
 
 

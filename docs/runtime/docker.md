@@ -42,12 +42,38 @@ Open http://127.0.0.1:8510 (Transcribe uses **8510**, not 8501).
 | `HOST_INBOX_DIR` | `/mnt/inbox` | `TRANSCRIBE_INBOX_DIR` |
 | `HOST_EXPORT_DIR` | `/mnt/exports` | `TRANSCRIBE_EXPORT_DIR` |
 | `HOST_DATA_DIR` (default `./data`) | `/data` | `TRANSCRIBE_DATA_DIR` |
+| `HOST_BULK_IMPORT_DIR` (optional, via override) | `/mnt/notebooks` | — (paste path in Inbox UI) |
 
 Separate `HOST_*` vs `TRANSCRIBE_*` names avoid Compose `.env` vs `environment:` precedence surprises.
 
 Prefer absolute host paths **outside the git clone** for projects, inbox, and exports so wiping the repo never deletes notebook work.
 
 Project folder internals: [../contracts/project-on-disk.md](../contracts/project-on-disk.md).
+
+### Bulk import paths (Inbox UI / CLI in Docker)
+
+The Streamlit process only sees **container** paths. In **Notebooks → Inbox**, enter:
+
+| Goal | Path to paste |
+|------|----------------|
+| Default inbox mount | `/mnt/inbox` (or a subfolder) |
+| Extra scans mount (override) | `/mnt/notebooks` |
+
+Do **not** paste host paths such as `/Users/you/Documents/notebooks`. Those are invisible inside the container; relative resolution against `working_dir: /data` often surfaces as `not a directory: /data/Users/...`.
+
+To expose another host folder, set `HOST_BULK_IMPORT_DIR` in `.env` and mount it in `docker-compose.override.yml` (see the `.example`), then recreate:
+
+```bash
+# .env
+HOST_BULK_IMPORT_DIR=/Users/you/Documents/notebooks
+
+# docker-compose.override.yml volumes entry
+# - ${HOST_BULK_IMPORT_DIR}:/mnt/notebooks:ro
+
+docker compose up -d --force-recreate transcribe-web
+```
+
+CLI via Compose uses the same mounts: `docker compose exec transcribe-web transcribe bulk-import folders /mnt/notebooks …`.
 
 ## Ollama
 
@@ -62,6 +88,7 @@ Ensure a vision-capable model is already pulled on the host Ollama instance. Pri
 
 - Mount `./src/transcribe` into site-packages for live code edits
 - Drop `:ro` on the inbox mount
+- Mount `HOST_BULK_IMPORT_DIR` → `/mnt/notebooks` for Inbox bulk import of a folder tree outside the default inbox
 
 The override file is gitignored; keep machine-specific paths there or in `.env`.
 

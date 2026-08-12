@@ -49,6 +49,7 @@ from transcribe.ui.action_menus.nav import (
     navigate_open,
     navigate_workflow,
     validate_project_root,
+    viewer_page_ids,
 )
 from transcribe.ui.action_menus.prefs import (
     INTERFACE_SCHEMA_VERSION,
@@ -529,6 +530,44 @@ def test_first_valid_open_page_skips_stale_cover(tmp_path: Path) -> None:
     assert first_valid_open_page(project) == project.pages[0].page_id
 
 
+def test_viewer_page_ids_puts_cover_first(tmp_path: Path) -> None:
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    root = projects / "multi"
+    paths = open_project_paths(root)
+    clock, ids = FakeClock(), UuidGenerator()
+    projects_svc = ProjectService(paths, clock=clock, ids=ids)
+    projects_svc.create("multi")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("a.png", _png_bytes())
+    project = ingest.import_bytes("b.png", _png_bytes())
+    project = ingest.import_bytes("c.png", _png_bytes())
+    mid = project.pages[1].page_id
+    project.cover_page_id = mid
+
+    ordered = viewer_page_ids(project)
+    assert ordered[0] == mid
+    assert set(ordered) == {p.page_id for p in project.pages}
+    assert ordered[1:] == [project.pages[0].page_id, project.pages[2].page_id]
+    assert first_valid_open_page(project) == mid
+
+    session: dict = {}
+    # Persist cover so live load sees it.
+    projects_svc.update_notebook_metadata(cover_page_id=mid)
+    ctx = load_live_notebook_context(
+        project_id=project.id,
+        project_root=root,
+        projects_dir=projects,
+        return_mode=ReturnMode.ARCHIVE,
+    )
+    assert navigate_open(ctx, session=session, rerun=False) is True
+    assert session["view_page_id"] == mid
+    assert session["view_page_ids"][0] == mid
+    assert session["view_page_ids"] == viewer_page_ids(
+        projects_svc.load(reconcile=False)
+    )
+
+
 def test_empty_notebook_open_unavailable(tmp_path: Path) -> None:
     projects = tmp_path / "projects"
     projects.mkdir()
@@ -706,9 +745,12 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "ReturnMode.VIEW" in source
     assert "navigate_open" in source
     assert "_render_clickable_cover" in source
+    assert "with st.container()" in source
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
     assert "st-key-tr_al_" in shell
     assert "st-key-tx_cover_" in shell
+    # Cover hover/hit-target must require a direct-child cover key (not any ancestor).
+    assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
     assert "Settings" in shell
 
 

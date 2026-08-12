@@ -18,7 +18,6 @@ from transcribe.ui.action_menus.context import (
     project_root_key,
 )
 from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, WorkflowMode
-from transcribe.ui.page_viewer import open_page_context
 from transcribe.ui.shell import normalize_ui_mode
 
 
@@ -68,19 +67,36 @@ def validate_project_root(
     return candidate
 
 
+def viewer_page_ids(
+    project: Project,
+    *,
+    preferred_cover_id: str | None = None,
+) -> list[str]:
+    """Page order for the viewer: cover first (if valid), then remaining notebook order.
+
+    Does not mutate ``project.pages`` — analysis/OCR chronology stay as stored.
+    """
+    page_ids = [p.page_id for p in project.pages]
+    if not page_ids:
+        return []
+    cover = (
+        preferred_cover_id
+        if preferred_cover_id is not None
+        else project.cover_page_id
+    )
+    if cover and cover in page_ids and page_ids[0] != cover:
+        return [cover] + [pid for pid in page_ids if pid != cover]
+    return page_ids
+
+
 def first_valid_open_page(
     project: Project,
     *,
     preferred_cover_id: str | None = None,
 ) -> str | None:
     """Deterministic Open target: valid cover if present, else first page in order."""
-    page_ids = [p.page_id for p in project.pages]
-    if not page_ids:
-        return None
-    cover = preferred_cover_id if preferred_cover_id is not None else project.cover_page_id
-    if cover and cover in page_ids:
-        return cover
-    return page_ids[0]
+    page_ids = viewer_page_ids(project, preferred_cover_id=preferred_cover_id)
+    return page_ids[0] if page_ids else None
 
 
 def load_live_notebook_context(
@@ -140,7 +156,7 @@ def load_live_notebook_context(
             cover_page_id=None,
         )
 
-    page_ids = tuple(p.page_id for p in project.pages)
+    page_ids = tuple(viewer_page_ids(project))
     open_id = first_valid_open_page(project)
     return ActionContext(
         identity=identity,
@@ -212,10 +228,13 @@ def navigate_open(
     if page_id is None:
         return False
 
-    page_ids = [p.page_id for p in project.pages]
+    page_ids = viewer_page_ids(project, preferred_cover_id=ctx.cover_page_id)
     return_mode = ctx.return_mode.value
 
     if session is None:
+        # Lazy import: page_viewer imports clear_page_viewer_state from this module.
+        from transcribe.ui.page_viewer import open_page_context
+
         open_page_context(
             page_id=page_id,
             page_ids=page_ids,

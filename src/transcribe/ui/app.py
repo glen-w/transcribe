@@ -225,13 +225,15 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
     ):
+        from transcribe.ui.action_menus.nav import viewer_page_ids
+
         render_page_viewer(
             paths=paths,
             projects=projects,
             project=project,
             page_id=st.session_state["view_page_id"],
             page_ids=st.session_state.get("view_page_ids")
-            or [p.page_id for p in project.pages],
+            or viewer_page_ids(project),
             view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
             back_label="Back to Review",
@@ -351,7 +353,9 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         if not project.pages:
             st.info("No pages yet.")
         else:
-            page_ids = [p.page_id for p in project.pages]
+            from transcribe.ui.action_menus.nav import viewer_page_ids
+
+            page_ids = viewer_page_ids(project)
             default_id = st.session_state.get("view_page_id") or page_ids[0]
             if default_id not in page_ids:
                 default_id = page_ids[0]

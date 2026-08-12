@@ -54,7 +54,7 @@ def _render_run(projects: ProjectService) -> None:
     progress = st.empty()
     status = st.empty()
 
-    if st.button("Run detection", type="primary", use_container_width=True):
+    if st.button("Run detection", type="primary", width="stretch"):
         if not selected_labels:
             st.warning("Select at least one detector.")
             return

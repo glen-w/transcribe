@@ -58,7 +58,10 @@ def render_configuration_panel() -> None:
         "Visual declutter (remove scanner borders on import)",
         value=bool(view.effective.ingest.visual_declutter_enabled),
         key="settings_ingest_visual_declutter",
-        help="On by default. Affects new imports only; existing notebooks are not rewritten.",
+        help=(
+            "On by default for new imports. Use Re-apply below to crop scanner "
+            "borders on an existing notebook."
+        ),
     )
     if st.button("Save import defaults", type="primary", key="settings_ingest_save"):
         try:
@@ -74,6 +77,42 @@ def render_configuration_panel() -> None:
             st.rerun()
         except ConfigError as exc:
             st.error(f"{exc.code}: {exc}")
+
+    st.markdown("#### Re-apply visual declutter")
+    st.caption(
+        "Re-crop scanner beds on an existing notebook’s page images. "
+        "Uses the checkbox above as the on/off switch. Does not re-run OCR."
+    )
+    project_roots = sorted(
+        p for p in Path(runtime.projects_dir).expanduser().glob("*") if p.is_dir()
+    )
+    labels = [p.name for p in project_roots]
+    if not labels:
+        st.info("No notebooks found under the projects folder.")
+    else:
+        choice = st.selectbox(
+            "Notebook",
+            options=labels,
+            key="settings_declutter_reapply_notebook",
+        )
+        if st.button(
+            "Re-apply visual declutter",
+            key="settings_declutter_reapply_run",
+            type="secondary",
+        ):
+            root = Path(runtime.projects_dir) / choice
+            try:
+                paths = open_project_paths(root)
+                svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+                stats = svc.reapply_visual_declutter(enabled=bool(declutter))
+                st.success(
+                    f"Done on **{choice}**: cropped {stats.pages_cropped}, "
+                    f"noop {stats.pages_noop}, unchanged {stats.pages_unchanged}, "
+                    f"errors {stats.pages_error} "
+                    f"(of {stats.pages_total} pages)."
+                )
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"{type(exc).__name__}: {exc}")
 
     st.divider()
     st.caption("Curated knobs (effective values). Edit via Analysis / Models / Profiles.")

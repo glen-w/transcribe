@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from transcribe.domain.dates import (
@@ -62,6 +63,15 @@ def _seed_ocr_settings() -> OCRSettings:
 
 
 _UNSET = object()
+
+
+@dataclass
+class DeclutterReapplyStats:
+    pages_total: int = 0
+    pages_cropped: int = 0
+    pages_noop: int = 0
+    pages_unchanged: int = 0
+    pages_error: int = 0
 
 
 class ProjectService:
@@ -191,6 +201,135 @@ class ProjectService:
             current.updated_at = to_iso(self.clock.now())
             validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
+            return current
+
+    def delete_page(self, page_id: str) -> Project:
+        """Remove a page from the notebook (manifest + on-disk artifacts).
+
+        Reindexes later pages in the same source so ``page_index`` stays
+        contiguous. Removes the source when it has no remaining pages. Refuses
+        when the notebook would become empty (delete the notebook instead) or
+        while an OCR job lock is held.
+        """
+        if job_lock_held(self.paths.job_lock):
+            raise JobConflictError(
+                "cannot delete page while an OCR job is running"
+            )
+
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            if len(current.pages) <= 1:
+                raise ProjectError(
+                    "cannot delete the last page; delete the notebook instead"
+                )
+            page = self._require_page(current, page_id)
+            source_id = page.source_id
+            deleted_index = page.page_index
+            render_id = page.active_render_id
+
+            current.renders.pop(render_id, None)
+            current.pages = [p for p in current.pages if p.page_id != page_id]
+            if current.cover_page_id == page_id:
+                current.cover_page_id = None
+
+            # Remove this page's artifacts before reindex can reuse its directory.
+            page_dir = self.paths.pages_dir / source_id / f"{deleted_index:04d}"
+            if page_dir.is_dir():
+                shutil.rmtree(page_dir, ignore_errors=True)
+            try:
+                self.paths.result_path(page_id).unlink(missing_ok=True)
+            except OSError:
+                pass
+            try:
+                self.paths.thumb_path(page_id).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+            # Reindex later pages in this source via a staging dir to avoid collisions.
+            siblings = [
+                p
+                for p in current.pages
+                if p.source_id == source_id and p.page_index > deleted_index
+            ]
+            siblings.sort(key=lambda p: p.page_index)
+            if siblings:
+                staging_root = (
+                    self.paths.pages_dir / source_id / f".reindex-{page_id}"
+                )
+                if staging_root.exists():
+                    shutil.rmtree(staging_root, ignore_errors=True)
+                staging_root.mkdir(parents=True, exist_ok=True)
+                for sibling in siblings:
+                    old_index = sibling.page_index
+                    old_dir = self.paths.pages_dir / source_id / f"{old_index:04d}"
+                    if old_dir.is_dir():
+                        old_dir.rename(staging_root / f"{old_index:04d}")
+                for sibling in siblings:
+                    old_index = sibling.page_index
+                    new_index = old_index - 1
+                    staged = staging_root / f"{old_index:04d}"
+                    new_dir = self.paths.pages_dir / source_id / f"{new_index:04d}"
+                    if staged.is_dir():
+                        if new_dir.exists():
+                            raise ProjectError(
+                                f"cannot reindex page directory: {new_dir} already exists"
+                            )
+                        staged.rename(new_dir)
+                    sibling.page_index = new_index
+                    sib_render = current.renders.get(sibling.active_render_id)
+                    if sib_render is not None:
+                        old_rel = sib_render.image_relpath
+                        prefix = f"pages/{source_id}/{old_index:04d}/"
+                        new_prefix = f"pages/{source_id}/{new_index:04d}/"
+                        if old_rel.startswith(prefix):
+                            sib_render.image_relpath = (
+                                new_prefix + old_rel[len(prefix) :]
+                            )
+                        if sib_render.pdf_page_index == old_index:
+                            sib_render.pdf_page_index = new_index
+                try:
+                    staging_root.rmdir()
+                except OSError:
+                    shutil.rmtree(staging_root, ignore_errors=True)
+
+            remaining_in_source = [
+                p for p in current.pages if p.source_id == source_id
+            ]
+            source_file: Path | None = None
+            if remaining_in_source:
+                for source in current.sources:
+                    if source.source_id == source_id:
+                        source.page_count = len(remaining_in_source)
+                        break
+            else:
+                source_obj = next(
+                    (s for s in current.sources if s.source_id == source_id),
+                    None,
+                )
+                current.sources = [
+                    s for s in current.sources if s.source_id != source_id
+                ]
+                if source_obj is not None:
+                    try:
+                        source_file = self.paths.resolve_contained(
+                            source_obj.stored_relpath
+                        )
+                    except ValueError:
+                        source_file = None
+                source_pages_root = self.paths.pages_dir / source_id
+                if source_pages_root.is_dir():
+                    shutil.rmtree(source_pages_root, ignore_errors=True)
+
+            current.updated_at = to_iso(self.clock.now())
+            validate_project(current, paths=self.paths)
+            write_json_atomic(self.paths.manifest, current.as_dict())
+
+            if source_file is not None:
+                try:
+                    source_file.unlink(missing_ok=True)
+                except OSError:
+                    pass
             return current
 
     def approve_page_date(
@@ -598,6 +737,122 @@ class ProjectService:
     def adopt_raw_as_edit(self, page_id: str) -> PageResult:
         """Clear edited_text so effective text becomes active raw."""
         return self.save_user_edit(page_id, None)
+
+    def reapply_visual_declutter(
+        self, *, enabled: bool = True
+    ) -> DeclutterReapplyStats:
+        """Re-run visual declutter on every active render; replace cropped pages.
+
+        Creates a new ``render_id`` when pixels change. Provenance-only updates keep
+        the existing render when bytes are unchanged. Refuses while an OCR job lock
+        is held. Never restores already-cropped margins when ``enabled`` is False —
+        that only records ``disabled`` provenance on current pixels.
+        """
+        from transcribe.declutter import apply_declutter
+        from transcribe.domain.fingerprint import sha256_bytes
+        from transcribe.domain.models import RenderProvenance
+        from transcribe.persistence.atomic import write_bytes_atomic
+
+        if job_lock_held(self.paths.job_lock):
+            raise JobConflictError(
+                "cannot re-apply visual declutter while an OCR job is running"
+            )
+
+        stats = DeclutterReapplyStats()
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(
+                read_json(self.paths.manifest), "transcribe.project"
+            )
+            current = Project.from_dict(payload)
+            stats.pages_total = len(current.pages)
+            old_files: list[Path] = []
+            thumb_files: list[Path] = []
+
+            for page in current.pages:
+                old = current.renders.get(page.active_render_id)
+                if old is None:
+                    stats.pages_error += 1
+                    continue
+                try:
+                    img_path = self.paths.resolve_contained(old.image_relpath)
+                    png = img_path.read_bytes()
+                    result = apply_declutter(png, enabled=enabled)
+                except Exception:  # noqa: BLE001 — keep going; count as error
+                    stats.pages_error += 1
+                    continue
+
+                if result.state == "enabled_cropped":
+                    stats.pages_cropped += 1
+                elif result.state == "enabled_noop":
+                    stats.pages_noop += 1
+                elif result.state == "error_fallback":
+                    stats.pages_error += 1
+                else:
+                    stats.pages_noop += 1
+
+                pixels_changed = result.image_bytes != png
+                if not pixels_changed:
+                    stats.pages_unchanged += 1
+                    updated = RenderProvenance(
+                        render_id=old.render_id,
+                        source_sha256=old.source_sha256,
+                        pdf_page_index=old.pdf_page_index,
+                        render_dpi=old.render_dpi,
+                        renderer=old.renderer,
+                        renderer_version=old.renderer_version,
+                        rendered_image_sha256=old.rendered_image_sha256,
+                        width=old.width,
+                        height=old.height,
+                        image_relpath=old.image_relpath,
+                        **result.provenance_dict(),
+                    )
+                    current.renders[old.render_id] = updated
+                    continue
+
+                new_rid = self.ids.new_id()
+                new_path = self.paths.page_render_path(
+                    page.source_id, page.page_index, new_rid
+                )
+                write_bytes_atomic(new_path, result.image_bytes)
+                new_rel = self.paths.relativize(new_path)
+                new_render = RenderProvenance(
+                    render_id=new_rid,
+                    source_sha256=old.source_sha256,
+                    pdf_page_index=old.pdf_page_index,
+                    render_dpi=old.render_dpi,
+                    renderer=old.renderer,
+                    renderer_version=old.renderer_version,
+                    rendered_image_sha256=sha256_bytes(result.image_bytes),
+                    width=result.width,
+                    height=result.height,
+                    image_relpath=new_rel,
+                    **result.provenance_dict(),
+                )
+                current.renders[new_rid] = new_render
+                del current.renders[old.render_id]
+                page.active_render_id = new_rid
+                page.width = result.width
+                page.height = result.height
+                old_files.append(img_path)
+                thumb = self.paths.thumb_path(page.page_id)
+                if thumb.exists():
+                    thumb_files.append(thumb)
+
+            current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
+            write_json_atomic(self.paths.manifest, current.as_dict())
+
+            for path in old_files:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            for path in thumb_files:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            return stats
 
     def _reconcile_interrupted_locked(self) -> None:
         if job_lock_held(self.paths.job_lock):
