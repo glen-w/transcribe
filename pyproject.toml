@@ -35,15 +35,17 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 markers = [
-  "smoke: fast critical-path smoke tests",
-  "unit: isolated unit tests",
-  "integration: tests that require a live local Ollama server",
+  "smoke: fast critical-path smoke tests (pre-release subset)",
+  "unit: isolated unit tests (optional tagging; not required)",
+  "integration: live local Ollama (or other live dependency) — never for offline doubles",
   "slow: intentionally slow tests",
   "requires_ollama: live Ollama HTTP required",
   "requires_docker: Docker daemon required",
   "requires_network: outbound network required",
-  "quarantined: temporarily excluded from the default suite",
+  "quarantined: temporarily excluded from the default suite (pytest marker, not corpus quarantine)",
 ]
+# Default suite is offline: exclude live/heavy markers. Offline detector/service
+# doubles live under tests/services/ and must NOT use the integration marker.
 addopts = "-m 'not quarantined and not requires_ollama and not requires_docker and not requires_network and not slow and not integration'"
 filterwarnings = ["ignore::DeprecationWarning"]
 

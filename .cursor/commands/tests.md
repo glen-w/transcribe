@@ -66,7 +66,7 @@ Report:
 
 List test directories under `tests/`, preferring mirrors of package areas when present:
 
-`domain`, `providers`, `ingest`, `preprocess`, `prompts`, `services`, `persistence`, `export`, `ui` (UI tests sparingly), `integration`, `smoke`
+`unit`, `services`, `acceptance`, `providers`, `ingest`, `persistence`, `export`, `contracts`, `fixtures` (UI tests sparingly under `unit/`)
 
 Inspect `pytest.ini` / `pyproject.toml` pytest config.
 
@@ -75,6 +75,8 @@ Confirm markers including, where present:
 `smoke`, `unit`, `integration`, `slow`, `requires_ollama`, `requires_docker`, `requires_network`, `quarantined`
 
 Confirm default `addopts` excludes heavy/quarantined/live-Ollama tests.
+
+**Marker rule:** `@pytest.mark.integration` means **live** Ollama (or other live dependency). Offline detector doubles belong in `tests/services/` and must not use that marker, or default `addopts` would deselect them.
 
 ⸻
 

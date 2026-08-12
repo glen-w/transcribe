@@ -26,12 +26,23 @@ Or `./transcribe.sh install-dev`.
 ## Tests
 
 ```bash
-pytest -q
+pytest -q                 # default offline suite
+pytest -q -m smoke         # pre-release critical-path subset
 ```
 
-Default suite is **offline** (fake vision provider). Do not require a live Ollama daemon for PR confidence. Optional live probes belong in deep-test / local scripts under `.test_outputs/`.
+Default suite is **offline** (fake vision provider / recorded LLM doubles). Do not require a live Ollama daemon for PR confidence. Optional live probes belong in deep-test / local scripts under `.test_outputs/`.
 
-Pytest marker present today: `integration` (live Ollama) — not selected by default.
+### Markers
+
+Configured in `pyproject.toml`. Default `addopts` **excludes** `quarantined`, `requires_ollama`, `requires_docker`, `requires_network`, `slow`, and `integration`.
+
+| Marker | Meaning |
+|--------|---------|
+| `smoke` | Fast critical-path gate used by `# pre-release` |
+| `integration` | **Live** local Ollama (or other live dependency) only |
+| `quarantined` | Pytest exclusion — unrelated to corpus/journal quarantine |
+
+Offline multi-component detector tests belong under `tests/services/` (or `tests/unit/`) and must **not** use `@pytest.mark.integration`, or they would be deselected by default.
 
 ## Useful entrypoints
 
