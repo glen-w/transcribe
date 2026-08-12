@@ -5,7 +5,7 @@ Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependen
 
 > **Internal numbering.** This document keeps historical Wave / sub-wave ids (`1.1`…`1e.2`). User-facing docs, UI, and code should say **core modules**, not “Wave 1”.
 
-**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a core-set blocker — tracked under the **robustness & UX** focus on [ROADMAP.md](ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**.
+**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a core-set blocker — tracked under the **usability wave** on [ROADMAP.md](ROADMAP.md) **Now** / [usability_wave_plan.md](usability_wave_plan.md) (U1 payload polish). Deferred reinterpretations and `ocr_quality` are **not scheduled**.
 
 Detailed delivery plan for the 25 **Port early** modules. Companion to the disposition map and roadmap.
 
@@ -514,4 +514,4 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Which Overview widgets ship visually with 1a vs wait for 1b entities
 - Non-identity UX copy and chart aesthetics
 
-**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Product hardening** (deferred reinterpretations not scheduled).
+**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Usability wave** / [usability_wave_plan.md](usability_wave_plan.md) (deferred reinterpretations not scheduled).

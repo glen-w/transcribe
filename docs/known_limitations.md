@@ -55,9 +55,9 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Batch launches freeze an `AnalysisRunPlan` with `plan_hash` at confirm; start refuses hash mismatch and does not re-snapshot settings
 - Named presets carry `content_version` (bumped on Settings save); runs record preset identity
 - Exports stamp notebook `content_revision` on JSON, manifest, Markdown, and plain text
-- Dedicated Patterns tab is not shipped; payloads feed Themes instead (optional polish under the robustness/UX focus, not deferred reinterpretation modules)
+- Dedicated Patterns tab is not shipped; payloads feed Themes instead (optional polish under the **usability wave**, not deferred reinterpretation modules — [usability_wave_plan.md](usability_wave_plan.md))
 - **People & places** tab maps NER place labels (GPE/LOC/FAC) for the open notebook; **Notebooks → Places** aggregates across notebooks. Geocoding via OpenStreetMap Nominatim is opt-in and cached under `data/cache/geocode.json`
-- Deferred reinterpretation modules are not scheduled; product focus is deepening the shipped Analyse surfaces
+- Deferred reinterpretation modules are not scheduled; product focus is the usability wave (trust, Analyse product UX, first-run, daily workbench) for the shipped surfaces — [ROADMAP.md](ROADMAP.md) **Now**
 - Analysis results live under project-local `analysis/` and invalidate with text/config/parent changes — see contracts under [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
 ## Integration

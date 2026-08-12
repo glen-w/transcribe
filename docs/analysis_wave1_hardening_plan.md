@@ -28,11 +28,11 @@ Close contract/exit gaps after core ports landed: parent freshness, UI/cache hon
 
 ## Explicit non-goals
 
-- New modules / deferred reinterpretation ports (`ocr_quality` included — **deferred** on [ROADMAP.md](ROADMAP.md); current focus is deepen-in-place robustness/UX)
+- New modules / deferred reinterpretation ports (`ocr_quality` included — **deferred** on [ROADMAP.md](ROADMAP.md); current focus is the **usability wave** — [usability_wave_plan.md](usability_wave_plan.md))
 - Live Ollama / BERTopic / transformer installs
 - Shared `transcriptx-analysis` package
 - Filling pin-row sha256 for notebook-native `n/a` adaptations
-- Broad UI redesign beyond honest read-model / evidence gating (further Analyse UX lives under ROADMAP **Now**, not this checklist)
+- Broad UI redesign beyond honest read-model / evidence gating (further Analyse UX lives under ROADMAP **Now — Usability wave** / [usability_wave_plan.md](usability_wave_plan.md) tracks **U0–U1**, not this checklist)
 - Parallel module execution / performance work
 
 ## Exit
