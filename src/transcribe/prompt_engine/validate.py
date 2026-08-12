@@ -175,12 +175,38 @@ def validate_quotations_window_response_v1(obj: dict[str, Any]) -> dict[str, Any
     }
 
 
+def validate_beer_labels_window_response_v1(obj: dict[str, Any]) -> dict[str, Any] | None:
+    base = _window_base(obj)
+    if base is None:
+        return None
+    kind = (_as_str(obj.get("label_kind")) or "other").lower()
+    if kind not in {
+        "bottle_label",
+        "can_label",
+        "tap_badge",
+        "tasting_note",
+        "mixed",
+        "other",
+    }:
+        kind = "other"
+    sample = _as_str(obj.get("sample_text")) or ""
+    return {
+        **base,
+        "label_kind": kind,
+        "beer_name": _as_str(obj.get("beer_name")),
+        "brewery_or_brand": _as_str(obj.get("brewery_or_brand")),
+        "style_hint": _as_str(obj.get("style_hint")),
+        "sample_text": sample[:_MAX_EXCERPT],
+    }
+
+
 _VALIDATORS: dict[str, Any] = {
     "poetry_window_response_v1": validate_poetry_window_response_v1,
     "custom_finding_v1": validate_custom_finding_v1,
     "todo_window_response_v1": validate_todo_window_response_v1,
     "lists_window_response_v1": validate_lists_window_response_v1,
     "quotations_window_response_v1": validate_quotations_window_response_v1,
+    "beer_labels_window_response_v1": validate_beer_labels_window_response_v1,
 }
 
 

@@ -20,7 +20,7 @@ def render_detection_workspace(
 ) -> None:
     render_page_shell(
         "Detect",
-        "Scan notebook pages for poetry, lists, to-dos, quotations, and custom phenomena.",
+        "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, and custom phenomena.",
     )
     tabs = st.tabs(["Run Detection", "Findings"])
     with tabs[0]:
