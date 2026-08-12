@@ -62,6 +62,49 @@ def main(argv: list[str] | None = None) -> int:
         help="Text model for cleanup (defaults to project text analysis model)",
     )
 
+    p_multi = sub.add_parser(
+        "multipass",
+        help="Run multiple vision OCR models then rank/composite",
+    )
+    p_multi.add_argument("project", type=Path)
+    p_multi.add_argument(
+        "--model",
+        action="append",
+        dest="models",
+        required=True,
+        help="Vision model (repeat; at least two)",
+    )
+    p_multi.add_argument("--base-url", default=None)
+    p_multi.add_argument("--force", action="store_true")
+    p_multi.add_argument("--allow-remote-ollama", action="store_true")
+    p_multi.add_argument(
+        "--no-auto-composite",
+        action="store_true",
+        help="Do not auto-activate composite candidates",
+    )
+    p_multi.add_argument(
+        "--text-model",
+        default=None,
+        help="Text model for rank/composite (defaults to project cleanup/text model)",
+    )
+
+    p_ft = sub.add_parser(
+        "export-finetune",
+        help="Export preferred/active OCR + images for external fine-tuning",
+    )
+    p_ft.add_argument("project", type=Path)
+    p_ft.add_argument("dest", type=Path, nargs="?", default=None)
+    p_ft.add_argument("--require-preferred", action="store_true")
+    p_ft.add_argument("--include-rejected", action="store_true")
+    p_ft.add_argument("--no-edited", action="store_true", help="Skip pages with human edits")
+    p_ft.add_argument("--hardlink-images", action="store_true")
+
+    p_models.add_argument(
+        "--prefs",
+        action="store_true",
+        help="Show preference stats beside each model",
+    )
+
     p_export = sub.add_parser(
         "export",
         help="Export notebook formats (json/markdown/text/html/epub/pdf)",
@@ -232,13 +275,29 @@ def main(argv: list[str] | None = None) -> int:
             if not result.models:
                 print("No models found.")
                 return 1
+            prefs = None
+            if getattr(args, "prefs", False):
+                from transcribe.services.ocr_preference_stats import (
+                    preference_hint_for_model,
+                    rollup_preference_stats,
+                )
+
+                prefs = rollup_preference_stats()
             for m in result.models:
                 caps = ",".join(m.capabilities) if m.capability_known else "unknown"
-                print(f"{m.name}\tdigest={m.digest or '-'}\tcapabilities={caps}")
+                line = f"{m.name}\tdigest={m.digest or '-'}\tcapabilities={caps}"
+                if prefs is not None:
+                    hint = preference_hint_for_model(m.name, stats=prefs)
+                    if hint:
+                        line = f"{line}\t{hint}"
+                print(line)
             return 0
 
         if args.cmd == "export":
             return _cmd_export(args, clock=clock, ids=ids)
+
+        if args.cmd == "export-finetune":
+            return _cmd_export_finetune(args, clock=clock, ids=ids)
 
         paths, projects, coord, ingest = build_coordinator(
             args.project, clock=clock, ids=ids
@@ -305,6 +364,38 @@ def main(argv: list[str] | None = None) -> int:
             progress = coord.run_blocking(force=args.force)
             return 0 if progress.status == "completed" else 1
 
+        if args.cmd == "multipass":
+            from transcribe.services.multipass import MultiPassCoordinator
+
+            project = projects.load()
+            settings = project.settings
+            if args.base_url:
+                settings.base_url = normalize_base_url(args.base_url)
+            url = normalize_base_url(settings.base_url)
+            if not is_local_machine_host(url) and not args.allow_remote_ollama:
+                print(
+                    "Refusing non-local Ollama host without --allow-remote-ollama "
+                    "(page images would leave this machine).",
+                    file=sys.stderr,
+                )
+                return 2
+            settings.allow_non_loopback = bool(args.allow_remote_ollama)
+            if args.text_model:
+                settings.text_model_name = args.text_model.strip()
+                if not settings.cleanup_model_name:
+                    settings.cleanup_model_name = settings.text_model_name
+            project = projects.save_settings(project, settings)
+            coord.provider = OllamaVisionProvider(settings.base_url)
+            multi = MultiPassCoordinator(
+                jobs=coord, projects=projects, clock=clock, ids=ids
+            )
+            progress = multi.run_blocking(
+                model_names=list(args.models),
+                force=args.force,
+                auto_activate_composite=not args.no_auto_composite,
+            )
+            return 0 if progress.status == "completed" else 1
+
         if args.cmd == "detect":
             from transcribe.detection.api import DetectionService
 
@@ -331,6 +422,26 @@ def main(argv: list[str] | None = None) -> int:
     except (TranscribeError, JobConflictError, ProviderError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+
+def _cmd_export_finetune(args: argparse.Namespace, *, clock, ids) -> int:
+    from transcribe.services.finetune_export import (
+        FinetuneExportOptions,
+        FinetuneExportService,
+    )
+
+    paths = open_project_paths(args.project)
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.load()
+    opts = FinetuneExportOptions(
+        include_edited_pages=not args.no_edited,
+        require_preferred=bool(args.require_preferred),
+        include_rejected_candidates=bool(args.include_rejected),
+        image_mode="hardlink" if args.hardlink_images else "copy",
+    )
+    out = FinetuneExportService(paths, projects).export(args.dest, options=opts)
+    print(f"Fine-tune export written to {out}")
+    return 0
 
 
 def _cmd_export(args: argparse.Namespace, *, clock, ids) -> int:

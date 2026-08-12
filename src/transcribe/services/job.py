@@ -68,6 +68,10 @@ class JobPlan:
         prompt_version="",
         prompt_template_sha256="",
     ))
+    activate: bool = True
+    pass_id: str | None = None
+    skip_match_any_succeeded: bool = False
+    attempt_kind: str = "vision"
 
 
 @dataclass
@@ -223,6 +227,46 @@ class JobCoordinator:
         finally:
             self._job_file_lock.release()
 
+    def run_frozen_plan_blocking(
+        self,
+        plan: JobPlan,
+        *,
+        hold_lock: bool = True,
+        on_progress: Callable[[JobProgress], None] | None = None,
+    ) -> JobProgress:
+        """Run an already-frozen JobPlan (multipass vision phases)."""
+        acquired = False
+        if hold_lock:
+            if not self._job_file_lock.try_acquire():
+                raise JobConflictError(
+                    "another process holds the OCR job lock for this project"
+                )
+            acquired = True
+        progress = JobProgress(job_id=plan.job_id, status="running")
+        state = JobState(progress=progress, plan=plan)
+        with self._lock:
+            self._job = state
+
+        def emit(p: JobProgress) -> None:
+            _default_progress_log(p)
+            if on_progress is not None:
+                on_progress(p)
+
+        try:
+            project = self.projects.load(reconcile=False)
+            from transcribe.config.facade import bind_operation_config, snapshot_for_operation
+
+            snap = snapshot_for_operation(
+                project_settings=project.settings,
+                project_id=project.id,
+            )
+            with bind_operation_config(snap):
+                self._execute_plan(state, project=project, plan=plan, on_progress=emit)
+            return self.get_progress()
+        finally:
+            if acquired:
+                self._job_file_lock.release()
+
     def _update_progress(
         self,
         state: JobState,
@@ -295,9 +339,15 @@ class JobCoordinator:
         page_ids: list[str] | None,
         force: bool,
         provider: VisionOCRProvider,
+        model_name: str | None = None,
+        activate: bool = True,
+        pass_id: str | None = None,
+        skip_match_any_succeeded: bool = False,
+        attempt_kind: str = "vision",
     ) -> JobPlan:
         settings = project.settings
-        if not settings.model_name:
+        resolved_model = (model_name or settings.model_name or "").strip()
+        if not resolved_model:
             raise ProviderError("No model selected", code="model_missing")
         targets = tuple(page_ids or [p.page_id for p in project.pages])
         try:
@@ -317,7 +367,7 @@ class JobCoordinator:
         verified = False
         resolve = getattr(provider, "resolve_model_identity", None)
         if callable(resolve):
-            digest, verified = resolve(settings.model_name)
+            digest, verified = resolve(resolved_model)
         gen_opts = copy.deepcopy(settings.generation_options.as_dict())
         provider_id = getattr(provider, "provider_id", "unknown")
         base_url = settings.base_url
@@ -326,7 +376,7 @@ class JobCoordinator:
         cleanup = resolve_cleanup_plan_config(settings, client=self.cleanup_client)
         config_fp, _ = compute_input_fingerprint(
             provider=provider_id,
-            model_name=settings.model_name,
+            model_name=resolved_model,
             model_digest=digest,
             model_identity_verified=verified,
             input_sha256="",
@@ -340,7 +390,7 @@ class JobCoordinator:
             job_id=job_id,
             page_ids=targets,
             force=force,
-            model_name=settings.model_name,
+            model_name=resolved_model,
             model_digest=digest,
             model_identity_verified=bool(verified),
             base_url=base_url,
@@ -355,6 +405,10 @@ class JobCoordinator:
             max_workers=max_workers,
             config_fingerprint=config_fp,
             cleanup=cleanup,
+            activate=activate,
+            pass_id=pass_id,
+            skip_match_any_succeeded=skip_match_any_succeeded,
+            attempt_kind=attempt_kind,
         )
 
     def _seal_provider(
@@ -405,7 +459,6 @@ class JobCoordinator:
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> None:
-        # Capture provider reference at job start; later UI swaps of self.provider are ignored.
         start_provider = self.provider
         plan = self._build_plan(
             project,
@@ -414,6 +467,17 @@ class JobCoordinator:
             force=force,
             provider=start_provider,
         )
+        self._execute_plan(state, project=project, plan=plan, on_progress=on_progress)
+
+    def _execute_plan(
+        self,
+        state: JobState,
+        *,
+        project: Project,
+        plan: JobPlan,
+        on_progress: Callable[[JobProgress], None] | None = None,
+    ) -> None:
+        start_provider = self.provider
         sealed_provider = self._seal_provider(plan, start_provider)
         state.plan = plan
         state.provider = sealed_provider
@@ -422,7 +486,7 @@ class JobCoordinator:
         work: list[str] = []
         skipped = 0
         for page_id in plan.page_ids:
-            if not force and self._should_skip(project, page_id, plan):
+            if not plan.force and self._should_skip(project, page_id, plan):
                 skipped += 1
                 continue
             work.append(page_id)
@@ -560,10 +624,19 @@ class JobCoordinator:
         result = self.projects.load_page_result(page_id)
         if result is None:
             return False
+        current = self._compute_fingerprint(project, page_id, plan)
+        if plan.skip_match_any_succeeded:
+            for attempt in result.attempts:
+                if attempt.status != "succeeded":
+                    continue
+                if (attempt.attempt_kind or "vision") != "vision":
+                    continue
+                if attempt.input_fingerprint == current[0]:
+                    return True
+            return False
         attempt = result.active_attempt()
         if attempt is None or attempt.status != "succeeded":
             return False
-        current = self._compute_fingerprint(project, page_id, plan)
         return current[0] == attempt.input_fingerprint
 
     def _compute_fingerprint(
@@ -629,8 +702,10 @@ class JobCoordinator:
             provider_metadata={},
             started_at=started,
             cleanup=None,
+            attempt_kind=plan.attempt_kind or "vision",
+            pass_id=plan.pass_id,
         )
-        self.projects.record_generation(page_id, running)
+        self.projects.record_generation(page_id, running, activate=plan.activate)
 
         try:
             result = provider.transcribe_image(
@@ -676,7 +751,7 @@ class JobCoordinator:
                 )
                 running.input_fingerprint = fp2
                 running.fingerprint_payload = payload2
-            self.projects.record_generation(page_id, running)
+            self.projects.record_generation(page_id, running, activate=plan.activate)
             self._best_effort_suggest_page_date(page_id)
             return "succeeded"
         except ProviderError as exc:
@@ -685,7 +760,7 @@ class JobCoordinator:
                 code=exc.code, message=str(exc), retriable=exc.retriable
             )
             running.completed_at = to_iso(self.clock.now())
-            self.projects.record_generation(page_id, running)
+            self.projects.record_generation(page_id, running, activate=plan.activate)
             return "failed"
         except Exception as exc:  # noqa: BLE001
             running.status = "failed"
@@ -693,7 +768,7 @@ class JobCoordinator:
                 code="internal", message=str(exc), retriable=False
             )
             running.completed_at = to_iso(self.clock.now())
-            self.projects.record_generation(page_id, running)
+            self.projects.record_generation(page_id, running, activate=plan.activate)
             return "failed"
 
 

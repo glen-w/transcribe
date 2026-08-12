@@ -19,6 +19,9 @@ SUPPORTED: dict[str, int] = {
     "transcribe.corpus-index": 1,
     "transcribe.import-run": 1,
     "transcribe.ingest-journal": 1,
+    "transcribe.ocr-preference-ledger": 1,
+    "transcribe.ocr-multipass-job": 1,
+    "transcribe.finetune-export-manifest": 1,
 }
 
 

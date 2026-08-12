@@ -301,6 +301,14 @@ class OcrWorkspaceConfig:
     cleanup_mode: str = "strip_leak"
     cleanup_model_name: str = ""
     text_model_name: str = ""
+    prefer_mode: str = "prefer_is_promote"
+    auto_activate_composite: bool = True
+    multipass_default_models: tuple[str, ...] = ()
+    finetune_include_edited_pages: bool = True
+    finetune_require_preferred: bool = False
+    finetune_prefer_effective_text: bool = True
+    finetune_include_rejected_candidates: bool = False
+    finetune_image_mode: str = "copy"  # copy | hardlink
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -313,11 +321,29 @@ class OcrWorkspaceConfig:
             "cleanup_mode": self.cleanup_mode,
             "cleanup_model_name": self.cleanup_model_name,
             "text_model_name": self.text_model_name,
+            "prefer_mode": self.prefer_mode,
+            "auto_activate_composite": self.auto_activate_composite,
+            "multipass_default_models": list(self.multipass_default_models),
+            "finetune_include_edited_pages": self.finetune_include_edited_pages,
+            "finetune_require_preferred": self.finetune_require_preferred,
+            "finetune_prefer_effective_text": self.finetune_prefer_effective_text,
+            "finetune_include_rejected_candidates": self.finetune_include_rejected_candidates,
+            "finetune_image_mode": self.finetune_image_mode,
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> OcrWorkspaceConfig:
+        from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES
+
         data = data or {}
+        prefer = str(data.get("prefer_mode") or DEFAULT_PREFER_MODE)
+        if prefer not in PREFER_MODES:
+            prefer = DEFAULT_PREFER_MODE
+        models_raw = data.get("multipass_default_models") or []
+        models = tuple(str(m) for m in models_raw if str(m).strip())
+        image_mode = str(data.get("finetune_image_mode") or "copy")
+        if image_mode not in ("copy", "hardlink"):
+            image_mode = "copy"
         return cls(
             base_url=str(data.get("base_url") or ""),
             prompt_id=str(data.get("prompt_id") or "faithful_markdown"),
@@ -328,6 +354,22 @@ class OcrWorkspaceConfig:
             cleanup_mode=str(data.get("cleanup_mode") or "strip_leak"),
             cleanup_model_name=str(data.get("cleanup_model_name") or ""),
             text_model_name=str(data.get("text_model_name") or ""),
+            prefer_mode=prefer,
+            auto_activate_composite=bool(data.get("auto_activate_composite", True)),
+            multipass_default_models=models,
+            finetune_include_edited_pages=bool(
+                data.get("finetune_include_edited_pages", True)
+            ),
+            finetune_require_preferred=bool(
+                data.get("finetune_require_preferred", False)
+            ),
+            finetune_prefer_effective_text=bool(
+                data.get("finetune_prefer_effective_text", True)
+            ),
+            finetune_include_rejected_candidates=bool(
+                data.get("finetune_include_rejected_candidates", False)
+            ),
+            finetune_image_mode=image_mode,
         )
 
 

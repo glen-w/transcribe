@@ -1,9 +1,9 @@
 Type: CONTRACT
-Authority: self — persisted page results, attempt lifecycle, edits, and fingerprint fields
+Authority: self — persisted page results, attempt lifecycle, edits, fingerprints, preference, and multipass comparison
 
 # Page results and provenance
 
-On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export projection of these fields: [notebook-export.md](notebook-export.md).
+On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export projection of these fields: [notebook-export.md](notebook-export.md). Multipass orchestration: [ocr-multipass.md](ocr-multipass.md). Preference ledger: [ocr-preference.md](ocr-preference.md).
 
 ## File identity
 
@@ -11,13 +11,19 @@ On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export pr
 - `format` must be `"transcribe.page-result"`
 - `schema_version` must be `1`
 - Payload `page_id` must match the filename stem
+- Additive fields (`preferred_attempt_id`, `comparison`, attempt `attempt_kind` / `pass_id` / `source_attempt_ids`) are optional on older files; readers treat missing as defaults
 
 ## Attempts
 
-- OCR generations are append-only attempt records (capped retention in implementation)
+- OCR generations are append-only attempt records (capped retention in implementation; default cap **40**)
 - Each attempt has a status in `{running, succeeded, failed, cancelled, interrupted}`
+- `attempt_kind`: `vision` (default) | `composite`
+- `pass_id` (optional) ties attempts from one multipass run
+- Composite attempts carry `source_attempt_ids` (vision attempt ids used as merge inputs) and optional `composite_note`
 - `active_attempt_id` selects the attempt that owns current derived status / raw text
+- `preferred_attempt_id` (optional) records user preference; may differ from active under `prefer_only` mode
 - Interrupted reconciliation: when the job lock is free, `running` attempts become `interrupted`
+- Retention must never drop `active`, `preferred`, the latest succeeded attempt per `(model_name, digest)`, or the latest composite for the current `pass_id` when possible within the cap
 
 ## Effective text
 
@@ -25,6 +31,27 @@ On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export pr
 - If `edited_text` is not `null`, effective text is the edit
 - Otherwise effective text is the active attempt’s `raw_text`
 - Re-running OCR must not clear a user edit
+- Promoting / preferring an attempt must not clear `edited_text` unless the user explicitly chooses adopt-new under `prefer_promote_with_edit_gate`
+
+## Prefer / promote
+
+Prefer modes (workspace default + per-notebook OCR override):
+
+| Mode | Prefer behaviour |
+|------|------------------|
+| `prefer_is_promote` (default) | Sets `preferred_attempt_id` and `active_attempt_id` |
+| `prefer_only` | Sets `preferred_attempt_id` only |
+| `prefer_promote_with_edit_gate` | Sets preferred and active; if `edited_text` is set, require `keep_edit` or `adopt_new` before applying |
+
+Promote (`set_active_attempt`) always sets `active_attempt_id` to a succeeded attempt and does not clear edits.
+
+## Comparison record
+
+Optional `comparison` on the page (last successful multipass rank):
+
+- `pass_id`, `ranked_attempt_ids` (vision only, best-first), optional per-entry score/rationale
+- Ranker model / prompt provenance
+- Composite attempts must **never** appear in `ranked_attempt_ids`
 
 ## Fingerprints (persisted)
 
@@ -32,7 +59,11 @@ Successful attempts store `input_fingerprint` and a canonical `fingerprint_paylo
 
 When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
 
-Skip/resume policy for *jobs* (runtime): a page may be skipped only when the frozen job plan has **verified** model identity and the recomputed fingerprint matches a succeeded active attempt. Unverified model identity is non-cacheable for skip. Job execution freezes plan fields at start; see [ARCHITECTURE.md](../ARCHITECTURE.md) for shape.
+Skip/resume policy for *single-model jobs* (runtime): a page may be skipped only when the frozen job plan has **verified** model identity and the recomputed fingerprint matches a succeeded **active** attempt. Unverified model identity is non-cacheable for skip.
+
+Skip/resume for *multipass* vision phases: skip when verified identity matches **any** succeeded vision attempt fingerprint on the page (not only active), so rematching models stay cacheable while accumulating candidates.
+
+Job execution freezes plan fields at start; see [ARCHITECTURE.md](../ARCHITECTURE.md) for shape. Generation writes may pass `activate=false` so multipass does not flip active until promotion / auto-composite policy.
 
 ## Provenance
 

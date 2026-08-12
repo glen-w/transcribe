@@ -308,6 +308,36 @@ def render_export_panel(
                 key=f"export_dl_{kind}",
             )
 
+    st.divider()
+    st.subheader("Fine-tune dataset")
+    st.caption(
+        "Export page images + preferred/active text for **external** training. "
+        "See docs/finetune_export.md — Transcribe does not train models."
+    )
+    ft_require = st.checkbox("Require preferred attempt", key="ft_require_pref")
+    ft_rejected = st.checkbox("Include rejected vision candidates", key="ft_rejected")
+    ft_no_edited = st.checkbox("Skip pages with human edits", key="ft_no_edited")
+    ft_hardlink = st.checkbox("Hardlink images when possible", key="ft_hardlink")
+    if st.button("Export fine-tune package", key="ft_export_btn"):
+        from transcribe.services.finetune_export import (
+            FinetuneExportOptions,
+            FinetuneExportService,
+        )
+
+        try:
+            out = FinetuneExportService(paths, projects).export(
+                options=FinetuneExportOptions(
+                    include_edited_pages=not ft_no_edited,
+                    require_preferred=ft_require,
+                    include_rejected_candidates=ft_rejected,
+                    image_mode="hardlink" if ft_hardlink else "copy",
+                )
+            )
+            st.success(f"Wrote `{out}`")
+            st.session_state["_finetune_export_dir"] = str(out)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Fine-tune export failed: {exc}")
+
 
 def render_export_settings_panel() -> None:
     """Settings hub subsection for export defaults."""

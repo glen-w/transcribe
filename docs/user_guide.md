@@ -40,19 +40,25 @@ Run:
 ```bash
 ./transcribe.sh cli run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model gemma3:4b
 # force re-OCR: add --force
+
+# Compare two models, then rank + composite with the notebook text/cleanup model:
+./transcribe.sh cli multipass "$TRANSCRIBE_PROJECTS_DIR/my-notebook" \
+  --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
 ```
 
-In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** (mode + cleanup model) → Start transcription. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
+In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** → Start transcription. Or **Compare models** (multi-select) → Start multipass compare. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
-Matching fingerprints on succeeded pages are skipped when model identity was verified. Details: [contracts/page-result.md](contracts/page-result.md).
+Matching fingerprints on succeeded pages are skipped when model identity was verified. Multipass skips when any succeeded vision attempt matches. Details: [contracts/page-result.md](contracts/page-result.md) · [contracts/ocr-multipass.md](contracts/ocr-multipass.md).
 
 ## 4. Review and edit
 
-Open Archive / View / Search / Review, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. The viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. Edits are stored as `edited_text` and survive re-runs.
+Open Archive / View / Search / Review, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. The viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 ```
+
+Preference stats (which models you Prefer) appear beside model pickers and via `transcribe models --prefs`. Ledger: [contracts/ocr-preference.md](contracts/ocr-preference.md).
 
 ## 5. Notebook analysis (optional)
 

@@ -50,6 +50,17 @@ class GenerationOptions:
 
 CLEANUP_MODES = frozenset({"strip_leak", "sanitize_light", "rewrite"})
 
+PREFER_MODES = frozenset(
+    {
+        "prefer_is_promote",
+        "prefer_only",
+        "prefer_promote_with_edit_gate",
+    }
+)
+DEFAULT_PREFER_MODE = "prefer_is_promote"
+ATTEMPT_KINDS = frozenset({"vision", "composite"})
+EDIT_GATE_CHOICES = frozenset({"keep_edit", "adopt_new"})
+
 
 @dataclass
 class OCRSettings:
@@ -66,6 +77,8 @@ class OCRSettings:
     cleanup_enabled: bool = False
     cleanup_mode: str = "strip_leak"
     cleanup_model_name: str = ""
+    prefer_mode: str = DEFAULT_PREFER_MODE
+    auto_activate_composite: bool = True
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -82,6 +95,8 @@ class OCRSettings:
             "cleanup_enabled": self.cleanup_enabled,
             "cleanup_mode": self.cleanup_mode,
             "cleanup_model_name": self.cleanup_model_name,
+            "prefer_mode": self.prefer_mode,
+            "auto_activate_composite": self.auto_activate_composite,
         }
 
     @classmethod
@@ -90,6 +105,9 @@ class OCRSettings:
         mode = str(data.get("cleanup_mode") or "strip_leak")
         if mode not in CLEANUP_MODES:
             mode = "strip_leak"
+        prefer = str(data.get("prefer_mode") or DEFAULT_PREFER_MODE)
+        if prefer not in PREFER_MODES:
+            prefer = DEFAULT_PREFER_MODE
         return cls(
             model_name=data.get("model_name", ""),
             text_model_name=data.get("text_model_name", ""),
@@ -106,6 +124,8 @@ class OCRSettings:
             cleanup_enabled=bool(data.get("cleanup_enabled", False)),
             cleanup_mode=mode,
             cleanup_model_name=str(data.get("cleanup_model_name") or ""),
+            prefer_mode=prefer,
+            auto_activate_composite=bool(data.get("auto_activate_composite", True)),
         )
 
 
@@ -574,6 +594,78 @@ class AttemptProvenance:
 
 
 @dataclass
+class ComparisonEntry:
+    attempt_id: str
+    score: float | None = None
+    rationale: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "attempt_id": self.attempt_id,
+            "score": self.score,
+            "rationale": self.rationale,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ComparisonEntry:
+        return cls(
+            attempt_id=str(data["attempt_id"]),
+            score=(
+                float(data["score"]) if data.get("score") is not None else None
+            ),
+            rationale=data.get("rationale"),
+        )
+
+
+@dataclass
+class ComparisonRecord:
+    """Last multipass ranking for a page (vision attempts only)."""
+
+    pass_id: str
+    ranked_attempt_ids: list[str]
+    created_at: str
+    entries: list[ComparisonEntry] = field(default_factory=list)
+    ranker_model_name: str | None = None
+    ranker_model_digest: str | None = None
+    ranker_prompt_id: str | None = None
+    ranker_prompt_version: str | None = None
+    ranker_prompt_sha256: str | None = None
+    note: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "pass_id": self.pass_id,
+            "ranked_attempt_ids": list(self.ranked_attempt_ids),
+            "created_at": self.created_at,
+            "entries": [e.as_dict() for e in self.entries],
+            "ranker_model_name": self.ranker_model_name,
+            "ranker_model_digest": self.ranker_model_digest,
+            "ranker_prompt_id": self.ranker_prompt_id,
+            "ranker_prompt_version": self.ranker_prompt_version,
+            "ranker_prompt_sha256": self.ranker_prompt_sha256,
+            "note": self.note,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> ComparisonRecord | None:
+        if not data or not isinstance(data, dict):
+            return None
+        entries_raw = data.get("entries") or []
+        return cls(
+            pass_id=str(data.get("pass_id") or ""),
+            ranked_attempt_ids=[str(x) for x in (data.get("ranked_attempt_ids") or [])],
+            created_at=str(data.get("created_at") or ""),
+            entries=[ComparisonEntry.from_dict(e) for e in entries_raw if isinstance(e, dict)],
+            ranker_model_name=data.get("ranker_model_name"),
+            ranker_model_digest=data.get("ranker_model_digest"),
+            ranker_prompt_id=data.get("ranker_prompt_id"),
+            ranker_prompt_version=data.get("ranker_prompt_version"),
+            ranker_prompt_sha256=data.get("ranker_prompt_sha256"),
+            note=data.get("note"),
+        )
+
+
+@dataclass
 class OCRAttempt:
     attempt_id: str
     status: str
@@ -586,6 +678,10 @@ class OCRAttempt:
     completed_at: str | None = None
     error: AttemptError | None = None
     cleanup: CleanupRecord | None = None
+    attempt_kind: str = "vision"
+    pass_id: str | None = None
+    source_attempt_ids: list[str] = field(default_factory=list)
+    composite_note: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         payload = {
@@ -599,14 +695,24 @@ class OCRAttempt:
             "started_at": self.started_at,
             "completed_at": self.completed_at,
             "error": self.error.as_dict() if self.error else None,
+            "attempt_kind": self.attempt_kind or "vision",
         }
         if self.cleanup is not None:
             payload["cleanup"] = self.cleanup.as_dict()
+        if self.pass_id is not None:
+            payload["pass_id"] = self.pass_id
+        if self.source_attempt_ids:
+            payload["source_attempt_ids"] = list(self.source_attempt_ids)
+        if self.composite_note is not None:
+            payload["composite_note"] = self.composite_note
         return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OCRAttempt:
         prov = data.get("provenance")
+        kind = str(data.get("attempt_kind") or "vision")
+        if kind not in ATTEMPT_KINDS:
+            kind = "vision"
         return cls(
             attempt_id=data["attempt_id"],
             status=data["status"],
@@ -619,6 +725,10 @@ class OCRAttempt:
             completed_at=data.get("completed_at"),
             error=AttemptError.from_dict(data.get("error")),
             cleanup=CleanupRecord.from_dict(data.get("cleanup")),
+            attempt_kind=kind,
+            pass_id=data.get("pass_id"),
+            source_attempt_ids=[str(x) for x in (data.get("source_attempt_ids") or [])],
+            composite_note=data.get("composite_note"),
         )
 
 
@@ -626,8 +736,10 @@ class OCRAttempt:
 class PageResult:
     page_id: str
     active_attempt_id: str | None = None
+    preferred_attempt_id: str | None = None
     edited_text: str | None = None
     attempts: list[OCRAttempt] = field(default_factory=list)
+    comparison: ComparisonRecord | None = None
     updated_at: str = ""
     format: str = "transcribe.page-result"
     schema_version: int = 1
@@ -647,6 +759,20 @@ class PageResult:
                 return attempt
         return None
 
+    def preferred_attempt(self) -> OCRAttempt | None:
+        if not self.preferred_attempt_id:
+            return None
+        for attempt in self.attempts:
+            if attempt.attempt_id == self.preferred_attempt_id:
+                return attempt
+        return None
+
+    def attempt_by_id(self, attempt_id: str) -> OCRAttempt | None:
+        for attempt in self.attempts:
+            if attempt.attempt_id == attempt_id:
+                return attempt
+        return None
+
     def effective_text(self) -> str | None:
         if self.edited_text is not None:
             return self.edited_text
@@ -656,7 +782,7 @@ class PageResult:
         return attempt.raw_text
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "format": self.format,
             "schema_version": self.schema_version,
             "page_id": self.page_id,
@@ -666,14 +792,21 @@ class PageResult:
             "status": self.status,
             "updated_at": self.updated_at,
         }
+        if self.preferred_attempt_id is not None:
+            payload["preferred_attempt_id"] = self.preferred_attempt_id
+        if self.comparison is not None:
+            payload["comparison"] = self.comparison.as_dict()
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PageResult:
         result = cls(
             page_id=data["page_id"],
             active_attempt_id=data.get("active_attempt_id"),
+            preferred_attempt_id=data.get("preferred_attempt_id"),
             edited_text=data.get("edited_text"),
             attempts=[OCRAttempt.from_dict(a) for a in data.get("attempts") or []],
+            comparison=ComparisonRecord.from_dict(data.get("comparison")),
             updated_at=data.get("updated_at", ""),
             format=str(data.get("format", "transcribe.page-result")),
             schema_version=int(data.get("schema_version", 1)),
@@ -683,4 +816,84 @@ class PageResult:
         return result
 
 
-MAX_ATTEMPTS_RETAINED = 20
+MAX_ATTEMPTS_RETAINED = 40
+
+
+def prune_attempts(
+    attempts: list[OCRAttempt],
+    *,
+    active_attempt_id: str | None,
+    preferred_attempt_id: str | None,
+    max_retained: int = MAX_ATTEMPTS_RETAINED,
+) -> list[OCRAttempt]:
+    """Retain active, preferred, latest per (model, digest), latest composite per pass."""
+    if len(attempts) <= max_retained:
+        return list(attempts)
+
+    protected: set[str] = set()
+    if active_attempt_id:
+        protected.add(active_attempt_id)
+    if preferred_attempt_id:
+        protected.add(preferred_attempt_id)
+
+    latest_by_model: dict[tuple[str, str | None], OCRAttempt] = {}
+    latest_composite_by_pass: dict[str, OCRAttempt] = {}
+    for attempt in attempts:
+        if attempt.status != "succeeded":
+            continue
+        if attempt.attempt_kind == "composite":
+            key = attempt.pass_id or ""
+            prev = latest_composite_by_pass.get(key)
+            if prev is None or attempt.started_at >= prev.started_at:
+                latest_composite_by_pass[key] = attempt
+            continue
+        model = ""
+        digest = None
+        if attempt.provenance is not None:
+            model = attempt.provenance.model_name
+            digest = attempt.provenance.model_digest
+        mkey = (model, digest)
+        prev = latest_by_model.get(mkey)
+        if prev is None or attempt.started_at >= prev.started_at:
+            latest_by_model[mkey] = attempt
+
+    for attempt in latest_by_model.values():
+        protected.add(attempt.attempt_id)
+    for attempt in latest_composite_by_pass.values():
+        protected.add(attempt.attempt_id)
+
+    ordered = sorted(attempts, key=lambda a: a.started_at, reverse=True)
+    if len(protected) > max_retained:
+        priority: list[OCRAttempt] = []
+        priority_ids: set[str] = set()
+        for aid in (active_attempt_id, preferred_attempt_id):
+            if not aid or aid in priority_ids:
+                continue
+            for attempt in ordered:
+                if attempt.attempt_id == aid:
+                    priority.append(attempt)
+                    priority_ids.add(aid)
+                    break
+        for attempt in ordered:
+            if len(priority) >= max_retained:
+                break
+            if attempt.attempt_id in protected and attempt.attempt_id not in priority_ids:
+                priority.append(attempt)
+                priority_ids.add(attempt.attempt_id)
+        # Oldest first, newest last (matches prior retention order).
+        return sorted(priority[:max_retained], key=lambda a: a.started_at)
+
+    kept: list[OCRAttempt] = []
+    kept_ids: set[str] = set()
+    for attempt in ordered:
+        if attempt.attempt_id in protected:
+            if attempt.attempt_id not in kept_ids:
+                kept.append(attempt)
+                kept_ids.add(attempt.attempt_id)
+    for attempt in ordered:
+        if len(kept) >= max_retained:
+            break
+        if attempt.attempt_id not in kept_ids:
+            kept.append(attempt)
+            kept_ids.add(attempt.attempt_id)
+    return sorted(kept, key=lambda a: a.started_at)

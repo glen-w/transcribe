@@ -8,7 +8,9 @@ from urllib.parse import urlparse
 
 from transcribe.domain.fingerprint import sha256_bytes
 from transcribe.domain.models import (
+    ATTEMPT_KINDS,
     ATTEMPT_STATUSES,
+    PREFER_MODES,
     PageResult,
     Project,
 )
@@ -51,6 +53,10 @@ def validate_settings(settings: object) -> None:
         raise ValidationError(
             f"unsupported preprocess_profile: {settings.preprocess_profile!r}"
         )
+    if settings.prefer_mode not in PREFER_MODES:
+        raise ValidationError(f"unsupported prefer_mode: {settings.prefer_mode!r}")
+    if not isinstance(settings.auto_activate_composite, bool):
+        raise ValidationError("settings.auto_activate_composite must be a bool")
     if not isinstance(settings.base_url, str) or not settings.base_url.strip():
         raise ValidationError("settings.base_url must be a non-empty string")
     parsed = urlparse(settings.base_url.strip())
@@ -250,11 +256,46 @@ def validate_page_result(result: PageResult, *, expected_page_id: str | None = N
         if attempt.status not in ATTEMPT_STATUSES:
             raise ValidationError(f"illegal attempt status: {attempt.status!r}")
         _require_nonempty_str(attempt.started_at, "attempt.started_at")
+        kind = getattr(attempt, "attempt_kind", None) or "vision"
+        if kind not in ATTEMPT_KINDS:
+            raise ValidationError(f"illegal attempt_kind: {kind!r}")
+        if kind == "composite":
+            for sid in attempt.source_attempt_ids or []:
+                if sid not in attempt_ids and sid not in {
+                    a.attempt_id for a in result.attempts
+                }:
+                    # Sources may be listed before all ids collected; check after loop
+                    pass
+    for attempt in result.attempts:
+        if (attempt.attempt_kind or "vision") != "composite":
+            continue
+        for sid in attempt.source_attempt_ids or []:
+            if sid not in attempt_ids:
+                raise ValidationError(
+                    f"composite attempt {attempt.attempt_id} references missing "
+                    f"source attempt {sid!r}"
+                )
     if result.active_attempt_id is not None:
         if result.active_attempt_id not in attempt_ids:
             raise ValidationError(
                 f"active_attempt_id {result.active_attempt_id!r} not in attempts"
             )
+    if result.preferred_attempt_id is not None:
+        if result.preferred_attempt_id not in attempt_ids:
+            raise ValidationError(
+                f"preferred_attempt_id {result.preferred_attempt_id!r} not in attempts"
+            )
+    if result.comparison is not None:
+        for rid in result.comparison.ranked_attempt_ids:
+            if rid not in attempt_ids:
+                raise ValidationError(
+                    f"comparison ranked_attempt_id {rid!r} not in attempts"
+                )
+            ranked = next(a for a in result.attempts if a.attempt_id == rid)
+            if (ranked.attempt_kind or "vision") == "composite":
+                raise ValidationError(
+                    "comparison.ranked_attempt_ids must not include composite attempts"
+                )
 
 
 def collect_unexplained_files(paths: ProjectPaths, project: Project) -> list[str]:

@@ -15,12 +15,17 @@ from transcribe.domain.dates import (
     normalize_tags,
 )
 from transcribe.domain.models import (
+    ComparisonRecord,
+    DEFAULT_PREFER_MODE,
+    EDIT_GATE_CHOICES,
     MAX_ATTEMPTS_RETAINED,
     OCRAttempt,
     OCRSettings,
+    PREFER_MODES,
     PageIndex,
     PageResult,
     Project,
+    prune_attempts,
 )
 from transcribe.domain.validation import validate_page_result, validate_project
 from transcribe.errors import JobConflictError, ProjectError
@@ -50,6 +55,8 @@ def _seed_ocr_settings() -> OCRSettings:
         "cleanup_mode": ocr.cleanup_mode,
         "cleanup_model_name": ocr.cleanup_model_name,
         "text_model_name": ocr.text_model_name,
+        "prefer_mode": getattr(ocr, "prefer_mode", "prefer_is_promote"),
+        "auto_activate_composite": getattr(ocr, "auto_activate_composite", True),
     }
     return OCRSettings.from_dict(data)
 
@@ -407,7 +414,13 @@ class ProjectService:
     def load_page_result(self, page_id: str) -> PageResult | None:
         return self._load_page_result_unlocked(page_id)
 
-    def record_generation(self, page_id: str, attempt: OCRAttempt) -> PageResult:
+    def record_generation(
+        self,
+        page_id: str,
+        attempt: OCRAttempt,
+        *,
+        activate: bool = True,
+    ) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
             existing = self._load_page_result_unlocked(page_id) or PageResult(
                 page_id=page_id
@@ -421,25 +434,145 @@ class ProjectService:
                     break
             if not replaced:
                 existing.attempts.append(attempt)
-            existing.active_attempt_id = attempt.attempt_id
+            if activate:
+                existing.active_attempt_id = attempt.attempt_id
             if len(existing.attempts) > MAX_ATTEMPTS_RETAINED:
-                # Keep active + newest others
-                active_id = existing.active_attempt_id
-                ordered = sorted(
+                existing.attempts = prune_attempts(
                     existing.attempts,
-                    key=lambda a: a.started_at,
-                    reverse=True,
+                    active_attempt_id=existing.active_attempt_id,
+                    preferred_attempt_id=existing.preferred_attempt_id,
                 )
-                kept: list[OCRAttempt] = []
-                for a in ordered:
-                    if a.attempt_id == active_id or len(kept) < MAX_ATTEMPTS_RETAINED:
-                        if a not in kept:
-                            kept.append(a)
-                existing.attempts = list(reversed(kept))
             existing.updated_at = to_iso(self.clock.now())
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
             return existing
+
+    def set_active_attempt(self, page_id: str, attempt_id: str) -> PageResult:
+        """Promote a succeeded attempt to active without clearing edited_text."""
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                raise ProjectError(f"no page result for {page_id}")
+            attempt = existing.attempt_by_id(attempt_id)
+            if attempt is None:
+                raise ProjectError(f"attempt {attempt_id!r} not found on {page_id}")
+            if attempt.status != "succeeded":
+                raise ProjectError(
+                    f"only succeeded attempts can be activated (status={attempt.status})"
+                )
+            existing.active_attempt_id = attempt_id
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            return existing
+
+    def set_preferred_attempt(
+        self,
+        page_id: str,
+        attempt_id: str,
+        *,
+        mode: str | None = None,
+        edit_gate_choice: str | None = None,
+        record_ledger: bool = True,
+        action_override: str | None = None,
+    ) -> PageResult:
+        """Mark preferred; optionally promote per prefer_mode (A/B/C)."""
+        resolved_mode = mode or self._resolved_prefer_mode()
+        if resolved_mode not in PREFER_MODES:
+            raise ProjectError(f"unsupported prefer_mode: {resolved_mode!r}")
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                raise ProjectError(f"no page result for {page_id}")
+            attempt = existing.attempt_by_id(attempt_id)
+            if attempt is None:
+                raise ProjectError(f"attempt {attempt_id!r} not found on {page_id}")
+            if attempt.status != "succeeded":
+                raise ProjectError(
+                    f"only succeeded attempts can be preferred (status={attempt.status})"
+                )
+            existing.preferred_attempt_id = attempt_id
+            promote = False
+            if resolved_mode == "prefer_is_promote":
+                promote = True
+            elif resolved_mode == "prefer_only":
+                promote = False
+            elif resolved_mode == "prefer_promote_with_edit_gate":
+                if existing.edited_text is not None:
+                    if edit_gate_choice not in EDIT_GATE_CHOICES:
+                        raise ProjectError(
+                            "edit_gate_choice required when edited_text is set "
+                            "(keep_edit|adopt_new)"
+                        )
+                    if edit_gate_choice == "adopt_new":
+                        existing.edited_text = None
+                    promote = True
+                else:
+                    promote = True
+            if promote:
+                existing.active_attempt_id = attempt_id
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            result = existing
+        if record_ledger:
+            self._append_preference_event(
+                page_id=page_id,
+                attempt=attempt,
+                action=action_override
+                or ("prefer" if not promote else "prefer"),
+            )
+        return result
+
+    def save_comparison(
+        self, page_id: str, comparison: ComparisonRecord | None
+    ) -> PageResult:
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                raise ProjectError(f"no page result for {page_id}")
+            existing.comparison = comparison
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            return existing
+
+    def _resolved_prefer_mode(self) -> str:
+        project = self.load()
+        mode = getattr(project.settings, "prefer_mode", None) or DEFAULT_PREFER_MODE
+        if mode in PREFER_MODES:
+            return mode
+        return DEFAULT_PREFER_MODE
+
+    def _append_preference_event(
+        self,
+        *,
+        page_id: str,
+        attempt: OCRAttempt,
+        action: str,
+    ) -> None:
+        try:
+            from transcribe.services.ocr_preference_stats import append_preference_event
+
+            project = self.load()
+            append_preference_event(
+                notebook_id=project.id,
+                page_id=page_id,
+                attempt_id=attempt.attempt_id,
+                model_name=(
+                    attempt.provenance.model_name if attempt.provenance else ""
+                ),
+                model_digest=(
+                    attempt.provenance.model_digest if attempt.provenance else None
+                ),
+                attempt_kind=attempt.attempt_kind or "vision",
+                action=action,
+                pass_id=attempt.pass_id,
+                clock=self.clock,
+            )
+        except Exception:
+            # Ledger is best-effort; page mutation already committed.
+            return
 
     def save_user_edit(self, page_id: str, edited_text: str | None) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):

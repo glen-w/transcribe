@@ -32,6 +32,8 @@ PROJECT_OCR_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "cleanup_enabled",
         "cleanup_mode",
         "cleanup_model_name",
+        "prefer_mode",
+        "auto_activate_composite",
     }
 )
 

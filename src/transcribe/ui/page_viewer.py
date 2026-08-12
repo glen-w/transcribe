@@ -16,7 +16,7 @@ from transcribe.domain.dates import (
     parse_date_input,
 )
 from transcribe.domain.models import CleanupRecord, OCRAttempt, Project
-from transcribe.errors import TranscribeError
+from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.paths import ProjectPaths
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
@@ -113,6 +113,222 @@ def _caption_with_info(body: str, help_text: str) -> None:
         f'aria-label="More info">(i)</span></p>',
         unsafe_allow_html=True,
     )
+
+
+def _render_attempt_compare(
+    *,
+    projects: ProjectService,
+    project: Project,
+    page_id: str,
+    result: Any,
+) -> None:
+    """Compare / Prefer UI for multipass or multi-attempt pages."""
+    from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES
+
+    if result is None:
+        return
+    succeeded = [
+        a
+        for a in result.attempts
+        if a.status == "succeeded" and (a.raw_text or "").strip()
+    ]
+    if len(succeeded) < 2 and not any(
+        (a.attempt_kind or "vision") == "composite" for a in succeeded
+    ):
+        if len(succeeded) < 2:
+            return
+
+    with st.expander("Compare OCR attempts", expanded=True):
+        settings = project.settings
+        prefer_mode = settings.prefer_mode if settings.prefer_mode in PREFER_MODES else DEFAULT_PREFER_MODE
+        mode_labels = {
+            "prefer_is_promote": "Prefer = promote (default)",
+            "prefer_only": "Prefer only (stats / fine-tune)",
+            "prefer_promote_with_edit_gate": "Prefer + promote with edit gate",
+        }
+        new_mode = st.selectbox(
+            "Prefer mode (this notebook)",
+            options=list(mode_labels.keys()),
+            format_func=lambda m: mode_labels[m],
+            index=list(mode_labels.keys()).index(prefer_mode),
+            key=f"prefer_mode_{page_id}",
+        )
+        auto_comp = st.checkbox(
+            "Auto-activate composite after multipass",
+            value=bool(settings.auto_activate_composite),
+            key=f"auto_comp_{page_id}",
+        )
+        if new_mode != prefer_mode or auto_comp != settings.auto_activate_composite:
+            if st.button("Save compare settings", key=f"save_cmp_{page_id}"):
+                settings.prefer_mode = new_mode
+                settings.auto_activate_composite = bool(auto_comp)
+                projects.save_settings(project, settings)
+                st.rerun()
+
+        vision = [
+            a for a in succeeded if (a.attempt_kind or "vision") == "vision"
+        ]
+        composites = [
+            a for a in succeeded if (a.attempt_kind or "vision") == "composite"
+        ]
+
+        # Order vision by comparison rank when present
+        ordered_vision = list(vision)
+        if result.comparison and result.comparison.ranked_attempt_ids:
+            rank_map = {
+                aid: i for i, aid in enumerate(result.comparison.ranked_attempt_ids)
+            }
+            ordered_vision.sort(
+                key=lambda a: rank_map.get(a.attempt_id, 10_000)
+            )
+        else:
+            ordered_vision.sort(key=lambda a: a.started_at, reverse=True)
+
+        st.caption("Ranked vision outputs" if result.comparison else "Vision outputs")
+        for attempt in ordered_vision:
+            _render_attempt_card(
+                projects=projects,
+                page_id=page_id,
+                result=result,
+                attempt=attempt,
+                prefer_mode=new_mode,
+                band="vision",
+            )
+
+        if composites:
+            st.markdown("---")
+            st.caption("Composite (merged — not ranked with raws)")
+            for attempt in composites:
+                _render_attempt_card(
+                    projects=projects,
+                    page_id=page_id,
+                    result=result,
+                    attempt=attempt,
+                    prefer_mode=new_mode,
+                    band="composite",
+                )
+
+        if len(ordered_vision) + len(composites) >= 2:
+            ids = [a.attempt_id for a in ordered_vision + composites]
+            labels = {
+                a.attempt_id: (
+                    f"{(a.provenance.model_name if a.provenance else a.attempt_kind)}"
+                    f" · {a.attempt_id[:8]}"
+                )
+                for a in ordered_vision + composites
+            }
+            c1, c2 = st.columns(2)
+            left_id = c1.selectbox(
+                "Diff A",
+                ids,
+                format_func=lambda i: labels.get(i, i),
+                key=f"diff_a_{page_id}",
+            )
+            right_id = c2.selectbox(
+                "Diff B",
+                ids,
+                index=min(1, len(ids) - 1),
+                format_func=lambda i: labels.get(i, i),
+                key=f"diff_b_{page_id}",
+            )
+            left_a = result.attempt_by_id(left_id)
+            right_a = result.attempt_by_id(right_id)
+            d1, d2 = st.columns(2)
+            d1.text_area(
+                "A",
+                value=(left_a.raw_text if left_a else "") or "",
+                height=160,
+                key=f"diff_ta_{page_id}",
+            )
+            d2.text_area(
+                "B",
+                value=(right_a.raw_text if right_a else "") or "",
+                height=160,
+                key=f"diff_tb_{page_id}",
+            )
+
+
+def _render_attempt_card(
+    *,
+    projects: ProjectService,
+    page_id: str,
+    result: Any,
+    attempt: OCRAttempt,
+    prefer_mode: str,
+    band: str,
+) -> None:
+    model = (
+        attempt.provenance.model_name
+        if attempt.provenance and attempt.provenance.model_name
+        else attempt.attempt_kind
+    )
+    chips = []
+    if result.active_attempt_id == attempt.attempt_id:
+        chips.append("active")
+    if result.preferred_attempt_id == attempt.attempt_id:
+        chips.append("preferred")
+    chip_txt = f" [{' · '.join(chips)}]" if chips else ""
+    preview = (attempt.raw_text or "").strip().replace("\n", " ")
+    if len(preview) > 120:
+        preview = preview[:117] + "…"
+    st.markdown(f"**{model}**{chip_txt}")
+    st.caption(preview or "(empty)")
+    b1, b2, b3 = st.columns(3)
+    if b1.button("Prefer", key=f"pref_{band}_{attempt.attempt_id}"):
+        try:
+            edit_choice = None
+            if prefer_mode == "prefer_promote_with_edit_gate" and result.edited_text is not None:
+                edit_choice = st.session_state.get(
+                    f"edit_gate_{page_id}", "keep_edit"
+                )
+            projects.set_preferred_attempt(
+                page_id,
+                attempt.attempt_id,
+                mode=prefer_mode,
+                edit_gate_choice=edit_choice,
+            )
+            bump_archive_generation(build_runtime_paths())
+            st.rerun()
+        except TranscribeError as exc:
+            if "edit_gate_choice" in str(exc):
+                st.warning("Choose keep edit or adopt new below, then Prefer again.")
+                st.session_state[f"need_edit_gate_{page_id}"] = attempt.attempt_id
+            else:
+                st.error(str(exc))
+    if b2.button("Promote", key=f"prom_{band}_{attempt.attempt_id}"):
+        try:
+            projects.set_active_attempt(page_id, attempt.attempt_id)
+            bump_archive_generation(build_runtime_paths())
+            st.rerun()
+        except TranscribeError as exc:
+            st.error(str(exc))
+    with b3.expander("Text", expanded=False):
+        st.text(attempt.raw_text or "")
+
+    if st.session_state.get(f"need_edit_gate_{page_id}") == attempt.attempt_id:
+        choice = st.radio(
+            "Human edit is present — how to prefer?",
+            options=["keep_edit", "adopt_new"],
+            format_func=lambda x: (
+                "Keep edit overlay"
+                if x == "keep_edit"
+                else "Adopt new (clear edit)"
+            ),
+            key=f"edit_gate_{page_id}",
+        )
+        if st.button("Confirm Prefer", key=f"confirm_pref_{attempt.attempt_id}"):
+            try:
+                projects.set_preferred_attempt(
+                    page_id,
+                    attempt.attempt_id,
+                    mode="prefer_promote_with_edit_gate",
+                    edit_gate_choice=choice,
+                )
+                st.session_state.pop(f"need_edit_gate_{page_id}", None)
+                bump_archive_generation(build_runtime_paths())
+                st.rerun()
+            except TranscribeError as exc:
+                st.error(str(exc))
 
 
 def _page_number_to_index(page_number: int, total: int) -> int | None:
@@ -422,12 +638,34 @@ def render_page_viewer(
             if cu.pre_cleanup_text is not None:
                 with st.expander("Pre-cleanup OCR text", expanded=False):
                     st.text(cu.pre_cleanup_text)
+
+        _render_attempt_compare(
+            projects=projects,
+            project=project,
+            page_id=page.page_id,
+            result=result,
+        )
+
         raw = attempt.raw_text if attempt else ""
         edited = result.edited_text if result else None
         if edited is not None and attempt and attempt.raw_text is not None:
             st.caption("An edit is active. New OCR raw text is preserved separately.")
             if st.button("Use new transcription"):
                 projects.adopt_raw_as_edit(page.page_id)
+                bump_archive_generation(build_runtime_paths())
+                st.rerun()
+        preferred = result.preferred_attempt() if result else None
+        if (
+            preferred is not None
+            and attempt is not None
+            and preferred.attempt_id != attempt.attempt_id
+        ):
+            st.caption(
+                "Preferred attempt differs from active — Prefer mode may be "
+                "`prefer_only`, or promote explicitly."
+            )
+            if st.button("Use preferred as transcription basis"):
+                projects.set_active_attempt(page.page_id, preferred.attempt_id)
                 bump_archive_generation(build_runtime_paths())
                 st.rerun()
         default_text = edited if edited is not None else (raw or "")
@@ -439,6 +677,23 @@ def render_page_viewer(
             projects.save_user_edit(page.page_id, text)
             bump_archive_generation(build_runtime_paths())
             st.success("Saved")
+
+        with st.expander("Re-run this page", expanded=False):
+            st.caption("Force OCR on this page with the notebook’s current model settings.")
+            if st.button("Re-run OCR on this page", key=f"rerun_page_{page.page_id}"):
+                try:
+                    from transcribe.services.job import build_coordinator
+
+                    _paths, _projects, coord, _ingest = build_coordinator(
+                        paths.root, clock=SystemClock(), ids=UuidGenerator()
+                    )
+                    coord.start(page_ids=[page.page_id], force=True)
+                    st.session_state["_job_was_running"] = True
+                    st.session_state["show_compare_after_job"] = page.page_id
+                    st.success("Page OCR started")
+                    st.rerun()
+                except (JobConflictError, TranscribeError) as exc:
+                    st.error(str(exc))
 
         st.divider()
         st.caption("Page metadata")
