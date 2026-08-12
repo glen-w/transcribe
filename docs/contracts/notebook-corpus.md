@@ -1,11 +1,13 @@
 Type: CONTRACT
-Authority: self — corpus hierarchy, notebook identity, ownership, ordering, corpus index wire format, and workspace locking. Prospective **bulk-import generation** authority; see Activation gate. Layout paths subordinate to this contract are described in [project-on-disk.md](project-on-disk.md). Source bytes/provenance: [source-asset.md](source-asset.md). Import lifecycle: [import-run.md](import-run.md). Integrity/doctor: [corpus-integrity.md](corpus-integrity.md).
+Authority: self — corpus hierarchy, notebook identity, ownership, ordering, corpus index wire format, and workspace locking. **Runtime-normative** for bulk-import generation (activation gate satisfied). Layout paths subordinate to this contract are described in [project-on-disk.md](project-on-disk.md). Source bytes/provenance: [source-asset.md](source-asset.md). Import lifecycle: [import-run.md](import-run.md). Integrity/doctor: [corpus-integrity.md](corpus-integrity.md).
 
 # Notebook corpus
 
 ## Activation gate
 
-This contract is **prospective** for the bulk-import generation. It becomes **runtime-normative** only when all of the following ship together:
+This contract is **runtime-normative** for the bulk-import generation. The gate below is **satisfied** (corpus index, ImportRun/plan orchestration, lock order, corpus doctor checks, and [acceptance suite](corpus-integrity.md#acceptance-gate) green).
+
+Shipped together:
 
 1. Durable corpus index (`transcribe.corpus-index`) with atomic writers
 2. `ImportRun` / `ImportPlan` persistence and commit orchestration
@@ -13,9 +15,9 @@ This contract is **prospective** for the bulk-import generation. It becomes **ru
 4. Corpus doctor checks listed in [corpus-integrity.md](corpus-integrity.md)
 5. Acceptance suite green per [corpus-integrity.md](corpus-integrity.md#acceptance-gate)
 
-Until that gate, **`transcribe.project` schema_version `1` remains fully conformant** as today’s sole notebook authority. Implementations must not require a corpus index to load, OCR, analyse, or export existing notebooks. New writers must not break v1 projects that lack corpus registration.
+**`transcribe.project` schema_version `1` remains fully conformant** without a corpus index: implementations must not require a corpus index to load, OCR, analyse, or export existing notebooks. New writers must not break v1 projects that lack corpus registration. Absence of `corpus-index.json` in a workspace means bulk-import is not yet used there; legacy discovery of `project.json` children continues.
 
-When the gate activates, this document (with [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md)) owns identity, ownership, ordering, and workspace corpus authority. [project-on-disk.md](project-on-disk.md) remains sole authority for **per-notebook directory layout** and per-notebook ingest journal/locks.
+This document (with [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md)) owns identity, ownership, ordering, and workspace corpus authority. [project-on-disk.md](project-on-disk.md) remains sole authority for **per-notebook directory layout** and per-notebook ingest journal/locks.
 
 ## Purpose
 
@@ -102,7 +104,7 @@ Durable workspace document that locates managed notebooks without treating folde
 - `managed_relpath` is a **mutable locator** (may change if the directory is moved within the projects root). It must stay path-contained under `TRANSCRIBE_PROJECTS_DIR` and must resolve to a directory containing a valid `project.json`.
 - Duplicate `notebook_id` values are invalid.
 - Duplicate `managed_relpath` values are invalid.
-- Absence of the corpus index file means “bulk-import generation not activated” for that workspace; legacy discovery of `project.json` children may continue until activation, but after activation the index is the durable locator set.
+- Absence of the corpus index file means bulk import has not been used in that workspace yet; legacy discovery of `project.json` children continues. When the index is present, it is the durable locator set.
 
 ### What the index is not
 

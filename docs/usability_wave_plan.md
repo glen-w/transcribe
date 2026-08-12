@@ -3,12 +3,12 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; open tracks are **U2–U4** (U4 foundation shipping; corpus acceptance gate still open).
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; open tracks are **U2–U3**; **U4** acceptance gate is **green** (Inbox polish may continue).
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
 ```text
-Trust foundation          Daily workbench              Living corpus (gated)
+Trust foundation          Daily workbench              Living corpus
 (phases 3–6)       →      (onboard · review · read)  →  (inbox · bulk · search+)
 ```
 
@@ -25,7 +25,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 3. **Provenance** — Exports identify the notebook revision that produced them.
 4. **First successful notebook** — A new user can install, pull a model, import, OCR, review, and export without reading contracts.
 5. **Daily correction loop** — Review is a queue of work (dates, edits), not only a page browser.
-6. **Living with notebooks** — Search, organisation, and reading improve on today’s project model; bulk inbox activates only after corpus contracts green.
+6. **Living with notebooks** — Search, organisation, and reading improve on today’s project model; bulk inbox is supported after the corpus acceptance gate.
 
 ### Non-goals (explicit)
 
@@ -35,7 +35,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | OpenCV preprocess pipelines | Pillow-only policy |
 | Cloud OCR providers | Product boundary |
 | Treating Detection Wave 2 as this wave’s definition of done | Parallel track (shipped) |
-| Shipping supported bulk-import UI/CLI before the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) | Contracts-first rule |
+| Shipping supported bulk-import UI/CLI before the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) | Contracts-first rule (gate now green; keep suite green) |
 | Corpus-level Analyse / cross-notebook links / bookmarks | Later candidates |
 
 ### Naming
@@ -56,7 +56,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | Hardening Phase **6** (#7–9) | **U1** — **done** (product views, status strip, OCR Advanced) |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
 | Detection wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6)) | **Shipped** parallel track; coordinate only where Prompt Hub / page-viewer findings share chrome |
-| Corpus contracts | **U4** foundation shipping (Inbox UI / bulk-import CLI); declare bulk fully supported only when acceptance gate is green |
+| Corpus contracts | **U4** acceptance gate green; bulk-import UI/CLI supported; Inbox polish may continue |
 
 **Dependency rule:** U1 consumes `AnalysisHealth` / `content_revision` from U0 (both landed). Do not invent a second freshness model.
 
@@ -66,7 +66,7 @@ flowchart LR
   U1[U1 Analyse product UX]
   U2[U2 First-run operability]
   U3[U3 Daily workbench]
-  U4[U4 Corpus UX gated]
+  U4[U4 Corpus UX]
   U0 --> U1
   U0 --> U2
   U1 --> U3
@@ -74,7 +74,7 @@ flowchart LR
   U3 --> U4
 ```
 
-U2 may start in parallel with U1 once U0 is merged (onboarding does not depend on Analyse chrome). U3 prefers U1’s status-strip patterns. U4 implementation starts only after the corpus acceptance gate is green; UX design spikes may precede activation.
+U2 may start in parallel with U1 once U0 is merged (onboarding does not depend on Analyse chrome). U3 prefers U1’s status-strip patterns. U4 mechanics (acceptance gate) are done; Inbox polish may continue independently.
 
 ---
 
@@ -86,7 +86,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
 | **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | Planned |
-| **U4** — Corpus UX (gated) | Inbox / import recovery / bulk import; foundation shipping, acceptance gate still open | — | **[~] foundation shipping** |
+| **U4** — Corpus UX | Inbox / import recovery / bulk import; acceptance gate green | — | **[x] gate green** (polish open) |
 
 ---
 
@@ -295,46 +295,38 @@ Transcribe panel already lists/refreshes models. Deepen:
 
 ---
 
-## 8. U4 — Corpus UX (gated)
+## 8. U4 — Corpus UX
 
-**Outcome:** Human continuation of bulk import: **inbox / import recovery** as the corpus home screen. **Foundation is shipping** (index, ImportRun, Inbox UI, CLI); declare bulk-import **fully supported** only after the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green.
+**Outcome:** Human continuation of bulk import: **inbox / import recovery** as the corpus home screen. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is **green**; bulk-import UI/CLI are **supported**. Inbox polish (richer outcomes taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue.
 
-### Hard gate (do not violate)
+### Hard gate (satisfied)
 
-Supported bulk-import UI/CLI and inbox-as-product require:
+Supported bulk-import UI/CLI and inbox-as-product required:
 
-1. Corpus index writers + locks ([notebook-corpus.md](contracts/notebook-corpus.md))
-2. ImportRun / plan / resume ([import-run.md](contracts/import-run.md))
-3. Duplicate policy on commit ([source-asset.md](contracts/source-asset.md))
-4. Corpus doctor checks + synthetic multi-notebook suite ([corpus-integrity.md](contracts/corpus-integrity.md))
+1. Corpus index writers + locks ([notebook-corpus.md](contracts/notebook-corpus.md)) — **done**
+2. ImportRun / plan / resume ([import-run.md](contracts/import-run.md)) — **done**
+3. Duplicate policy on commit ([source-asset.md](contracts/source-asset.md)) — **done**
+4. Corpus doctor checks + synthetic multi-notebook suite ([corpus-integrity.md](contracts/corpus-integrity.md)) — **done**
 
-Suggested eng order (from ROADMAP): index → ImportRun/plan → duplicate policy → corpus doctor → suite → **only then** bulk UI.
-
-### Product UX (design against contracts; implement post-gate)
+### Product UX (polish continuing)
 
 | Surface | Intent |
 |---------|--------|
-| **Inbox** | Scan `TRANSCRIBE_INBOX_DIR` (today path-only in Settings) into an ImportPlan; show imported / failed / duplicated / needs-review |
+| **Inbox** | Path-typed folder / parent-of-folders ImportPlan (shipped); optional later: scan `TRANSCRIBE_INBOX_DIR`; richer imported / failed / duplicated / needs-review taxonomy |
 | **Recovery** | Resume interrupted ImportRun; explain skip_existing vs create_duplicate |
 | **Corpus home** | Natural landing after a dump of scans — not only Workflow → Import uploader |
 | **Doctor** | Deep corpus doctor from U2 diagnostics when index present |
 
-### Pre-gate allowed work
-
-- UX mock flows and copy in docs.
-- Keep single-file uploader polished (U3).
-- Do not market Settings inbox path as functional import.
-
 ### Acceptance (U4)
 
-- [ ] Acceptance gate green before any “supported” bulk/inbox claim in public surfaces.
-- [ ] Inbox workflow shows outcomes for imported / failed / duplicated / needs-review.
-- [ ] Crash-injection and idempotency covered by corpus suite; doctor recovers index.
-- [ ] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (re-OCR compare/promote, backup/restore productization) stay candidates unless explicitly pulled in.
+- [x] Acceptance gate green before any “supported” bulk/inbox claim in public surfaces.
+- [ ] Inbox workflow shows outcomes for imported / failed / duplicated / needs-review (polish).
+- [x] Crash-injection and idempotency covered by corpus suite; doctor recovers index.
+- [x] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (re-OCR compare/promote, backup/restore productization) stay candidates unless explicitly pulled in.
 
 ### Key files
 
-`src/transcribe/corpus/*`, `services` import orchestration (new), `ui` inbox/recovery views (new), `settings_hub.py`, corpus contracts + tests under the integrity suite.
+`src/transcribe/corpus/*`, `services` import orchestration, `ui` inbox/recovery views, `settings_hub.py`, corpus contracts + tests under the integrity suite.
 
 ---
 
@@ -358,17 +350,17 @@ Matches [ROADMAP.md](ROADMAP.md) hardening exit gate:
 - Crash/reopen, stale detection, offline operation, export provenance, and normal Analyse workflows covered by acceptance tests.
 - No ordinary user workflow requires understanding module/cache internals.
 
-### Usability-wave close (U0–U3; U4 gated separately)
+### Usability-wave close (U0–U3; U4 polish separately)
 
 | Gate | Evidence |
 |------|----------|
 | Trust | Phases 3–6 checklist `[x]`; UI contract tests green |
 | First-run | Sample path + checklist + doctor UI documented and smoke-tested |
 | Daily loop | Review queue + reading mode + search filter parity smoke-tested |
-| Honesty | known_limitations + public_surfaces updated; inbox not oversold pre-U4 |
-| Corpus | U4 either still gated with explicit “not supported” copy, or acceptance gate green and inbox shipped |
+| Honesty | known_limitations + public_surfaces updated |
+| Corpus | Acceptance gate green; bulk/inbox claimed as supported in public surfaces |
 
-U4 may remain open after the usability wave is declared done for U0–U3; say so in ROADMAP status.
+U4 Inbox polish may remain open after the usability wave is declared done for U0–U3; say so in ROADMAP status.
 
 ---
 
@@ -411,10 +403,11 @@ U4 may remain open after the usability wave is declared done for U0–U3; say so
 - [ ] Search/Archive filter parity + empties
 - [ ] Model management product copy
 
-### U4 (gated)
-- [ ] Corpus acceptance gate green
-- [ ] Inbox / import recovery UI + CLI as supported surfaces
-- [ ] Public docs claim bulk/inbox only after gate
+### U4
+- [x] Corpus acceptance gate green
+- [x] Inbox / import recovery UI + CLI as supported surfaces
+- [x] Public docs claim bulk/inbox only after gate
+- [ ] Richer Inbox outcomes taxonomy / optional inbox-dir scan (polish)
 
 ---
 

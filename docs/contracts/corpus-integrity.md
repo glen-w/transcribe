@@ -1,11 +1,11 @@
 Type: CONTRACT
-Authority: self — corpus/notebook integrity invariants, doctor scopes, repair/rebuild boundaries, migration enforcement points, and the executable acceptance gate for bulk-import generation. Prospective until activation gate in [notebook-corpus.md](notebook-corpus.md). Peers: [source-asset.md](source-asset.md), [import-run.md](import-run.md), [project-on-disk.md](project-on-disk.md).
+Authority: self — corpus/notebook integrity invariants, doctor scopes, repair/rebuild boundaries, migration enforcement points, and the executable acceptance gate for bulk-import generation. **Runtime-normative**; activation gate in [notebook-corpus.md](notebook-corpus.md). Peers: [source-asset.md](source-asset.md), [import-run.md](import-run.md), [project-on-disk.md](project-on-disk.md).
 
 # Corpus integrity
 
 ## Activation gate
 
-Same gate as [notebook-corpus.md](notebook-corpus.md). Notebook-local doctor checks that already ship may tighten earlier when compatible with `transcribe.project` v1; corpus-wide checks and the acceptance suite below are required before bulk-import generation is declared active.
+Same gate as [notebook-corpus.md](notebook-corpus.md) — **satisfied**. Notebook-local and corpus-wide doctor checks below are required; the acceptance suite is the executable bar for supported bulk-import UI/CLI.
 
 ## Doctor scopes
 
@@ -65,7 +65,7 @@ Before writers emit optional SourceAsset linkage fields or ImportRun IDs into `t
 
 ## Acceptance gate (executable)
 
-**Bulk-import implementation must not ship** (UI or CLI bulk paths must not be marked supported) until a synthetic multi-notebook corpus suite passes all of the following:
+**Bulk-import implementation is supported** (UI and CLI bulk paths) when the synthetic multi-notebook corpus suite passes all of the following — and that suite is green:
 
 1. **Deterministic crash-injection** at each boundary in [import-run.md](import-run.md#crash--recovery-boundaries) (corpus registration, notebook creation, source promotion, render promotion, `project.json` commit, ImportRun item commit, final run-state commit), with resume producing the authoritative winner and no duplicate committed IDs
 2. **Retry / idempotency** under exact `plan_id` + `plan_fingerprint` + `import_policy_id` equality: second commit is a no-op for committed items; failed items may progress without regenerating IDs
@@ -80,4 +80,4 @@ Before writers emit optional SourceAsset linkage fields or ImportRun IDs into `t
 
 - Automatic healing that invents missing IDs or approved metadata
 - Treating archive SQLite as an authority to repair notebooks from
-- Shipping bulk import behind a feature flag without this suite green
+- Shipping bulk import behind a feature flag without this suite green (gate is closed; suite must remain green)

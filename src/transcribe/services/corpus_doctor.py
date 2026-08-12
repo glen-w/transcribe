@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
+from transcribe.corpus.import_run import (
+    ImportRun,
+    ImportRunItemOutcome,
+    ImportRunStore,
+    validate_import_run,
+)
 from transcribe.corpus.index import CorpusIndexStore, validate_entry_matches_project
 from transcribe.corpus.paths import CorpusPaths
 from transcribe.errors import CorpusError, ProjectError, ValidationError
@@ -45,13 +52,15 @@ class CorpusDoctorService:
             report.add(
                 "warning",
                 "corpus_index_absent",
-                "no corpus-index.json; bulk-import generation not activated",
+                "no corpus-index.json; bulk import not used in this workspace yet",
             )
             return report
 
         page_ids: dict[str, str] = {}
         source_ids: dict[str, str] = {}
         render_ids: dict[str, str] = {}
+        # notebook_id → project payload (for ImportRun committed-ID resolution)
+        notebooks: dict[str, dict[str, Any]] = {}
 
         for entry in index.entries:
             try:
@@ -79,6 +88,8 @@ class CorpusDoctorService:
                     f"{entry.notebook_id}: {exc}",
                 )
                 continue
+
+            notebooks[entry.notebook_id] = payload
 
             if per_notebook:
                 try:
@@ -147,6 +158,8 @@ class CorpusDoctorService:
                     f"{entry.notebook_id}: {exc}",
                 )
 
+        self._check_import_runs(report, notebooks)
+
         # Quarantined corpus artifacts (documented warning — recovery may leave
         # audit trails; does not fail doctor.ok after a successful rebuild).
         if self.paths.quarantine_dir.exists():
@@ -159,3 +172,121 @@ class CorpusDoctorService:
                     )
 
         return report
+
+    def _check_import_runs(
+        self,
+        report: CorpusDoctorReport,
+        notebooks: dict[str, dict[str, Any]],
+    ) -> None:
+        """Corpus invariant #6: committed ImportRun IDs resolve, or skip/fail with reason."""
+        runs_dir = self.paths.import_runs_dir
+        if not runs_dir.exists():
+            return
+
+        store = ImportRunStore(self.paths)
+        for path in sorted(runs_dir.glob("*.json")):
+            if not path.is_file():
+                continue
+            run_id = path.stem
+            try:
+                run = store.load(run_id)
+            except CorpusError as exc:
+                report.add(
+                    "error",
+                    "import_run_load_failed",
+                    f"{path.name}: {exc}",
+                )
+                continue
+
+            try:
+                validate_import_run(run)
+            except ValidationError as exc:
+                report.add(
+                    "error",
+                    "import_run_invalid",
+                    f"{run.import_run_id}: {exc}",
+                )
+                continue
+
+            for item in run.items:
+                self._check_import_run_item(report, run, item, notebooks)
+
+    def _check_import_run_item(
+        self,
+        report: CorpusDoctorReport,
+        run: ImportRun,
+        item: ImportRunItemOutcome,
+        notebooks: dict[str, dict[str, Any]],
+    ) -> None:
+        prefix = f"import-run {run.import_run_id} item {item.item_id}"
+        state = item.state
+
+        if state in ("skipped", "failed"):
+            has_reason = bool(
+                (state == "skipped" and item.skip_classification)
+                or (state == "failed" and (item.error_code or item.error_message))
+            )
+            if not has_reason:
+                report.add(
+                    "error",
+                    "import_run_outcome_missing_reason",
+                    f"{prefix}: {state} without recorded reason",
+                )
+            return
+
+        if state != "committed":
+            return
+
+        resulting = item.resulting_ids or {}
+        notebook_id = str(resulting.get("notebook_id") or "").strip()
+        if not notebook_id:
+            report.add(
+                "error",
+                "import_run_committed_missing_notebook",
+                f"{prefix}: committed item missing resulting notebook_id",
+            )
+            return
+
+        payload = notebooks.get(notebook_id)
+        if payload is None:
+            report.add(
+                "error",
+                "import_run_committed_notebook_missing",
+                f"{prefix}: committed notebook_id {notebook_id} not in corpus index",
+            )
+            return
+
+        source_id = resulting.get("source_id")
+        if source_id is not None:
+            sid = str(source_id)
+            known_sources = {
+                str(s.get("source_id") or "") for s in (payload.get("sources") or [])
+            }
+            if sid not in known_sources:
+                report.add(
+                    "error",
+                    "import_run_committed_source_missing",
+                    f"{prefix}: source_id {sid} not in notebook {notebook_id}",
+                )
+
+        known_pages = {
+            str(p.get("page_id") or "") for p in (payload.get("pages") or [])
+        }
+        for page_id in resulting.get("page_ids") or []:
+            pid = str(page_id)
+            if pid not in known_pages:
+                report.add(
+                    "error",
+                    "import_run_committed_page_missing",
+                    f"{prefix}: page_id {pid} not in notebook {notebook_id}",
+                )
+
+        known_renders = {str(rid) for rid in (payload.get("renders") or {}).keys()}
+        for render_id in resulting.get("render_ids") or []:
+            rid = str(render_id)
+            if rid not in known_renders:
+                report.add(
+                    "error",
+                    "import_run_committed_render_missing",
+                    f"{prefix}: render_id {rid} not in notebook {notebook_id}",
+                )
