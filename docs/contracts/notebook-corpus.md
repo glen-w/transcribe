@@ -104,7 +104,7 @@ Durable workspace document that locates managed notebooks without treating folde
 - `managed_relpath` is a **mutable locator** (may change if the directory is moved within the projects root). It must stay path-contained under `TRANSCRIBE_PROJECTS_DIR` and must resolve to a directory containing a valid `project.json`.
 - Duplicate `notebook_id` values are invalid.
 - Duplicate `managed_relpath` values are invalid.
-- Absence of the corpus index file means “bulk-import generation not activated” for that workspace; legacy discovery of `project.json` children may continue until activation, but after activation the index is the durable locator set.
+- Absence of the corpus index file means bulk import has not been used in that workspace yet; legacy discovery of `project.json` children continues. When the index is present, it is the durable locator set.
 
 ### What the index is not
 
