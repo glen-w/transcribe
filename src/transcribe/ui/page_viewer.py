@@ -11,6 +11,7 @@ import streamlit as st
 from transcribe.domain.dates import (
     DATE_SOURCE_EXTRACTED,
     DATE_SOURCE_INHERITED,
+    looks_like_unparsed_date_stamp,
     normalize_tags,
     parse_date_input,
 )
@@ -443,10 +444,17 @@ def render_page_viewer(
         st.caption("Page metadata")
         date_default = page.date.format_display() if page.date else ""
         date_in = st.text_input(
-            "Date (YYYY, YYYY-MM, YYYY-MM-DD, DD/MM/YYYY, or YYMMDD; time ignored)",
+            "Date (YYYY, YYYY-MM, YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, YYMMDD, "
+            "or Jan 2, 2018; ambiguous numerics are day/month; time ignored)",
             value=date_default,
             key=f"date_{page.page_id}",
         )
+        if page.date is None:
+            page_text = result.effective_text() if result else None
+            if looks_like_unparsed_date_stamp(page_text):
+                st.caption(
+                    "Possible date in text wasn't recognized — set manually"
+                )
         if page.date is not None and not page.date_approved:
             if page.date_source == DATE_SOURCE_EXTRACTED:
                 suggest_label = "Suggested from transcription — not yet approved"

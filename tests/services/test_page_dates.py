@@ -118,6 +118,95 @@ def test_cover_inherits_first_dated_page(tmp_path: Path):
     assert pages[2].date_source == "inherited"
 
 
+def test_month_name_stamp_extracts(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "month_name")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("M")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("a.png", _png_bytes())
+    project = ingest.import_bytes("b.png", _png_bytes(color=(1, 2, 3)))
+    p0, p1 = project.pages[0].page_id, project.pages[1].page_id
+    _seed_page_text(
+        projects,
+        p0,
+        "Hello Glen!\nJan 2, 2018.\nIt is the very beginning of 2018",
+        clock,
+    )
+    _seed_page_text(projects, p1, "03/01/2018\nAm\nNature article", clock)
+
+    projects.fill_page_dates_ordered()
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date == ApproximateDate(2018, 1, 2)
+    assert pages[0].date_source == "extracted"
+    assert pages[1].date == ApproximateDate(2018, 1, 3)
+    assert pages[1].date_source == "extracted"
+
+
+def test_failed_date_stamp_does_not_inherit(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "no_inherit_stamp")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("N")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("a.png", _png_bytes())
+    project = ingest.import_bytes("b.png", _png_bytes(color=(1, 2, 3)))
+    project = ingest.import_bytes("c.png", _png_bytes(color=(4, 5, 6)))
+    p0, p1, p2 = [p.page_id for p in project.pages]
+    _seed_page_text(projects, p0, "260523 entry", clock)
+    _seed_page_text(projects, p1, "32/01/18\nimpossible day stamp", clock)
+    _seed_page_text(projects, p2, "plain prose continues", clock)
+
+    projects.fill_page_dates_ordered()
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date == ApproximateDate(2026, 5, 23)
+    assert pages[0].date_source == "extracted"
+    assert pages[1].date is None
+    assert pages[1].date_approved is True
+    assert pages[1].date_source is None
+    # Later plain page still inherits from the last dated page (p0), skipping undated p1.
+    assert pages[2].date == ApproximateDate(2026, 5, 23)
+    assert pages[2].date_source == "inherited"
+
+
+def test_short_year_dmy_extracts(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "short_yy")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("S")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("a.png", _png_bytes())
+    pid = project.pages[0].page_id
+    _seed_page_text(projects, pid, "9/1/18\n15h37\nHabit reversal", clock)
+    assert projects.suggest_page_date(pid) is True
+    page = projects.load(reconcile=False).pages[0]
+    assert page.date == ApproximateDate(2018, 1, 9)
+    assert page.date_source == "extracted"
+
+
+def test_cover_with_failed_stamp_stays_undated(tmp_path: Path):
+    """Cover look-ahead must not override a failed-looking stamp."""
+    paths = open_project_paths(tmp_path / "cover_failed_stamp")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("CF")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("cover.png", _png_bytes())
+    project = ingest.import_bytes("p1.png", _png_bytes(color=(1, 2, 3)))
+    assert project.cover_page_id == project.pages[0].page_id
+    cover_id, p1 = project.pages[0].page_id, project.pages[1].page_id
+    _seed_page_text(projects, cover_id, "32/01/18\nTitle page", clock)
+    _seed_page_text(projects, p1, "260523 first entry", clock)
+
+    projects.fill_page_dates_ordered()
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date is None
+    assert pages[0].date_approved is True
+    assert pages[0].date_source is None
+    assert pages[1].date == ApproximateDate(2026, 5, 23)
+    assert pages[1].date_source == "extracted"
+
+
 def test_cover_suggest_looks_ahead_when_later_page_already_dated(tmp_path: Path):
     paths = open_project_paths(tmp_path / "cover_ahead")
     clock, ids = FakeClock(), SequentialIds()

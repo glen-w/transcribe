@@ -11,6 +11,7 @@ from transcribe.domain.dates import (
     DATE_SOURCE_EXTRACTED,
     DATE_SOURCE_INHERITED,
     extract_page_date,
+    looks_like_unparsed_date_stamp,
     normalize_tags,
 )
 from transcribe.domain.models import (
@@ -327,6 +328,10 @@ class ProjectService:
             page.set_date_state(
                 extracted, approved=False, source=DATE_SOURCE_EXTRACTED
             )
+            return
+        # Failed-looking stamp: stay undated for Review (do not inherit).
+        if looks_like_unparsed_date_stamp(text):
+            page.set_date_state(None, approved=True, source=None)
             return
         for prev in reversed(pages[:idx]):
             if prev.date is not None:
