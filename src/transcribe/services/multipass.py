@@ -95,6 +95,56 @@ class MultiPassCoordinator:
         finally:
             self._job_lock.release()
 
+    def resume_blocking(
+        self,
+        pass_id: str,
+        *,
+        on_progress: Callable[[MultiPassProgress], None] | None = None,
+    ) -> MultiPassProgress:
+        """Resume an incomplete multipass job from its on-disk record."""
+        payload = self._load_job_record(pass_id)
+        if payload is None:
+            raise TranscribeError(f"no multipass job record for {pass_id}")
+        status = str(payload.get("status") or "")
+        if status == "completed":
+            raise TranscribeError(f"multipass {pass_id} already completed")
+        models = [str(m) for m in (payload.get("model_names") or [])]
+        if len(models) < 2:
+            raise TranscribeError("multipass job record missing models")
+        page_ids = [str(p) for p in (payload.get("page_ids") or [])] or None
+        start_idx = int(payload.get("model_index") or 0)  # 1-based completed count
+        phase = str(payload.get("phase") or "vision")
+        if not self._job_lock.try_acquire():
+            raise JobConflictError(
+                "another process holds the OCR job lock for this project"
+            )
+        try:
+            return self._run(
+                models=models,
+                page_ids=page_ids,
+                force=bool(payload.get("force")),
+                auto_activate_composite=bool(payload.get("auto_activate_composite", True)),
+                on_progress=on_progress,
+                pass_id=pass_id,
+                start_model_index=start_idx if phase == "vision" else len(models),
+                prefer_mode_override=str(payload.get("prefer_mode") or "") or None,
+                ranker_override=str(payload.get("ranker_model_name") or "") or None,
+            )
+        finally:
+            self._job_lock.release()
+
+    def _load_job_record(self, pass_id: str) -> dict[str, Any] | None:
+        from transcribe.persistence.atomic import read_json
+
+        path = self.jobs.paths.jobs_dir / f"multipass_{pass_id}.json"
+        if not path.exists():
+            return None
+        try:
+            payload = read_json(path)
+        except Exception:
+            return None
+        return payload if isinstance(payload, dict) else None
+
     def _emit(
         self,
         progress: MultiPassProgress,
@@ -119,17 +169,29 @@ class MultiPassCoordinator:
         force: bool,
         auto_activate_composite: bool | None,
         on_progress: Callable[[MultiPassProgress], None] | None,
+        pass_id: str | None = None,
+        start_model_index: int = 0,
+        prefer_mode_override: str | None = None,
+        ranker_override: str | None = None,
     ) -> MultiPassProgress:
         project = self.projects.load(reconcile=False)
         targets = tuple(page_ids or [p.page_id for p in project.pages])
         settings = project.settings
-        prefer_mode = settings.prefer_mode if settings.prefer_mode in PREFER_MODES else DEFAULT_PREFER_MODE
+        prefer_mode = (
+            prefer_mode_override
+            if prefer_mode_override in PREFER_MODES
+            else (
+                settings.prefer_mode
+                if settings.prefer_mode in PREFER_MODES
+                else DEFAULT_PREFER_MODE
+            )
+        )
         auto_comp = (
             settings.auto_activate_composite
             if auto_activate_composite is None
             else bool(auto_activate_composite)
         )
-        ranker = (
+        ranker = (ranker_override or "").strip() or (
             (settings.cleanup_model_name or "").strip()
             or (settings.text_model_name or "").strip()
         )
@@ -138,7 +200,7 @@ class MultiPassCoordinator:
                 "multipass rank/composite requires a text/cleanup model "
                 "(set cleanup_model_name or text_model_name)"
             )
-        pass_id = self.ids.new_id()
+        pass_id = pass_id or self.ids.new_id()
         plan = MultiPassPlan(
             pass_id=pass_id,
             page_ids=targets,
@@ -154,7 +216,12 @@ class MultiPassCoordinator:
             status="running",
             model_total=len(models),
             phase="vision",
-            message="Starting multipass…",
+            model_index=start_model_index,
+            message=(
+                f"Resuming multipass from model {start_model_index + 1}…"
+                if start_model_index
+                else "Starting multipass…"
+            ),
         )
         self._persist(plan, progress, terminal=False)
         self._emit(progress, on_progress)
@@ -167,6 +234,8 @@ class MultiPassCoordinator:
 
         try:
             for idx, model_name in enumerate(models):
+                if idx < start_model_index:
+                    continue
                 self._emit(
                     progress,
                     on_progress,
@@ -193,8 +262,29 @@ class MultiPassCoordinator:
                 )
                 self._persist(plan, progress, terminal=False)
 
-            # Rank + composite per page
+            # Rank + composite per page (skip pages already compared for this pass)
             for page_id in targets:
+                existing = self.projects.load_page_result(page_id)
+                has_comparison = bool(
+                    existing
+                    and existing.comparison
+                    and existing.comparison.pass_id == plan.pass_id
+                )
+                has_composite = bool(
+                    existing
+                    and any(
+                        (a.attempt_kind or "") == "composite"
+                        and a.pass_id == plan.pass_id
+                        and a.status == "succeeded"
+                        for a in existing.attempts
+                    )
+                )
+                if has_comparison and (has_composite or not plan.auto_activate_composite):
+                    if has_comparison:
+                        progress.pages_ranked += 1
+                    if has_composite:
+                        progress.pages_composite += 1
+                    continue
                 self._emit(
                     progress,
                     on_progress,

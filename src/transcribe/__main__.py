@@ -71,8 +71,8 @@ def main(argv: list[str] | None = None) -> int:
         "--model",
         action="append",
         dest="models",
-        required=True,
-        help="Vision model (repeat; at least two)",
+        required=False,
+        help="Vision model (repeat; at least two). Not required with --resume",
     )
     p_multi.add_argument("--base-url", default=None)
     p_multi.add_argument("--force", action="store_true")
@@ -86,6 +86,12 @@ def main(argv: list[str] | None = None) -> int:
         "--text-model",
         default=None,
         help="Text model for rank/composite (defaults to project cleanup/text model)",
+    )
+    p_multi.add_argument(
+        "--resume",
+        default=None,
+        metavar="PASS_ID",
+        help="Resume an incomplete multipass job by pass_id",
     )
 
     p_ft = sub.add_parser(
@@ -389,11 +395,22 @@ def main(argv: list[str] | None = None) -> int:
             multi = MultiPassCoordinator(
                 jobs=coord, projects=projects, clock=clock, ids=ids
             )
-            progress = multi.run_blocking(
-                model_names=list(args.models),
-                force=args.force,
-                auto_activate_composite=not args.no_auto_composite,
-            )
+            if args.resume:
+                progress = multi.resume_blocking(args.resume)
+            else:
+                models = list(args.models or [])
+                if len(models) < 2:
+                    print(
+                        "error: multipass requires at least two --model values "
+                        "(or --resume PASS_ID)",
+                        file=sys.stderr,
+                    )
+                    return 2
+                progress = multi.run_blocking(
+                    model_names=models,
+                    force=args.force,
+                    auto_activate_composite=not args.no_auto_composite,
+                )
             return 0 if progress.status == "completed" else 1
 
         if args.cmd == "detect":

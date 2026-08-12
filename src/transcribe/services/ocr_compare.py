@@ -29,7 +29,7 @@ RANK_PROMPT = PromptTemplate(
         "Candidates are labeled by attempt_id. Prefer completeness, faithfulness, "
         "and fewer OCR gibberish artefacts. Do not invent content.\n"
         "Return ONLY a JSON object: "
-        '{"order":["attempt_id",...],"rationales":{"attempt_id":"short reason"}} '
+        '{{"order":["attempt_id",...],"rationales":{{"attempt_id":"short reason"}}}} '
         "listing every attempt_id exactly once, best first.\n\n"
         "Candidates:\n{candidates}"
     ),

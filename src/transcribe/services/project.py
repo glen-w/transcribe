@@ -447,7 +447,9 @@ class ProjectService:
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
             return existing
 
-    def set_active_attempt(self, page_id: str, attempt_id: str) -> PageResult:
+    def set_active_attempt(
+        self, page_id: str, attempt_id: str, *, record_ledger: bool = True
+    ) -> PageResult:
         """Promote a succeeded attempt to active without clearing edited_text."""
         with mutation_lock(self.paths.mutation_lock):
             existing = self._load_page_result_unlocked(page_id)
@@ -464,7 +466,15 @@ class ProjectService:
             existing.updated_at = to_iso(self.clock.now())
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
-            return existing
+            result = existing
+            attempt_snap = attempt
+        if record_ledger:
+            self._append_preference_event(
+                page_id=page_id,
+                attempt=attempt_snap,
+                action="promote",
+            )
+        return result
 
     def set_preferred_attempt(
         self,

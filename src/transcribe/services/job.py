@@ -261,7 +261,13 @@ class JobCoordinator:
                 project_id=project.id,
             )
             with bind_operation_config(snap):
-                self._execute_plan(state, project=project, plan=plan, on_progress=emit)
+                self._execute_plan(
+                    state,
+                    project=project,
+                    plan=plan,
+                    start_provider=self.provider,
+                    on_progress=emit,
+                )
             return self.get_progress()
         finally:
             if acquired:
@@ -459,6 +465,7 @@ class JobCoordinator:
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> None:
+        # Capture provider reference at job start; later UI swaps of self.provider are ignored.
         start_provider = self.provider
         plan = self._build_plan(
             project,
@@ -467,7 +474,13 @@ class JobCoordinator:
             force=force,
             provider=start_provider,
         )
-        self._execute_plan(state, project=project, plan=plan, on_progress=on_progress)
+        self._execute_plan(
+            state,
+            project=project,
+            plan=plan,
+            start_provider=start_provider,
+            on_progress=on_progress,
+        )
 
     def _execute_plan(
         self,
@@ -475,10 +488,10 @@ class JobCoordinator:
         *,
         project: Project,
         plan: JobPlan,
+        start_provider: VisionOCRProvider | None = None,
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> None:
-        start_provider = self.provider
-        sealed_provider = self._seal_provider(plan, start_provider)
+        sealed_provider = self._seal_provider(plan, start_provider or self.provider)
         state.plan = plan
         state.provider = sealed_provider
         self._persist_job_record(state, terminal=False)

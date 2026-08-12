@@ -28,6 +28,21 @@ OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
 Workspace `export.*` controls default export formats, structure, and typography
 (see [notebook-export.md](notebook-export.md)).
 
+## OCR lifecycle knobs (`ocr.*`)
+
+Workspace OCR seeds **new notebooks** and Apply-to-project (allowlisted). Live
+job authority remains `project.json` → `settings`.
+
+| Key | Default | Role |
+|-----|---------|------|
+| `prefer_mode` | `prefer_is_promote` | Prefer semantics: `prefer_is_promote` \| `prefer_only` \| `prefer_promote_with_edit_gate` (see [page-result.md](page-result.md)) |
+| `auto_activate_composite` | `true` | After multipass, auto-activate composite candidates |
+| `multipass_default_models` | `[]` | Optional UI default multi-select list |
+| `finetune_*` | see [finetune-export.md](finetune-export.md) | Fine-tune export defaults |
+
+Project OCR may override `prefer_mode` and `auto_activate_composite` (and other
+allowlisted OCR fields). Review → Compare settings writes the project override.
+
 ## Profiles
 
 Activation-pointer model: workspace stores `active_*_profile`; profile content overlays at resolve time (never copied into workspace). Editing a profile-supplied value detaches that target to `default` and writes workspace overrides. Builtins are immutable; Save As rejects reserved names.
