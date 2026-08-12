@@ -37,6 +37,7 @@ _PLAN_FINGERPRINT_ITEM_KEYS = (
     "page_ids",
     "render_ids",
     "corpus_wide_dedupe",
+    "original_filename",
 )
 
 

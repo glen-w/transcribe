@@ -19,7 +19,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 
 ---
 
-## Now — Product hardening — [~] active
+## Now — Product hardening — [x] done (exit gate: acceptance suite)
 
 Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open.
 
@@ -32,7 +32,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 | **3** — #5, #6 | [x] | Users can trust exactly what a preset will run |
 | **4** — #11, #12 | [x] | Every analysis surface gives the same answer to “is this current and healthy?” |
 | **5** — #13 | [x] | Exports identify exactly which notebook revision produced them |
-| **6** — #7–9 | [ ] | Analyse surfaces are simplified around user tasks rather than module mechanics |
+| **6** — #7–9 | [x] | Analyse surfaces are simplified around user tasks rather than module mechanics |
 
 | Track | Intent |
 |-------|--------|
@@ -43,13 +43,13 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 
 Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
 
-**Exit gate:** Hardening closes when crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals.
+**Exit gate:** Hardening closes when crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
 ---
 
-## Next — Notebook corpus / bulk import — [ ] planned (contracts first)
+## Next — Notebook corpus / bulk import — [~] active (activation in progress)
 
-Prospective **bulk-import generation** contracts are written; runtime remains `transcribe.project` v1 until the activation gate.
+Prospective **bulk-import generation** contracts are written; foundation (corpus index, ImportPlan/ImportRun, duplicate policy, orchestrator, doctor, CLI, Inbox UI) ships on this track. Runtime stays compatible with `transcribe.project` v1; declare generation **active** only when the acceptance gate below is green.
 
 | Gate | Authority |
 |------|-----------|
@@ -58,9 +58,11 @@ Prospective **bulk-import generation** contracts are written; runtime remains `t
 | ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
 | Doctor + executable acceptance suite | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 
-**Do not** ship bulk-import UI/CLI as supported until the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green (crash-injection, idempotency, duplicate policy, corpus-index recovery, deep doctor on a synthetic multi-notebook corpus).
+**Do not** mark bulk-import UI/CLI as fully supported until the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green (crash-injection, idempotency, duplicate policy, corpus-index recovery, deep doctor on a synthetic multi-notebook corpus). Suite: [tests/acceptance/corpus/](../tests/acceptance/corpus/).
 
 Suggested implementation order after activation work starts: corpus index → ImportRun/plan → duplicate policy on commit → corpus doctor → synthetic suite → only then bulk UI.
+
+**Shipped on this track:** corpus index registration + discovery, ImportPlan/ImportRun orchestrator with crash hooks, `skip_existing_v1` / `create_duplicate_v1`, folder adapter, CLI `bulk-import` / `corpus-doctor`, and **Notebooks → Inbox** import recovery surface.
 
 **Related product outcome (not just ingestion mechanics):** an **import recovery / inbox** workflow — after dumping a large scan set, show what imported, what failed, what duplicated, what needs review, and let the user continue. This may become the natural corpus home screen.
 
@@ -109,7 +111,7 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Prompt-backed Detection** | **Shipped (wave 2):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See detection contracts. |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
 | **Review UX** | Faster correction and approval of OCR text and dates. |
-| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. |
+| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. Further reading-mode polish remains a separate candidate above. |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. |

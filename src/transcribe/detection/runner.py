@@ -82,13 +82,23 @@ class DetectionRunner:
         from transcribe.config.facade import get_config
 
         cfg = get_config()
+        # Vision/text model authority is project OCR settings; workspace ocr.* only
+        # supplies defaults for new projects (no vision model_name field).
+        project = self.project_service.load(reconcile=False)
+        base_url = (project.settings.base_url or cfg.ocr.base_url or "").strip()
+        text_name = (
+            (project.settings.text_model_name or "").strip()
+            or (cfg.ocr.text_model_name or "").strip()
+            or (cfg.llm.text_model_preference or "").strip()
+        )
+        vision_name = (project.settings.model_name or "").strip()
         text = bind_text_llm_context(
-            text_model_name=cfg.ocr.text_model_name or cfg.llm.text_model_preference,
-            base_url=cfg.ocr.base_url,
+            text_model_name=text_name,
+            base_url=base_url,
         )
         vision = bind_vision_llm_context(
-            model_name=cfg.ocr.model_name,
-            base_url=cfg.ocr.base_url,
+            model_name=vision_name,
+            base_url=base_url,
         )
         return text, vision
 

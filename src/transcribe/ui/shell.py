@@ -9,7 +9,7 @@ import streamlit as st
 
 
 # Notebooks section
-_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")
+_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places", "Inbox")
 # Workflow section (create → import → OCR → review, then analyse / export)
 _WORKFLOW_MODES: tuple[str, ...] = (
     "New notebook",

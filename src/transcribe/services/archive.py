@@ -164,6 +164,13 @@ def discover_project_roots(projects_dir: Path) -> list[Path]:
     return roots
 
 
+def discover_corpus_project_roots(runtime: RuntimePaths) -> list[Path]:
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.services.corpus_registry import discover_roots
+
+    return discover_roots(CorpusPaths.from_runtime(runtime))
+
+
 def _source_media_type(project: Project, source_id: str) -> str:
     for source in project.sources:
         if source.source_id == source_id:
@@ -401,7 +408,7 @@ class ArchiveService:
             self._ensure_index_locked(force=force)
 
     def _ensure_index_locked(self, *, force: bool = False) -> None:
-        roots = discover_project_roots(self.runtime.projects_dir)
+        roots = discover_corpus_project_roots(self.runtime)
         for attempt in range(2):
             try:
                 with self._connect() as conn:

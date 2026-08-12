@@ -66,6 +66,38 @@ def test_black_ink_near_grey() -> None:
     assert metrics.ink_hue_degrees is None
 
 
+def test_green_ink_label() -> None:
+    img = _paper()
+    draw = ImageDraw.Draw(img)
+    for y in range(30, 220, 5):
+        draw.line((20, y, 180, y), fill=(30, 140, 45), width=4)
+    metrics = analyse_image(img)
+    assert metrics.ink_coverage_pct > 8.0
+    assert metrics.ink_hue == "green"
+
+
+def test_brown_ink_label() -> None:
+    img = _paper()
+    draw = ImageDraw.Draw(img)
+    for y in range(30, 220, 5):
+        draw.line((20, y, 180, y), fill=(140, 90, 35), width=4)
+    metrics = analyse_image(img)
+    assert metrics.ink_coverage_pct > 8.0
+    assert metrics.ink_hue == "brown"
+
+
+def test_mixed_ink_hues() -> None:
+    img = _paper()
+    draw = ImageDraw.Draw(img)
+    for y in range(20, 120, 4):
+        draw.line((15, y, 185, y), fill=(20, 50, 180), width=3)
+    for y in range(130, 240, 4):
+        draw.line((15, y, 185, y), fill=(190, 25, 30), width=3)
+    metrics = analyse_image(img)
+    assert metrics.ink_coverage_pct > 10.0
+    assert metrics.ink_hue == "mixed"
+
+
 def test_analyse_image_bytes_matches_image() -> None:
     img = _paper()
     ImageDraw.Draw(img).rectangle((40, 40, 120, 160), fill=(30, 90, 40))

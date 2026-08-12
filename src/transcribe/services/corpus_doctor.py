@@ -147,14 +147,15 @@ class CorpusDoctorService:
                     f"{entry.notebook_id}: {exc}",
                 )
 
-        # Quarantined corpus artifacts
+        # Quarantined corpus artifacts (documented warning — recovery may leave
+        # audit trails; does not fail doctor.ok after a successful rebuild).
         if self.paths.quarantine_dir.exists():
             for path in sorted(self.paths.quarantine_dir.iterdir()):
                 if path.is_file():
                     report.add(
-                        "error",
+                        "warning",
                         "corpus_quarantine_present",
-                        f"quarantined artifact requires review: {path.name}",
+                        f"quarantined artifact retained for review: {path.name}",
                     )
 
         return report

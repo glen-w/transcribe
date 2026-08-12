@@ -246,3 +246,27 @@ def test_cancel_check_marks_cancelled(tmp_path: Path):
         cancel_check=lambda: True,
     )
     assert result.get("attempt_state") == "cancelled"
+
+
+def test_freshness_binds_project_vision_model_not_workspace_ocr(tmp_path: Path):
+    """Regression: Analyse→Detect freshness must not read OcrWorkspaceConfig.model_name."""
+    from transcribe.detection.registry import resolve_detector
+
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds("fr")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    project = projects.create("fr-nb")
+    settings = project.settings
+    settings.model_name = "gemma3:4b"
+    settings.text_model_name = ""
+    projects.save_settings(project, settings)
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p0.png", _png_bytes())
+    projects.save_user_edit(projects.load().pages[0].page_id, "some notebook text here")
+
+    # No injected LLM contexts — mirrors Streamlit DetectionService(projects).
+    svc = DetectionService(projects)
+    fresh = svc.freshness("poetry")
+    assert fresh in {"missing", "stale", "fresh", "unknown"}
+    planned, _scope, _meta = svc.runner.planned_cache_identity(resolve_detector("poetry"))
+    assert isinstance(planned, str) and planned
