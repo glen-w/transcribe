@@ -1,5 +1,5 @@
 Type: CONTRACT
-Authority: self — on-disk project layout, `project.json` wire fields, per-notebook ingest durability, and per-notebook locks. Sole authority for top-level managed-notebook directory paths. Corpus identity, workspace ordering, ImportRun orchestration, and cross-notebook integrity are owned by the prospective bulk-import contracts: [notebook-corpus.md](notebook-corpus.md), [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md).
+Authority: self — on-disk project layout, `project.json` wire fields, per-notebook ingest durability, and per-notebook locks. Sole authority for top-level managed-notebook directory paths. Corpus identity, workspace ordering, ImportRun orchestration, and cross-notebook integrity are owned by the bulk-import contracts: [notebook-corpus.md](notebook-corpus.md), [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md).
 
 # Project on-disk format
 
@@ -115,7 +115,7 @@ Defensive limits (implementation-enforced): source byte cap, PDF page cap, rende
 | `.transcribe.job.lock` | At most one OCR job per project across processes |
 | `.transcribe.analysis.lock` | At most one analysis batch run per project across processes |
 
-Workspace corpus lock and **corpus → notebook** lock order are defined in [notebook-corpus.md](notebook-corpus.md) (prospective until activation).
+Workspace corpus lock and **corpus → notebook** lock order are defined in [notebook-corpus.md](notebook-corpus.md).
 
 ## Non-authority
 

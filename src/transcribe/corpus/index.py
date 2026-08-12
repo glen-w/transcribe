@@ -121,7 +121,7 @@ class CorpusIndexStore:
         self.clock = clock or SystemClock()
 
     def load(self) -> CorpusIndex | None:
-        """Return index or None if absent (bulk-import generation not activated)."""
+        """Return index or None if absent (bulk import not used in this workspace yet)."""
         if not self.paths.index_path.exists():
             return None
         try:

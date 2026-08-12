@@ -21,6 +21,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Encrypted PDFs are rejected
 - Very large sources/PDFs fail closed on configured byte/page/render budgets
 - PDF rendering uses PyMuPDF; unusual PDF constructs may render poorly
+- After corpus index recovery, retained quarantine artifacts under `data/corpus/quarantine/` are doctor **warnings** (`corpus_quarantine_present`) until an operator deletes them — they do not block a healthy corpus
 
 ## Jobs and identity
 

@@ -1,11 +1,11 @@
 Type: CONTRACT
-Authority: self — ImportRun / ImportPlan lifecycle, idempotency, crash/resume, cancellation, and orchestration vs per-notebook ingest journal. Prospective **bulk-import generation** authority; activation gate in [notebook-corpus.md](notebook-corpus.md). Sources/duplicates: [source-asset.md](source-asset.md). Integrity: [corpus-integrity.md](corpus-integrity.md). Per-notebook journal/layout: [project-on-disk.md](project-on-disk.md).
+Authority: self — ImportRun / ImportPlan lifecycle, idempotency, crash/resume, cancellation, and orchestration vs per-notebook ingest journal. **Runtime-normative** for bulk-import generation; activation gate in [notebook-corpus.md](notebook-corpus.md). Sources/duplicates: [source-asset.md](source-asset.md). Integrity: [corpus-integrity.md](corpus-integrity.md). Per-notebook journal/layout: [project-on-disk.md](project-on-disk.md).
 
 # Import runs
 
 ## Activation gate
 
-Same gate as [notebook-corpus.md](notebook-corpus.md). Until activation, single-file ingest via `IngestService` + `.ingest-journal.json` remains the shipped import path. This contract defines the bulk orchestration layer that must exist before bulk-import UI.
+Same gate as [notebook-corpus.md](notebook-corpus.md) — **satisfied**; this contract is runtime-normative. Single-file ingest via `IngestService` + `.ingest-journal.json` remains a supported import path. This contract defines the bulk orchestration layer used by bulk-import UI/CLI.
 
 ## Lifecycle
 

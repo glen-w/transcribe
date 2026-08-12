@@ -28,7 +28,7 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** is a foundation surface for ImportRun recovery — see **Corpus foundation** below before treating it as fully supported.
+**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** is the ImportRun recovery / bulk-import surface — see **Corpus surfaces** below.
 
 **Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
@@ -40,9 +40,9 @@ Authority: self — supported public entrypoints and support policy for how user
 
 `./transcribe.sh` resolves a project-local `.venv` and accepts: `ui|web` (default), `cli|run …`, `install|setup`, `install-dev`, or passthrough argv to the CLI.
 
-## Corpus foundation (not fully supported until activation gate)
+## Corpus surfaces (supported)
 
-Bulk-import generation ships as **foundation code** while contracts remain prospective and the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is still closing. Do **not** treat these as unconditionally supported production surfaces yet:
+Bulk-import generation is **runtime-normative**; the [acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. Supported surfaces:
 
 | Surface | How to invoke | Notes |
 |---------|---------------|-------|

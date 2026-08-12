@@ -1,11 +1,11 @@
 Type: CONTRACT
-Authority: self — managed originals, fingerprints, provenance, duplicate taxonomy/policy, and source/page/render linkage invariants. Prospective **bulk-import generation** authority; activation gate in [notebook-corpus.md](notebook-corpus.md). Layout: [project-on-disk.md](project-on-disk.md). Import policies/runs: [import-run.md](import-run.md). Doctor checks: [corpus-integrity.md](corpus-integrity.md).
+Authority: self — managed originals, fingerprints, provenance, duplicate taxonomy/policy, and source/page/render linkage invariants. **Runtime-normative** for bulk-import generation; activation gate in [notebook-corpus.md](notebook-corpus.md). Layout: [project-on-disk.md](project-on-disk.md). Import policies/runs: [import-run.md](import-run.md). Doctor checks: [corpus-integrity.md](corpus-integrity.md).
 
 # Source assets
 
 ## Activation gate
 
-Same gate as [notebook-corpus.md](notebook-corpus.md). Until activation, existing `SourceDocument` fields in `transcribe.project` v1 remain the shipped source model. This contract defines the durable semantics bulk import must obey and the integrity invariants notebook validation must grow to enforce (see Migration).
+Same gate as [notebook-corpus.md](notebook-corpus.md) — **satisfied**; this contract is runtime-normative. Existing `SourceDocument` fields in `transcribe.project` v1 remain the shipped source model; optional linkage fields are additive. This contract defines the durable semantics bulk import obeys and the integrity invariants notebook validation enforces (see Migration).
 
 ## Purpose
 
@@ -61,7 +61,7 @@ For each `source_id`:
 3. The set of `page_index` values in `P` **must be exactly** `{0, 1, …, page_count - 1}` (contiguous, starting at 0, no duplicates, no gaps).
 4. `(source_id, page_index)` is unique across the notebook.
 
-Current shipped validation that only compares counts is **insufficient**; contiguous unique indices are required by this contract (enforced when integrity updates land; see [corpus-integrity.md](corpus-integrity.md)).
+Current shipped validation enforces contiguous unique indices via `validate_project` (see [corpus-integrity.md](corpus-integrity.md) notebook invariants).
 
 ## Page ↔ render integrity invariants
 

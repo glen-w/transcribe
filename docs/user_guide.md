@@ -113,9 +113,9 @@ Settings → Profiles (target **export**). Contract:
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --deep
 ```
 
-## 8. Bulk import / Inbox (foundation)
+## 8. Bulk import / Inbox
 
-Corpus bulk import is **activation in progress** — usable for recovery experiments, not yet marked fully supported ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate).
+Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path for one notebook at a time.
 
 **UI:** **Notebooks → Inbox**
 
@@ -135,7 +135,7 @@ Corpus bulk import is **activation in progress** — usable for recovery experim
 ./transcribe.sh cli corpus-doctor --deep
 ```
 
-Overwrite deletes **managed** notebook copies under the projects directory only; external originals outside that tree are untouched. Single-file import (§2) remains the everyday path for one notebook at a time.
+Overwrite deletes **managed** notebook copies under the projects directory only; external originals outside that tree are untouched. After recovery or index rebuild, retained quarantine artifacts may show as doctor **warnings** (`corpus_quarantine_present`) until an operator deletes them.
 
 ## Privacy reminder
 

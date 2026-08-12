@@ -13,7 +13,7 @@ Streamlit UI (8510) ──┐
 CLI ──────────────────┘              │
                                      ▼
                     workspace (data/)
-                    ├── corpus/          # prospective: corpus-index + import-runs
+                    ├── corpus/          # corpus-index + import-runs (bulk import)
                     ├── projects/<…>/    # one managed notebook directory each
                     │     ├── project.json
                     │     ├── sources/ + pages/ renders
@@ -28,10 +28,10 @@ CLI ──────────────────┘              │
 
 | Concern | Owner |
 |---------|-------|
-| Corpus identity, notebook order, workspace locks (prospective) | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
-| Managed originals, fingerprints, duplicates (prospective) | [contracts/source-asset.md](contracts/source-asset.md) |
-| Bulk ImportRun / plan / resume (prospective) | [contracts/import-run.md](contracts/import-run.md) |
-| Corpus/notebook integrity + bulk-import acceptance gate (prospective) | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+| Corpus identity, notebook order, workspace locks | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
+| Managed originals, fingerprints, duplicates | [contracts/source-asset.md](contracts/source-asset.md) |
+| Bulk ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
+| Corpus/notebook integrity + bulk-import acceptance gate | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 | Durable notebook directory layout + per-notebook journal | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | OCR generations + edits | Per-page results — [contracts/page-result.md](contracts/page-result.md) |
 | Analysis inputs / results / storage / eligibility | [contracts/analysis-document.md](contracts/analysis-document.md) · [analysis-result.md](contracts/analysis-result.md) · [analysis-run-storage.md](contracts/analysis-run-storage.md) · [notebook-eligibility.md](contracts/notebook-eligibility.md) |
@@ -50,7 +50,7 @@ CLI ──────────────────┘              │
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
-- **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — prospective workspace corpus authority under `data/corpus/` (activation-gated; see corpus contracts)
+- **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — workspace corpus authority under `data/corpus/` (runtime-normative; see corpus contracts)
 - **AnalysisCoordinator / AnalysisRunPlan / AnalysisRunner / AnalysisStorage** — project-scoped async batch runs freeze an `AnalysisRunPlan` (modules, EffectiveConfig, text-model identity) and execute under `.transcribe.analysis.lock`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities). Mid-run settings apply to the next run only; crash/reopen marks orphaned attempts/runs `interrupted` without clobbering published results
 - **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides; freshness via `detector_freshness` / planned cache identity
 - **PageMetricsService** — Pillow ink coverage / blankness / dominant hue over active renders; publish under `page_metrics/`; cache identity = algorithm version + ordered `(page_id, render_sha256)` (not text Analyse)
