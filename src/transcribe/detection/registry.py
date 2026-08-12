@@ -76,6 +76,22 @@ QUOTATIONS_DETECTOR = DetectorDefinition(
     aggregation_strategy=AggregationStrategy.MERGE_ADJACENT_SPANS,
 )
 
+BEER_LABELS_DETECTOR = DetectorDefinition(
+    detector_id="beer_labels",
+    version="1",
+    title="Beer labels",
+    description="Detect beer bottle/can labels and beer branding on notebook pages.",
+    prompt_ref=PromptRef(prompt_id="beer_labels_detect_text_v1", version="1"),
+    scope=DetectorScope.PAGE_WINDOW,
+    input_mode=ModelMode.AUTO,
+    candidate_strategy=CandidateStrategy.ALL_PAGES,
+    window_size=2,
+    window_overlap=1,
+    confidence_threshold=0.7,
+    finding_type="beer_labels",
+    aggregation_strategy=AggregationStrategy.MERGE_ADJACENT_SPANS,
+)
+
 _BUILTIN: dict[str, DetectorDefinition] = {
     d.detector_id: d
     for d in (
@@ -83,6 +99,7 @@ _BUILTIN: dict[str, DetectorDefinition] = {
         TODO_LISTS_DETECTOR,
         LISTS_DETECTOR,
         QUOTATIONS_DETECTOR,
+        BEER_LABELS_DETECTOR,
     )
 }
 
@@ -120,6 +137,7 @@ def detectors_using_prompt(prompt_id: str) -> list[DetectorDefinition]:
 
 
 __all__ = [
+    "BEER_LABELS_DETECTOR",
     "LISTS_DETECTOR",
     "POETRY_DETECTOR",
     "QUOTATIONS_DETECTOR",

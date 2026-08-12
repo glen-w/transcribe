@@ -60,4 +60,16 @@ def __getattr__(name: str):
         from transcribe.corpus.adapters import plan_from_folder
 
         return plan_from_folder
+    if name == "plan_from_folders":
+        from transcribe.corpus.adapters import plan_from_folders
+
+        return plan_from_folders
+    if name == "scan_folder_notebooks":
+        from transcribe.corpus.adapters import scan_folder_notebooks
+
+        return scan_folder_notebooks
+    if name == "prepare_folder_overwrite":
+        from transcribe.corpus.folder_overwrite import prepare_folder_overwrite
+
+        return prepare_folder_overwrite
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

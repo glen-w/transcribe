@@ -61,7 +61,7 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
 3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. A shared status strip shows whether results are current. Technical module details live under **Advanced**. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
-4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, and quotations (or custom detectors). Review findings, jump to source pages, and approve/reject.
+4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
 Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles tabs hold LLM budgets and named profile activations.
 
@@ -111,19 +111,25 @@ Settings → Profiles (target **export**). Contract:
 
 Corpus bulk import is **activation in progress** — usable for recovery experiments, not yet marked fully supported ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate).
 
-**UI:** **Notebooks → Inbox** — choose a folder of scans, plan/commit an ImportRun, and review committed / skipped / failed outcomes.
+**UI:** **Notebooks → Inbox**
+
+- **One folder → one notebook** — path to a flat folder of scans.
+- **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
 **CLI:**
 
 ```bash
 ./transcribe.sh cli bulk-import folder ./scans --dry-run
 ./transcribe.sh cli bulk-import folder ./scans --policy skip_existing_v1
+./transcribe.sh cli bulk-import folders ./scan-batches --dry-run
+./transcribe.sh cli bulk-import folders ./scan-batches --on-existing skip
+./transcribe.sh cli bulk-import folders ./scan-batches --on-existing overwrite --confirm-overwrite 'OVERWRITE ALL'
 ./transcribe.sh cli bulk-import status <import_run_id>
 ./transcribe.sh cli bulk-import resume <import_run_id>
 ./transcribe.sh cli corpus-doctor --deep
 ```
 
-Single-file import (§2) remains the everyday path for one notebook at a time.
+Overwrite deletes **managed** notebook copies under the projects directory only; external originals outside that tree are untouched. Single-file import (§2) remains the everyday path for one notebook at a time.
 
 ## Privacy reminder
 
