@@ -5,7 +5,7 @@ Authority: TranscriptX → Transcribe analysis-module porting dispositions and n
 
 Planning map for which TranscriptX analysis modules to bring into Transcribe, how to adapt them for page/notebook text, and which to leave behind.
 
-**Core module set (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). **Deferred reinterpretations and `ocr_quality` are not scheduled**; current product focus is robustness and UX for the shipped modules ([ROADMAP.md](ROADMAP.md) **Now**). This map remains the disposition authority for deferred / later / out-of-scope rows when reopened.
+**Core module set (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). **Deferred reinterpretations and `ocr_quality` are not scheduled**; current product focus is the **usability wave** ([ROADMAP.md](ROADMAP.md) **Now** · [usability_wave_plan.md](usability_wave_plan.md)). This map remains the disposition authority for deferred / later / out-of-scope rows when reopened.
 
 Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md).
 

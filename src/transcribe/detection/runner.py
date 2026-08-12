@@ -118,6 +118,7 @@ class DetectionRunner:
         *,
         page_ids: list[str] | None = None,
     ) -> tuple[str, str, dict[str, Any]]:
+        # Mid-run loads must not reconcile: that would mark this attempt interrupted.
         project = self.project_service.load(reconcile=False)
         page_inputs, _ = select_candidates(
             detector,
@@ -269,6 +270,7 @@ class DetectionRunner:
         cancel_check: Any | None,
         progress_callback: Any | None = None,
     ) -> dict[str, Any]:
+        # Active attempt is on disk as running; reconcile would mark it interrupted.
         project = self.project_service.load(reconcile=False)
         page_inputs, warnings = select_candidates(
             detector,

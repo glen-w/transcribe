@@ -11,8 +11,9 @@ Authority: curated maintainer navigation only — does not own contracts
 | [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md) | Docs authority model and change checklist |
 | [runtime/installation.md](runtime/installation.md) | Install extras and env vars |
 | [runtime/docker.md](runtime/docker.md) | Container layout |
-| [ROADMAP.md](ROADMAP.md) | Product roadmap: hardening, workflows, shipped capabilities (PRODUCT) |
-| [product_hardening_plan.md](product_hardening_plan.md) | Numbered hardening checklist (#1–#13) and phase outcomes |
+| [ROADMAP.md](ROADMAP.md) | Product roadmap: usability wave, corpus, shipped capabilities (PRODUCT) |
+| [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (trust, Analyse UX, first-run, workbench, gated corpus) |
+| [product_hardening_plan.md](product_hardening_plan.md) | Numbered hardening checklist (#1–#13) and phase outcomes (U0/U1) |
 | [analysis_module_porting.md](analysis_module_porting.md) | TX → Transcribe dispositions |
 | [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core delivery history / internal slices (PRODUCT; shipped) |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Post-ship hardening checklist for analysis infra |

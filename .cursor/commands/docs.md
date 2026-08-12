@@ -74,6 +74,7 @@ On greenfield with almost no docs: create a minimal set (`README.md` + one ARCHI
 	•	Install / run (venv, `pip install -e .`, Streamlit / CLI).
 	•	Prerequisites (Ollama + a vision model).
 	•	Links to contracts and deeper guides — no duplicated normative schema dumps.
+	•	Focus sync: when changing ROADMAP **Now** / product-focus copy, keep [docs/usability_wave_plan.md](../../docs/usability_wave_plan.md) status in sync and ensure README Direction + [USER_INDEX](../../docs/USER_INDEX.md) / [DEV_INDEX](../../docs/DEV_INDEX.md) / [index.md](../../docs/index.md) still link the active focus plan.
 
 ⸻
 

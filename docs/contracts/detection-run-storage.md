@@ -45,6 +45,8 @@ Long compute must not hold `mutation_lock`.
 
 When project is opened and mutation path is free: `running` attempts → `interrupted`. Reconciliation must not clear valid `published.json`.
 
+Mid-run project loads during an active detection attempt **must** use `reconcile=False` so the in-flight attempt is not marked `interrupted` before the terminal write. Reopen reconciliation remains the path that cleans orphaned `running` attempts after process death.
+
 ## Cache identity
 
 `cache_identity` is hex SHA-256 of canonical JSON (`cache_identity_version: 1`) with sorted keys. Required fields:

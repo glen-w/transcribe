@@ -1,9 +1,9 @@
 Type: PRODUCT
-Authority: Product hardening checklist and phase sequencing for Analyse robustness/UX. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) **Now — Product hardening**.
+Authority: Product hardening checklist and phase sequencing for Analyse robustness/UX. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) **Now — Usability wave** and the full track plan [usability_wave_plan.md](usability_wave_plan.md) (U0 = Phases 3–5, U1 = Phase 6).
 
 # Product hardening plan
 
-Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
+Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**. Usability-wave embedding: Phases **3–5 → track U0 (done)**, Phase **6 (#7–9) → track U1 (done)**. Hardening exit gate suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
 ## Checklist
 
@@ -19,8 +19,8 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 | #11 | `content_revision` | 4 | done |
 | #12 | Derived health shared across surfaces | 4 | done |
 | #13 | Provenance-aware export under stable revision | 5 | done |
-| #7 | Product views (task-shaped Analyse read-models) | 6 | done |
-| #8 | Shared Analyse status strip (sole default health chrome) | 6 | done |
+| #7 | Product views (task-shaped Analyse read-models; demote module-id / JSON chrome) | 6 | done |
+| #8 | Shared status strip (sole default freshness/health answer) | 6 | done |
 | #9 | OCR Advanced (primary = model + run; power controls collapsed) | 6 | done |
 
 ## Phase outcomes
@@ -32,7 +32,7 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 | **3** | #5, #6 | Users can trust exactly what a preset will run |
 | **4** | #11, #12 | Every analysis surface gives the same answer to “is this current and healthy?” |
 | **5** | #13 | Exports identify exactly which notebook revision produced them |
-| **6** | #7–9 | Analyse surfaces are simplified around user tasks rather than module mechanics |
+| **6** | #7, #8, #9 | Analyse surfaces are simplified around user tasks rather than module mechanics |
 
 ## Phase 2 notes
 
