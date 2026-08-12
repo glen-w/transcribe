@@ -167,11 +167,29 @@ def test_gate_export_provenance_revision(tmp_path: Path):
     manifest = read_json(written["manifest"])
     md = written["markdown"].read_text(encoding="utf-8")
     txt = written["text"].read_text(encoding="utf-8")
+    html = written["html"].read_text(encoding="utf-8")
+    epub_bytes = written["epub"].read_bytes()
+    pdf_bytes = written["pdf"].read_bytes()
 
     assert notebook["content_revision"] == expected
     assert manifest["content_revision"] == expected
     assert md.startswith(f"<!-- transcribe.content_revision: {expected} -->")
     assert txt.startswith(f"# transcribe.content_revision: {expected}")
+    assert f"transcribe.content_revision: {expected}" in html
+    assert epub_bytes[:2] == b"PK"
+    from zipfile import ZipFile
+    from io import BytesIO
+
+    with ZipFile(BytesIO(epub_bytes)) as zf:
+        names = zf.namelist()
+        xhtml = "\n".join(
+            zf.read(name).decode("utf-8", errors="replace")
+            for name in names
+            if name.endswith((".xhtml", ".html", ".xml"))
+        )
+    assert expected in xhtml
+    assert pdf_bytes.startswith(b"%PDF")
+    assert f"transcribe.content_revision:{expected}".encode() in pdf_bytes
 
 
 @pytest.mark.smoke

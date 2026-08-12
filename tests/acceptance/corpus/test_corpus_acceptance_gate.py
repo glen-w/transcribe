@@ -214,3 +214,11 @@ def test_corrupt_index_quarantine_and_rebuild(tmp_path: Path) -> None:
     assert len(quarantined) == 1
     index = read_json(corpus.index_path)
     assert [entry["notebook_id"] for entry in index["entries"]] == ids_seen
+    doctor = CorpusDoctorService(corpus).run(deep=True)
+    assert doctor.ok
+    assert any(f.code == "corpus_quarantine_present" for f in doctor.findings)
+    assert all(
+        f.severity == "warning"
+        for f in doctor.findings
+        if f.code == "corpus_quarantine_present"
+    )

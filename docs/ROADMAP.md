@@ -111,7 +111,7 @@ Primary post-hardening product direction once corpus contracts activate. Rank af
 | **Prompt-backed Detection** | **Shipped (wave 2):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See detection contracts. |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. |
 | **Review UX** | Faster correction and approval of OCR text and dates. |
-| **Export / readability** | **In progress** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. |
+| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology. Further reading-mode polish remains a separate candidate above. |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. |
