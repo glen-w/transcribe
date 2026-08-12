@@ -44,11 +44,15 @@ def test_plan_from_folder_multi_file_and_unicode(tmp_path: Path) -> None:
 
 
 def test_plan_from_folder_refuses_duplicate_basenames(tmp_path: Path) -> None:
+    """Ordering ambiguity when basenames collide case-insensitively.
+
+    On case-insensitive filesystems (or when the OS refuses ``A.PNG`` beside
+    ``a.png``), this assertion cannot run — skip with an explicit reason.
+    Linux CI / default cloud agents are case-sensitive and should execute it.
+    """
     folder = tmp_path / "bad"
     folder.mkdir()
     (folder / "a.png").write_bytes(_png_bytes(color=(1, 1, 1)))
-    # Case-insensitive duplicate via hard conflict on same lower name is hard on
-    # case-sensitive FS; simulate by two files that normalize equal in adapter.
     # Adapter compares lowercased names — create A.PNG and a.png when possible.
     upper = folder / "A.PNG"
     try:
@@ -269,8 +273,7 @@ def test_pdf_multipage_plan_commit_provenance(tmp_path: Path) -> None:
     from transcribe.corpus.adapters import plan_from_folder
 
     fixture = Path("tests/fixtures/mini_multipage.pdf")
-    if not fixture.is_file():
-        pytest.skip("mini_multipage.pdf fixture missing")
+    assert fixture.is_file(), "canonical fixture tests/fixtures/mini_multipage.pdf must ship"
     folder = tmp_path / "pdf-scans"
     folder.mkdir()
     target = folder / "mini_multipage.pdf"
