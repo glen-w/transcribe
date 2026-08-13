@@ -168,11 +168,11 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 ### Acceptance (U1 exit)
 
-- [ ] No ordinary Analyse path requires reading module ids or `st.json` to understand results.
-- [ ] One status strip is the sole default freshness/health answer across batch tabs.
-- [ ] Transcribe primary path is model + run (+ optional cleanup); power controls under Advanced.
-- [ ] Acceptance / UI contract tests: `tests/unit/test_analyse_ui_contract.py` (extend) asserts product copy for common unavailable states; smoke on port 8510.
-- [ ] [public_surfaces.md](public_surfaces.md) + [user_guide.md](user_guide.md) describe product views, not module consoles.
+- [x] No ordinary Analyse path requires reading module ids or `st.json` to understand results.
+- [x] One status strip is the sole default freshness/health answer across batch tabs.
+- [x] Transcribe primary path is model + run (+ optional cleanup); power controls under Advanced.
+- [x] Acceptance / UI contract tests: `tests/unit/test_analyse_ui_contract.py` (extend) asserts product copy for common unavailable states; smoke on port 8510.
+- [x] [public_surfaces.md](public_surfaces.md) + [user_guide.md](user_guide.md) describe product views, not module consoles.
 - [x] Hardening Phase 6 and ROADMAP hardening **exit gate** close when U0+U1 acceptance tests pass.
 
 ### Key files
@@ -322,7 +322,7 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 - [x] Acceptance gate green before any “supported” bulk/inbox claim in public surfaces.
 - [ ] Inbox workflow shows outcomes for imported / failed / duplicated / needs-review (polish).
 - [x] Crash-injection and idempotency covered by corpus suite; doctor recovers index.
-- [x] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (re-OCR compare/promote, backup/restore productization) stay candidates unless explicitly pulled in.
+- [x] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (backup/restore productization, quality thumbs) stay candidates unless explicitly pulled in.
 
 ### Key files
 
@@ -336,7 +336,7 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 |-------|-------------------|
 | Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
 | Visual declutter expansion | Remains ROADMAP preprocessing candidate; not required for usability-wave exit |
-| Re-OCR compare/promote | Lifecycle candidate; U3 may link “force re-OCR” honesty but full compare/promote is post-wave unless pulled |
+| Re-OCR compare/promote | **Shipped** (OCR lifecycle W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); U3 only needs Review-queue honesty, not a second compare stack |
 | Quality thumbs / prompt management UI | Candidates; Detection Prompt Hub may absorb prompt browse — do not duplicate |
 
 ---
