@@ -60,7 +60,8 @@ def render_configuration_panel() -> None:
         key="settings_ingest_visual_declutter",
         help=(
             "On by default for new imports. Use Re-apply below to crop scanner "
-            "borders and stark white gutters on an existing notebook."
+            "beds, stark white gutters, and residual corner wedges on an existing "
+            "notebook."
         ),
     )
     if st.button("Save import defaults", type="primary", key="settings_ingest_save"):

@@ -242,10 +242,76 @@ def test_narrow_white_gutter_below_min_band_noop() -> None:
 def test_enabled_ops_include_uniform_overscan() -> None:
     assert "remove_scan_borders" in ENABLED_OPS
     assert "remove_uniform_overscan" in ENABLED_OPS
+    assert "remove_corner_wedges" in ENABLED_OPS
     src = _png_bytes(_paper())
     result = apply_declutter(src, enabled=True)
     assert list(result.ops) == list(ENABLED_OPS)
     assert "remove_uniform_overscan" in result.params
+    assert "remove_corner_wedges" in result.params
+
+
+def test_light_grey_top_and_right_bed_on_green_cover() -> None:
+    """Light grey/off-white beds above legacy grey_mean_max=200, including top strip."""
+    width, height = 1200, 1600
+    top_bed, right_bed = 28, 200
+    green = (72, 110, 78)
+    bed = (220, 220, 218)
+    canvas = Image.new("RGB", (width, height), bed)
+    cover = Image.new("RGB", (width - right_bed, height - top_bed), green)
+    canvas.paste(cover, (0, top_bed))
+    # Mild vertical scanner streaks (raise strip variance without leaving bed band)
+    for x in range(0, width, 17):
+        for y in range(height):
+            r, g, b = canvas.getpixel((x, y))
+            canvas.putpixel((x, y), (max(0, r - 10), max(0, g - 10), max(0, b - 10)))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_top >= top_bed
+    assert result.inset_right >= right_bed
+    assert result.inset_left == 0
+
+
+def test_rounded_corner_residual_wedge_after_beds() -> None:
+    """After axis-aligned bed crop, clear light-bed wedge outside a rounded corner."""
+    paper_w, paper_h = 400, 500
+    bed_r, bed_t = 80, 40
+    green = (72, 110, 78)
+    bed = (210, 210, 210)
+    paper = Image.new("RGB", (paper_w, paper_h), green)
+    # True rounded-rect corner: bed only outside the quarter-circle (image TR).
+    radius = 36
+    cx, cy = paper_w - radius, radius
+    for y in range(radius):
+        for x in range(paper_w - radius, paper_w):
+            if (x - cx) ** 2 + (y - cy) ** 2 > radius ** 2:
+                paper.putpixel((x, y), bed)
+    canvas = Image.new("RGB", (paper_w + bed_r, paper_h + bed_t), bed)
+    canvas.paste(paper, (0, bed_t))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_top >= bed_t
+    assert result.inset_right >= bed_r
+    # Wedge trim should push past the pure bed margins into the rounded corner.
+    assert result.inset_top > bed_t or result.inset_right > bed_r
+    out = Image.open(BytesIO(result.image_bytes)).convert("L")
+    # Top-right corner of output should no longer be light scanner bed.
+    corner = [out.getpixel((out.size[0] - 1 - i, i)) for i in range(5)]
+    assert sum(corner) / len(corner) < 175
+
+
+def test_narrow_top_bed_on_tall_scan_crops() -> None:
+    """min_band is capped so a ~24px top bed still qualifies on tall pages."""
+    paper = _paper(800, 3000, fill=(245, 240, 230))
+    ImageDraw.Draw(paper).rectangle((40, 40, 120, 120), fill=(30, 60, 180))
+    top_bed = 24
+    canvas = Image.new("RGB", (800, 3000 + top_bed), (128, 128, 128))
+    canvas.paste(paper, (0, top_bed))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_top >= top_bed
 
 
 def test_tiny_image_noop() -> None:

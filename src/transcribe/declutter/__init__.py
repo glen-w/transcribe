@@ -10,8 +10,10 @@ from typing import Any, Literal
 from PIL import Image
 
 from transcribe.declutter.borders import (
+    CORNER_WEDGE_PARAMS,
     SCAN_BORDER_PARAMS,
     UNIFORM_OVERSCAN_PARAMS,
+    CornerWedgeParams,
     ScanBorderParams,
     UniformOverscanParams,
     detect_declutter_border_insets,
@@ -19,8 +21,8 @@ from transcribe.declutter.borders import (
 )
 from transcribe.domain.fingerprint import canonical_json_bytes
 
-# v2: add remove_uniform_overscan (stark white gutters) + multi-pass combine.
-DECLUTTER_VERSION = 2
+# v3: light-grey top beds + remove_corner_wedges (rounded-corner residual beds).
+DECLUTTER_VERSION = 3
 
 DECLUTTER_STATES = frozenset(
     {"disabled", "enabled_noop", "enabled_cropped", "error_fallback"}
@@ -30,7 +32,11 @@ DeclutterState = Literal[
     "disabled", "enabled_noop", "enabled_cropped", "error_fallback"
 ]
 
-ENABLED_OPS: tuple[str, ...] = ("remove_scan_borders", "remove_uniform_overscan")
+ENABLED_OPS: tuple[str, ...] = (
+    "remove_scan_borders",
+    "remove_uniform_overscan",
+    "remove_corner_wedges",
+)
 
 NOTE_MAX_LEN = 200
 
@@ -95,6 +101,7 @@ def _default_params_block() -> dict[str, Any]:
     return {
         "remove_scan_borders": asdict(SCAN_BORDER_PARAMS),
         "remove_uniform_overscan": asdict(UNIFORM_OVERSCAN_PARAMS),
+        "remove_corner_wedges": asdict(CORNER_WEDGE_PARAMS),
     }
 
 
@@ -218,6 +225,7 @@ def _apply_declutter_inner(image_bytes: bytes, *, enabled: bool) -> DeclutterRes
             gray,
             scan_params=SCAN_BORDER_PARAMS,
             overscan_params=UNIFORM_OVERSCAN_PARAMS,
+            wedge_params=CORNER_WEDGE_PARAMS,
         )
         if insets is None:
             return DeclutterResult(
@@ -278,8 +286,10 @@ __all__ = [
     "DECLUTTER_VERSION",
     "DECLUTTER_STATES",
     "ENABLED_OPS",
+    "CORNER_WEDGE_PARAMS",
     "SCAN_BORDER_PARAMS",
     "UNIFORM_OVERSCAN_PARAMS",
+    "CornerWedgeParams",
     "ScanBorderParams",
     "UniformOverscanParams",
     "DeclutterResult",

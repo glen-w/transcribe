@@ -15,12 +15,18 @@ Edge = Literal["left", "right", "top", "bottom"]
 class ScanBorderParams:
     min_dimension_px: int = 64
     grey_mean_min: int = 40
-    grey_mean_max: int = 200
+    # Include light grey / off-white scanner beds (~210–230). Stay below typical
+    # cream paper (~240) so blank cream pages are not walked as bed.
+    grey_mean_max: int = 235
     max_strip_variance: float = 100.0
     # When a strip mean stays bed-like but variance spikes (scanner texture /
     # JPEG noise), keep walking until variance reaches this paper-like floor
     # or mean leaves the grey band. Handwriting/ruled paper is typically >>2e3.
     noisy_bed_variance_max: float = 800.0
+    # Once a bed mean is established, stop when strip mean drifts farther than
+    # this (prevents green/kraft page content in the grey luminance band from
+    # being walked as noisy bed until soft_max).
+    bed_ref_mean_tol: float = 30.0
     interior_probe_px: int = 16
     # Skip soft page-edge shadow between bed and bright paper before probing.
     # Immediate adjacent probes often sit in the transition and fail min_mean_delta
@@ -64,8 +70,30 @@ class UniformOverscanParams:
     max_band_cap_px: int = 400
 
 
+@dataclass(frozen=True)
+class CornerWedgeParams:
+    """Residual scanner-bed wedges at rounded page corners (edge-anchored only)."""
+
+    min_dimension_px: int = 64
+    max_wedge_px: int = 48
+    min_wedge_px: int = 6
+    # Local 3×3 mean/var must look like light grey bed or stark white. Mid-tone
+    # page content (green covers, kraft) sits below this and must not match.
+    bed_mean_min: int = 175
+    local_radius_px: int = 1
+    paper_inset_px: int = 1
+    min_remaining_fraction_num: int = 70
+    min_remaining_fraction_den: int = 100
+    min_remaining_edge_px: int = 32
+    aspect_min_num: int = 1
+    aspect_min_den: int = 5
+    aspect_max_num: int = 5
+    aspect_max_den: int = 1
+
+
 SCAN_BORDER_PARAMS = ScanBorderParams()
 UNIFORM_OVERSCAN_PARAMS = UniformOverscanParams()
+CORNER_WEDGE_PARAMS = CornerWedgeParams()
 
 # Multi-pass budget: L-shaped grey+white overscan needs a second crop after the
 # first edge type is removed so full-strip stats become uniform again.
@@ -73,8 +101,9 @@ _MAX_BORDER_PASSES = 4
 
 
 def _min_band_px(dim: int) -> int:
-    # ceil(1% of dim), floored via (dim + 99) // 100; at least 8
-    return max(8, (dim + 99) // 100)
+    # At least 8px; grow gently with size but cap so narrow top beds (~20–30px)
+    # on tall scans still qualify (uncapped 1% of 3000px = 30 rejects a 28px bed).
+    return max(8, min(16, (dim + 99) // 100))
 
 
 def _soft_max_band_px(
@@ -171,6 +200,9 @@ def _walk_grey_band(
     Continues up to ``soft_max`` (remaining-area safe). After the strict
     low-variance walk stops, tolerates noisy bed strips whose mean remains grey
     so JPEG/scanner texture does not truncate the band early.
+
+    A reference mean from the first bed strips stops the walk when luminance
+    drifts (e.g. light-grey bed → green/kraft page still inside grey_mean_max).
     """
     soft_max = _soft_max_band_px(
         dim,
@@ -180,9 +212,14 @@ def _walk_grey_band(
     )
     min_band = _min_band_px(dim)
     k = 0
+    ref_mean: float | None = None
     while k < soft_max:
         mean, var = sample(k)
+        if ref_mean is not None and abs(mean - ref_mean) > params.bed_ref_mean_tol:
+            break
         if _is_scanner_grey(mean, var, params):
+            if ref_mean is None:
+                ref_mean = mean
             k += 1
             continue
         # Strict grey ended. Allow noisy continuation only once we already have a
@@ -475,18 +512,261 @@ def _merge_insets(
     )
 
 
+def _local_is_bed(
+    gray: Image.Image,
+    x: int,
+    y: int,
+    *,
+    scan_params: ScanBorderParams,
+    overscan_params: UniformOverscanParams,
+    wedge_params: CornerWedgeParams,
+    radius: int,
+) -> bool:
+    width, height = gray.size
+    x0 = max(0, x - radius)
+    x1 = min(width, x + radius + 1)
+    y0 = max(0, y - radius)
+    y1 = min(height, y + radius + 1)
+    hist = gray.crop((x0, y0, x1, y1)).histogram()[:256]
+    mean, var = _histogram_mean_var(hist)
+    if _is_stark_white(mean, var, overscan_params):
+        return True
+    if mean < wedge_params.bed_mean_min:
+        return False
+    if _is_scanner_grey(mean, var, scan_params):
+        return True
+    if _is_noisy_bed(mean, var, scan_params):
+        return True
+    return False
+
+
+def _bed_run_from_right(
+    gray: Image.Image,
+    y: int,
+    max_run: int,
+    *,
+    scan_params: ScanBorderParams,
+    overscan_params: UniformOverscanParams,
+    wedge_params: CornerWedgeParams,
+    radius: int,
+) -> int:
+    width, _height = gray.size
+    run = 0
+    for dx in range(max_run):
+        if _local_is_bed(
+            gray,
+            width - 1 - dx,
+            y,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        ):
+            run = dx + 1
+        else:
+            break
+    return run
+
+
+def _bed_run_from_left(
+    gray: Image.Image,
+    y: int,
+    max_run: int,
+    *,
+    scan_params: ScanBorderParams,
+    overscan_params: UniformOverscanParams,
+    wedge_params: CornerWedgeParams,
+    radius: int,
+) -> int:
+    run = 0
+    for dx in range(max_run):
+        if _local_is_bed(
+            gray,
+            dx,
+            y,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        ):
+            run = dx + 1
+        else:
+            break
+    return run
+
+
+def _best_corner_trim(runs: list[int], *, min_wedge_px: int, paper_inset_px: int) -> tuple[int, int]:
+    """Minimal (along_edge_a, along_edge_b) axis-aligned trim clearing bed runs.
+
+    ``runs[i]`` is bed depth along edge B on the i-th scanline from edge A.
+    Returns extras to add to (edge A inset, edge B inset).
+    """
+    if not runs or max(runs) < min_wedge_px:
+        return 0, 0
+    max_w = len(runs)
+    best: tuple[int, int, int] | None = None  # cost, da, db
+    for da in range(0, max_w + 1):
+        rest = runs[da:] if da < max_w else []
+        db = max(rest) if rest else 0
+        if da == 0 and db == 0:
+            continue
+        if not all(runs[i] <= db for i in range(da, max_w)):
+            continue
+        cost = da + db
+        if best is None or cost < best[0]:
+            best = (cost, da, db)
+    if best is None:
+        return 0, 0
+    _cost, da, db = best
+    if da < min_wedge_px and db < min_wedge_px:
+        return 0, 0
+    if da:
+        da = min(max_w, da + paper_inset_px)
+    if db:
+        db = min(max_w, db + paper_inset_px)
+    return da, db
+
+
+def detect_corner_wedge_insets(
+    gray: Image.Image,
+    *,
+    wedge_params: CornerWedgeParams = CORNER_WEDGE_PARAMS,
+    scan_params: ScanBorderParams = SCAN_BORDER_PARAMS,
+    overscan_params: UniformOverscanParams = UNIFORM_OVERSCAN_PARAMS,
+) -> tuple[tuple[int, int, int, int] | None, str]:
+    """Return insets that clear residual bed wedges at rounded page corners.
+
+    Edge-anchored only: samples bed runs in each corner and picks a cheap
+    axis-aligned trim. Does not rewrite interior pixels.
+    """
+    if gray.mode != "L":
+        raise ValueError(f"expected mode L, got {gray.mode!r}")
+    width, height = gray.size
+    if width < wedge_params.min_dimension_px or height < wedge_params.min_dimension_px:
+        return None, "noop: image below minimum dimension"
+
+    max_w = min(wedge_params.max_wedge_px, width // 4, height // 4)
+    if max_w < wedge_params.min_wedge_px:
+        return None, "noop: no border detected"
+
+    radius = wedge_params.local_radius_px
+    left = top = right = bottom = 0
+
+    # Top-right: runs[dy] = bed depth from the right on row dy
+    tr_runs = [
+        _bed_run_from_right(
+            gray,
+            dy,
+            max_w,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        )
+        for dy in range(max_w)
+    ]
+    tr_top, tr_right = _best_corner_trim(
+        tr_runs,
+        min_wedge_px=wedge_params.min_wedge_px,
+        paper_inset_px=wedge_params.paper_inset_px,
+    )
+    top = max(top, tr_top)
+    right = max(right, tr_right)
+
+    # Top-left
+    tl_runs = [
+        _bed_run_from_left(
+            gray,
+            dy,
+            max_w,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        )
+        for dy in range(max_w)
+    ]
+    tl_top, tl_left = _best_corner_trim(
+        tl_runs,
+        min_wedge_px=wedge_params.min_wedge_px,
+        paper_inset_px=wedge_params.paper_inset_px,
+    )
+    top = max(top, tl_top)
+    left = max(left, tl_left)
+
+    # Bottom-right
+    br_runs = [
+        _bed_run_from_right(
+            gray,
+            height - 1 - dy,
+            max_w,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        )
+        for dy in range(max_w)
+    ]
+    br_bottom, br_right = _best_corner_trim(
+        br_runs,
+        min_wedge_px=wedge_params.min_wedge_px,
+        paper_inset_px=wedge_params.paper_inset_px,
+    )
+    bottom = max(bottom, br_bottom)
+    right = max(right, br_right)
+
+    # Bottom-left
+    bl_runs = [
+        _bed_run_from_left(
+            gray,
+            height - 1 - dy,
+            max_w,
+            scan_params=scan_params,
+            overscan_params=overscan_params,
+            wedge_params=wedge_params,
+            radius=radius,
+        )
+        for dy in range(max_w)
+    ]
+    bl_bottom, bl_left = _best_corner_trim(
+        bl_runs,
+        min_wedge_px=wedge_params.min_wedge_px,
+        paper_inset_px=wedge_params.paper_inset_px,
+    )
+    bottom = max(bottom, bl_bottom)
+    left = max(left, bl_left)
+
+    return _validate_insets(
+        width,
+        height,
+        left,
+        top,
+        right,
+        bottom,
+        min_remaining_edge_px=wedge_params.min_remaining_edge_px,
+        min_remaining_fraction_num=wedge_params.min_remaining_fraction_num,
+        min_remaining_fraction_den=wedge_params.min_remaining_fraction_den,
+        aspect_min_num=wedge_params.aspect_min_num,
+        aspect_min_den=wedge_params.aspect_min_den,
+        aspect_max_num=wedge_params.aspect_max_num,
+        aspect_max_den=wedge_params.aspect_max_den,
+    )
+
+
 def detect_declutter_border_insets(
     gray: Image.Image,
     *,
     scan_params: ScanBorderParams = SCAN_BORDER_PARAMS,
     overscan_params: UniformOverscanParams = UNIFORM_OVERSCAN_PARAMS,
+    wedge_params: CornerWedgeParams = CORNER_WEDGE_PARAMS,
 ) -> tuple[tuple[int, int, int, int] | None, str]:
-    """Detect grey scanner-bed and stark-white overscan insets (multi-pass).
+    """Detect grey/white scanner beds and residual corner wedges (multi-pass).
 
     L-shaped artefacts (e.g. grey bed on the right + white gutter on the bottom)
     make full-strip stats non-uniform on the shared corner. Cropping one edge
-    type and re-detecting recovers the other. Insets are returned in original
-    image coordinates.
+    type and re-detecting recovers the other. Rounded page corners leave bed
+    wedges after axis-aligned bed crops; ``remove_corner_wedges`` clears those.
+    Insets are returned in original image coordinates.
     """
     if gray.mode != "L":
         raise ValueError(f"expected mode L, got {gray.mode!r}")
@@ -504,11 +784,25 @@ def detect_declutter_border_insets(
             working, overscan_params
         )
         merged = _merge_insets(grey_insets, white_insets)
+        # Corner wedges only after an edge bed crop: residual light-bed triangles
+        # at rounded page corners. Running on the full frame false-fires on the
+        # same light beds as left/right extras.
+        wedge_reason = "noop: no border detected"
+        if acc_left or acc_top or acc_right or acc_bottom:
+            wedge_insets, wedge_reason = detect_corner_wedge_insets(
+                working,
+                wedge_params=wedge_params,
+                scan_params=scan_params,
+                overscan_params=overscan_params,
+            )
+            merged = _merge_insets(merged, wedge_insets)
         if merged == (0, 0, 0, 0):
-            if grey_reason != "noop: no border detected":
-                last_reason = grey_reason
+            for reason in (grey_reason, white_reason, wedge_reason):
+                if reason != "noop: no border detected":
+                    last_reason = reason
+                    break
             else:
-                last_reason = white_reason
+                last_reason = "noop: no border detected"
             break
 
         left, top, right, bottom = merged
