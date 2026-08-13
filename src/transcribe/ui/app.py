@@ -101,22 +101,27 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         return
 
     if (
-        section == "Review"
+        section in {"Review", "Reading"}
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
     ):
-        from transcribe.ui.action_menus.nav import viewer_page_ids
+        from transcribe.ui.action_menus.nav import chronological_page_ids, viewer_page_ids
 
+        page_ids = st.session_state.get("view_page_ids") or (
+            chronological_page_ids(project)
+            if section == "Reading"
+            else viewer_page_ids(project)
+        )
         render_page_viewer(
             paths=paths,
             projects=projects,
             project=project,
             page_id=st.session_state["view_page_id"],
-            page_ids=st.session_state.get("view_page_ids")
-            or viewer_page_ids(project),
+            page_ids=page_ids,
             view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
-            back_label="Back to Review",
+            back_label=f"Back to {section}",
+            presentation="read" if section == "Reading" else "edit",
         )
         return
 
@@ -152,34 +157,180 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         return
 
     if section == "Review":
-        if not project.pages:
+        _render_review_workbench(runtime, paths, projects, project)
+        return
+
+    if section == "Reading":
+        _render_reading_mode(paths, projects, project)
+        return
+
+
+def _render_review_workbench(runtime, paths, projects, project) -> None:
+    from transcribe.domain.dates import format_approve_all_dates_help
+    from transcribe.ui.action_menus.nav import viewer_page_ids
+    from transcribe.ui.review_queue import (
+        REVIEW_FILTER_LABELS,
+        ReviewFilter,
+        filter_review_page_ids,
+        unapproved_date_page_ids,
+    )
+
+    if not project.pages:
+        st.info("No pages yet.")
+        return
+
+    st.caption(
+        "Unapproved suggested dates still appear in Archive timeline. "
+        "Time-of-day stamps are ignored until Future metadata lands."
+    )
+
+    filter_options: list[ReviewFilter] = [
+        "all",
+        "needs_date",
+        "no_text",
+        "failed_ocr",
+    ]
+    filter_key: ReviewFilter = st.selectbox(
+        "Needs attention",
+        filter_options,
+        format_func=lambda key: REVIEW_FILTER_LABELS[key],
+        key="review_needs_filter",
+    )
+    base_ids = viewer_page_ids(project)
+    page_ids = filter_review_page_ids(
+        project,
+        filter_key=filter_key,
+        base_page_ids=base_ids,
+        load_page_result=projects.load_page_result,
+    )
+
+    pending_dates = unapproved_date_page_ids(project)
+    if pending_dates:
+        regressions = projects.list_date_regressions(project)
+        help_text = format_approve_all_dates_help(regressions)
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button(
+                f"Approve all suggested dates ({len(pending_dates)})",
+                key="review_approve_all_dates",
+                help=help_text,
+                width="stretch",
+            ):
+                confirm = bool(st.session_state.get("review_confirm_date_regressions"))
+                if regressions and not confirm:
+                    st.session_state["review_confirm_date_regressions"] = True
+                    st.warning(
+                        f"{len(regressions)} date regression"
+                        f"{'s' if len(regressions) != 1 else ''} look suspicious. "
+                        "Click again to approve anyway."
+                    )
+                else:
+                    project, count, _regs = projects.approve_all_suggested_dates(
+                        confirm_regressions=True
+                    )
+                    bump_archive_generation(runtime)
+                    st.session_state.pop("review_confirm_date_regressions", None)
+                    st.toast(f"Approved {count} date{'s' if count != 1 else ''}")
+                    st.rerun()
+        with b2:
+            if st.button(
+                f"Ignore all suggested dates ({len(pending_dates)})",
+                key="review_ignore_all_dates",
+                help="Clear every unapproved suggested date in this notebook.",
+                width="stretch",
+            ):
+                project, count = projects.ignore_all_suggested_dates()
+                bump_archive_generation(runtime)
+                st.toast(f"Ignored {count} suggestion{'s' if count != 1 else ''}")
+                st.rerun()
+    else:
+        st.session_state.pop("review_confirm_date_regressions", None)
+
+    if not page_ids:
+        if filter_key == "all":
             st.info("No pages yet.")
         else:
-            from transcribe.ui.action_menus.nav import viewer_page_ids
-
-            page_ids = viewer_page_ids(project)
-            default_id = st.session_state.get("view_page_id") or page_ids[0]
-            if default_id not in page_ids:
-                default_id = page_ids[0]
-            # Rebuild nav for the open notebook so stale Archive/Search entries
-            # (e.g. a deleted notebook) cannot override Review.
-            view_entries = [
-                {"page_id": pid, "project_root": str(paths.root)} for pid in page_ids
-            ]
-            st.session_state["view_page_id"] = default_id
-            st.session_state["view_page_ids"] = page_ids
-            st.session_state["view_entries"] = view_entries
-            render_page_viewer(
-                paths=paths,
-                projects=projects,
-                project=project,
-                page_id=default_id,
-                page_ids=page_ids,
-                view_entries=view_entries,
-                highlight_query="",
-                show_back=False,
-            )
+            st.success("Nothing needs attention for this filter.")
         return
+
+    default_id = st.session_state.get("view_page_id") or page_ids[0]
+    if default_id not in page_ids:
+        default_id = page_ids[0]
+    view_entries = [
+        {"page_id": pid, "project_root": str(paths.root)} for pid in page_ids
+    ]
+    st.session_state["view_page_id"] = default_id
+    st.session_state["view_page_ids"] = page_ids
+    st.session_state["view_entries"] = view_entries
+    st.caption(f"Showing {len(page_ids)} of {len(base_ids)} pages")
+    render_page_viewer(
+        paths=paths,
+        projects=projects,
+        project=project,
+        page_id=default_id,
+        page_ids=page_ids,
+        view_entries=view_entries,
+        highlight_query="",
+        show_back=False,
+        presentation="edit",
+    )
+
+
+def _render_reading_mode(paths, projects, project) -> None:
+    from transcribe.ui.action_menus.nav import chronological_page_ids
+
+    if not project.pages:
+        st.info("No pages yet.")
+        return
+
+    page_ids = chronological_page_ids(project)
+    root_key = str(paths.root)
+    by_root = dict(st.session_state.get("reading_page_by_root") or {})
+    remembered = by_root.get(root_key)
+    default_id = st.session_state.get("view_page_id") or remembered or page_ids[0]
+    if default_id not in page_ids:
+        default_id = page_ids[0]
+
+    dated = [p for p in project.pages if p.date is not None]
+    if dated:
+        jump_labels = {
+            p.page_id: (
+                f"{p.date.format_display()} · "
+                f"p.{next(i for i, x in enumerate(project.pages, 1) if x.page_id == p.page_id)}"
+            )
+            for p in sorted(dated, key=lambda page: (page.date.sort_key(), page.page_id))
+        }
+        choices = ["— Jump by date —"] + list(jump_labels.keys())
+        selected = st.selectbox(
+            "Jump by date",
+            choices,
+            format_func=lambda pid: (
+                "— Jump by date —" if pid == choices[0] else jump_labels[pid]
+            ),
+            key="reading_jump_by_date",
+        )
+        if selected != choices[0] and selected in page_ids:
+            default_id = selected
+
+    view_entries = [
+        {"page_id": pid, "project_root": root_key} for pid in page_ids
+    ]
+    st.session_state["view_page_id"] = default_id
+    st.session_state["view_page_ids"] = page_ids
+    st.session_state["view_entries"] = view_entries
+    by_root[root_key] = default_id
+    st.session_state["reading_page_by_root"] = by_root
+    render_page_viewer(
+        paths=paths,
+        projects=projects,
+        project=project,
+        page_id=default_id,
+        page_ids=page_ids,
+        view_entries=view_entries,
+        highlight_query="",
+        show_back=False,
+        presentation="read",
+    )
 
 
 def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
@@ -388,7 +539,11 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     ),
     "Review": (
         "Review",
-        "Browse and edit transcribed pages.",
+        "Correct pages that need attention — dates, empty text, failed OCR.",
+    ),
+    "Reading": (
+        "Reading",
+        "Read pages chronologically without editing.",
     ),
     "Analyse": (
         "Analyse",

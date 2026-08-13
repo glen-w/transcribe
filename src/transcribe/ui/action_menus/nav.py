@@ -89,6 +89,19 @@ def viewer_page_ids(
     return page_ids
 
 
+def chronological_page_ids(project: Project) -> list[str]:
+    """Reading-mode order: dated pages by date, then undated in notebook order."""
+    dated: list[tuple[tuple[int, int, int], int, str]] = []
+    undated: list[str] = []
+    for index, page in enumerate(project.pages):
+        if page.date is not None:
+            dated.append((page.date.sort_key(), index, page.page_id))
+        else:
+            undated.append(page.page_id)
+    dated.sort(key=lambda row: (row[0], row[1]))
+    return [page_id for _key, _index, page_id in dated] + undated
+
+
 def first_valid_open_page(
     project: Project,
     *,

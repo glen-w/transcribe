@@ -415,8 +415,18 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
     else:
         st.info("No dated pages match the current filters.")
 
-    notebooks = archive.list_notebooks(order="oldest", filters=filters)
     st.markdown("#### Notebooks")
+    order = st.selectbox(
+        "Notebook order",
+        ["oldest", "newest", "most_pages"],
+        format_func=lambda x: {
+            "oldest": "Oldest first",
+            "newest": "Newest first",
+            "most_pages": "Most pages",
+        }[x],
+        key="archive_notebook_order",
+    )
+    notebooks = archive.list_notebooks(order=order, filters=filters)  # type: ignore[arg-type]
     if not notebooks:
         st.caption("No notebooks match the current filters.")
         return
@@ -492,6 +502,8 @@ def _notebook_card(
         b = nb.date_end.format_display() if nb.date_end else "?"
         date_label = f"{a} → {b}"
     st.caption(nb.title)
+    if nb.tags:
+        st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
     st.caption(date_label)
     rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
     st.caption(f"{nb.page_count} pages · {rate}")
@@ -517,7 +529,10 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
     )
     notebooks = archive.list_notebooks(order=order)  # type: ignore[arg-type]
     if not notebooks:
-        st.info("No notebooks in the projects directory.")
+        st.info(
+            "No notebooks in the projects directory. "
+            "Create one under Workflow → New notebook, or batch-import folders."
+        )
         return
     for nb in notebooks:
         try:
@@ -555,6 +570,8 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                         )
         with right:
             st.markdown(f"**{nb.title}**")
+            if nb.tags:
+                st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
             if nb.date_start or nb.date_end:
                 a = nb.date_start.format_display() if nb.date_start else "?"
                 b = nb.date_end.format_display() if nb.date_end else "?"
@@ -587,17 +604,67 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
             try:
                 render_configured_actions(SectionId.VIEW_NOTEBOOK, ctx)
             except Exception:  # noqa: BLE001
-                st.caption("Actions unavailable.")
+                st.caption("Rename/delete actions unavailable for this notebook.")
         else:
-            st.caption("Actions unavailable.")
+            st.caption("Rename/delete actions unavailable for this notebook.")
         st.divider()
 
 
 def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
+    from transcribe.domain.dates import parse_date_input
+
     del runtime
     archive.ensure_index()
+    notebooks = archive.list_notebooks(order="newest")
+    if not notebooks:
+        st.info(
+            "No notebooks to search yet. Create or import a notebook first, "
+            "then run OCR so page text can be indexed."
+        )
+        return
+
     query = st.text_input("Search text", value=st.session_state.get("search_query", ""))
     st.session_state["search_query"] = query
+
+    years = archive.available_years()
+    period_options = ["All", "Year", "Range"] if years else ["All", "Range"]
+    if "search_period" not in st.session_state:
+        st.session_state["search_period"] = "All"
+    if st.session_state.get("search_period") not in period_options:
+        st.session_state["search_period"] = "All"
+    period = st.selectbox("Period", period_options, key="search_period")
+    year = None
+    range_start = None
+    range_end = None
+    if period == "Year" and years:
+        if "search_year" not in st.session_state or st.session_state["search_year"] not in years:
+            st.session_state["search_year"] = years[-1]
+        year = st.selectbox("Year", years, key="search_year")
+        period_key = "year"
+    elif period == "Range":
+        period_key = "range"
+        c1, c2 = st.columns(2)
+        if "search_range_start" not in st.session_state:
+            st.session_state["search_range_start"] = ""
+        if "search_range_end" not in st.session_state:
+            st.session_state["search_range_end"] = ""
+        start_raw = c1.text_input(
+            "From (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="search_range_start",
+        )
+        end_raw = c2.text_input(
+            "To (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="search_range_end",
+        )
+        try:
+            range_start = parse_date_input(start_raw) if start_raw.strip() else None
+            range_end = parse_date_input(end_raw) if end_raw.strip() else None
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+    else:
+        period_key = "all"
+
     order = st.selectbox(
         "Order",
         ["oldest", "newest"],
@@ -613,14 +680,20 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
     selected_media = st.multiselect("Media types", media_keys, default=media_keys)
 
     page_size = 50
-    # Reset offset when query/filters change.
-    filter_sig = f"{query}|{order}|{tags}|{selected_media}|{include_undated}"
+    filter_sig = (
+        f"{query}|{order}|{tags}|{selected_media}|{include_undated}|"
+        f"{period_key}|{year}|{range_start}|{range_end}"
+    )
     if st.session_state.get("search_filter_sig") != filter_sig:
         st.session_state["search_filter_sig"] = filter_sig
         st.session_state["search_offset"] = 0
     offset = int(st.session_state.get("search_offset", 0))
 
     filters = ArchiveFilters(
+        period=period_key,  # type: ignore[arg-type]
+        year=year if period_key == "year" else None,
+        range_start=range_start if period_key == "range" else None,
+        range_end=range_end if period_key == "range" else None,
         query="",
         tags=tags,
         media_types=tuple(selected_media) if set(selected_media) != set(media_keys) else (),
@@ -631,7 +704,12 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
     )
     if result.total_matched == 0:
         st.markdown("**0** results")
-        st.info("No matching pages.")
+        if query.strip() or tags or period_key != "all":
+            st.info("No matching pages for these filters.")
+        else:
+            st.info(
+                "No searchable page text yet. Run OCR on a notebook, then try again."
+            )
         return
 
     start = result.offset + 1
@@ -662,7 +740,12 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
             cols[0].caption(hit.snippet)
         if hit.tags:
             cols[0].caption("Tags: " + ", ".join(hit.tags))
-        if cols[1].button("Open", key=f"search_open_{hit.page_id}"):
+        if cols[1].button(
+            "Open page",
+            key=f"search_open_{hit.page_id}",
+            help="Open this page with Prev/Next across matching hits.",
+            width="stretch",
+        ):
             # Build full matched nav list (capped) so Prev/Next crosses all hits,
             # not only the current results page.
             nav_limit = min(max(result.total_matched, 1), 2000)

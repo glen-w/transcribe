@@ -600,6 +600,7 @@ def _render_this_notebook_launch(
     )
     render_model_information(
         form["all_models"],
+        selected=multi_models,
         role="vision",
         key="tx_compare_model_info",
     )
@@ -881,6 +882,7 @@ def _render_ocr_settings_form(
     )
     render_model_information(
         all_discovery.models,
+        selected=[n for n in (model, text_model) if n],
         role="all",
         key=f"{key_prefix}_model_info",
     )

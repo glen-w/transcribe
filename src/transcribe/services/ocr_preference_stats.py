@@ -197,6 +197,10 @@ def preference_hint_for_model(
         return None
     total_prefers = sum(s.prefer_count for s in table.values()) or 1
     pct = int(round(100.0 * row.prefer_count / total_prefers))
-    return (
-        f"Preferred on {row.pages_covered} pages · {pct}% of your prefers"
-    )
+    parts = [
+        f"Preferred on {row.pages_covered} pages · {pct}% of your prefers",
+    ]
+    if row.last_ts:
+        day = row.last_ts[:10]
+        parts.append(f"last preference {day}")
+    return " · ".join(parts)
