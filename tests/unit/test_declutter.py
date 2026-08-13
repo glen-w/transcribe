@@ -37,6 +37,22 @@ def _with_right_grey_bed(
     return canvas
 
 
+def _with_bottom_white_gutter(
+    paper: Image.Image, *, gutter: int = 80, white: tuple[int, int, int] = (255, 255, 255)
+) -> Image.Image:
+    w, h = paper.size
+    canvas = Image.new("RGB", (w, h + gutter), white)
+    canvas.paste(paper, (0, 0))
+    return canvas
+
+
+def _kraft_paper(
+    width: int = 400, height: int = 500, *, fill: tuple[int, ...] = (160, 110, 70)
+) -> Image.Image:
+    """Brown kraft-like page that contrasts with stark white gutters."""
+    return Image.new("RGB", (width, height), fill)
+
+
 def test_disabled_preserves_bytes_exactly() -> None:
     src = _png_bytes(_paper())
     result = apply_declutter(src, enabled=False)
@@ -151,11 +167,85 @@ def test_error_fallback_preserves_bytes(monkeypatch: pytest.MonkeyPatch) -> None
     def boom(*_a, **_k):
         raise RuntimeError("simulated failure")
 
-    monkeypatch.setattr("transcribe.declutter.detect_scan_border_insets", boom)
+    monkeypatch.setattr("transcribe.declutter.detect_declutter_border_insets", boom)
     result = apply_declutter(src, enabled=True)
     assert result.state == "error_fallback"
     assert result.image_bytes is src
     assert "RuntimeError" in result.note
+
+
+def test_crops_stark_white_bottom_gutter() -> None:
+    paper = _kraft_paper(400, 500)
+    ImageDraw.Draw(paper).rectangle((20, 20, 80, 80), fill=(30, 60, 180))
+    src = _png_bytes(_with_bottom_white_gutter(paper, gutter=80))
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_bottom > 0
+    assert result.height < result.original_height
+    out = Image.open(BytesIO(result.image_bytes)).convert("L")
+    row = [out.getpixel((x, out.size[1] - 1)) for x in range(out.size[0])]
+    mean = sum(row) / len(row)
+    assert mean < 250
+
+
+def test_white_gutter_on_near_white_paper_noop() -> None:
+    """Near-white paper must not be walked as stark-white overscan until content."""
+    paper = Image.new("RGB", (400, 500), (252, 252, 252))
+    ImageDraw.Draw(paper).rectangle((40, 40, 120, 120), fill=(30, 60, 180))
+    src = _png_bytes(_with_bottom_white_gutter(paper, gutter=80))
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_noop"
+    assert result.image_bytes == src
+
+
+def test_grey_bed_and_white_gutter_l_layout_crops_both() -> None:
+    """Grey right bed + full-width white bottom gutter (scanner L-overscan).
+
+    Full-height right columns are mixed grey/white until the white pad is
+    removed; multi-pass detection must recover both insets.
+    """
+    # Cream paper contrasts with grey bed (delta >> 25) and white gutter (~15).
+    paper = _paper(400, 500, fill=(245, 240, 230))
+    ImageDraw.Draw(paper).rectangle((20, 20, 80, 80), fill=(30, 60, 180))
+    bed, gutter = 80, 100
+    canvas = Image.new("RGB", (400 + bed, 500 + gutter), (255, 255, 255))
+    # Upper band: paper + grey bed; lower band: stark white across full width.
+    upper = Image.new("RGB", (400 + bed, 500), (128, 128, 128))
+    upper.paste(paper, (0, 0))
+    canvas.paste(upper, (0, 0))
+    src = _png_bytes(canvas)
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_right >= bed
+    assert result.inset_bottom >= gutter
+    assert abs(result.width - 400) <= SCAN_BORDER_PARAMS.paper_inset_px + 1
+    assert abs(result.height - 500) <= SCAN_BORDER_PARAMS.paper_inset_px + 1
+
+
+def test_cream_paper_white_gutter_crops() -> None:
+    paper = _paper(400, 500, fill=(245, 240, 230))
+    ImageDraw.Draw(paper).rectangle((20, 20, 80, 80), fill=(30, 60, 180))
+    src = _png_bytes(_with_bottom_white_gutter(paper, gutter=60))
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_cropped"
+    assert result.inset_bottom > 0
+
+
+def test_narrow_white_gutter_below_min_band_noop() -> None:
+    paper = _kraft_paper(400, 500)
+    src = _png_bytes(_with_bottom_white_gutter(paper, gutter=4))
+    result = apply_declutter(src, enabled=True)
+    assert result.state == "enabled_noop"
+    assert result.image_bytes == src
+
+
+def test_enabled_ops_include_uniform_overscan() -> None:
+    assert "remove_scan_borders" in ENABLED_OPS
+    assert "remove_uniform_overscan" in ENABLED_OPS
+    src = _png_bytes(_paper())
+    result = apply_declutter(src, enabled=True)
+    assert list(result.ops) == list(ENABLED_OPS)
+    assert "remove_uniform_overscan" in result.params
 
 
 def test_tiny_image_noop() -> None:

@@ -49,7 +49,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Cloud OCR / hosted inference as a first-class provider
 - Audio transcription or speaker diarization
 - Shipping TranscriptX integration (future seam only — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md))
-- OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none). Visual declutter is a separate import-time Pillow lane (scanner-border crop), not OCR preprocess.
+- OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none). Visual declutter is a separate import-time Pillow lane (scanner-bed + stark-white overscan crop), not OCR preprocess.
 - Deferred analysis reinterpretations and `ocr_quality` — **deferred** on [ROADMAP.md](ROADMAP.md); prefer second-pass LLM OCR cleanup/verification for text quality
 
 ## Honesty

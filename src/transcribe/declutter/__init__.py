@@ -11,11 +11,16 @@ from PIL import Image
 
 from transcribe.declutter.borders import (
     SCAN_BORDER_PARAMS,
+    UNIFORM_OVERSCAN_PARAMS,
     ScanBorderParams,
+    UniformOverscanParams,
+    detect_declutter_border_insets,
     detect_scan_border_insets,
 )
 from transcribe.domain.fingerprint import canonical_json_bytes
-DECLUTTER_VERSION = 1
+
+# v2: add remove_uniform_overscan (stark white gutters) + multi-pass combine.
+DECLUTTER_VERSION = 2
 
 DECLUTTER_STATES = frozenset(
     {"disabled", "enabled_noop", "enabled_cropped", "error_fallback"}
@@ -25,7 +30,7 @@ DeclutterState = Literal[
     "disabled", "enabled_noop", "enabled_cropped", "error_fallback"
 ]
 
-ENABLED_OPS: tuple[str, ...] = ("remove_scan_borders",)
+ENABLED_OPS: tuple[str, ...] = ("remove_scan_borders", "remove_uniform_overscan")
 
 NOTE_MAX_LEN = 200
 
@@ -86,6 +91,13 @@ def _bound_note(note: str) -> str:
     return note[: NOTE_MAX_LEN - 1] + "…"
 
 
+def _default_params_block() -> dict[str, Any]:
+    return {
+        "remove_scan_borders": asdict(SCAN_BORDER_PARAMS),
+        "remove_uniform_overscan": asdict(UNIFORM_OVERSCAN_PARAMS),
+    }
+
+
 def identity_payload(
     *,
     enabled: bool,
@@ -104,7 +116,7 @@ def identity_payload(
         "visual_declutter_enabled": True,
         "declutter_version": version,
         "ops": list(ops if ops is not None else ENABLED_OPS),
-        "params": params if params is not None else {"remove_scan_borders": asdict(SCAN_BORDER_PARAMS)},
+        "params": params if params is not None else _default_params_block(),
     }
 
 
@@ -144,6 +156,7 @@ def encode_declutter_png(image: Image.Image) -> bytes:
     out = BytesIO()
     clean.save(out, format="PNG", optimize=False, compress_level=6)
     return out.getvalue()
+
 
 def apply_declutter(image_bytes: bytes, *, enabled: bool) -> DeclutterResult:
     """Apply visual declutter. Never raises; fail-safe returns exact input bytes."""
@@ -186,7 +199,7 @@ def _apply_declutter_inner(image_bytes: bytes, *, enabled: bool) -> DeclutterRes
             **geo,
         )
 
-    params_block = {"remove_scan_borders": asdict(SCAN_BORDER_PARAMS)}
+    params_block = _default_params_block()
     payload = identity_payload(enabled=True, params=params_block)
     ident = sha256(canonical_json_bytes(payload)).hexdigest()
 
@@ -201,7 +214,11 @@ def _apply_declutter_inner(image_bytes: bytes, *, enabled: bool) -> DeclutterRes
             color = src.convert("RGB")
 
         gray = color.convert("L")
-        insets, reason = detect_scan_border_insets(gray, SCAN_BORDER_PARAMS)
+        insets, reason = detect_declutter_border_insets(
+            gray,
+            scan_params=SCAN_BORDER_PARAMS,
+            overscan_params=UNIFORM_OVERSCAN_PARAMS,
+        )
         if insets is None:
             return DeclutterResult(
                 image_bytes=image_bytes,
@@ -262,7 +279,9 @@ __all__ = [
     "DECLUTTER_STATES",
     "ENABLED_OPS",
     "SCAN_BORDER_PARAMS",
+    "UNIFORM_OVERSCAN_PARAMS",
     "ScanBorderParams",
+    "UniformOverscanParams",
     "DeclutterResult",
     "DeclutterState",
     "apply_declutter",
@@ -270,4 +289,6 @@ __all__ = [
     "identity_payload",
     "identity_sha256_for",
     "journal_matches_identity",
+    "detect_scan_border_insets",
+    "detect_declutter_border_insets",
 ]
