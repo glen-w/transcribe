@@ -78,6 +78,64 @@ def test_phase6_product_views_demote_json_and_enums():
     assert 'f"Advanced · {label}"' in HEALTH or "Advanced ·" in HEALTH
 
 
+def test_product_views_read_real_payload_shapes():
+    """Overview/Summaries must use nested module payload keys, not mythical top-level ones."""
+    assert "extract_foundations_display" in PRODUCT
+    assert 'payload.get("quotes")' in PRODUCT
+    assert 'payload.get("overview")' in PRODUCT
+    assert 'payload.get("themes")' in PRODUCT
+    assert 'payload.get("notable_quotes")' in PRODUCT
+    # Do not prefer wrong top-level diversity keys as the only path.
+    assert '"type_token_ratio"' not in PRODUCT
+    assert "render_module_compare_charts" in PRODUCT
+    assert "projects_dir" in PRODUCT
+    # Module-appropriate visuals beyond lexical diversity.
+    assert "emotion_label_totals" in PRODUCT or "render_entity_sentiment_section" in PRODUCT
+    assert "group_action_items" in PRODUCT
+    assert "topic_weight_rows" in PRODUCT
+    assert "contextual_label_counts" in PRODUCT
+    assert "render_entity_sentiment_section" in PRODUCT
+
+
+def test_overview_renders_real_wordcloud_when_available():
+    assert "render_wordcloud_section" in PRODUCT
+    path = Path("src/transcribe/ui/wordcloud_render.py")
+    assert path.is_file()
+    text = path.read_text(encoding="utf-8")
+    assert "generate_from_frequencies" in text
+    assert "to_image" in text
+    assert "build_wordcloud_explorer_html" in text
+    assert '"Basic"' in text and '"Advanced"' in text
+    assert Path("src/transcribe/ui/assets/wordcloud2.js").is_file()
+    assert "wordcloud>=" in Path("pyproject.toml").read_text(encoding="utf-8")
+
+
+def test_analyse_wires_corpus_compare_into_overview_and_mood():
+    assert "projects_dir=runtime.projects_dir" in APP
+    assert "project_id=project.id" in APP
+    assert Path("src/transcribe/services/analysis_compare.py").is_file()
+    assert Path("src/transcribe/ui/analysis_compare_view.py").is_file()
+    assert "load_module_baseline" in Path(
+        "src/transcribe/services/analysis_compare.py"
+    ).read_text(encoding="utf-8")
+    assert "render_module_compare_charts" in Path(
+        "src/transcribe/ui/analysis_compare_view.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_entity_sentiment_is_on_people_places_batch():
+    assert "entity_sentiment" in APP
+    assert "entity_sentiment_health" in APP
+    places = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
+    assert "entity_sentiment_health" in places
+    assert "render_entity_sentiment_section" in places
+    assert "Entity tone" in places or "entity tone" in places.lower()
+    helpers = Path("src/transcribe/ui/analysis_display_helpers.py").read_text(
+        encoding="utf-8"
+    )
+    assert "aggregate_entity_sentiment" in helpers
+
+
 def test_phase6_ocr_advanced_groups_power_controls():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.
