@@ -1,12 +1,22 @@
-"""Phase 6 #7 — task-shaped Analyse read-models (no module-console chrome)."""
+"""Phase 6 #7 — task-shaped Analyse read-models (no module-console chrome).
+
+Numeric foundations and mood modules compare this notebook to a corpus or
+period average (TranscriptX compared speakers; notebooks compare peers).
+"""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable
 
 import streamlit as st
 
 from transcribe.analysis.health import AnalysisHealth, ModuleHealth
+from transcribe.services.analysis_compare import extract_foundations_display
+from transcribe.ui.analysis_compare_view import (
+    render_compare_period_controls,
+    render_module_compare_charts,
+)
 from transcribe.ui.analysis_health_view import (
     module_may_show_payload,
     product_capability_label,
@@ -50,11 +60,13 @@ def render_overview_product(
     overview_ids: list[str],
     *,
     render_page_metrics: Callable[[], None] | None = None,
+    projects_dir: Path | None = None,
+    project_id: str | None = None,
 ) -> None:
     st.subheader("Overview")
     st.caption(
         "Notebook snapshot: counts, diversity, entities, themes, and page ink. "
-        "Run analysis from the preset form above."
+        "Numeric charts can compare this notebook with the corpus or a selected period."
     )
     if render_page_metrics is not None:
         try:
@@ -63,7 +75,15 @@ def render_overview_product(
         except Exception:  # noqa: BLE001 — optional surface
             pass
 
-    # Stats / diversity / understandability as caption chips when present
+    period = None
+    if projects_dir is not None:
+        with st.expander("Compare with corpus / period", expanded=False):
+            period = render_compare_period_controls(
+                key_prefix="overview",
+                projects_dir=projects_dir,
+            )
+
+    # Stats / diversity / understandability — real payload keys + compare charts
     for mid, title in (
         ("stats", "Counts"),
         ("lexical_diversity", "Lexical diversity"),
@@ -77,21 +97,70 @@ def render_overview_product(
         payload = _show_or_note(mh, title=title)
         if payload is None:
             continue
-        bits: list[str] = []
-        for key in (
-            "n_pages",
-            "n_words",
-            "n_chars",
-            "type_token_ratio",
-            "flesch_reading_ease",
-            "avg_sentence_length",
-        ):
-            if key in payload and payload[key] is not None:
-                bits.append(f"{key.replace('_', ' ')}={payload[key]}")
+        bits = extract_foundations_display(payload, mid)
         if bits:
-            st.markdown(f"**{title}** · " + " · ".join(bits[:8]))
+            st.markdown(
+                f"**{title}** · " + " · ".join(f"{lab}={val}" for lab, val in bits[:8])
+            )
         else:
             st.markdown(f"**{title}** · ready")
+        if period is not None:
+            render_module_compare_charts(
+                mid,
+                payload,
+                projects_dir=projects_dir,
+                period=period,
+                exclude_project_id=project_id,
+                chart_key=f"overview_{mid}",
+            )
+        elif mid == "lexical_diversity":
+            # Standalone visual when no corpus dir (still show this-notebook bars).
+            from transcribe.services.analysis_compare import extract_module_metrics
+
+            cur = extract_module_metrics(mid, payload)
+            if cur:
+                st.bar_chart(
+                    {
+                        "metric": list(cur.keys()),
+                        "value": list(cur.values()),
+                    },
+                    x="metric",
+                    y="value",
+                )
+        # Per-page token / TTR sparkline when unit rows exist
+        units = payload.get("units") if isinstance(payload.get("units"), list) else []
+        if mid == "stats" and units:
+            st.caption("Tokens per page")
+            st.bar_chart(
+                {
+                    "order": [u.get("order") for u in units if isinstance(u, dict)],
+                    "tokens": [
+                        int(u.get("token_count") or 0) for u in units if isinstance(u, dict)
+                    ],
+                },
+                x="order",
+                y="tokens",
+            )
+        if mid == "lexical_diversity" and units:
+            ttr_series = [
+                float(u["ttr"])
+                for u in units
+                if isinstance(u, dict) and u.get("ttr") is not None
+            ]
+            if ttr_series:
+                st.caption("TTR across pages")
+                st.line_chart(
+                    {
+                        "order": [
+                            u.get("order")
+                            for u in units
+                            if isinstance(u, dict) and u.get("ttr") is not None
+                        ],
+                        "ttr": ttr_series,
+                    },
+                    x="order",
+                    y="ttr",
+                )
         render_advanced_payload(mid, payload)
 
     if "wordclouds" in overview_ids:
@@ -151,6 +220,18 @@ def render_overview_product(
                         x="order",
                         y="compound",
                     )
+                gs = payload.get("global_stats") or {}
+                if gs.get("compound_mean") is not None:
+                    st.caption(f"Mean compound={float(gs['compound_mean']):.3f}")
+                if period is not None:
+                    render_module_compare_charts(
+                        "sentiment",
+                        payload,
+                        projects_dir=projects_dir,
+                        period=period,
+                        exclude_project_id=project_id,
+                        chart_key="overview_sentiment",
+                    )
                 render_advanced_payload("sentiment", payload)
 
     if "epistemic_markers" in overview_ids:
@@ -165,6 +246,15 @@ def render_overview_product(
                     f"{g.get('booster_share', '—')} · hits "
                     f"{g.get('total_marker_hits', '—')}"
                 )
+                if period is not None:
+                    render_module_compare_charts(
+                        "epistemic_markers",
+                        payload,
+                        projects_dir=projects_dir,
+                        period=period,
+                        exclude_project_id=project_id,
+                        chart_key="overview_epistemic",
+                    )
                 render_advanced_payload("epistemic_markers", payload)
 
     # Any remaining overview modules not specially rendered
@@ -210,11 +300,25 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
             continue
         if mid == "keyphrases" and payload.get("phrases"):
             st.markdown("**Keyphrases**")
+            phrases = payload["phrases"][:12]
             st.write(
-                ", ".join(
-                    p.get("phrase", "") for p in payload["phrases"][:12] if p.get("phrase")
-                )
+                ", ".join(p.get("phrase", "") for p in phrases if p.get("phrase"))
             )
+            # Weight bars when scores exist
+            scored = [
+                p
+                for p in phrases
+                if isinstance(p, dict) and p.get("phrase") and p.get("score") is not None
+            ]
+            if scored:
+                st.bar_chart(
+                    {
+                        "phrase": [p["phrase"][:40] for p in scored],
+                        "score": [float(p["score"]) for p in scored],
+                    },
+                    x="phrase",
+                    y="score",
+                )
         elif mid == "topic_modeling" and payload.get("topics"):
             st.markdown("**Topics**")
             for topic in payload["topics"][:5]:
@@ -226,25 +330,81 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
                 f"**Similar passages** · {payload.get('n_units', 0)} units · "
                 f"{len(motifs)} motif pair(s)"
             )
+            if motifs:
+                top = motifs[:8]
+                st.bar_chart(
+                    {
+                        "pair": [
+                            f"{m.get('unit_id_a', '?')}↔{m.get('unit_id_b', '?')}"[:28]
+                            for m in top
+                        ],
+                        "similarity": [float(m.get("similarity") or 0) for m in top],
+                    },
+                    x="pair",
+                    y="similarity",
+                )
         elif mid == "topic_shift":
             shifts = payload.get("shifts") or []
+            consecutive = payload.get("consecutive") or []
             st.markdown(
                 f"**Theme shifts** · {payload.get('n_units', 0)} units · "
                 f"{len(shifts)} boundary(ies)"
             )
+            if consecutive:
+                st.caption("Adjacent-page similarity (drops mark theme shifts)")
+                st.line_chart(
+                    {
+                        "order": [c.get("from_order") for c in consecutive],
+                        "similarity": [
+                            float(c.get("similarity") or 0) for c in consecutive
+                        ],
+                    },
+                    x="order",
+                    y="similarity",
+                )
+            if shifts:
+                for sh in shifts[:8]:
+                    st.write(
+                        f"- after order {sh.get('order_after')} "
+                        f"(sim={sh.get('similarity')})"
+                    )
         elif mid == "bertopic":
-            st.markdown(f"**BERTopic clusters** · {product_capability_label(mh.capability, mh.outcome)}")
+            topics = payload.get("topics") or payload.get("clusters") or []
+            st.markdown(
+                f"**BERTopic clusters** · "
+                f"{product_capability_label(mh.capability, mh.outcome)}"
+            )
+            if isinstance(topics, list) and topics:
+                for topic in topics[:6]:
+                    if isinstance(topic, dict):
+                        terms = ", ".join(
+                            topic.get("terms") or topic.get("words") or []
+                        )
+                        st.write(f"- **{topic.get('label') or topic.get('topic_id')}**: {terms}")
         else:
             st.markdown(f"**{title}** · ready")
         render_advanced_payload(mid, payload)
 
 
-def render_mood_product(health: AnalysisHealth, mood_ids: list[str]) -> None:
+def render_mood_product(
+    health: AnalysisHealth,
+    mood_ids: list[str],
+    *,
+    projects_dir: Path | None = None,
+    project_id: str | None = None,
+) -> None:
     st.subheader("Mood & tone")
     st.caption(
         "Emotion, affect tension, and hedging across the notebook. "
-        "Run analysis from the preset form above."
+        "Compare intensity / polarity with the corpus or a selected period."
     )
+    period = None
+    if projects_dir is not None:
+        with st.expander("Compare with corpus / period", expanded=False):
+            period = render_compare_period_controls(
+                key_prefix="mood",
+                projects_dir=projects_dir,
+            )
     titles = {
         "sentiment": "Sentiment",
         "emotion": "Emotion",
@@ -259,25 +419,130 @@ def render_mood_product(health: AnalysisHealth, mood_ids: list[str]) -> None:
         payload = _show_or_note(mh, title=title)
         if payload is None:
             continue
-        if mid == "emotion" and payload.get("global_stats"):
+        units = payload.get("units") if isinstance(payload.get("units"), list) else []
+        if mid == "sentiment":
+            gs = payload.get("global_stats") or {}
+            st.markdown(
+                f"**Sentiment** · mean {gs.get('compound_mean', '—')}"
+            )
+            if units:
+                st.line_chart(
+                    {
+                        "order": [u.get("order") for u in units],
+                        "compound": [float(u.get("compound") or 0) for u in units],
+                    },
+                    x="order",
+                    y="compound",
+                )
+        elif mid == "emotion":
+            gs = payload.get("global_stats") or {}
             st.markdown(
                 f"**Emotion** · intensity mean "
-                f"{payload['global_stats'].get('intensity_mean', '—')}"
+                f"{gs.get('intensity_mean', '—')}"
             )
-        elif mid == "affect_tension" and payload.get("global_stats"):
-            gs = payload["global_stats"]
+            if units and any(u.get("intensity") is not None for u in units if isinstance(u, dict)):
+                st.line_chart(
+                    {
+                        "order": [u.get("order") for u in units],
+                        "intensity": [float(u.get("intensity") or 0) for u in units],
+                    },
+                    x="order",
+                    y="intensity",
+                )
+        elif mid == "affect_tension":
+            gs = payload.get("global_stats") or {}
             st.markdown(
                 f"**Affect tension** · mean {gs.get('tension_mean', '—')} · "
                 f"conflicts {gs.get('n_conflicting', '—')}"
             )
-        elif mid == "epistemic_markers" and payload.get("global_stats"):
-            g = payload["global_stats"]
+            if units and any(u.get("tension") is not None for u in units if isinstance(u, dict)):
+                st.line_chart(
+                    {
+                        "order": [u.get("order") for u in units],
+                        "tension": [float(u.get("tension") or 0) for u in units],
+                    },
+                    x="order",
+                    y="tension",
+                )
+        elif mid == "epistemic_markers":
+            g = payload.get("global_stats") or {}
             st.markdown(
                 f"**Hedging & certainty** · hedge {g.get('hedge_share', '—')} · "
                 f"booster {g.get('booster_share', '—')}"
             )
+            if units:
+                hedge_vals = []
+                boost_vals = []
+                orders = []
+                for u in units:
+                    if not isinstance(u, dict):
+                        continue
+                    counts = u.get("category_counts") or {}
+                    if not isinstance(counts, dict):
+                        counts = {}
+                    orders.append(u.get("order"))
+                    hedge_vals.append(
+                        int(counts.get("epistemic_hedge") or 0)
+                        + int(counts.get("approximator") or 0)
+                        + int(counts.get("modal_uncertainty") or 0)
+                    )
+                    boost_vals.append(int(counts.get("certainty_booster") or 0))
+                if orders:
+                    st.bar_chart(
+                        {
+                            "order": orders,
+                            "hedges": hedge_vals,
+                            "boosters": boost_vals,
+                        },
+                        x="order",
+                        y=["hedges", "boosters"],
+                    )
+        elif mid in {"contextual_emotion", "fine_grained_emotion"}:
+            gs = payload.get("global_stats") or {}
+            label = gs.get("top_label") or gs.get("dominant_label")
+            intensity = gs.get("intensity_mean")
+            if label or intensity is not None:
+                st.markdown(
+                    f"**{title}** · "
+                    + " · ".join(
+                        x
+                        for x in (
+                            f"top={label}" if label else None,
+                            f"intensity={intensity}" if intensity is not None else None,
+                        )
+                        if x
+                    )
+                )
+            else:
+                st.markdown(f"**{title}** · ready")
+            if units and any(
+                isinstance(u, dict) and u.get("intensity") is not None for u in units
+            ):
+                st.line_chart(
+                    {
+                        "order": [u.get("order") for u in units],
+                        "intensity": [float(u.get("intensity") or 0) for u in units],
+                    },
+                    x="order",
+                    y="intensity",
+                )
         else:
             st.markdown(f"**{title}** · ready")
+
+        if period is not None and mid in {
+            "sentiment",
+            "emotion",
+            "affect_tension",
+            "epistemic_markers",
+        }:
+            render_module_compare_charts(
+                mid,
+                payload,
+                projects_dir=projects_dir,
+                period=period,
+                exclude_project_id=project_id,
+                chart_key=f"mood_{mid}",
+            )
         render_advanced_payload(mid, payload)
 
 
@@ -339,28 +604,74 @@ def render_summaries_product(health: AnalysisHealth, synth_ids: list[str]) -> No
         payload = _show_or_note(mh, title=title)
         if payload is None:
             continue
-        # Prefer human-readable fields when present
-        text = (
-            payload.get("summary")
-            or payload.get("text")
-            or payload.get("narrative")
-            or payload.get("answer")
-        )
-        items = payload.get("highlights") or payload.get("insights") or payload.get("items")
         honesty = payload.get("honesty_label")
         st.markdown(f"**{title}**")
         if honesty:
             st.caption(honesty)
-        if text:
-            st.markdown(str(text))
-        elif isinstance(items, list) and items:
-            for it in items[:12]:
-                if isinstance(it, dict):
-                    st.write(f"- {it.get('text') or it.get('highlight') or it}")
-                else:
-                    st.write(f"- {it}")
+
+        if mid == "highlights":
+            quotes = payload.get("quotes") or []
+            if quotes:
+                for q in quotes[:12]:
+                    if isinstance(q, dict):
+                        text = q.get("text") or ""
+                        score = q.get("score")
+                        prefix = f"_{score}_ · " if score is not None else ""
+                        st.write(f"- {prefix}{text[:300]}")
+            else:
+                st.caption("No highlight quotes yet.")
+        elif mid == "summary":
+            overview = payload.get("overview") or payload.get("summary") or payload.get("text")
+            bullets = payload.get("bullets") or []
+            if overview:
+                st.markdown(str(overview))
+            if isinstance(bullets, list) and bullets:
+                for b in bullets[:12]:
+                    st.write(f"- {b}")
+            if not overview and not bullets:
+                st.caption("Ready — open Advanced for details.")
+        elif mid == "insights":
+            themes = payload.get("themes") or []
+            notable = payload.get("notable_quotes") or []
+            if themes:
+                st.markdown("Themes")
+                for t in themes[:8]:
+                    if isinstance(t, dict):
+                        terms = ", ".join(t.get("terms") or [])
+                        st.write(f"- **{t.get('label')}**: {terms}")
+            if notable:
+                st.markdown("Notable quotes")
+                for q in notable[:6]:
+                    if isinstance(q, dict):
+                        st.write(f"- {q.get('text') or ''}")
+            if not themes and not notable:
+                st.caption("Ready — open Advanced for details.")
+        elif mid == "topic_modeling" and payload.get("topics"):
+            for topic in payload["topics"][:5]:
+                terms = ", ".join(topic.get("terms") or [])
+                st.write(f"- **{topic.get('label')}**: {terms}")
         else:
-            st.caption("Ready — open Advanced for details.")
+            text = (
+                payload.get("summary")
+                or payload.get("text")
+                or payload.get("narrative")
+                or payload.get("answer")
+            )
+            items = (
+                payload.get("highlights")
+                or payload.get("insights")
+                or payload.get("items")
+            )
+            if text:
+                st.markdown(str(text))
+            elif isinstance(items, list) and items:
+                for it in items[:12]:
+                    if isinstance(it, dict):
+                        st.write(f"- {it.get('text') or it.get('highlight') or it}")
+                    else:
+                        st.write(f"- {it}")
+            else:
+                st.caption("Ready — open Advanced for details.")
         if mh.live_evidence:
             st.caption(f"{len(mh.live_evidence)} supporting citation(s)")
         render_advanced_payload(mid, payload)

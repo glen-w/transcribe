@@ -450,7 +450,11 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
             render_overview_page_metrics(projects, project)
 
         render_overview_product(
-            overview_health, overview_ids, render_page_metrics=_page_metrics
+            overview_health,
+            overview_ids,
+            render_page_metrics=_page_metrics,
+            projects_dir=runtime.projects_dir,
+            project_id=project.id,
         )
 
     with tab_themes:
@@ -459,7 +463,12 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         render_themes_product(themes_health, theme_ids)
 
     with tab_mood:
-        render_mood_product(mood_health, mood_ids)
+        render_mood_product(
+            mood_health,
+            mood_ids,
+            projects_dir=runtime.projects_dir,
+            project_id=project.id,
+        )
 
     with tab_moments:
         def _jump_to_page(page_id: str) -> None:

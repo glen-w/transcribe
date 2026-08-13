@@ -20,6 +20,7 @@ Authority: curated maintainer navigation only — does not own contracts
 | [detection_wave2_plan.md](detection_wave2_plan.md) | Prompt Hub + Detection wave 2 delivery / hardening checklist |
 | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
 | [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX (patterns only) |
+| [dev/analysis_visual_compare.md](dev/analysis_visual_compare.md) | Analyse charts: this notebook vs corpus/period (TX speaker-bar analogue) |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
 
 Default suite stays offline (fake Ollama provider). Live OCR probes are optional and environmental.

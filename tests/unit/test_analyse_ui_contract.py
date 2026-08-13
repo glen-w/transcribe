@@ -78,6 +78,32 @@ def test_phase6_product_views_demote_json_and_enums():
     assert 'f"Advanced · {label}"' in HEALTH or "Advanced ·" in HEALTH
 
 
+def test_product_views_read_real_payload_shapes():
+    """Overview/Summaries must use nested module payload keys, not mythical top-level ones."""
+    assert "extract_foundations_display" in PRODUCT
+    assert 'payload.get("quotes")' in PRODUCT
+    assert 'payload.get("overview")' in PRODUCT
+    assert 'payload.get("themes")' in PRODUCT
+    assert 'payload.get("notable_quotes")' in PRODUCT
+    # Do not prefer wrong top-level diversity keys as the only path.
+    assert '"type_token_ratio"' not in PRODUCT
+    assert "render_module_compare_charts" in PRODUCT
+    assert "projects_dir" in PRODUCT
+
+
+def test_analyse_wires_corpus_compare_into_overview_and_mood():
+    assert "projects_dir=runtime.projects_dir" in APP
+    assert "project_id=project.id" in APP
+    assert Path("src/transcribe/services/analysis_compare.py").is_file()
+    assert Path("src/transcribe/ui/analysis_compare_view.py").is_file()
+    assert "load_module_baseline" in Path(
+        "src/transcribe/services/analysis_compare.py"
+    ).read_text(encoding="utf-8")
+    assert "render_module_compare_charts" in Path(
+        "src/transcribe/ui/analysis_compare_view.py"
+    ).read_text(encoding="utf-8")
+
+
 def test_phase6_ocr_advanced_groups_power_controls():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.
