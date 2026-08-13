@@ -79,7 +79,7 @@ Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance 
 
 **Shipped:** corpus index registration + discovery, ImportPlan/ImportRun orchestrator with crash hooks, `skip_existing_v1` / `create_duplicate_v1`, folder adapters, CLI `bulk-import` / `bulk-run` / `corpus-doctor`, **Workflow → Import → Batch** (legacy Inbox alias), **Workflow → Transcribe → Batch**, corpus doctor ImportRun ID checks, and the synthetic multi-notebook acceptance suite (crash-injection, idempotency, duplicate policy, index rebuild, deep doctor, fixture coverage).
 
-**Related product outcome:** import recovery / inbox as a daily workflow. Usability-wave **U4** gate mechanics are done; richer outcome taxonomy / inbox-dir scan remain optional polish. Remaining lifecycle candidates (re-OCR compare/promote, backup/restore productization) stay in the corpus & product lifecycle section below.
+**Related product outcome:** import recovery / inbox as a daily workflow. Usability-wave **U4** gate mechanics are done; richer outcome taxonomy / inbox-dir scan remain optional polish. Remaining lifecycle candidates (backup/restore productization, quality thumbs) stay in the corpus & product lifecycle section below.
 
 ---
 
@@ -107,9 +107,9 @@ Suggested sequence after scanner-bed borders + stark-white overscan + corner wed
 
 ---
 
-## Next — OCR lifecycle package — [~] active
+## Next — OCR lifecycle package — [x] done
 
-Ambitious OCR features on the durable attempt model: multipass multi-model runs, compare/prefer/promote, composite candidates, preference stats, fine-tune export. Contracts: [ocr-multipass](contracts/ocr-multipass.md), [ocr-preference](contracts/ocr-preference.md), [finetune-export](contracts/finetune-export.md), extended [page-result](contracts/page-result.md). Outline for external training: [finetune_export.md](finetune_export.md).
+Ambitious OCR features on the durable attempt model: multipass multi-model runs, compare/prefer/promote, composite candidates, preference stats, fine-tune export. Contracts: [ocr-multipass](contracts/ocr-multipass.md), [ocr-preference](contracts/ocr-preference.md), [finetune-export](contracts/finetune-export.md), extended [page-result](contracts/page-result.md). Outline for external training: [finetune_export.md](finetune_export.md). Shipped via [PR #15](https://github.com/glen-w/transcribe/pull/15).
 
 | Wave | Status | Outcome |
 |------|--------|---------|
@@ -131,7 +131,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 |---------|--------|------|
 | **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; entity/saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. | **U3** tag chips + sort polish done; collections/archive-state candidate |
-| **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** |
+| **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
 | **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** (done) |
 | **Backup / restore / portability** | Product commitment that the whole corpus can be backed up, moved, restored, and verified without application-specific archaeology. | candidate |
@@ -149,9 +149,9 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 
 ---
 
-## Next — Release / onboarding / operability — [~] pulled into usability wave U2
+## Next — Release / onboarding / operability — [ ] planned (via U2)
 
-Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** (no longer uncommitted candidates):
+Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** (no longer uncommitted candidates; not started):
 
 - Installation and first-run checklist
 - First notebook + model setup guidance
