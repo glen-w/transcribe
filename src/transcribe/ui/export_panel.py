@@ -10,7 +10,10 @@ from transcribe.config.defaults import builtin_names_for
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.models import ProfileActivations, deep_merge_dict
-from transcribe.config.persistence import load_workspace_settings, save_workspace_settings
+from transcribe.config.persistence import (
+    load_workspace_settings,
+    save_workspace_settings,
+)
 from transcribe.config.profiles import list_user_profile_names, load_profile_overlay
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
@@ -82,7 +85,9 @@ def render_export_panel(
         st.session_state["export_title_page"] = export_cfg.title_page
         st.session_state["export_body_font"] = export_cfg.typography.body_font
         st.session_state["export_body_size"] = float(export_cfg.typography.body_size_pt)
-        st.session_state["export_line_height"] = float(export_cfg.typography.line_height)
+        st.session_state["export_line_height"] = float(
+            export_cfg.typography.line_height
+        )
         st.session_state["export_para_spacing"] = float(
             export_cfg.typography.paragraph_spacing_em
         )
@@ -263,7 +268,16 @@ def render_export_panel(
         dest = Path(export_dest) if export_dest.strip() else None
         try:
             snapshots = []
-            for nb_root in selected_roots:
+            n = len(selected_roots)
+            bar = st.progress(0.0, text="Preparing export…")
+            status = st.empty()
+            for i, nb_root in enumerate(selected_roots):
+                label = Path(nb_root).name
+                status.caption(f"Reading `{label}`…")
+                bar.progress(
+                    min(1.0, i / max(n + 1, 1)),
+                    text=f"Reading notebook {i + 1}/{n} · {label}",
+                )
                 nb_paths = open_project_paths(Path(nb_root))
                 nb_projects = ProjectService(
                     nb_paths, clock=SystemClock(), ids=UuidGenerator()
@@ -271,15 +285,23 @@ def render_export_panel(
                 snapshots.append(
                     ExportService.capture_snapshot_at(nb_paths, nb_projects)
                 )
-            service = ExportService(paths, projects)
-            written = service.export_snapshots(
-                snapshots, dest_dir=dest, options=opts
+            bar.progress(
+                min(1.0, n / max(n + 1, 1)),
+                text="Writing export files…",
             )
+            status.caption("Writing export files…")
+            service = ExportService(paths, projects)
+            written = service.export_snapshots(snapshots, dest_dir=dest, options=opts)
+            bar.progress(1.0, text="Export complete")
             rev = ""
             from transcribe.persistence.atomic import read_json
 
             manifest = read_json(written["manifest"])
-            rev = str(manifest.get("bundle_revision") or manifest.get("content_revision") or "")
+            rev = str(
+                manifest.get("bundle_revision")
+                or manifest.get("content_revision")
+                or ""
+            )
             if rev:
                 st.success(f"Exported revision `{rev[:16]}…`")
             for kind, path in written.items():

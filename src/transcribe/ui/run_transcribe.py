@@ -101,28 +101,48 @@ def get_batch_ocr_coordinator(data_dir: str, projects_dir: str) -> BatchOcrCoord
     )
 
 
-def _render_job_progress(progress: JobProgress) -> None:
-    st.write(
-        f"Job: **{progress.status}** — completed {progress.completed}/"
-        f"{progress.total} (failed {progress.failed}, skipped {progress.skipped})"
+def _job_progress_to_snapshot(progress: JobProgress) -> dict[str, Any]:
+    done = progress.completed + progress.failed
+    total = progress.total
+    pct = (done / total * 100.0) if total else 0.0
+    if progress.status == "completed":
+        panel_status, phase = "completed", "completed"
+        pct = 100.0 if total else pct
+    elif progress.status == "failed":
+        panel_status, phase = "failed", "failed"
+    elif progress.status == "cancelled":
+        panel_status, phase = "failed", "cancelled"
+    else:
+        panel_status, phase = "running", "running_pipeline"
+    current = ", ".join(progress.current_labels) or ", ".join(
+        p[:8] for p in progress.current_page_ids
     )
-    if progress.current_page_ids:
-        st.caption("Current page(s): " + ", ".join(p[:8] for p in progress.current_page_ids))
-    if progress.message:
-        st.caption(progress.message)
+    return {
+        "status": panel_status,
+        "phase": phase,
+        "current_item": current,
+        "completed": progress.completed,
+        "skipped": progress.skipped,
+        "failed": progress.failed,
+        "total": total,
+        "pct": pct,
+        "latest_event": progress.message,
+        "recent_logs": [],
+        "error": progress.message if progress.status == "failed" else None,
+    }
+
+
+def _render_job_progress(progress: JobProgress) -> None:
+    render_progress_panel(
+        _job_progress_to_snapshot(progress),
+        unit_label="pages",
+        current_label="Current page",
+    )
     if progress.circuit_open:
         st.warning(
             "This model hit repeated Ollama timeouts; remaining pages for this "
             "model were skipped."
         )
-    done = progress.completed + progress.failed
-    if progress.total > 0 and progress.status in {
-        "running",
-        "completed",
-        "cancelled",
-        "failed",
-    }:
-        st.progress(min(1.0, done / progress.total))
     if progress.status == "running":
         st.info(
             "OCR is running in the background. Progress also prints in the "
@@ -131,9 +151,7 @@ def _render_job_progress(progress: JobProgress) -> None:
         )
 
 
-def _render_multipass_progress(
-    multi: MultiPassProgress, job: JobProgress
-) -> None:
+def _render_multipass_progress(multi: MultiPassProgress, job: JobProgress) -> None:
     st.write(
         f"Compare: **{multi.status}** — {multi.phase or 'starting'}"
         + (
@@ -142,8 +160,6 @@ def _render_multipass_progress(
             else ""
         )
     )
-    if multi.message:
-        st.caption(multi.message)
     if multi.phase == "vision" and job.status in {
         "running",
         "completed",
@@ -152,9 +168,17 @@ def _render_multipass_progress(
     }:
         _render_job_progress(job)
     elif multi.phase == "rank_composite":
-        st.caption(
-            f"Ranked {multi.pages_ranked} · composite {multi.pages_composite}"
-        )
+        total = multi.pages_total or 0
+        done = multi.pages_ranked
+        if total > 0:
+            st.progress(
+                min(1.0, done / total),
+                text=f"Rank/composite {done}/{total} pages",
+            )
+        if multi.message:
+            st.caption(multi.message)
+    elif multi.message:
+        st.caption(multi.message)
     if multi.status == "running":
         st.info(
             "Compare is running in the background. Stop after current page "
@@ -239,32 +263,33 @@ def _render_transcribe_complete_actions(
 def _batch_progress_to_snapshot(progress: BatchOcrProgress) -> dict[str, Any]:
     done = progress.completed + progress.failed + progress.skipped
     total = progress.total
-    pct = (done / total * 100.0) if total else 0.0
+    page_frac = 0.0
+    if progress.status == "running" and progress.pages_total:
+        page_done = progress.pages_completed + progress.pages_failed
+        page_frac = min(1.0, page_done / progress.pages_total)
+    pct = ((done + page_frac) / total * 100.0) if total else 0.0
     status = progress.status
-    if status in {"cancelled", "partial", "failed"}:
-        panel_status = "failed" if status == "failed" else (
-            "completed" if status == "partial" else "failed"
-        )
-        if status == "partial":
-            panel_status = "completed"
-        phase = status
-    elif status == "completed":
-        panel_status = "completed"
-        phase = "completed"
+    if status == "completed":
+        panel_status, phase = "completed", "completed"
+        pct = 100.0 if total else pct
+    elif status == "partial":
+        panel_status, phase = "completed", "partial"
+    elif status == "cancelled":
+        panel_status, phase = "failed", "cancelled"
+    elif status == "failed":
+        panel_status, phase = "failed", "failed"
     else:
-        panel_status = "running"
-        phase = "running_pipeline"
-    pages = ""
-    if progress.pages_total:
-        pages = (
-            f"pages {progress.pages_completed}/{progress.pages_total} "
-            f"(failed {progress.pages_failed}, skipped {progress.pages_skipped})"
-        )
+        panel_status, phase = "running", "running_pipeline"
     return {
         "status": panel_status,
         "phase": phase,
         "current_item": progress.current_item,
-        "current_module": pages,
+        "detail_current": progress.current_page_label,
+        "detail_completed": progress.pages_completed,
+        "detail_failed": progress.pages_failed,
+        "detail_skipped": progress.pages_skipped,
+        "detail_total": progress.pages_total,
+        "detail_unit": "pages in this notebook",
         "completed": progress.completed,
         "skipped": progress.skipped,
         "failed": progress.failed,
@@ -272,14 +297,13 @@ def _batch_progress_to_snapshot(progress: BatchOcrProgress) -> dict[str, Any]:
         "pct": pct,
         "latest_event": progress.message,
         "recent_logs": [],
-        "error": None,
+        "error": progress.message if status == "failed" else None,
     }
 
 
 def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) -> bool:
     """Return True when the page should skip the settings form."""
     live = coord.get_progress()
-    was_running = st.session_state.get(_BATCH_WAS_RUNNING_KEY, False)
     st.session_state[_BATCH_WAS_RUNNING_KEY] = live.status == "running"
     is_running = live.status == "running" or coord.is_running()
     post_id = st.session_state.get(_BATCH_POST_RUN_KEY)
@@ -300,7 +324,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
             render_progress_panel(
                 _batch_progress_to_snapshot(progress),
                 unit_label="notebooks",
-                current_label="Current pages",
+                current_label="Current notebook",
             )
             if (
                 st.session_state.get(_BATCH_WAS_RUNNING_KEY)
@@ -320,7 +344,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
     render_progress_panel(
         _batch_progress_to_snapshot(live),
         unit_label="notebooks",
-        current_label="Current pages",
+        current_label="Current notebook",
     )
     _render_batch_complete_actions(coord, live)
     return True
@@ -430,7 +454,9 @@ def render_run_transcribe(
         target = st.session_state.get(TRANSCRIBE_TARGET_KEY) or TARGET_THIS
 
     if target == TARGET_THIS and root and projects is not None and project is not None:
-        if _render_this_notebook_live(runtime, root=root, projects=projects, project=project):
+        if _render_this_notebook_live(
+            runtime, root=root, projects=projects, project=project
+        ):
             return
 
     seed = (
@@ -447,9 +473,7 @@ def render_run_transcribe(
         return
 
     if project is None or projects is None or not root:
-        st.info(
-            "Select a notebook above, or create one under Workflow → New notebook."
-        )
+        st.info("Select a notebook above, or create one under Workflow → New notebook.")
         return
     _render_this_notebook_launch(
         runtime, root=root, projects=projects, project=project, form=form
@@ -497,9 +521,7 @@ def _render_this_notebook_live(
                 _render_multipass_progress(mp, progress)
             else:
                 _render_job_progress(progress)
-            still_running = (
-                progress.status == "running" or mp.status == "running"
-            )
+            still_running = progress.status == "running" or mp.status == "running"
             if st.session_state.get("_job_was_running") and not still_running:
                 st.session_state["_job_was_running"] = False
                 if mp.status in {"completed", "cancelled", "failed"} and mp.pass_id:
@@ -576,13 +598,12 @@ def _render_this_notebook_launch(
         format_func=form["model_label"],
         help="Select at least two models. Order matters: first model runs fully.",
     )
+    render_model_information(
+        form["all_models"],
+        role="vision",
+        key="tx_compare_model_info",
+    )
     if multi_models:
-        render_model_information(
-            form["vision_models"],
-            selected=multi_models,
-            role="vision",
-            key="tx_compare_model_info",
-        )
         warn_if_first_compare_model_is_general_vlm(multi_models)
     compare_cleanup = st.checkbox(
         "Clean OCR during compare",
@@ -681,9 +702,7 @@ def _render_batch_launch(
             import_run_id = str(chosen) if chosen else None
             if import_run_id:
                 try:
-                    selected = select_from_import_run(
-                        corpus, import_run_id, candidates
-                    )
+                    selected = select_from_import_run(corpus, import_run_id, candidates)
                     st.caption(
                         f"{len(selected)} committed notebook(s) · "
                         f"{sum(c.pages_pending for c in selected)} pending page(s)."
@@ -839,14 +858,10 @@ def _render_ocr_settings_form(
         format_func=_model_label,
         key=f"{key_prefix}_model",
     )
-    render_model_information(
-        discovery.models,
-        selected=model,
-        role="vision",
-        key=f"{key_prefix}_vision_model_info",
-    )
     text_model_options = suitable_text_model_names(all_discovery.models)
-    if settings.text_model_name and is_unsuitable_text_model_name(settings.text_model_name):
+    if settings.text_model_name and is_unsuitable_text_model_name(
+        settings.text_model_name
+    ):
         st.warning(
             f"Saved text model `{settings.text_model_name}` is "
             "vision/embedding — choose a text model below."
@@ -866,9 +881,8 @@ def _render_ocr_settings_form(
     )
     render_model_information(
         all_discovery.models,
-        selected=text_model,
-        role="text",
-        key=f"{key_prefix}_text_model_info",
+        role="all",
+        key=f"{key_prefix}_model_info",
     )
 
     cleanup_enabled = st.checkbox(
@@ -957,13 +971,6 @@ def _render_ocr_settings_form(
             ),
             key=f"{key_prefix}_cleanup_model",
         )
-        if cleanup_enabled and cleanup_model:
-            render_model_information(
-                all_discovery.models,
-                selected=cleanup_model,
-                role="text",
-                key=f"{key_prefix}_cleanup_model_info",
-            )
         prefer_labels = {
             "prefer_is_promote": "Prefer = promote",
             "prefer_only": "Prefer only (no activate)",
@@ -976,9 +983,11 @@ def _render_ocr_settings_form(
             index=(
                 list(prefer_labels.keys()).index(settings.prefer_mode)
                 if settings.prefer_mode in prefer_labels
-                else list(prefer_labels.keys()).index(DEFAULT_PREFER_MODE)
-                if DEFAULT_PREFER_MODE in prefer_labels
-                else 0
+                else (
+                    list(prefer_labels.keys()).index(DEFAULT_PREFER_MODE)
+                    if DEFAULT_PREFER_MODE in prefer_labels
+                    else 0
+                )
             ),
             key=f"{key_prefix}_prefer",
         )

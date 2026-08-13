@@ -32,7 +32,12 @@ from transcribe.corpus.plan import (
     validate_import_plan,
 )
 from transcribe.domain.fingerprint import sha256_bytes
-from transcribe.domain.models import PageIndex, Project, RenderProvenance, SourceDocument
+from transcribe.domain.models import (
+    PageIndex,
+    Project,
+    RenderProvenance,
+    SourceDocument,
+)
 from transcribe.domain.validation import validate_project
 from transcribe.errors import CorpusError, IngestError, ValidationError
 from transcribe.ingest import (
@@ -49,12 +54,18 @@ from transcribe.ingest import (
     sanitize_filename,
 )
 from transcribe.paths import ProjectPaths
-from transcribe.persistence.atomic import read_json, write_bytes_atomic, write_json_atomic
+from transcribe.persistence.atomic import (
+    read_json,
+    write_bytes_atomic,
+    write_json_atomic,
+)
 from transcribe.persistence.locks import mutation_lock
 from transcribe.persistence.schema import require_format
 from transcribe.ports import Clock, IdGenerator, to_iso
 
 CrashHook = Callable[[str], None]
+# done, total, message (filename / status line for UI)
+ProgressHook = Callable[[int, int, str], None]
 
 
 def _project_helpers():
@@ -111,6 +122,7 @@ class ImportOrchestrator:
         *,
         cancel: bool = False,
         crash_hook: CrashHook | None = None,
+        on_progress: ProgressHook | None = None,
     ) -> ImportRun:
         run = self.runs.load(import_run_id)
         if run.status in TERMINAL_STATUSES:
@@ -122,17 +134,28 @@ class ImportOrchestrator:
         if plan.fingerprint() != run.plan_fingerprint:
             raise CorpusError(f"import run {import_run_id} plan fingerprint mismatch")
 
+        total = len(plan.items)
+
+        def _emit(done: int, message: str = "") -> None:
+            if on_progress is not None:
+                on_progress(done, total, message)
+
         run.status = "running"
         run.updated_at = to_iso(self.clock.now())
         self.runs.save(run)
+        _emit(0, "Starting…")
 
         if cancel:
             run = self._cancel_pending(run)
         else:
-            for item in plan.items:
+            for index, item in enumerate(plan.items):
+                label = item.original_filename or item.item_id
                 run = self.runs.load(import_run_id)
-                if self._outcome_state(run, item.item_id) in {"committed", "skipped"}:
+                prior = self._outcome_state(run, item.item_id)
+                if prior in {"committed", "skipped"}:
+                    _emit(index + 1, f"{prior}: {label}")
                     continue
+                _emit(index, f"Importing {label}…")
                 try:
                     run = self._commit_item(run, item, crash_hook=crash_hook)
                 except CrashHookTriggered:
@@ -148,9 +171,12 @@ class ImportOrchestrator:
                             error_message=str(exc),
                         ),
                     )
+                state = self._outcome_state(run, item.item_id) or "pending"
+                _emit(index + 1, f"{state}: {label}")
 
         run = self._finalize_run(run, cancel=cancel)
         self._hook(crash_hook, "final_run_state")
+        _emit(total, f"Finished → {run.status}")
         return run
 
     def _commit_item(
@@ -193,7 +219,9 @@ class ImportOrchestrator:
 
         open_project_paths, _ = _project_helpers()
         project_paths = open_project_paths(root)
-        self._commit_source(project_paths, item, run.import_run_id, crash_hook=crash_hook)
+        self._commit_source(
+            project_paths, item, run.import_run_id, crash_hook=crash_hook
+        )
         return self._set_outcome(
             run,
             ImportRunItemOutcome(
@@ -235,7 +263,9 @@ class ImportOrchestrator:
                 validate_project(project)
                 write_json_atomic(project_paths.manifest, project.as_dict())
                 self._hook(crash_hook, "notebook_creation")
-            self._register_notebook_unlocked(item.notebook_id, root, project_id=item.notebook_id)
+            self._register_notebook_unlocked(
+                item.notebook_id, root, project_id=item.notebook_id
+            )
             self._hook(crash_hook, "corpus_registration")
         return root
 
@@ -250,7 +280,9 @@ class ImportOrchestrator:
         self._ensure_no_live_journal(project_paths)
         data, safe_name, source_path = self._source_bytes(project_paths, item)
         if len(data) > MAX_SOURCE_BYTES:
-            raise IngestError(f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes")
+            raise IngestError(
+                f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes"
+            )
         source_sha = sha256_bytes(data)
         if source_sha != item.source_sha256:
             raise IngestError(f"source SHA mismatch for {item.item_id}")
@@ -262,7 +294,9 @@ class ImportOrchestrator:
         dpi = self._render_dpi(item)
         _ensure_disk_budget(project_paths.root, additional=len(data))
 
-        staging = project_paths.staging_attempt_dir(f"bulk-{import_run_id}-{item.item_id}")
+        staging = project_paths.staging_attempt_dir(
+            f"bulk-{import_run_id}-{item.item_id}"
+        )
         staging.mkdir(parents=True, exist_ok=True)
         final_source = project_paths.sources_dir / f"{item.source_id}-{safe_name}"
         source_rel = project_paths.relativize(final_source)
@@ -315,7 +349,9 @@ class ImportOrchestrator:
                     )
                     if final_png.exists():
                         if sha256_bytes(final_png.read_bytes()) != png_sha:
-                            raise IngestError(f"managed render collision for {render_id}")
+                            raise IngestError(
+                                f"managed render collision for {render_id}"
+                            )
                     else:
                         staged_png = staging / f"{page_index:04d}-{render_id}.png"
                         write_bytes_atomic(staged_png, png)
@@ -403,7 +439,11 @@ class ImportOrchestrator:
         if final_source.exists():
             return final_source.read_bytes(), safe_name, None
         provenance = item.provenance or {}
-        raw = provenance.get("source_path") or provenance.get("original_path") or provenance.get("path")
+        raw = (
+            provenance.get("source_path")
+            or provenance.get("original_path")
+            or provenance.get("path")
+        )
         if not raw:
             raise IngestError(f"{item.item_id} provenance.source_path is required")
         source_path = Path(str(raw)).expanduser()
@@ -424,13 +464,17 @@ class ImportOrchestrator:
             visual_declutter_enabled=self.visual_declutter_enabled
         )
         if paths.ingest_journal.exists():
-            raise CorpusError(f"live ingest journal already exists: {paths.ingest_journal}")
+            raise CorpusError(
+                f"live ingest journal already exists: {paths.ingest_journal}"
+            )
 
     def _register_notebook_unlocked(
         self, notebook_id: str, root: Path, *, project_id: str
     ) -> None:
         if notebook_id != project_id:
-            raise ValidationError(f"notebook_id {notebook_id!r} != project_id {project_id!r}")
+            raise ValidationError(
+                f"notebook_id {notebook_id!r} != project_id {project_id!r}"
+            )
         rel = root.resolve().relative_to(self.paths.projects_dir.resolve()).as_posix()
         now = to_iso(self.clock.now())
         if self.paths.index_path.exists():

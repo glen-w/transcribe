@@ -69,6 +69,29 @@ def _policy_id(policy: str) -> str:
     )
 
 
+def _commit_run_with_progress(
+    orchestrator: ImportOrchestrator,
+    import_run_id: str,
+    runtime: RuntimePaths,
+) -> ImportRun:
+    """Commit an ImportRun while updating a Streamlit progress bar."""
+    bar = st.progress(0.0, text="Starting import…")
+    status = st.empty()
+
+    def on_progress(done: int, total: int, message: str) -> None:
+        frac = min(1.0, done / max(1, total))
+        label = f"Importing {done}/{total}"
+        if message:
+            label = f"{label} · {message}"
+        bar.progress(frac, text=label)
+        if message:
+            status.caption(message)
+
+    completed = orchestrator.commit_run(import_run_id, on_progress=on_progress)
+    bump_archive_generation(runtime)
+    return completed
+
+
 def _render_single_folder(
     corpus: CorpusPaths,
     orchestrator: ImportOrchestrator,
@@ -122,13 +145,16 @@ def _render_single_folder(
                     )
                 if not dry:
                     run = orchestrator.create_run_from_plan(plan)
-                    completed = orchestrator.commit_run(run.import_run_id)
-                    bump_archive_generation(runtime)
+                    completed = _commit_run_with_progress(
+                        orchestrator, run.import_run_id, runtime
+                    )
                     st.success(
                         f"Import run `{completed.import_run_id}` → **{completed.status}**"
                     )
                     st.session_state["import_inbox_flash_run"] = completed.import_run_id
-                    st.session_state["import_inbox_flash_transcribe"] = completed.import_run_id
+                    st.session_state["import_inbox_flash_transcribe"] = (
+                        completed.import_run_id
+                    )
                     st.rerun()
             except (TranscribeError, ValidationError, OSError) as exc:
                 st.error(str(exc))
@@ -198,9 +224,7 @@ def _render_parent_folders(
             f"empty skipped `{len(scan.empty_skipped)}`"
         )
         if scan.new_folders:
-            st.caption(
-                "New: " + ", ".join(f"`{p.name}`" for p in scan.new_folders)
-            )
+            st.caption("New: " + ", ".join(f"`{p.name}`" for p in scan.new_folders))
         if scan.already_imported:
             st.markdown("**Already imported**")
             for conflict in scan.already_imported:
@@ -210,8 +234,7 @@ def _render_parent_folders(
                 )
         if scan.empty_skipped:
             st.caption(
-                "Empty skipped: "
-                + ", ".join(f"`{p.name}`" for p in scan.empty_skipped)
+                "Empty skipped: " + ", ".join(f"`{p.name}`" for p in scan.empty_skipped)
             )
 
     confirm_text = ""
@@ -227,22 +250,19 @@ def _render_parent_folders(
             "External originals outside that directory are not touched."
         )
         confirm_text = st.text_input(
-            f'Type {OVERWRITE_CONFIRM_PHRASE} to enable overwrite',
+            f"Type {OVERWRITE_CONFIRM_PHRASE} to enable overwrite",
             key="import_inbox_overwrite_confirm",
         )
         overwrite_ready = confirm_text == OVERWRITE_CONFIRM_PHRASE
         if not overwrite_ready and not dry:
             st.caption("Run is disabled until the confirmation phrase matches exactly.")
 
-    run_disabled = (
-        parent is None
-        or (
-            on_existing == ON_EXISTING_OVERWRITE
-            and scan is not None
-            and bool(scan.already_imported)
-            and not dry
-            and not overwrite_ready
-        )
+    run_disabled = parent is None or (
+        on_existing == ON_EXISTING_OVERWRITE
+        and scan is not None
+        and bool(scan.already_imported)
+        and not dry
+        and not overwrite_ready
     )
     if st.button(
         "Run folders import",
@@ -287,8 +307,9 @@ def _render_parent_folders(
                     f"Wiped {len(plan_scan.already_imported)} existing managed notebook(s)."
                 )
             run = orchestrator.create_run_from_plan(plan)
-            completed = orchestrator.commit_run(run.import_run_id)
-            bump_archive_generation(runtime)
+            completed = _commit_run_with_progress(
+                orchestrator, run.import_run_id, runtime
+            )
             st.success(
                 f"Import run `{completed.import_run_id}` → **{completed.status}**"
             )
@@ -322,9 +343,7 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
         horizontal=True,
     )
     if mode == "folders":
-        _render_parent_folders(
-            corpus, orchestrator, runtime, clock=clock, ids=ids
-        )
+        _render_parent_folders(corpus, orchestrator, runtime, clock=clock, ids=ids)
     else:
         _render_single_folder(corpus, orchestrator, runtime, ids=ids)
 
@@ -384,8 +403,9 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
             if run.status not in TERMINAL_STATUSES or pending:
                 if st.button("Resume", key=f"resume_{run.import_run_id}"):
                     try:
-                        completed = orchestrator.commit_run(run.import_run_id)
-                        bump_archive_generation(runtime)
+                        completed = _commit_run_with_progress(
+                            orchestrator, run.import_run_id, runtime
+                        )
                         st.success(f"Resumed → **{completed.status}**")
                         st.rerun()
                     except (TranscribeError, ValidationError, OSError) as exc:

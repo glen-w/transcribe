@@ -11,13 +11,18 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from transcribe import __version__
-from transcribe.domain.fingerprint import compute_input_fingerprint, sha256_bytes, sha256_text
+from transcribe.domain.fingerprint import (
+    compute_input_fingerprint,
+    sha256_bytes,
+    sha256_text,
+)
 from transcribe.domain.models import (
     AttemptError,
     AttemptProvenance,
     DEFAULT_VISION_NUM_PREDICT,
     OCRAttempt,
     Project,
+    page_label,
 )
 from transcribe.errors import JobConflictError, ProviderError
 from transcribe.ingest import IngestService
@@ -62,15 +67,17 @@ class JobPlan:
     generation_options: dict[str, Any]
     max_workers: int
     config_fingerprint: str
-    cleanup: CleanupPlanConfig = field(default_factory=lambda: CleanupPlanConfig(
-        enabled=False,
-        mode="strip_leak",
-        model_name="",
-        model_digest="",
-        prompt_id="",
-        prompt_version="",
-        prompt_template_sha256="",
-    ))
+    cleanup: CleanupPlanConfig = field(
+        default_factory=lambda: CleanupPlanConfig(
+            enabled=False,
+            mode="strip_leak",
+            model_name="",
+            model_digest="",
+            prompt_id="",
+            prompt_version="",
+            prompt_template_sha256="",
+        )
+    )
     activate: bool = True
     pass_id: str | None = None
     skip_match_any_succeeded: bool = False
@@ -86,6 +93,7 @@ class JobProgress:
     failed: int = 0
     skipped: int = 0
     current_page_ids: list[str] = field(default_factory=list)
+    current_labels: list[str] = field(default_factory=list)
     message: str = ""
     cancel_requested: bool = False
     circuit_open: bool = False
@@ -104,8 +112,9 @@ class JobState:
 
 def _default_progress_log(progress: JobProgress) -> None:
     """Print job progress to the process terminal (CLI and Streamlit server)."""
-    current = ",".join(progress.current_page_ids[:3])
-    if len(progress.current_page_ids) > 3:
+    names = progress.current_labels or progress.current_page_ids
+    current = ",".join(names[:3])
+    if len(names) > 3:
         current += ",…"
     current_bit = f" current={current}" if current else ""
     print(
@@ -120,7 +129,11 @@ def _default_progress_log(progress: JobProgress) -> None:
 
 
 def _snapshot_progress(progress: JobProgress) -> JobProgress:
-    return replace(progress, current_page_ids=list(progress.current_page_ids))
+    return replace(
+        progress,
+        current_page_ids=list(progress.current_page_ids),
+        current_labels=list(progress.current_labels),
+    )
 
 
 class JobCoordinator:
@@ -178,8 +191,14 @@ class JobCoordinator:
     ) -> str:
         self._validate_cleanup_settings_or_raise()
         with self._lock:
-            if self._job is not None and self._job.thread and self._job.thread.is_alive():
-                raise JobConflictError("a transcription job is already running in this process")
+            if (
+                self._job is not None
+                and self._job.thread
+                and self._job.thread.is_alive()
+            ):
+                raise JobConflictError(
+                    "a transcription job is already running in this process"
+                )
             if job_lock_held(self.paths.job_lock) and not self._job_file_lock.held:
                 raise JobConflictError(
                     "another process holds the OCR job lock for this project"
@@ -205,7 +224,9 @@ class JobCoordinator:
                 finally:
                     self._job_file_lock.release()
 
-            thread = threading.Thread(target=runner, name=f"transcribe-job-{job_id}", daemon=True)
+            thread = threading.Thread(
+                target=runner, name=f"transcribe-job-{job_id}", daemon=True
+            )
             state.thread = thread
             thread.start()
             return job_id
@@ -267,7 +288,10 @@ class JobCoordinator:
 
         try:
             project = self.projects.load(reconcile=False)
-            from transcribe.config.facade import bind_operation_config, snapshot_for_operation
+            from transcribe.config.facade import (
+                bind_operation_config,
+                snapshot_for_operation,
+            )
 
             snap = snapshot_for_operation(
                 project_settings=project.settings,
@@ -481,7 +505,10 @@ class JobCoordinator:
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
     ) -> None:
-        from transcribe.config.facade import bind_operation_config, snapshot_for_operation
+        from transcribe.config.facade import (
+            bind_operation_config,
+            snapshot_for_operation,
+        )
 
         project = self.projects.load(reconcile=False)
         snap = snapshot_for_operation(
@@ -579,13 +606,21 @@ class JobCoordinator:
                         for _rest_id in work[index:]:
                             self._tally(state, "circuit_skipped")
                         break
+                    label = page_label(project, page_id)
+                    first = index == 0
                     self._update_progress(
                         state,
                         on_progress=on_progress,
                         current_page_ids=[page_id],
+                        current_labels=[label],
                         message=(
-                            f"Waiting on Ollama for page {page_id[:8]}… "
-                            "(first page can take several minutes if the model must load)"
+                            f"Waiting on Ollama for {label} "
+                            f"({index + 1}/{len(work)})…"
+                            + (
+                                " first page can take several minutes if the model must load"
+                                if first
+                                else ""
+                            )
                         ),
                     )
                     outcome = process_one(page_id)
@@ -605,7 +640,7 @@ class JobCoordinator:
                     self._update_progress(
                         state,
                         on_progress=on_progress,
-                        message=f"Page {page_id[:8]} {outcome} ({done}/{total}){detail}",
+                        message=f"{label}: {outcome} ({done}/{total}){detail}",
                     )
                     if circuit_open:
                         remaining = work[index + 1 :]
@@ -627,13 +662,20 @@ class JobCoordinator:
                         if state.cancel_event.is_set():
                             break
                         futures[pool.submit(process_one, page_id)] = page_id
+                    ids = list(futures.values())
+                    labels = [page_label(project, pid) for pid in ids]
+                    shown = ", ".join(labels[:3])
+                    if len(labels) > 3:
+                        shown += ",…"
                     self._update_progress(
                         state,
                         on_progress=on_progress,
-                        current_page_ids=list(futures.values()),
+                        current_page_ids=ids,
+                        current_labels=labels,
                         message=(
-                            f"Waiting on Ollama for {len(futures)} page(s)… "
-                            "(model load / first page can take several minutes)"
+                            f"Waiting on Ollama for {shown} "
+                            f"({len(futures)} pages)…"
+                            " model load / first page can take several minutes"
                         ),
                     )
                     for fut in as_completed(futures):
@@ -660,6 +702,7 @@ class JobCoordinator:
                     status="cancelled",
                     message="Stopped after current page",
                     current_page_ids=[],
+                    current_labels=[],
                 )
             elif state.circuit_event.is_set():
                 self._update_progress(
@@ -671,6 +714,7 @@ class JobCoordinator:
                         f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
                     ),
                     current_page_ids=[],
+                    current_labels=[],
                 )
             else:
                 self._update_progress(
@@ -679,6 +723,7 @@ class JobCoordinator:
                     status="completed",
                     message="Done",
                     current_page_ids=[],
+                    current_labels=[],
                 )
             self._best_effort_fill_page_dates()
             self._persist_job_record(state, terminal=True)
@@ -689,6 +734,7 @@ class JobCoordinator:
                 status="failed",
                 message=str(exc),
                 current_page_ids=[],
+                current_labels=[],
             )
             self._persist_job_record(state, terminal=True)
 
@@ -813,7 +859,9 @@ class JobCoordinator:
             )
             if running.provenance:
                 running.provenance.model_digest = result.model_digest
-                running.provenance.model_identity_verified = result.model_identity_verified
+                running.provenance.model_identity_verified = (
+                    result.model_identity_verified
+                )
 
             vision_text = result.text
             final_text, cleanup_record = run_ocr_cleanup(

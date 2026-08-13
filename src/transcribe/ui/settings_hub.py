@@ -104,7 +104,22 @@ def render_configuration_panel() -> None:
             try:
                 paths = open_project_paths(root)
                 svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
-                stats = svc.reapply_visual_declutter(enabled=bool(declutter))
+                bar = st.progress(0.0, text="Starting declutter…")
+                status = st.empty()
+
+                def on_progress(done: int, total: int, message: str) -> None:
+                    frac = min(1.0, done / max(1, total))
+                    bar.progress(
+                        frac,
+                        text=f"Decluttering {done}/{total}"
+                        + (f" · {message}" if message else ""),
+                    )
+                    if message:
+                        status.caption(message)
+
+                stats = svc.reapply_visual_declutter(
+                    enabled=bool(declutter), on_progress=on_progress
+                )
                 st.success(
                     f"Done on **{choice}**: cropped {stats.pages_cropped}, "
                     f"noop {stats.pages_noop}, unchanged {stats.pages_unchanged}, "

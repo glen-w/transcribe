@@ -7,7 +7,7 @@ import sys
 import threading
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 from transcribe.corpus.index import CorpusIndexStore
 from transcribe.corpus.import_run import ImportRunStore, committed_notebook_ids
@@ -20,7 +20,12 @@ from transcribe.corpus.ocr_run import (
 from transcribe.corpus.paths import CorpusPaths
 from transcribe.domain.fingerprint import canonical_json_bytes, sha256_bytes
 from transcribe.domain.models import OCRSettings
-from transcribe.errors import CorpusError, JobConflictError, TranscribeError, ValidationError
+from transcribe.errors import (
+    CorpusError,
+    JobConflictError,
+    TranscribeError,
+    ValidationError,
+)
 from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator, to_iso
 from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
@@ -54,6 +59,7 @@ class BatchOcrProgress:
     skipped: int = 0
     current_item: str = ""
     current_page_ids: list[str] = field(default_factory=list)
+    current_page_label: str = ""
     pages_completed: int = 0
     pages_total: int = 0
     pages_failed: int = 0
@@ -77,11 +83,12 @@ def _snapshot(progress: BatchOcrProgress) -> BatchOcrProgress:
 
 def _default_progress_log(progress: BatchOcrProgress) -> None:
     item = f" item={progress.current_item}" if progress.current_item else ""
+    page = f" page={progress.current_page_label}" if progress.current_page_label else ""
     print(
         f"[transcribe:batch-ocr] [{progress.status}] "
         f"notebooks={progress.completed}/{progress.total} "
         f"failed={progress.failed} skipped={progress.skipped}"
-        f"{item}"
+        f"{item}{page}"
         f"{f' — {progress.message}' if progress.message else ''}",
         file=sys.stderr,
         flush=True,
@@ -130,11 +137,15 @@ def resolve_notebook_root(corpus: CorpusPaths, notebook_id: str) -> Path:
                 return corpus.resolve_managed(entry.managed_relpath)
     for root in discover_project_roots(corpus.projects_dir):
         try:
-            payload_id = ProjectService(
-                open_project_paths(root),
-                clock=SystemClock(),
-                ids=UuidGenerator(),
-            ).load(reconcile=False).id
+            payload_id = (
+                ProjectService(
+                    open_project_paths(root),
+                    clock=SystemClock(),
+                    ids=UuidGenerator(),
+                )
+                .load(reconcile=False)
+                .id
+            )
         except (TranscribeError, OSError, ValueError, KeyError):
             continue
         if payload_id == nid:
@@ -311,7 +322,11 @@ class BatchOcrCoordinator:
 
     def start(self, ocr_run_id: str) -> str:
         with self._lock:
-            if self._state is not None and self._state.thread and self._state.thread.is_alive():
+            if (
+                self._state is not None
+                and self._state.thread
+                and self._state.thread.is_alive()
+            ):
                 raise JobConflictError("a batch transcription job is already running")
             run = self.store.load(ocr_run_id)
             progress = BatchOcrProgress(
@@ -342,7 +357,11 @@ class BatchOcrCoordinator:
 
     def run_blocking(self, ocr_run_id: str) -> BatchOcrProgress:
         with self._lock:
-            if self._state is not None and self._state.thread and self._state.thread.is_alive():
+            if (
+                self._state is not None
+                and self._state.thread
+                and self._state.thread.is_alive()
+            ):
                 raise JobConflictError("a batch transcription job is already running")
             run = self.store.load(ocr_run_id)
             progress = BatchOcrProgress(
@@ -355,7 +374,9 @@ class BatchOcrCoordinator:
         self._run_batch(state)
         return self.get_progress()
 
-    def resume(self, ocr_run_id: str, *, blocking: bool = True) -> BatchOcrProgress | str:
+    def resume(
+        self, ocr_run_id: str, *, blocking: bool = True
+    ) -> BatchOcrProgress | str:
         run = self.store.load(ocr_run_id)
         for item in run.items:
             if item.state == "running":
@@ -426,14 +447,24 @@ class BatchOcrCoordinator:
                 def on_progress(job: JobProgress, *, _item=item, _label=label) -> None:
                     if state.cancel_event.is_set():
                         coord.request_cancel()
+                    page_name = ""
+                    if job.current_labels:
+                        page_name = ", ".join(job.current_labels)
+                    elif job.current_page_ids:
+                        page_name = ", ".join(p[:8] for p in job.current_page_ids)
                     with self._lock:
                         state.progress.current_item = _label
                         state.progress.current_page_ids = list(job.current_page_ids)
+                        state.progress.current_page_label = page_name
                         state.progress.pages_completed = job.completed
                         state.progress.pages_failed = job.failed
                         state.progress.pages_skipped = job.skipped
                         state.progress.pages_total = job.total
-                        state.progress.message = job.message or f"Transcribing {_label}"
+                        state.progress.message = job.message or (
+                            f"Transcribing {page_name} in {_label}"
+                            if page_name
+                            else f"Transcribing {_label}"
+                        )
                         state.progress.cancel_requested = state.cancel_event.is_set()
 
                 job = coord.run_blocking(force=run.force, on_progress=on_progress)
@@ -457,7 +488,9 @@ class BatchOcrCoordinator:
                 else:
                     item.state = "completed"
                     if job.failed:
-                        item.error_message = job.message or f"{job.failed} page(s) failed"
+                        item.error_message = (
+                            job.message or f"{job.failed} page(s) failed"
+                        )
             except (JobConflictError, TranscribeError, OSError, ValueError) as exc:
                 item.state = "failed"
                 item.error_message = str(exc)
@@ -486,8 +519,11 @@ class BatchOcrCoordinator:
             state.progress.status = run.status
             state.progress.current_item = ""
             state.progress.current_page_ids = []
+            state.progress.current_page_label = ""
             state.progress.message = f"Batch {run.status}"
-            state.progress.completed = sum(1 for i in run.items if i.state == "completed")
+            state.progress.completed = sum(
+                1 for i in run.items if i.state == "completed"
+            )
             state.progress.failed = sum(1 for i in run.items if i.state == "failed")
             state.progress.skipped = sum(1 for i in run.items if i.state == "skipped")
             snap = _snapshot(state.progress)

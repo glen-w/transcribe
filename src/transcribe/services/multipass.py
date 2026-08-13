@@ -13,6 +13,7 @@ from transcribe.domain.models import (
     DEFAULT_PREFER_MODE,
     OCRAttempt,
     PREFER_MODES,
+    page_label,
 )
 from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.persistence.atomic import write_json_atomic
@@ -51,6 +52,7 @@ class MultiPassProgress:
     message: str = ""
     pages_ranked: int = 0
     pages_composite: int = 0
+    pages_total: int = 0
     cancel_requested: bool = False
 
 
@@ -207,7 +209,9 @@ class MultiPassCoordinator:
                 models=models,
                 page_ids=page_ids,
                 force=bool(payload.get("force")),
-                auto_activate_composite=bool(payload.get("auto_activate_composite", True)),
+                auto_activate_composite=bool(
+                    payload.get("auto_activate_composite", True)
+                ),
                 on_progress=on_progress,
                 pass_id=pass_id,
                 start_model_index=start_idx if phase == "vision" else len(models),
@@ -306,6 +310,7 @@ class MultiPassCoordinator:
             model_total=len(models),
             phase="vision",
             model_index=start_model_index,
+            pages_total=len(targets),
             message=(
                 f"Resuming multipass from model {start_model_index + 1}…"
                 if start_model_index
@@ -326,7 +331,10 @@ class MultiPassCoordinator:
             for idx, model_name in enumerate(models):
                 if idx < start_model_index:
                     continue
-                if self._cancel.is_set() or self.jobs.get_progress().status == "cancelled":
+                if (
+                    self._cancel.is_set()
+                    or self.jobs.get_progress().status == "cancelled"
+                ):
                     cancelled = True
                     break
                 self._emit(
@@ -379,7 +387,9 @@ class MultiPassCoordinator:
                         for a in existing.attempts
                     )
                 )
-                if has_comparison and (has_composite or not plan.auto_activate_composite):
+                if has_comparison and (
+                    has_composite or not plan.auto_activate_composite
+                ):
                     if has_comparison:
                         progress.pages_ranked += 1
                     if has_composite:
@@ -389,7 +399,7 @@ class MultiPassCoordinator:
                     progress,
                     on_progress,
                     phase="rank_composite",
-                    message=f"Rank/composite page {page_id[:8]}…",
+                    message=f"Rank/composite {page_label(project, page_id)}…",
                 )
                 self._rank_and_composite_page(
                     page_id=page_id,
@@ -399,7 +409,9 @@ class MultiPassCoordinator:
                 )
                 self._persist(plan, progress, terminal=False)
 
-            terminal_status = "cancelled" if cancelled or self._cancel.is_set() else "completed"
+            terminal_status = (
+                "cancelled" if cancelled or self._cancel.is_set() else "completed"
+            )
             terminal_message = (
                 f"Stopped — ranked {progress.pages_ranked}, "
                 f"composite {progress.pages_composite}"

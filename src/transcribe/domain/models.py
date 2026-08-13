@@ -372,6 +372,7 @@ class RenderProvenance:
             declutter_note=data.get("declutter_note"),
         )
 
+
 @dataclass
 class SourceDocument:
     source_id: str
@@ -484,6 +485,22 @@ class PageIndex:
         self.date = d
         self.date_approved = a
         self.date_source = s
+
+
+def page_label(project: "Project", page_id: str) -> str:
+    """Human-readable page name for progress (filename, plus PDF page index)."""
+    page = next((p for p in project.pages if p.page_id == page_id), None)
+    if page is None:
+        return f"{page_id[:8]}…"
+    source = next((s for s in project.sources if s.source_id == page.source_id), None)
+    name = ""
+    if source is not None and source.original_filename:
+        name = source.original_filename.replace("\\", "/").rsplit("/", 1)[-1]
+    if not name:
+        name = f"{page_id[:8]}…"
+    if source is not None and int(source.page_count or 1) > 1:
+        return f"{name} · p.{page.page_index + 1}"
+    return name
 
 
 @dataclass
@@ -632,9 +649,7 @@ class ComparisonEntry:
     def from_dict(cls, data: dict[str, Any]) -> ComparisonEntry:
         return cls(
             attempt_id=str(data["attempt_id"]),
-            score=(
-                float(data["score"]) if data.get("score") is not None else None
-            ),
+            score=(float(data["score"]) if data.get("score") is not None else None),
             rationale=data.get("rationale"),
         )
 
@@ -677,7 +692,9 @@ class ComparisonRecord:
             pass_id=str(data.get("pass_id") or ""),
             ranked_attempt_ids=[str(x) for x in (data.get("ranked_attempt_ids") or [])],
             created_at=str(data.get("created_at") or ""),
-            entries=[ComparisonEntry.from_dict(e) for e in entries_raw if isinstance(e, dict)],
+            entries=[
+                ComparisonEntry.from_dict(e) for e in entries_raw if isinstance(e, dict)
+            ],
             ranker_model_name=data.get("ranker_model_name"),
             ranker_model_digest=data.get("ranker_model_digest"),
             ranker_prompt_id=data.get("ranker_prompt_id"),
@@ -899,7 +916,10 @@ def prune_attempts(
         for attempt in ordered:
             if len(priority) >= max_retained:
                 break
-            if attempt.attempt_id in protected and attempt.attempt_id not in priority_ids:
+            if (
+                attempt.attempt_id in protected
+                and attempt.attempt_id not in priority_ids
+            ):
                 priority.append(attempt)
                 priority_ids.add(attempt.attempt_id)
         # Oldest first, newest last (matches prior retention order).

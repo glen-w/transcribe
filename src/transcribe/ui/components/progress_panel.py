@@ -28,6 +28,12 @@ class ProgressSnapshot(TypedDict, total=False):
     latest_event: str
     recent_logs: list[str]
     error: str | None
+    detail_completed: int
+    detail_failed: int
+    detail_skipped: int
+    detail_total: int
+    detail_unit: str
+    detail_current: str
 
 
 def make_initial_snapshot(total: int) -> ProgressSnapshot:
@@ -71,6 +77,10 @@ def render_progress_panel(
         "finalizing": "Finalizing…",
         "completed": "Completed",
         "failed": "Failed",
+        "cancelled": "Cancelled",
+        "partial": "Completed with gaps",
+        "rank_composite": "Ranking and combining…",
+        "vision": "Running vision OCR…",
     }
     phase_label = phase_labels.get(str(phase), str(phase).replace("_", " ").title())
 
@@ -85,6 +95,10 @@ def render_progress_panel(
 
     if current_item:
         st.markdown(f"Current: `{current_item}`")
+
+    detail_current = str(snapshot.get("detail_current") or "")
+    if detail_current:
+        st.markdown(f"Current page: `{detail_current}`")
 
     if current_module:
         prefix = (
@@ -103,6 +117,18 @@ def render_progress_panel(
         st.progress(min(pct / 100.0, 1.0), text=bar_label)
     else:
         st.progress(0.0)
+
+    detail_total = int(snapshot.get("detail_total", 0) or 0)
+    if detail_total > 0:
+        detail_completed = int(snapshot.get("detail_completed", 0) or 0)
+        detail_failed = int(snapshot.get("detail_failed", 0) or 0)
+        detail_skipped = int(snapshot.get("detail_skipped", 0) or 0)
+        detail_unit = str(snapshot.get("detail_unit") or "pages")
+        detail_done = detail_completed + detail_failed
+        detail_label = f"{detail_done} / {detail_total} {detail_unit}"
+        if detail_skipped:
+            detail_label += f"  ·  {detail_skipped} skipped"
+        st.progress(min(detail_done / detail_total, 1.0), text=detail_label)
 
     if latest_event:
         st.caption(latest_event)
@@ -196,7 +222,9 @@ class StreamlitProgressCallback:
             return
         snap["status"] = "completed"
         snap["phase"] = "completed"
-        snap["pct"] = 100.0 if int(snap.get("total", 0) or 0) else float(snap.get("pct", 0) or 0)
+        snap["pct"] = (
+            100.0 if int(snap.get("total", 0) or 0) else float(snap.get("pct", 0) or 0)
+        )
         snap["latest_event"] = "Analysis completed"
         self._append_log("run_completed")
         self.refresh_panel()

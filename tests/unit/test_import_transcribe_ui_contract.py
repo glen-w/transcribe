@@ -6,7 +6,6 @@ from pathlib import Path
 
 from transcribe.persistence.schema import SUPPORTED
 
-
 APP = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
 SHELL = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
 IMPORT = Path("src/transcribe/ui/run_import.py").read_text(encoding="utf-8")
@@ -15,7 +14,10 @@ INBOX = Path("src/transcribe/ui/import_inbox.py").read_text(encoding="utf-8")
 
 
 def test_inbox_is_not_a_sidebar_mode() -> None:
-    assert '_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")' in SHELL
+    assert (
+        '_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")'
+        in SHELL
+    )
     assert '"Inbox": "Import"' in SHELL
     assert 'elif mode == "Inbox"' not in APP
     assert "render_run_import" in APP
@@ -23,12 +25,20 @@ def test_inbox_is_not_a_sidebar_mode() -> None:
 
 
 def test_import_and_transcribe_use_target_switcher() -> None:
-    assert 'st.segmented_control' in IMPORT
-    assert 'st.segmented_control' in TRANSCRIBE
+    assert "st.segmented_control" in IMPORT
+    assert "st.segmented_control" in TRANSCRIBE
     assert "This notebook" in IMPORT and "Batch" in IMPORT
     assert "This notebook" in TRANSCRIBE and "Batch" in TRANSCRIBE
     assert "Start batch transcription" in TRANSCRIBE
-    assert TRANSCRIBE.count('_render_ocr_settings_form(') == 2
+    assert 'unit_label="notebooks"' in TRANSCRIBE
+    assert "pages in this notebook" in TRANSCRIBE
+    assert "_job_progress_to_snapshot" in TRANSCRIBE
+    assert "_commit_run_with_progress" in INBOX
+    assert "st.progress" in IMPORT
+    assert "Writing export files" in Path("src/transcribe/ui/export_panel.py").read_text(
+        encoding="utf-8"
+    )
+    assert TRANSCRIBE.count("_render_ocr_settings_form(") == 2
     assert 'key_prefix="tx"' in TRANSCRIBE
     assert 'key_prefix="tx_batch"' not in TRANSCRIBE
     assert "queue_transcribe_imported" in INBOX

@@ -51,9 +51,7 @@ def render_run_import(
         return
 
     if project is None or projects is None or ingest is None:
-        st.info(
-            "Select a notebook above, or create one under Workflow → New notebook."
-        )
+        st.info("Select a notebook above, or create one under Workflow → New notebook.")
         return
 
     flash = st.session_state.pop("import_flash", None)
@@ -83,9 +81,7 @@ def render_run_import(
         for i, f in enumerate(uploaded):
             status.caption(f"Importing `{f.name}`…")
             try:
-                project = ingest.import_bytes(
-                    f.name, f.getvalue(), render_dpi=dpi
-                )
+                project = ingest.import_bytes(f.name, f.getvalue(), render_dpi=dpi)
                 bump_archive_generation(runtime)
                 ok += 1
             except TranscribeError as exc:
@@ -93,7 +89,7 @@ def render_run_import(
             done = i + 1
             bar.progress(
                 min(1.0, done / total),
-                text=f"Importing {done}/{total}",
+                text=f"Importing {done}/{total} · {f.name}",
             )
         if ok:
             st.session_state["import_flash"] = (

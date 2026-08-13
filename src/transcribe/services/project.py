@@ -6,6 +6,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from transcribe.domain.dates import (
     ApproximateDate,
@@ -26,6 +27,7 @@ from transcribe.domain.models import (
     PageIndex,
     PageResult,
     Project,
+    page_label,
     prune_attempts,
 )
 from transcribe.domain.validation import validate_page_result, validate_project
@@ -739,7 +741,10 @@ class ProjectService:
         return self.save_user_edit(page_id, None)
 
     def reapply_visual_declutter(
-        self, *, enabled: bool = True
+        self,
+        *,
+        enabled: bool = True,
+        on_progress: Callable[[int, int, str], None] | None = None,
     ) -> DeclutterReapplyStats:
         """Re-run visual declutter on every active render; replace cropped pages.
 
@@ -768,7 +773,13 @@ class ProjectService:
             old_files: list[Path] = []
             thumb_files: list[Path] = []
 
-            for page in current.pages:
+            for index, page in enumerate(current.pages):
+                if on_progress is not None:
+                    on_progress(
+                        index,
+                        stats.pages_total,
+                        f"Decluttering {page_label(current, page.page_id)}…",
+                    )
                 old = current.renders.get(page.active_render_id)
                 if old is None:
                     stats.pages_error += 1
@@ -852,6 +863,13 @@ class ProjectService:
                     path.unlink(missing_ok=True)
                 except OSError:
                     pass
+            if on_progress is not None:
+                on_progress(
+                    stats.pages_total,
+                    stats.pages_total,
+                    f"Finished → cropped {stats.pages_cropped}, "
+                    f"unchanged {stats.pages_unchanged}",
+                )
             return stats
 
     def _reconcile_interrupted_locked(self) -> None:
