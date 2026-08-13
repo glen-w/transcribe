@@ -95,6 +95,20 @@ def test_phase6_ocr_advanced_groups_power_controls():
     assert remote_idx < adv_idx
 
 
+def test_ocr_model_information_expander_at_pickers():
+    assert 'st.expander("Model information"' in APP
+    assert "render_model_information" in APP
+    assert "warn_if_first_compare_model_is_general_vlm" in APP
+    assert "Clean OCR during compare" in APP
+    assert "render_model_information" in RUN
+
+
+def test_compare_starts_in_background_not_spinner():
+    assert 'st.spinner("Running multipass' not in APP
+    assert "multi.start(" in APP
+    assert "coord.start" in APP
+
+
 def test_phase6_last_run_is_product_summary():
     assert "last_run_product_summary" in RUN
     assert "Advanced · per-module outcomes" in RUN

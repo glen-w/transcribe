@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+import threading
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from transcribe import __version__
@@ -13,11 +14,11 @@ from transcribe.domain.models import (
     OCRAttempt,
     PREFER_MODES,
 )
-from transcribe.errors import JobConflictError, ProviderError, TranscribeError
+from transcribe.errors import JobConflictError, TranscribeError
 from transcribe.persistence.atomic import write_json_atomic
 from transcribe.persistence.locks import JobLock
 from transcribe.ports import Clock, IdGenerator, to_iso
-from transcribe.services.job import JobCoordinator, JobPlan, JobProgress
+from transcribe.services.job import JobCoordinator
 from transcribe.services.ocr_compare import run_composite, run_rank
 from transcribe.services.ocr_preference_stats import append_preference_event
 from transcribe.services.project import ProjectService
@@ -37,6 +38,7 @@ class MultiPassPlan:
     base_url: str
     model_digests: dict[str, str | None] = field(default_factory=dict)
     model_verified: dict[str, bool] = field(default_factory=dict)
+    cleanup_enabled: bool = False
 
 
 @dataclass
@@ -49,6 +51,7 @@ class MultiPassProgress:
     message: str = ""
     pages_ranked: int = 0
     pages_composite: int = 0
+    cancel_requested: bool = False
 
 
 class MultiPassCoordinator:
@@ -67,6 +70,82 @@ class MultiPassCoordinator:
         self.ids = ids
         self.text_client = text_client
         self._job_lock = JobLock(jobs.paths.job_lock)
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._progress: MultiPassProgress | None = None
+        self._cancel = threading.Event()
+
+    def get_progress(self) -> MultiPassProgress:
+        with self._lock:
+            if self._progress is None:
+                return MultiPassProgress(pass_id="", status="idle")
+            return replace(self._progress)
+
+    def is_running(self) -> bool:
+        return self.get_progress().status == "running"
+
+    def request_cancel(self) -> None:
+        self._cancel.set()
+        self.jobs.request_cancel()
+        with self._lock:
+            if self._progress is None:
+                return
+            self._progress.cancel_requested = True
+            self._progress.message = "Stopping after current page…"
+
+    def start(
+        self,
+        *,
+        model_names: list[str],
+        page_ids: list[str] | None = None,
+        force: bool = False,
+        auto_activate_composite: bool | None = None,
+        cleanup_enabled: bool = False,
+    ) -> str:
+        """Background multipass (UI). Holds the project OCR job lock until done."""
+        models = [m.strip() for m in model_names if m and str(m).strip()]
+        if len(models) < 2:
+            raise TranscribeError("multipass requires at least two vision models")
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise JobConflictError(
+                    "a transcription job is already running in this process"
+                )
+            if self.jobs.is_running():
+                raise JobConflictError(
+                    "a transcription job is already running in this process"
+                )
+            if not self._job_lock.try_acquire():
+                raise JobConflictError(
+                    "another process holds the OCR job lock for this project"
+                )
+            self._cancel.clear()
+            pass_id = self.ids.new_id()
+            progress = MultiPassProgress(
+                pass_id=pass_id, status="running", message="Starting…"
+            )
+            self._progress = progress
+
+            def runner() -> None:
+                try:
+                    self._run(
+                        models=models,
+                        page_ids=page_ids,
+                        force=force,
+                        auto_activate_composite=auto_activate_composite,
+                        on_progress=None,
+                        pass_id=pass_id,
+                        cleanup_enabled=cleanup_enabled,
+                    )
+                finally:
+                    self._job_lock.release()
+
+            thread = threading.Thread(
+                target=runner, name=f"transcribe-multipass-{pass_id}", daemon=True
+            )
+            self._thread = thread
+        thread.start()
+        return pass_id
 
     def run_blocking(
         self,
@@ -76,10 +155,12 @@ class MultiPassCoordinator:
         force: bool = False,
         auto_activate_composite: bool | None = None,
         on_progress: Callable[[MultiPassProgress], None] | None = None,
+        cleanup_enabled: bool = False,
     ) -> MultiPassProgress:
         models = [m.strip() for m in model_names if m and str(m).strip()]
         if len(models) < 2:
             raise TranscribeError("multipass requires at least two vision models")
+        self._cancel.clear()
         if not self._job_lock.try_acquire():
             raise JobConflictError(
                 "another process holds the OCR job lock for this project"
@@ -91,6 +172,7 @@ class MultiPassCoordinator:
                 force=force,
                 auto_activate_composite=auto_activate_composite,
                 on_progress=on_progress,
+                cleanup_enabled=cleanup_enabled,
             )
         finally:
             self._job_lock.release()
@@ -114,6 +196,8 @@ class MultiPassCoordinator:
         page_ids = [str(p) for p in (payload.get("page_ids") or [])] or None
         start_idx = int(payload.get("model_index") or 0)  # 1-based completed count
         phase = str(payload.get("phase") or "vision")
+        cleanup_enabled = bool(payload.get("cleanup_enabled", False))
+        self._cancel.clear()
         if not self._job_lock.try_acquire():
             raise JobConflictError(
                 "another process holds the OCR job lock for this project"
@@ -129,6 +213,7 @@ class MultiPassCoordinator:
                 start_model_index=start_idx if phase == "vision" else len(models),
                 prefer_mode_override=str(payload.get("prefer_mode") or "") or None,
                 ranker_override=str(payload.get("ranker_model_name") or "") or None,
+                cleanup_enabled=cleanup_enabled,
             )
         finally:
             self._job_lock.release()
@@ -153,6 +238,8 @@ class MultiPassCoordinator:
     ) -> None:
         for key, value in fields.items():
             setattr(progress, key, value)
+        with self._lock:
+            self._progress = progress
         if on_progress:
             on_progress(progress)
         print(
@@ -173,6 +260,7 @@ class MultiPassCoordinator:
         start_model_index: int = 0,
         prefer_mode_override: str | None = None,
         ranker_override: str | None = None,
+        cleanup_enabled: bool = False,
     ) -> MultiPassProgress:
         project = self.projects.load(reconcile=False)
         targets = tuple(page_ids or [p.page_id for p in project.pages])
@@ -210,6 +298,7 @@ class MultiPassCoordinator:
             prefer_mode=prefer_mode,
             ranker_model_name=ranker,
             base_url=settings.base_url,
+            cleanup_enabled=bool(cleanup_enabled),
         )
         progress = MultiPassProgress(
             pass_id=pass_id,
@@ -233,9 +322,13 @@ class MultiPassCoordinator:
             prior_active[page_id] = result.active_attempt_id if result else None
 
         try:
+            cancelled = False
             for idx, model_name in enumerate(models):
                 if idx < start_model_index:
                     continue
+                if self._cancel.is_set() or self.jobs.get_progress().status == "cancelled":
+                    cancelled = True
+                    break
                 self._emit(
                     progress,
                     on_progress,
@@ -254,6 +347,7 @@ class MultiPassCoordinator:
                     pass_id=pass_id,
                     skip_match_any_succeeded=True,
                     attempt_kind="vision",
+                    cleanup_enabled=bool(plan.cleanup_enabled),
                 )
                 self.jobs.run_frozen_plan_blocking(
                     job_plan,
@@ -261,9 +355,16 @@ class MultiPassCoordinator:
                     on_progress=None,
                 )
                 self._persist(plan, progress, terminal=False)
+                inner = self.jobs.get_progress()
+                if self._cancel.is_set() or inner.status == "cancelled":
+                    cancelled = True
+                    break
 
             # Rank + composite per page (skip pages already compared for this pass)
             for page_id in targets:
+                if self._cancel.is_set():
+                    cancelled = True
+                    break
                 existing = self.projects.load_page_result(page_id)
                 has_comparison = bool(
                     existing
@@ -299,15 +400,22 @@ class MultiPassCoordinator:
                 )
                 self._persist(plan, progress, terminal=False)
 
+            terminal_status = "cancelled" if cancelled or self._cancel.is_set() else "completed"
+            terminal_message = (
+                f"Stopped — ranked {progress.pages_ranked}, "
+                f"composite {progress.pages_composite}"
+                if terminal_status == "cancelled"
+                else (
+                    f"Done — ranked {progress.pages_ranked}, "
+                    f"composite {progress.pages_composite}"
+                )
+            )
             self._emit(
                 progress,
                 on_progress,
-                status="completed",
+                status=terminal_status,
                 phase="done",
-                message=(
-                    f"Done — ranked {progress.pages_ranked}, "
-                    f"composite {progress.pages_composite}"
-                ),
+                message=terminal_message,
             )
             self._persist(plan, progress, terminal=True)
             return progress
@@ -476,6 +584,7 @@ class MultiPassCoordinator:
             "prefer_mode": plan.prefer_mode,
             "ranker_model_name": plan.ranker_model_name,
             "base_url": plan.base_url,
+            "cleanup_enabled": plan.cleanup_enabled,
             "status": progress.status,
             "phase": progress.phase,
             "model_index": progress.model_index,

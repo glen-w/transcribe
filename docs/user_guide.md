@@ -46,7 +46,7 @@ Run:
   --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
 ```
 
-In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** → Start transcription. Or **Compare models** (multi-select) → Start multipass compare. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
+In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** → Start transcription. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats. Or **Compare models** (multi-select) → Start multipass compare (runs in the background; vision cleanup off unless you opt in). Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Multipass skips when any succeeded vision attempt matches. Details: [contracts/page-result.md](contracts/page-result.md) · [contracts/ocr-multipass.md](contracts/ocr-multipass.md).
 
