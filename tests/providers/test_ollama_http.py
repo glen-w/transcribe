@@ -209,7 +209,55 @@ def test_transcribe_image_fills_default_num_predict_and_truncated():
     assert result.provider_metadata.get("eval_count") == 4096
 
 
-def test_http_timeout_is_not_retriable():
+def test_model_load_http_error_is_not_retriable():
+    invalidate_discovery_cache()
+    import urllib.error
+
+    body = (
+        b'{"error":"llama-server process has terminated: exit status 1: '
+        b"error loading model: unknown model architecture: 'mllama'\\n"
+        b"error loading model: unknown model architecture: 'mllama'\"}"
+    )
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        raise urllib.error.HTTPError(
+            req.full_url, 500, "Internal Server Error", hdrs=None, fp=BytesIO(body)
+        )
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="llama3.2-vision:11b",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "model_load"
+        assert exc.value.retriable is False
+        assert "architecture unsupported" in str(exc.value).lower()
+    assert calls["n"] == 1
+
+
+def test_is_fatal_model_load_error_markers():
+    from transcribe.providers.ollama import (
+        friendly_model_load_message,
+        is_fatal_model_load_error,
+    )
+
+    assert is_fatal_model_load_error("unknown model architecture: 'mllama'")
+    assert is_fatal_model_load_error("llama-server process has terminated")
+    assert not is_fatal_model_load_error("connection reset")
+    assert "architecture unsupported" in friendly_model_load_message(
+        "unknown model architecture: 'mllama'"
+    ).lower()
+
     invalidate_discovery_cache()
     calls = {"n": 0}
 

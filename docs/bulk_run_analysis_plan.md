@@ -4,7 +4,6 @@ Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity wit
 # Bulk run analysis plan
 
 **Status:** [x] shipped — GUI + durable workspace run for “same Analyse plan × N notebooks”, with the **same notebook selection modes** as bulk OCR.
-
 **Thesis:** Transcribe already has single-notebook Analyse (`AnalysisCoordinator` + frozen `AnalysisRunPlan`) and multi-notebook OCR (`OcrBatchRun` + `BatchOcrCoordinator`). Users who batch-import and batch-OCR still re-run Analyse one notebook at a time. This plan closes that gap **without** inventing corpus-level / cross-notebook analysis.
 
 ```text
@@ -307,7 +306,6 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 
 - [x] Offline suite covers §11 matrix; no live Ollama required in default CI.
 - [x] §12 docs checklist complete; ROADMAP marks A1–A3 done.
-
 ---
 
 ## 8. Explicit risks / decisions

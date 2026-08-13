@@ -139,10 +139,13 @@ def _render_job_progress(progress: JobProgress) -> None:
         current_label="Current page",
     )
     if progress.circuit_open:
-        st.warning(
-            "This model hit repeated Ollama timeouts; remaining pages for this "
-            "model were skipped."
-        )
+        if "cannot load this vision model" in (progress.message or "").lower():
+            st.warning(progress.message)
+        else:
+            st.warning(
+                "This model hit repeated Ollama timeouts; remaining pages for this "
+                "model were skipped."
+            )
     if progress.status == "running":
         st.info(
             "OCR is running in the background. Progress also prints in the "

@@ -44,6 +44,18 @@ from transcribe.services.project import ProjectService
 _log = logging.getLogger(__name__)
 
 TIMEOUT_CIRCUIT_THRESHOLD = 3
+# Fatal model-load errors (architecture unsupported / loader crash) never recover
+# mid-job — trip after one so multipass does not burn every page.
+MODEL_LOAD_CIRCUIT_THRESHOLD = 1
+
+_CIRCUIT_MSG_TIMEOUT = (
+    f"Stopped remaining pages after {TIMEOUT_CIRCUIT_THRESHOLD} "
+    "consecutive Ollama timeouts"
+)
+_CIRCUIT_MSG_MODEL_LOAD = (
+    "Ollama cannot load this vision model; remaining pages for this model "
+    "were skipped"
+)
 
 
 @dataclass(frozen=True)
@@ -108,6 +120,8 @@ class JobState:
     cancel_event: threading.Event = field(default_factory=threading.Event)
     circuit_event: threading.Event = field(default_factory=threading.Event)
     consecutive_timeouts: int = 0
+    consecutive_model_loads: int = 0
+    circuit_reason: str = ""  # "" | "timeout" | "model_load"
 
 
 def _default_progress_log(progress: JobProgress) -> None:
@@ -324,20 +338,37 @@ class JobCoordinator:
         if on_progress:
             on_progress(snap)
 
+    def _circuit_skip_message(self, state: JobState) -> str:
+        if state.circuit_reason == "model_load":
+            return _CIRCUIT_MSG_MODEL_LOAD
+        return _CIRCUIT_MSG_TIMEOUT
+
     def _tally(self, state: JobState, outcome: str) -> None:
         with self._lock:
             if outcome == "succeeded":
                 state.progress.completed += 1
                 state.consecutive_timeouts = 0
+                state.consecutive_model_loads = 0
             elif outcome == "timeout":
                 state.progress.failed += 1
                 state.consecutive_timeouts += 1
+                state.consecutive_model_loads = 0
                 if state.consecutive_timeouts >= TIMEOUT_CIRCUIT_THRESHOLD:
                     state.circuit_event.set()
                     state.progress.circuit_open = True
+                    state.circuit_reason = "timeout"
+            elif outcome == "model_load":
+                state.progress.failed += 1
+                state.consecutive_timeouts = 0
+                state.consecutive_model_loads += 1
+                if state.consecutive_model_loads >= MODEL_LOAD_CIRCUIT_THRESHOLD:
+                    state.circuit_event.set()
+                    state.progress.circuit_open = True
+                    state.circuit_reason = "model_load"
             elif outcome == "failed":
                 state.progress.failed += 1
                 state.consecutive_timeouts = 0
+                state.consecutive_model_loads = 0
             elif outcome == "circuit_skipped":
                 state.progress.skipped += 1
 
@@ -649,10 +680,7 @@ class JobCoordinator:
                         self._update_progress(
                             state,
                             on_progress=on_progress,
-                            message=(
-                                f"Stopped remaining pages after "
-                                f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
-                            ),
+                            message=self._circuit_skip_message(state),
                         )
                         break
             else:
@@ -690,10 +718,7 @@ class JobCoordinator:
                             self._update_progress(
                                 state,
                                 on_progress=on_progress,
-                                message=(
-                                    f"Stopped remaining pages after "
-                                    f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
-                                ),
+                                message=self._circuit_skip_message(state),
                             )
             if state.cancel_event.is_set():
                 self._update_progress(
@@ -709,10 +734,7 @@ class JobCoordinator:
                     state,
                     on_progress=on_progress,
                     status="completed",
-                    message=(
-                        f"Stopped remaining pages after "
-                        f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
-                    ),
+                    message=self._circuit_skip_message(state),
                     current_page_ids=[],
                     current_labels=[],
                 )
@@ -908,6 +930,8 @@ class JobCoordinator:
             self.projects.record_generation(page_id, running, activate=plan.activate)
             if exc.code == "timeout":
                 return "timeout"
+            if exc.code == "model_load":
+                return "model_load"
             return "failed"
         except Exception as exc:  # noqa: BLE001
             running.status = "failed"

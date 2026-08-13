@@ -25,6 +25,36 @@ _RETRY_BASE_DELAY_S = 0.5
 
 T = TypeVar("T")
 
+# Ollama/llama-server fatal load failures that will not recover mid-job.
+_FATAL_MODEL_LOAD_MARKERS = (
+    "unknown model architecture",
+    "error loading model",
+    "llama-server process has terminated",
+)
+
+
+def is_fatal_model_load_error(message: str) -> bool:
+    """True when Ollama cannot load the selected model (architecture/loader crash)."""
+    lower = (message or "").lower()
+    return any(marker in lower for marker in _FATAL_MODEL_LOAD_MARKERS)
+
+
+def friendly_model_load_message(raw: str) -> str:
+    """Plain-language message for fatal model-load HTTP bodies."""
+    lower = (raw or "").lower()
+    if "unknown model architecture" in lower:
+        return (
+            "Ollama cannot load this vision model (architecture unsupported). "
+            "Try another vision model, or upgrade/re-pull the model for this "
+            "Ollama build."
+        )
+    if "error loading model" in lower or "llama-server process has terminated" in lower:
+        return (
+            "Ollama failed to load this vision model (loader crash). "
+            "Try another vision model, or check Ollama logs / re-pull the model."
+        )
+    return (raw or "").strip() or "Ollama failed to load this vision model"
+
 
 def call_with_retries(
     op: Callable[[], T],
@@ -379,6 +409,12 @@ class OllamaVisionProvider:
                 retriable = False
                 if exc.code == 405:
                     code = "method_not_allowed"
+            elif is_fatal_model_load_error(message):
+                # Unrecoverable mid-job (e.g. unknown architecture 'mllama').
+                # Do not retry every page — JobCoordinator circuits on this code.
+                code = "model_load"
+                retriable = False
+                message = friendly_model_load_message(message)
             raise ProviderError(message, retriable=retriable, code=code) from exc
         except urllib.error.URLError as exc:
             reason = exc.reason

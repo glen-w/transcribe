@@ -63,6 +63,20 @@ def test_stats_run_publishes_under_analysis_and_cache_hits(tmp_path: Path):
     assert second["attempt_id"] == first["attempt_id"]
 
 
+def test_adhoc_run_module_logs_progress_to_stderr(tmp_path: Path, capsys):
+    """In-GUI Ask / ad-hoc run_module must print like batch analysis."""
+    _paths, projects, clock, ids = _transcribed_project(tmp_path, n_pages=1)
+    runner = AnalysisRunner(projects, clock=clock, ids=ids)
+    env = runner.run_module("stats")
+    assert env["outcome"] == "success"
+    err = capsys.readouterr().err
+    assert "[transcribe:analysis] [running]" in err
+    assert "current=stats" in err
+    assert "Running stats…" in err
+    assert "[transcribe:analysis] [completed]" in err
+    assert "stats: success" in err
+
+
 def test_module_freshness_matches_planned_identity(tmp_path: Path):
     from transcribe.analysis.runner import module_freshness
 

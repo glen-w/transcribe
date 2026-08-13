@@ -11,3 +11,11 @@ This product includes prompt wording adapted from Ollama-OCR:
 Durability, locking, and Ollama HTTP hardening patterns were informed by
 TranscriptX (local reference implementation) but are independently reimplemented
 and are not a derivative of TranscriptX's licensed source as a dependency.
+
+This product vendors wordcloud2.js for the Analyse Advanced word-cloud explorer:
+
+  wordcloud2.js
+  Copyright (c) 2011 - 2019 Tim Guan-tin Chien and contributors
+  Licensed under the MIT License
+  http://timdream.org/wordcloud2.js/
+  Bundled at src/transcribe/ui/assets/wordcloud2.js

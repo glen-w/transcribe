@@ -476,8 +476,11 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         "llm_action_items",
         "narrative_summary",
     ]
+    places_extra_ids = ["entity_sentiment"]
     batch_ids = list(
-        dict.fromkeys(overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids)
+        dict.fromkeys(
+            overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids + places_extra_ids
+        )
     )
     analysis_coord = get_analysis_coordinator(str(paths.root))
     active_run_status = "running" if analysis_coord.is_running() else None
@@ -537,7 +540,11 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
             render_overview_page_metrics(projects, project)
 
         render_overview_product(
-            overview_health, overview_ids, render_page_metrics=_page_metrics
+            overview_health,
+            overview_ids,
+            render_page_metrics=_page_metrics,
+            projects_dir=runtime.projects_dir,
+            project_id=project.id,
         )
 
     with tab_themes:
@@ -546,12 +553,29 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         render_themes_product(themes_health, theme_ids)
 
     with tab_mood:
-        render_mood_product(mood_health, mood_ids)
+        render_mood_product(
+            mood_health,
+            mood_ids,
+            projects_dir=runtime.projects_dir,
+            project_id=project.id,
+        )
 
     with tab_moments:
         def _jump_to_page(page_id: str) -> None:
-            st.session_state["review_page_id"] = page_id
-            st.session_state["nav_section"] = "Review"
+            from transcribe.ui.action_menus.nav import viewer_page_ids
+            from transcribe.ui.page_viewer import open_page_context
+
+            page_ids = viewer_page_ids(project)
+            if page_id not in page_ids:
+                st.toast("That page is no longer in this notebook.")
+                return
+            open_page_context(
+                page_id=page_id,
+                page_ids=page_ids,
+                project_root=paths.root,
+                return_mode="Review",
+            )
+            st.session_state["ui_mode"] = "Review"
             st.rerun()
 
         render_moments_product(moments_health, on_jump=_jump_to_page)
@@ -560,10 +584,12 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         from transcribe.ui.places_map import render_notebook_places_tab
 
         ner_mh = batch_health.modules.get("ner")
+        entity_mh = batch_health.modules.get("entity_sentiment")
         render_notebook_places_tab(
             project_root=paths.root,
             runtime=runtime,
             ner_health=ner_mh,
+            entity_sentiment_health=entity_mh,
         )
 
     with tab_summaries:

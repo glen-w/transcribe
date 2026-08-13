@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transcribe"
-version = "0.3.3"
+version = "0.3.4"
 description = "Local-first handwritten notebook OCR using Ollama vision models"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,9 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ui = ["streamlit>=1.32.0", "pydantic>=2.0.0", "ebooklib>=0.18"]
+ui = ["streamlit>=1.32.0", "pydantic>=2.0.0", "ebooklib>=0.18", "wordcloud>=1.9.2"]
 export = ["ebooklib>=0.18"]
-dev = ["pytest>=8.0.0", "streamlit>=1.32.0", "pydantic>=2.0.0", "ebooklib>=0.18"]
+dev = ["pytest>=8.0.0", "streamlit>=1.32.0", "pydantic>=2.0.0", "ebooklib>=0.18", "wordcloud>=1.9.2"]
 
 [project.scripts]
 transcribe = "transcribe.__main__:main"

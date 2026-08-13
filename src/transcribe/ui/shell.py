@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import html
 from pathlib import Path
 
@@ -106,12 +107,6 @@ def inject_global_styles() -> None:
         font-weight: 700;
         color: #1f77b4;
         letter-spacing: 0.01em;
-    }
-    section[data-testid="stSidebar"] [data-testid="stImage"] {
-        margin: 0 0 0.15rem 0 !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stImage"] img {
-        border-radius: 8px;
     }
     section[data-testid="stSidebar"] * {
         overflow-wrap: anywhere;
@@ -515,10 +510,16 @@ def inject_global_styles() -> None:
 
 
 def render_brand() -> None:
-    """Sidebar brand mark."""
+    """Sidebar brand mark (HTML img — no Streamlit fullscreen toolbar)."""
     path = logo_path()
     if path is not None:
-        st.image(str(path), width="stretch")
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        st.markdown(
+            f'<div class="tx-sidebar-brand">'
+            f'<img src="data:image/png;base64,{data}" alt="Transcribe" />'
+            f"</div>",
+            unsafe_allow_html=True,
+        )
         return
     st.markdown(
         '<div class="tx-sidebar-brand"><span class="tx-sidebar-brand-text">Transcribe</span></div>',

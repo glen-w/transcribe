@@ -13,7 +13,9 @@ MODULE_ID = "ner"
 MODULE_VERSION = "1.3.0"
 PAYLOAD_SCHEMA = "ner_payload_v1"
 ALGORITHM_VERSION = "spacy_ner_v1"
-DEFAULT_MODEL = "en_core_web_sm"
+# Prefer largest installed English model; env overrides for machine-local setups.
+_MODEL_CANDIDATES = ("en_core_web_lg", "en_core_web_md", "en_core_web_sm")
+DEFAULT_MODEL = "en_core_web_lg"
 
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 
@@ -21,33 +23,65 @@ TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 # returns (surface, label, char_start, char_end)
 NlpFn = Callable[[str], list[tuple[str, str, int, int]]]
 
+_nlp = None
+_loaded_model: str | None = None
 
-def _try_spacy_extract(text: str) -> list[tuple[str, str, int, int]] | None:
+
+def _resolve_model_name() -> str:
+    import os
+
+    override = (os.environ.get("TRANSCRIBE_SPACY_MODEL") or "").strip()
+    return override or DEFAULT_MODEL
+
+
+def _load_spacy_nlp():
+    """Load spaCy once; prefer env override, else largest available model."""
+    global _nlp, _loaded_model
+    if _nlp is not None:
+        return _nlp, _loaded_model
     try:
         import spacy
     except ImportError:
-        return None
-    try:
+        return None, None
+    preferred = _resolve_model_name()
+    candidates = (preferred,) + tuple(m for m in _MODEL_CANDIDATES if m != preferred)
+    for name in candidates:
         try:
-            nlp = spacy.load(DEFAULT_MODEL)
+            _nlp = spacy.load(name)
+            _loaded_model = name
+            return _nlp, _loaded_model
         except OSError:
-            nlp = spacy.load("en_core_web_md")
-    except Exception:  # noqa: BLE001
+            continue
+        except Exception:  # noqa: BLE001
+            return None, None
+    return None, None
+
+
+def _try_spacy_extract(text: str) -> list[tuple[str, str, int, int]] | None:
+    nlp, _model = _load_spacy_nlp()
+    if nlp is None:
         return None
     doc = nlp(text)
     return [(ent.text, ent.label_, ent.start_char, ent.end_char) for ent in doc.ents]
+
+
+def _active_model_name() -> str:
+    _nlp_obj, loaded = _load_spacy_nlp()
+    if loaded:
+        return loaded
+    return _resolve_model_name()
 
 
 def ner_config() -> dict[str, Any]:
     return {
         "payload_schema": PAYLOAD_SCHEMA,
         "algorithm_version": ALGORITHM_VERSION,
-        "model_name": DEFAULT_MODEL,
+        "model_name": _active_model_name(),
     }
 
 
 def ner_lexicon_or_model() -> dict[str, Any]:
-    return {"model_name": DEFAULT_MODEL, "algorithm_version": ALGORITHM_VERSION}
+    return {"model_name": _active_model_name(), "algorithm_version": ALGORITHM_VERSION}
 
 
 class NERModule:
@@ -110,8 +144,11 @@ class NERModule:
                     ],
                     "partial": False,
                 }
-            extract = lambda text: _try_spacy_extract(text) or []
 
+            def extract(text: str) -> list[tuple[str, str, int, int]]:
+                return _try_spacy_extract(text) or []
+
+        model_name = _active_model_name()
         doc_fp = content_fingerprint(document)
         entity_counter: Counter[str] = Counter()
         label_counter: Counter[str] = Counter()
@@ -161,7 +198,7 @@ class NERModule:
         payload = {
             "schema": PAYLOAD_SCHEMA,
             "algorithm_version": ALGORITHM_VERSION,
-            "model_name": DEFAULT_MODEL,
+            "model_name": model_name,
             "entity_counts": dict(sorted(entity_counter.items(), key=lambda x: (-x[1], x[0]))),
             "label_counts": dict(sorted(label_counter.items(), key=lambda x: (-x[1], x[0]))),
             "entities": entities,

@@ -10,6 +10,7 @@ import streamlit as st
 from transcribe.domain.dates import (
     DATE_SOURCE_EXTRACTED,
     DATE_SOURCE_INHERITED,
+    format_approve_all_dates_help,
     looks_like_unparsed_date_stamp,
     normalize_tags,
     parse_date_input,
@@ -103,6 +104,43 @@ def _cleanup_mode_help(cleanup: CleanupRecord) -> str:
     return base
 
 
+def _escape_markdown_plain(text: str) -> str:
+    """Escape markdown so st.caption/st.markdown never promote OCR into headings."""
+    # Backslash first so later escapes are not re-escaped.
+    out = text.replace("\\", "\\\\")
+    for ch in ("`", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", "|", "~"):
+        out = out.replace(ch, "\\" + ch)
+    return out
+
+
+def _ocr_compare_preview(raw_text: str | None, *, limit: int = 120) -> str:
+    """One-line plain preview for Compare OCR attempts (safe for st.caption)."""
+    preview = " ".join((raw_text or "").split())
+    if not preview:
+        return "(empty)"
+    if len(preview) > limit:
+        preview = preview[: limit - 3] + "…"
+    return _escape_markdown_plain(preview)
+
+
+def _shows_compare_attempts(result: Any) -> bool:
+    """True when Compare OCR attempts UI will render for this page result."""
+    if result is None:
+        return False
+    succeeded = [
+        a
+        for a in result.attempts
+        if a.status == "succeeded" and (a.raw_text or "").strip()
+    ]
+    if len(succeeded) >= 2:
+        return True
+    return any((a.attempt_kind or "vision") == "composite" for a in succeeded)
+
+
+# Cap page-scan width in multi-model compare so Prefer/Promote stays primary.
+_COMPARE_SCAN_IMAGE_WIDTH_PX = 320
+
+
 def _render_attempt_compare(
     *,
     projects: ProjectService,
@@ -113,18 +151,13 @@ def _render_attempt_compare(
     """Compare / Prefer UI for multipass or multi-attempt pages."""
     from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES
 
-    if result is None:
+    if not _shows_compare_attempts(result):
         return
     succeeded = [
         a
         for a in result.attempts
         if a.status == "succeeded" and (a.raw_text or "").strip()
     ]
-    if len(succeeded) < 2 and not any(
-        (a.attempt_kind or "vision") == "composite" for a in succeeded
-    ):
-        if len(succeeded) < 2:
-            return
 
     with st.expander("Compare OCR attempts", expanded=True):
         settings = project.settings
@@ -256,11 +289,10 @@ def _render_attempt_card(
     if result.preferred_attempt_id == attempt.attempt_id:
         chips.append("preferred")
     chip_txt = f" [{' · '.join(chips)}]" if chips else ""
-    preview = (attempt.raw_text or "").strip().replace("\n", " ")
-    if len(preview) > 120:
-        preview = preview[:117] + "…"
     st.markdown(f"**{model}**{chip_txt}")
-    st.caption(preview or "(empty)")
+    # OCR often starts with `#` / `-` / `*` (faithful_markdown); st.caption
+    # would otherwise render those as huge headings or list items.
+    st.caption(_ocr_compare_preview(attempt.raw_text))
     b1, b2, b3 = st.columns(3)
     if b1.button("Prefer", key=f"pref_{band}_{attempt.attempt_id}"):
         try:
@@ -691,9 +723,15 @@ def render_page_viewer(
         except Exception:  # noqa: BLE001
             pass
 
-    left, right = st.columns([3, 2])
-    with left:
-        st.image(str(img_path), width="stretch")
+    compare_layout = (not read_only) and _shows_compare_attempts(result)
+    if compare_layout:
+        # Prefer/Promote is the job; scan is reference — narrower + collapsible.
+        left, right = st.columns([2, 3])
+    else:
+        left, right = st.columns([3, 2])
+
+    def _render_scan_and_metrics(*, image_width: int | str) -> None:
+        st.image(str(img_path), width=image_width)
         try:
             from transcribe.ui.page_metrics_view import (
                 ensure_page_metrics,
@@ -705,6 +743,17 @@ def render_page_viewer(
             render_page_metrics_strip(row)
         except Exception:  # noqa: BLE001 — optional surface; never break viewer
             pass
+
+    with left:
+        if compare_layout:
+            with st.expander(
+                "Page scan",
+                expanded=True,
+                key=f"pv_scan_{page.page_id}",
+            ):
+                _render_scan_and_metrics(image_width=_COMPARE_SCAN_IMAGE_WIDTH_PX)
+        else:
+            _render_scan_and_metrics(image_width="stretch")
     with right:
         status = result.status if result else "pending"
         st.write(f"Status: **{status}**")
@@ -849,38 +898,86 @@ def render_page_viewer(
                     suggest_label = "Carried from previous page — not yet approved"
                 else:
                     suggest_label = "Suggested — not yet approved"
-                st.caption(suggest_label)
-                ok_col, no_col = st.columns(2)
+                regressions = projects.list_date_regressions(project)
+                approve_all_help = format_approve_all_dates_help(regressions)
+                confirm_key = f"pv_confirm_date_regressions_{page.page_id}"
+                cap_col, ok_col, all_col, no_col = st.columns(
+                    [8, 1, 1, 1], vertical_alignment="center"
+                )
+                with cap_col:
+                    st.caption(suggest_label)
                 with ok_col:
                     if st.button(
-                        "Approve date",
+                        "✓",
                         key=f"date_approve_{page.page_id}",
                         help="Approve suggested date",
-                        type="secondary",
-                        width="stretch",
+                        type="tertiary",
                     ):
                         try:
                             projects.approve_page_date(page.page_id, page.date)
                             bump_archive_generation(build_runtime_paths())
                             st.session_state.pop(f"date_{page.page_id}", None)
+                            st.session_state.pop(confirm_key, None)
                             st.rerun()
+                        except (ValueError, TranscribeError) as exc:
+                            st.error(str(exc))
+                with all_col:
+                    if st.button(
+                        "✓✓",
+                        key=f"date_approve_all_{page.page_id}",
+                        help=approve_all_help,
+                        type="tertiary",
+                    ):
+                        try:
+                            confirm = bool(st.session_state.get(confirm_key))
+                            if regressions and not confirm:
+                                st.session_state[confirm_key] = True
+                                st.warning(
+                                    f"{len(regressions)} date regression"
+                                    f"{'s' if len(regressions) != 1 else ''} look "
+                                    "suspicious. Click ✓✓ again to approve anyway."
+                                )
+                            else:
+                                updated, approved_n, _regs = (
+                                    projects.approve_all_suggested_dates(
+                                        confirm_regressions=True
+                                    )
+                                )
+                                bump_archive_generation(build_runtime_paths())
+                                st.session_state.pop(confirm_key, None)
+                                for p in updated.pages:
+                                    st.session_state.pop(f"date_{p.page_id}", None)
+                                if approved_n:
+                                    st.toast(
+                                        f"Approved {approved_n} date"
+                                        f"{'s' if approved_n != 1 else ''}"
+                                    )
+                                st.rerun()
                         except (ValueError, TranscribeError) as exc:
                             st.error(str(exc))
                 with no_col:
                     if st.button(
-                        "Ignore suggestion",
+                        "✕",
                         key=f"date_ignore_{page.page_id}",
                         help="Ignore suggestion (clear date)",
-                        type="secondary",
-                        width="stretch",
+                        type="tertiary",
                     ):
                         try:
                             projects.approve_page_date(page.page_id, None)
                             bump_archive_generation(build_runtime_paths())
                             st.session_state.pop(f"date_{page.page_id}", None)
+                            st.session_state.pop(confirm_key, None)
                             st.rerun()
                         except (ValueError, TranscribeError) as exc:
                             st.error(str(exc))
+                if regressions:
+                    preview = "; ".join(hit.format_display() for hit in regressions[:3])
+                    extra = len(regressions) - 3
+                    if extra > 0:
+                        preview = f"{preview}; …and {extra} more"
+                    st.caption(f"Suspicious date order: {preview}")
+            else:
+                st.session_state.pop(f"pv_confirm_date_regressions_{page.page_id}", None)
             tags_in = st.text_input(
                 "Tags (comma-separated)",
                 value=", ".join(page.tags),
