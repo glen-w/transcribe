@@ -74,6 +74,11 @@ def validate_settings(settings: object) -> None:
         raise ValidationError("generation_options.temperature must be a number")
     if temp != temp or temp < 0.0 or temp > 2.0:  # noqa: PLR0124 — NaN check
         raise ValidationError("generation_options.temperature out of range")
+    npred = settings.generation_options.num_predict
+    if not isinstance(npred, int) or isinstance(npred, bool):
+        raise ValidationError("generation_options.num_predict must be an integer")
+    if npred < 64 or npred > 8192:
+        raise ValidationError("generation_options.num_predict out of range")
 
 
 def validate_project(

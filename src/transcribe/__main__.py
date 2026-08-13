@@ -93,6 +93,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="PASS_ID",
         help="Resume an incomplete multipass job by pass_id",
     )
+    p_multi.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Run post-OCR text-model cleanup on vision phases (off by default)",
+    )
 
     p_ft = sub.add_parser(
         "export-finetune",
@@ -462,6 +467,7 @@ def main(argv: list[str] | None = None) -> int:
                     model_names=models,
                     force=args.force,
                     auto_activate_composite=not args.no_auto_composite,
+                    cleanup_enabled=bool(args.cleanup),
                 )
             return 0 if progress.status == "completed" else 1
 

@@ -15,6 +15,7 @@ from transcribe.domain.fingerprint import compute_input_fingerprint, sha256_byte
 from transcribe.domain.models import (
     AttemptError,
     AttemptProvenance,
+    DEFAULT_VISION_NUM_PREDICT,
     OCRAttempt,
     Project,
 )
@@ -22,7 +23,7 @@ from transcribe.errors import JobConflictError, ProviderError
 from transcribe.ingest import IngestService
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import write_json_atomic
-from transcribe.persistence.locks import JobLock
+from transcribe.persistence.locks import JobLock, job_lock_held
 from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.preprocess import PREPROCESS_VERSION, apply_preprocess
 from transcribe.prompts import render_prompt as legacy_render_prompt
@@ -36,6 +37,8 @@ from transcribe.services.ocr_cleanup import (
 from transcribe.services.project import ProjectService
 
 _log = logging.getLogger(__name__)
+
+TIMEOUT_CIRCUIT_THRESHOLD = 3
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,7 @@ class JobProgress:
     current_page_ids: list[str] = field(default_factory=list)
     message: str = ""
     cancel_requested: bool = False
+    circuit_open: bool = False
 
 
 @dataclass
@@ -94,6 +98,8 @@ class JobState:
     provider: VisionOCRProvider | None = None
     thread: threading.Thread | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event)
+    circuit_event: threading.Event = field(default_factory=threading.Event)
+    consecutive_timeouts: int = 0
 
 
 def _default_progress_log(progress: JobProgress) -> None:
@@ -146,6 +152,9 @@ class JobCoordinator:
                 return JobProgress(job_id="", status="idle")
             return _snapshot_progress(self._job.progress)
 
+    def is_running(self) -> bool:
+        return self.get_progress().status == "running"
+
     def request_cancel(self) -> None:
         with self._lock:
             if self._job is None:
@@ -171,6 +180,10 @@ class JobCoordinator:
         with self._lock:
             if self._job is not None and self._job.thread and self._job.thread.is_alive():
                 raise JobConflictError("a transcription job is already running in this process")
+            if job_lock_held(self.paths.job_lock) and not self._job_file_lock.held:
+                raise JobConflictError(
+                    "another process holds the OCR job lock for this project"
+                )
             if not self._job_file_lock.try_acquire():
                 raise JobConflictError(
                     "another process holds the OCR job lock for this project"
@@ -291,8 +304,18 @@ class JobCoordinator:
         with self._lock:
             if outcome == "succeeded":
                 state.progress.completed += 1
+                state.consecutive_timeouts = 0
+            elif outcome == "timeout":
+                state.progress.failed += 1
+                state.consecutive_timeouts += 1
+                if state.consecutive_timeouts >= TIMEOUT_CIRCUIT_THRESHOLD:
+                    state.circuit_event.set()
+                    state.progress.circuit_open = True
             elif outcome == "failed":
                 state.progress.failed += 1
+                state.consecutive_timeouts = 0
+            elif outcome == "circuit_skipped":
+                state.progress.skipped += 1
 
     def _persist_job_record(self, state: JobState, *, terminal: bool = False) -> None:
         plan = state.plan
@@ -350,6 +373,7 @@ class JobCoordinator:
         pass_id: str | None = None,
         skip_match_any_succeeded: bool = False,
         attempt_kind: str = "vision",
+        cleanup_enabled: bool | None = None,
     ) -> JobPlan:
         settings = project.settings
         resolved_model = (model_name or settings.model_name or "").strip()
@@ -375,11 +399,28 @@ class JobCoordinator:
         if callable(resolve):
             digest, verified = resolve(resolved_model)
         gen_opts = copy.deepcopy(settings.generation_options.as_dict())
+        if "num_predict" not in gen_opts:
+            gen_opts["num_predict"] = DEFAULT_VISION_NUM_PREDICT
         provider_id = getattr(provider, "provider_id", "unknown")
         base_url = settings.base_url
         preprocess_profile = settings.preprocess_profile or "none"
         max_workers = max(1, min(2, int(settings.max_workers or 1)))
-        cleanup = resolve_cleanup_plan_config(settings, client=self.cleanup_client)
+        if cleanup_enabled is False:
+            cleanup = CleanupPlanConfig(
+                enabled=False,
+                mode="strip_leak",
+                model_name="",
+                model_digest="",
+                prompt_id="",
+                prompt_version="",
+                prompt_template_sha256="",
+            )
+        elif cleanup_enabled is True:
+            forced = copy.deepcopy(settings)
+            forced.cleanup_enabled = True
+            cleanup = resolve_cleanup_plan_config(forced, client=self.cleanup_client)
+        else:
+            cleanup = resolve_cleanup_plan_config(settings, client=self.cleanup_client)
         config_fp, _ = compute_input_fingerprint(
             provider=provider_id,
             model_name=resolved_model,
@@ -525,12 +566,18 @@ class JobCoordinator:
         def process_one(page_id: str) -> str:
             if state.cancel_event.is_set():
                 return "cancelled"
+            if state.circuit_event.is_set():
+                return "circuit_skipped"
             return self._transcribe_page(project, page_id, plan, sealed_provider)
 
         try:
             if plan.max_workers == 1:
-                for page_id in work:
+                for index, page_id in enumerate(work):
                     if state.cancel_event.is_set():
+                        break
+                    if state.circuit_event.is_set():
+                        for _rest_id in work[index:]:
+                            self._tally(state, "circuit_skipped")
                         break
                     self._update_progress(
                         state,
@@ -544,19 +591,35 @@ class JobCoordinator:
                     outcome = process_one(page_id)
                     self._tally(state, outcome)
                     detail = ""
-                    if outcome == "failed":
+                    if outcome in {"failed", "timeout"}:
                         result = self.projects.load_page_result(page_id)
-                        attempt = result.active_attempt() if result else None
+                        attempt = None
+                        if result and result.attempts:
+                            attempt = result.attempts[-1]
                         if attempt and attempt.error:
                             detail = f": {attempt.error.message}"
                     with self._lock:
                         done = state.progress.completed + state.progress.failed
                         total = state.progress.total
+                        circuit_open = state.progress.circuit_open
                     self._update_progress(
                         state,
                         on_progress=on_progress,
                         message=f"Page {page_id[:8]} {outcome} ({done}/{total}){detail}",
                     )
+                    if circuit_open:
+                        remaining = work[index + 1 :]
+                        for _rest_id in remaining:
+                            self._tally(state, "circuit_skipped")
+                        self._update_progress(
+                            state,
+                            on_progress=on_progress,
+                            message=(
+                                f"Stopped remaining pages after "
+                                f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
+                            ),
+                        )
+                        break
             else:
                 with ThreadPoolExecutor(max_workers=plan.max_workers) as pool:
                     futures = {}
@@ -578,14 +641,35 @@ class JobCoordinator:
                         self._tally(state, outcome)
                         with self._lock:
                             snap = _snapshot_progress(state.progress)
+                            circuit_open = state.progress.circuit_open
                         if on_progress:
                             on_progress(snap)
+                        if circuit_open:
+                            self._update_progress(
+                                state,
+                                on_progress=on_progress,
+                                message=(
+                                    f"Stopped remaining pages after "
+                                    f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
+                                ),
+                            )
             if state.cancel_event.is_set():
                 self._update_progress(
                     state,
                     on_progress=on_progress,
                     status="cancelled",
                     message="Stopped after current page",
+                    current_page_ids=[],
+                )
+            elif state.circuit_event.is_set():
+                self._update_progress(
+                    state,
+                    on_progress=on_progress,
+                    status="completed",
+                    message=(
+                        f"Stopped remaining pages after "
+                        f"{TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
+                    ),
                     current_page_ids=[],
                 )
             else:
@@ -774,6 +858,8 @@ class JobCoordinator:
             )
             running.completed_at = to_iso(self.clock.now())
             self.projects.record_generation(page_id, running, activate=plan.activate)
+            if exc.code == "timeout":
+                return "timeout"
             return "failed"
         except Exception as exc:  # noqa: BLE001
             running.status = "failed"

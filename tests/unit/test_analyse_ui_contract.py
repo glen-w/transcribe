@@ -96,6 +96,23 @@ def test_phase6_ocr_advanced_groups_power_controls():
     assert remote_idx < adv_idx
 
 
+def test_ocr_model_information_expander_at_pickers():
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
+    info = Path("src/transcribe/ui/components/model_info.py").read_text(encoding="utf-8")
+    assert 'st.expander("Model information"' in info
+    assert "render_model_information" in tx
+    assert "warn_if_first_compare_model_is_general_vlm" in tx
+    assert "Clean OCR during compare" in tx
+    assert "render_model_information" in RUN
+
+
+def test_compare_starts_in_background_not_spinner():
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
+    assert 'st.spinner("Running multipass' not in tx
+    assert "multi.start(" in tx
+    assert "coord.start" in tx
+
+
 def test_phase6_last_run_is_product_summary():
     assert "last_run_product_summary" in RUN
     assert "Advanced · per-module outcomes" in RUN

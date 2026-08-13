@@ -36,8 +36,13 @@ from transcribe.services.batch_ocr import (
     select_pending,
 )
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
+from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
 from transcribe.services.project import ProjectService
 from transcribe.ui.components.action_links import render_action_link
+from transcribe.ui.components.model_info import (
+    render_model_information,
+    warn_if_first_compare_model_is_general_vlm,
+)
 from transcribe.ui.components.progress_panel import render_progress_panel
 from transcribe.ui.shell import set_ui_mode
 from transcribe.ui.targets import (
@@ -72,6 +77,17 @@ def get_coordinator(project_root: str) -> JobCoordinator:
 
 
 @st.cache_resource
+def get_multipass_coordinator(project_root: str) -> MultiPassCoordinator:
+    coord = get_coordinator(project_root)
+    return MultiPassCoordinator(
+        jobs=coord,
+        projects=coord.projects,
+        clock=coord.clock,
+        ids=coord.ids,
+    )
+
+
+@st.cache_resource
 def get_batch_ocr_coordinator(data_dir: str, projects_dir: str) -> BatchOcrCoordinator:
     from transcribe.runtime_paths import build_runtime_paths
 
@@ -94,6 +110,11 @@ def _render_job_progress(progress: JobProgress) -> None:
         st.caption("Current page(s): " + ", ".join(p[:8] for p in progress.current_page_ids))
     if progress.message:
         st.caption(progress.message)
+    if progress.circuit_open:
+        st.warning(
+            "This model hit repeated Ollama timeouts; remaining pages for this "
+            "model were skipped."
+        )
     done = progress.completed + progress.failed
     if progress.total > 0 and progress.status in {
         "running",
@@ -107,6 +128,37 @@ def _render_job_progress(progress: JobProgress) -> None:
             "OCR is running in the background. Progress also prints in the "
             "Streamlit terminal as `[transcribe] …` lines. The first page can "
             "take several minutes while Ollama loads the vision model."
+        )
+
+
+def _render_multipass_progress(
+    multi: MultiPassProgress, job: JobProgress
+) -> None:
+    st.write(
+        f"Compare: **{multi.status}** — {multi.phase or 'starting'}"
+        + (
+            f" · model {multi.model_index}/{multi.model_total}"
+            if multi.model_total
+            else ""
+        )
+    )
+    if multi.message:
+        st.caption(multi.message)
+    if multi.phase == "vision" and job.status in {
+        "running",
+        "completed",
+        "cancelled",
+        "failed",
+    }:
+        _render_job_progress(job)
+    elif multi.phase == "rank_composite":
+        st.caption(
+            f"Ranked {multi.pages_ranked} · composite {multi.pages_composite}"
+        )
+    if multi.status == "running":
+        st.info(
+            "Compare is running in the background. Stop after current page "
+            "cancels remaining pages of this model and remaining models."
         )
 
 
@@ -164,6 +216,7 @@ def _render_transcribe_complete_actions(
             try:
                 coord.start(page_ids=failed_ids, force=False)
                 st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "job"
                 st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
@@ -179,6 +232,7 @@ def _render_transcribe_complete_actions(
         help="Return to model and OCR settings for another run.",
     ):
         st.session_state.pop("_transcribe_post_job_id", None)
+        st.session_state.pop("_transcribe_post_kind", None)
         st.rerun()
 
 
@@ -411,16 +465,26 @@ def _render_this_notebook_live(
 ) -> bool:
     """Return True when a live/post job owns the page (hide shared settings)."""
     coord = get_coordinator(str(root))
+    multi = get_multipass_coordinator(str(root))
     live = coord.get_progress()
+    multi_live = multi.get_progress()
+    is_running = live.status == "running" or multi_live.status == "running"
     was_running = st.session_state.get("_job_was_running", False)
-    st.session_state["_job_was_running"] = live.status == "running"
-    is_running = live.status == "running"
+    st.session_state["_job_was_running"] = is_running
     post_job_id = st.session_state.get("_transcribe_post_job_id")
-    show_post = (
-        bool(post_job_id)
-        and live.job_id == post_job_id
-        and live.status in {"completed", "cancelled", "failed"}
-    )
+    post_kind = st.session_state.get("_transcribe_post_kind", "job")
+    if post_kind == "multipass":
+        show_post = (
+            bool(post_job_id)
+            and multi_live.pass_id == post_job_id
+            and multi_live.status in {"completed", "cancelled", "failed"}
+        )
+    else:
+        show_post = (
+            bool(post_job_id)
+            and live.job_id == post_job_id
+            and live.status in {"completed", "cancelled", "failed"}
+        )
 
     if is_running:
         poll = timedelta(seconds=2) if is_running or was_running else None
@@ -428,24 +492,37 @@ def _render_this_notebook_live(
         @st.fragment(run_every=poll)
         def job_status_panel() -> None:
             progress = coord.get_progress()
-            _render_job_progress(progress)
-            if (
-                st.session_state.get("_job_was_running")
-                and progress.status != "running"
-            ):
+            mp = multi.get_progress()
+            if mp.status == "running":
+                _render_multipass_progress(mp, progress)
+            else:
+                _render_job_progress(progress)
+            still_running = (
+                progress.status == "running" or mp.status == "running"
+            )
+            if st.session_state.get("_job_was_running") and not still_running:
                 st.session_state["_job_was_running"] = False
-                st.session_state["_transcribe_post_job_id"] = progress.job_id
+                if mp.status in {"completed", "cancelled", "failed"} and mp.pass_id:
+                    st.session_state["_transcribe_post_job_id"] = mp.pass_id
+                    st.session_state["_transcribe_post_kind"] = "multipass"
+                else:
+                    st.session_state["_transcribe_post_job_id"] = progress.job_id
+                    st.session_state["_transcribe_post_kind"] = "job"
                 bump_archive_generation(runtime)
                 st.rerun()
 
         job_status_panel()
         if st.button("Stop after current page", key="transcribe_stop_running"):
+            multi.request_cancel()
             coord.request_cancel()
             st.info("Stopping after current page…")
         return True
 
     if show_post:
-        _render_job_progress(live)
+        if post_kind == "multipass":
+            _render_multipass_progress(multi_live, live)
+        else:
+            _render_job_progress(live)
         _render_transcribe_complete_actions(
             projects=projects,
             project=project,
@@ -479,6 +556,7 @@ def _render_this_notebook_launch(
                 coord.provider = OllamaVisionProvider(form["normalized"])
                 coord.start(force=form["force"])
                 st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "job"
                 st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
@@ -488,14 +566,31 @@ def _render_this_notebook_launch(
     st.subheader("Compare models")
     st.caption(
         "Run two or more vision models on this notebook, then rank and "
-        "optionally produce a composite candidate with the text model."
+        "optionally produce a composite candidate with the text model. "
+        "Vision phases skip post-OCR cleanup unless you opt in below."
     )
     multi_models = st.multiselect(
         "Vision models for multipass",
         options=form["names"],
         default=[],
         format_func=form["model_label"],
-        help="Select at least two models.",
+        help="Select at least two models. Order matters: first model runs fully.",
+    )
+    if multi_models:
+        render_model_information(
+            form["vision_models"],
+            selected=multi_models,
+            role="vision",
+            key="tx_compare_model_info",
+        )
+        warn_if_first_compare_model_is_general_vlm(multi_models)
+    compare_cleanup = st.checkbox(
+        "Clean OCR during compare",
+        value=False,
+        help=(
+            "Off by default so compare is a raw-model comparison. "
+            "Cleanup still uses the cleanup/text model when enabled."
+        ),
     )
     no_auto_comp = st.checkbox(
         "Do not auto-activate composite",
@@ -508,26 +603,29 @@ def _render_this_notebook_launch(
             st.error("Select at least two vision models.")
         else:
             try:
-                from transcribe.services.multipass import MultiPassCoordinator
-
                 project = _apply_form_settings(projects, project, form)
-                coord.provider = OllamaVisionProvider(form["normalized"])
-                multi = MultiPassCoordinator(
-                    jobs=coord,
-                    projects=projects,
-                    clock=SystemClock(),
-                    ids=UuidGenerator(),
-                )
-                with st.spinner("Running multipass (this may take a while)…"):
-                    progress = multi.run_blocking(
-                        model_names=list(multi_models),
-                        force=form["force"],
-                        auto_activate_composite=not no_auto_comp,
+                if compare_cleanup:
+                    settings = project.settings
+                    settings.cleanup_model_name = (
+                        form["cleanup_model"] or form["text_model"]
                     )
-                if progress.status == "completed":
-                    st.success(progress.message or "Multipass complete")
-                else:
-                    st.error(progress.message or progress.status)
+                    project = projects.save_settings(project, settings)
+                elif form["text_model"] and not project.settings.cleanup_model_name:
+                    settings = project.settings
+                    settings.cleanup_model_name = form["text_model"]
+                    project = projects.save_settings(project, settings)
+                coord.provider = OllamaVisionProvider(form["normalized"])
+                multi = get_multipass_coordinator(str(root))
+                multi.start(
+                    model_names=list(multi_models),
+                    force=form["force"],
+                    auto_activate_composite=not no_auto_comp,
+                    cleanup_enabled=bool(compare_cleanup),
+                )
+                st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "multipass"
+                st.session_state.pop("_transcribe_post_job_id", None)
+                st.rerun()
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
 
@@ -741,6 +839,12 @@ def _render_ocr_settings_form(
         format_func=_model_label,
         key=f"{key_prefix}_model",
     )
+    render_model_information(
+        discovery.models,
+        selected=model,
+        role="vision",
+        key=f"{key_prefix}_vision_model_info",
+    )
     text_model_options = suitable_text_model_names(all_discovery.models)
     if settings.text_model_name and is_unsuitable_text_model_name(settings.text_model_name):
         st.warning(
@@ -759,6 +863,12 @@ def _render_ocr_settings_form(
         index=text_index,
         help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
         key=f"{key_prefix}_text_model",
+    )
+    render_model_information(
+        all_discovery.models,
+        selected=text_model,
+        role="text",
+        key=f"{key_prefix}_text_model_info",
     )
 
     cleanup_enabled = st.checkbox(
@@ -847,6 +957,13 @@ def _render_ocr_settings_form(
             ),
             key=f"{key_prefix}_cleanup_model",
         )
+        if cleanup_enabled and cleanup_model:
+            render_model_information(
+                all_discovery.models,
+                selected=cleanup_model,
+                role="text",
+                key=f"{key_prefix}_cleanup_model_info",
+            )
         prefer_labels = {
             "prefer_is_promote": "Prefer = promote",
             "prefer_only": "Prefer only (no activate)",
@@ -892,5 +1009,7 @@ def _render_ocr_settings_form(
         "prefer_mode": prefer_mode,
         "auto_activate_composite": auto_activate_composite,
         "names": names,
+        "vision_models": discovery.models,
+        "all_models": all_discovery.models,
         "model_label": _model_label,
     }

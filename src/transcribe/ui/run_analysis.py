@@ -413,6 +413,14 @@ def _render_config_and_launch(
             else:
                 st.caption("No suitable text models discovered from Ollama.")
                 chosen = st.text_input("Text model name", value="")
+            from transcribe.ui.components.model_info import render_model_information
+
+            render_model_information(
+                discovery.models,
+                selected=chosen or text_model,
+                role="text",
+                key="analyse_text_model_info",
+            )
             if st.button("Save text model", key="run_analysis_save_text_model"):
                 settings = project.settings
                 settings.text_model_name = chosen

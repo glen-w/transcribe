@@ -21,6 +21,7 @@ PROVIDER_METADATA_ALLOWLIST = frozenset(
         "retry_count",
         "prompt_eval_duration",
         "eval_duration",
+        "truncated",
     }
 )
 
@@ -39,13 +40,33 @@ def filter_provider_metadata(raw: dict[str, Any] | None) -> dict[str, Any]:
     return out
 
 
+# Safety cap for vision OCR generate. Analysis uses workspace llm.num_predict.
+DEFAULT_VISION_NUM_PREDICT = 4096
+
+
+def _parse_vision_num_predict(raw: Any) -> int:
+    if raw is None or raw == "":
+        return DEFAULT_VISION_NUM_PREDICT
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_VISION_NUM_PREDICT
+    if value < 64 or value > 8192:
+        return DEFAULT_VISION_NUM_PREDICT
+    return value
+
+
 @dataclass
 class GenerationOptions:
     temperature: float = 0.0
-    # Keep extensible but fingerprint-stable via as_dict
+    num_predict: int = DEFAULT_VISION_NUM_PREDICT
+    # Keep extensible but fingerprint-stable via as_dict / fingerprint helper
 
     def as_dict(self) -> dict[str, Any]:
-        return {"temperature": self.temperature}
+        return {
+            "temperature": self.temperature,
+            "num_predict": int(self.num_predict),
+        }
 
 
 CLEANUP_MODES = frozenset({"strip_leak", "sanitize_light", "rewrite"})
@@ -119,6 +140,7 @@ class OCRSettings:
             max_workers=int(data.get("max_workers", 1)),
             generation_options=GenerationOptions(
                 temperature=float(opts.get("temperature", 0.0)),
+                num_predict=_parse_vision_num_predict(opts.get("num_predict")),
             ),
             allow_non_loopback=bool(data.get("allow_non_loopback", False)),
             cleanup_enabled=bool(data.get("cleanup_enabled", False)),
