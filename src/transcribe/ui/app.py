@@ -475,8 +475,20 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
 
     with tab_moments:
         def _jump_to_page(page_id: str) -> None:
-            st.session_state["review_page_id"] = page_id
-            st.session_state["nav_section"] = "Review"
+            from transcribe.ui.action_menus.nav import viewer_page_ids
+            from transcribe.ui.page_viewer import open_page_context
+
+            page_ids = viewer_page_ids(project)
+            if page_id not in page_ids:
+                st.toast("That page is no longer in this notebook.")
+                return
+            open_page_context(
+                page_id=page_id,
+                page_ids=page_ids,
+                project_root=paths.root,
+                return_mode="Review",
+            )
+            st.session_state["ui_mode"] = "Review"
             st.rerun()
 
         render_moments_product(moments_health, on_jump=_jump_to_page)

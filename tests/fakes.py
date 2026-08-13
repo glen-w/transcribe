@@ -67,7 +67,7 @@ class FakeVisionOCRProvider:
             if code:
                 raise ProviderError(
                     code,
-                    retriable=code not in {"timeout", "model_missing"},
+                    retriable=code not in {"timeout", "model_missing", "model_load"},
                     code=code,
                 )
         if self.fail_times > 0:

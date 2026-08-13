@@ -7,10 +7,13 @@ from pathlib import Path
 from transcribe.domain.models import AttemptProvenance, CleanupRecord, OCRAttempt
 from transcribe.ui.page_viewer import (
     _cleanup_mode_help,
+    _escape_markdown_plain,
     _filter_existing_entries,
     _normalize_entries,
+    _ocr_compare_preview,
     _page_number_to_index,
     _resolve_view_entries,
+    _shows_compare_attempts,
     _transcription_model_help,
     _transcription_model_label,
 )
@@ -209,3 +212,43 @@ def test_resolve_drops_deleted_explicit_view_entries(tmp_path: Path):
         prefer_session_entries=False,
     )
     assert entries == [{"page_id": "fallback", "project_root": str(alive)}]
+
+
+def test_ocr_compare_preview_escapes_heading_markdown():
+    """Regression: OCR starting with # must not become a Streamlit heading."""
+    preview = _ocr_compare_preview('# 220820 Scandinavia House "All of us"')
+    assert preview.startswith("\\#")
+    assert "220820 Scandinavia" in preview
+
+
+def test_ocr_compare_preview_escapes_list_and_truncates():
+    text = "- Use a consistent style throughout the document\n" + ("word " * 40)
+    preview = _ocr_compare_preview(text, limit=40)
+    assert preview.startswith("\\-")
+    assert preview.endswith("…")
+    assert len(preview) <= 40 + preview.count("\\")  # escapes add length
+
+
+def test_escape_markdown_plain_renders_hash_literally():
+    assert _escape_markdown_plain("# hi *there*") == "\\# hi \\*there\\*"
+
+
+def test_shows_compare_attempts_requires_two_succeeded():
+    from types import SimpleNamespace
+
+    a = SimpleNamespace(status="succeeded", raw_text="one", attempt_kind="vision")
+    b = SimpleNamespace(status="succeeded", raw_text="two", attempt_kind="vision")
+    empty = SimpleNamespace(status="succeeded", raw_text="  ", attempt_kind="vision")
+    assert _shows_compare_attempts(None) is False
+    assert _shows_compare_attempts(SimpleNamespace(attempts=[a])) is False
+    assert _shows_compare_attempts(SimpleNamespace(attempts=[a, empty])) is False
+    assert _shows_compare_attempts(SimpleNamespace(attempts=[a, b])) is True
+
+
+def test_shows_compare_attempts_true_for_lone_composite():
+    from types import SimpleNamespace
+
+    comp = SimpleNamespace(
+        status="succeeded", raw_text="merged", attempt_kind="composite"
+    )
+    assert _shows_compare_attempts(SimpleNamespace(attempts=[comp])) is True

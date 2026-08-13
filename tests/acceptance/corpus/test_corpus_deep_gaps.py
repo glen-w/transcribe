@@ -61,6 +61,9 @@ def test_plan_from_folder_refuses_duplicate_basenames(tmp_path: Path) -> None:
         pytest.skip("filesystem cannot hold A.PNG alongside a.png")
     if upper.resolve() == (folder / "a.png").resolve():
         pytest.skip("case-insensitive filesystem")
+    # APFS "case-insensitive" volumes may report distinct paths but only one dirent.
+    if len(list(folder.iterdir())) < 2:
+        pytest.skip("case-insensitive filesystem collapses a.png and A.PNG")
     with pytest.raises(ValidationError, match="ordering ambiguity"):
         plan_from_folder(folder, ids=SequentialIds("dup"))
 

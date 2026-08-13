@@ -616,6 +616,30 @@ def render_mood_product(
         render_advanced_payload(mid, payload)
 
 
+def _page_id_for_moment(
+    row: dict[str, Any],
+    *,
+    evidence_by_unit: dict[str, dict[str, Any]],
+) -> str | None:
+    """Resolve a notebook page id for a moments row (payload or evidence)."""
+    raw = row.get("page_id")
+    if isinstance(raw, str) and raw:
+        return raw
+    unit_id = row.get("unit_id")
+    if isinstance(unit_id, str) and unit_id:
+        cite = evidence_by_unit.get(unit_id) or {}
+        ref = cite.get("source_ref") if isinstance(cite, dict) else None
+        if isinstance(ref, dict):
+            pid = ref.get("page_id")
+            if isinstance(pid, str) and pid:
+                return pid
+        # page_v1 unit_id == page_id; paragraph_v1 uses ``{page_id}/span:…``.
+        if "/span:" in unit_id:
+            return unit_id.split("/span:", 1)[0] or None
+        return unit_id
+    return None
+
+
 def render_moments_product(
     health: AnalysisHealth,
     *,
@@ -642,16 +666,20 @@ def render_moments_product(
         x="moment",
         y="score",
     )
+    env = mh.envelope or {}
+    evidence_by_unit: dict[str, dict[str, Any]] = {}
+    for cite in env.get("evidence") or []:
+        if isinstance(cite, dict) and cite.get("unit_id"):
+            evidence_by_unit[str(cite["unit_id"])] = cite
     for row in rows:
         quote = (row.get("quote") or "")[:240]
         st.markdown(f"- _{row['score']:.3g}_ · {quote}")
-        page_id = row.get("unit_id")
+        page_id = _page_id_for_moment(row, evidence_by_unit=evidence_by_unit)
         if on_jump and page_id and st.button(
             "Jump to page",
             key=f"moment_jump_{page_id}_{hash(quote) & 0xFFFF}",
         ):
             on_jump(str(page_id))
-    env = mh.envelope or {}
     for w in env.get("warnings") or []:
         st.caption(w.get("message") or w.get("code"))
     render_advanced_payload("moments", payload)

@@ -136,6 +136,15 @@ def test_entity_sentiment_is_on_people_places_batch():
     assert "aggregate_entity_sentiment" in helpers
 
 
+def test_moments_jump_opens_review_via_page_viewer():
+    """Jump to page must set real viewer/nav keys, not dead session aliases."""
+    assert "open_page_context" in APP
+    assert 'st.session_state["ui_mode"] = "Review"' in APP
+    assert '["review_page_id"]' not in APP
+    assert '["nav_section"]' not in APP
+    assert "_page_id_for_moment" in PRODUCT
+
+
 def test_phase6_ocr_advanced_groups_power_controls():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.

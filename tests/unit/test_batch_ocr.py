@@ -127,6 +127,55 @@ def test_batch_ocr_runs_two_notebooks_and_skips_on_resume(tmp_path: Path) -> Non
     assert provider.calls == 2  # fingerprint skip; no new vision calls
 
 
+def test_batch_ocr_resumes_multipage_partial_notebook(tmp_path: Path) -> None:
+    """Batch OCR completes remaining pages after a partial single-notebook job."""
+    from transcribe.services.job import JobCoordinator
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("mpart")
+    root = corpus.projects_dir / "multi"
+    projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
+    projects.create("multi")
+    ingest = IngestService(open_project_paths(root), clock=clock, ids=ids)
+    fixture = Path(__file__).resolve().parents[1] / "fixtures" / "mini_multipage.pdf"
+    ingest.import_path(fixture, render_dpi=72)
+    paths = open_project_paths(root)
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    settings = OCRSettings(model_name="fake-vision")
+    projects.save_settings(projects.load(), settings)
+    inner = JobCoordinator(paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids)
+
+    class CancelAfterFirst(FakeVisionOCRProvider):
+        def transcribe_image(self, **kwargs):
+            result = super().transcribe_image(**kwargs)
+            if self.calls == 1:
+                inner.request_cancel()
+            return result
+
+    inner.provider = CancelAfterFirst()
+    inner.run_blocking()
+    project = projects.load()
+    succeeded = sum(
+        1
+        for page in project.pages
+        if (result := projects.load_page_result(page.page_id))
+        and result.status == "succeeded"
+    )
+    assert 1 <= succeeded < len(project.pages)
+
+    batch_provider = FakeVisionOCRProvider()
+    coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids, provider=batch_provider)
+    selected = select_by_ids(list_candidates(corpus, clock=clock, ids=ids), [project.id])
+    run = coord.create_run(selected, settings=settings, force=False)
+    progress = coord.run_blocking(run.ocr_run_id)
+    assert progress.status == "completed"
+    assert batch_provider.calls == len(project.pages) - succeeded
+    for page in project.pages:
+        result = projects.load_page_result(page.page_id)
+        assert result is not None
+        assert result.status == "succeeded"
+
+
 def test_batch_ocr_cancel_does_not_start_next_notebook(tmp_path: Path) -> None:
     corpus = _corpus(tmp_path)
     clock, ids = FakeClock(), SequentialIds("can")

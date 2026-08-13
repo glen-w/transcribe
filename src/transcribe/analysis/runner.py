@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Sequence
 
 from transcribe.analysis import ADAPTER_VERSION
@@ -46,6 +47,32 @@ from transcribe.config.facade import bind_operation_config, snapshot_for_operati
 from transcribe.persistence.locks import mutation_lock
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
+
+
+def _adhoc_progress_log(
+    *,
+    status: str,
+    module_id: str,
+    message: str = "",
+    completed: int = 0,
+    failed: int = 0,
+) -> None:
+    """Print ad-hoc module progress to the process terminal (CLI and Streamlit).
+
+    Mirrors AnalysisCoordinator batch logs so in-GUI Ask notebook (and other
+    ``run_module`` calls) are visible in ``docker compose`` / server stderr.
+    """
+    current_bit = f" current={module_id}" if module_id else ""
+    print(
+        f"[transcribe:analysis] [{status}] "
+        f"done={completed}/1 "
+        f"failed={failed} skipped=0"
+        f"{current_bit}"
+        f"{f' — {message}' if message else ''}",
+        file=sys.stderr,
+        flush=True,
+    )
+
 
 ELIGIBILITY_REQUIRED = frozenset(
     {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
@@ -396,18 +423,49 @@ class AnalysisRunner:
         if module is None:
             raise KeyError(f"unknown module_id: {module_id}")
 
+        start_msg = (
+            "Ask notebook…"
+            if module_id == "llm_custom_qa"
+            else f"Running {module_id}…"
+        )
+        _adhoc_progress_log(
+            status="running",
+            module_id=module_id,
+            message=start_msg,
+        )
+
         project = self.project_service.load(reconcile=True)
         self.reconcile()
         snap = snapshot_for_operation(
             project_settings=project.settings,
             project_id=project.id,
         )
-        with bind_operation_config(snap):
-            return self._run_module_unlocked(
-                module,
-                project=project,
-                question_text=question_text,
+        try:
+            with bind_operation_config(snap):
+                env = self._run_module_unlocked(
+                    module,
+                    project=project,
+                    question_text=question_text,
+                )
+        except Exception as exc:
+            _adhoc_progress_log(
+                status="failed",
+                module_id=module_id,
+                message=f"{module_id}: {exc}",
+                failed=1,
             )
+            raise
+
+        outcome = str(env.get("outcome") or "unknown")
+        failed = 1 if outcome == "failed" else 0
+        _adhoc_progress_log(
+            status="completed",
+            module_id=module_id,
+            message=f"{module_id}: {outcome}",
+            completed=1,
+            failed=failed,
+        )
+        return env
 
     def _run_module_unlocked(
         self,

@@ -127,9 +127,14 @@ class MomentsModule:
             quote = unit.text.strip()
             if len(quote) > 160:
                 quote = quote[:157] + "..."
+            page_id = None
+            ref = unit.source_ref if isinstance(unit.source_ref, dict) else {}
+            if isinstance(ref.get("page_id"), str) and ref["page_id"]:
+                page_id = ref["page_id"]
             scored.append(
                 {
                     "unit_id": unit.unit_id,
+                    "page_id": page_id,
                     "order": unit.order,
                     "date": unit.date,
                     "score": score,
