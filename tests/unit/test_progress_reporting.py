@@ -197,3 +197,79 @@ def test_batch_ocr_progress_names_notebook_and_page(tmp_path: Path) -> None:
     assert snap["detail_total"] == 4
     assert snap["current_item"] == "1/2 · alpha"
     assert 0 < snap["pct"] < 50
+
+
+def test_batch_analysis_progress_names_notebook_and_module(tmp_path: Path) -> None:
+    from transcribe.services.batch_analysis import (
+        BatchAnalysisCoordinator,
+        BatchAnalysisProgress,
+        list_analysis_candidates,
+    )
+    from transcribe.ui.run_analysis_batch import batch_analysis_progress_to_snapshot
+
+    corpus = CorpusPaths(data_dir=tmp_path / "data", projects_dir=tmp_path / "projects")
+    corpus.projects_dir.mkdir(parents=True)
+    corpus.ensure_layout()
+    clock, ids = FakeClock(), SequentialIds("bax")
+    root = corpus.projects_dir / "gamma"
+    projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
+    projects.create("gamma")
+    IngestService(open_project_paths(root), clock=clock, ids=ids).import_bytes(
+        "gamma-0.png", _png_bytes(color=(9, 8, 7))
+    )
+    project = projects.load()
+    projects.save_user_edit(
+        project.pages[0].page_id,
+        "Gamma notebook text for stats and lexical diversity modules offline.",
+    )
+
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    seen: list[str] = []
+    from transcribe.analysis.coordinator import AnalysisCoordinator
+
+    orig = AnalysisCoordinator.run_blocking
+
+    def capture(self, plan, *, on_progress=None):
+        def wrapped(progress):
+            live = coord.get_progress()
+            seen.append(live.current_item)
+            seen.append(live.current_module_id)
+            seen.append(live.message)
+            if on_progress is not None:
+                on_progress(progress)
+
+        return orig(self, plan, on_progress=wrapped)
+
+    AnalysisCoordinator.run_blocking = capture  # type: ignore[method-assign]
+    try:
+        selected = list_analysis_candidates(corpus, clock=clock, ids=ids)
+        run = coord.create_run(selected, module_ids=["stats", "lexical_diversity"])
+        progress = coord.run_blocking(run.analysis_batch_id)
+    finally:
+        AnalysisCoordinator.run_blocking = orig  # type: ignore[method-assign]
+
+    assert progress.status == "completed"
+    blob = " ".join(seen)
+    assert "gamma" in blob
+    assert "stats" in blob
+
+    snap = batch_analysis_progress_to_snapshot(
+        BatchAnalysisProgress(
+            analysis_batch_id="x",
+            status="running",
+            total=2,
+            completed=0,
+            current_item="1/2 · gamma",
+            current_module_id="stats",
+            modules_completed=1,
+            modules_total=4,
+            modules_failed=0,
+            modules_skipped=0,
+            message="Running stats (1/4)…",
+        )
+    )
+    assert snap["detail_current"] == "stats"
+    assert snap["detail_total"] == 4
+    assert snap["detail_unit"] == "modules in this notebook"
+    assert snap["current_item"] == "1/2 · gamma"
+    assert 0 < snap["pct"] < 50

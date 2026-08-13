@@ -120,11 +120,22 @@ def test_phase6_last_run_is_product_summary():
 
 
 def test_analyse_batch_target_and_progress_wiring():
+    from transcribe.persistence.schema import SUPPORTED
+    from transcribe.ui.shell import is_open_notebook_workflow
+
     batch = Path("src/transcribe/ui/run_analysis_batch.py").read_text(encoding="utf-8")
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
+    targets = Path("src/transcribe/ui/targets.py").read_text(encoding="utf-8")
+    panel = Path("src/transcribe/ui/components/progress_panel.py").read_text(
+        encoding="utf-8"
+    )
     assert "render_analyse_workspace" in APP
     assert "get_batch_analysis_coordinator" in APP
     assert "ANALYSE_TARGET_KEY" in APP
+    assert "ANALYSE_TARGET_KEY" in targets
+    assert "ANALYSE_BATCH_SOURCE_KEY" in targets
+    assert not is_open_notebook_workflow("Analyse")
+    assert is_open_notebook_workflow("Review")
     assert '"Analyse"' in shell or "'Analyse'" in shell
     assert "Notebooks needing analysis" in batch
     assert "From an import run" in batch
@@ -133,5 +144,11 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "modules in this notebook" in batch
     assert "Stop after current notebook" in batch
     assert "Start batch analysis" in batch
+    assert "Retry failed" in batch
     assert "render_progress_panel" in batch
     assert "BatchAnalysisCoordinator" in batch
+    assert "runner.run_module" not in batch
+    assert SUPPORTED.get("transcribe.analysis-batch-run") == 1
+    # Dual-bar panel generalizes detail label (module vs page).
+    assert "Current {detail_noun}" in panel or "Current module" in panel
+    assert "detail_unit" in panel

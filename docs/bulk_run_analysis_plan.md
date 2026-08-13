@@ -305,8 +305,8 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 
 ### Tests & docs
 
-- [ ] Offline suite covers §11 matrix; no live Ollama required in default CI.
-- [ ] §12 docs checklist complete; ROADMAP marks A1–A3 done.
+- [x] Offline suite covers §11 matrix; no live Ollama required in default CI.
+- [x] §12 docs checklist complete; ROADMAP marks A1–A3 done.
 
 ---
 
