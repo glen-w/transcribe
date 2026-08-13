@@ -280,11 +280,23 @@ def _batch_progress_to_snapshot(progress: BatchOcrProgress) -> dict[str, Any]:
         panel_status, phase = "failed", "failed"
     else:
         panel_status, phase = "running", "running_pipeline"
+    detail_bits: list[str] = []
+    if progress.mode == "multipass":
+        if progress.phase:
+            detail_bits.append(progress.phase)
+        if progress.current_model:
+            detail_bits.append(progress.current_model)
+        elif progress.model_total:
+            detail_bits.append(
+                f"model {progress.model_index}/{progress.model_total}"
+            )
+    if progress.current_page_label:
+        detail_bits.append(progress.current_page_label)
     return {
         "status": panel_status,
         "phase": phase,
         "current_item": progress.current_item,
-        "detail_current": progress.current_page_label,
+        "detail_current": " · ".join(detail_bits) if detail_bits else "",
         "detail_completed": progress.pages_completed,
         "detail_failed": progress.pages_failed,
         "detail_skipped": progress.pages_skipped,
@@ -446,8 +458,9 @@ def render_run_transcribe(
         key=TRANSCRIBE_TARGET_KEY,
         help=(
             "This notebook: OCR the selected notebook. "
-            "Batch: same OCR settings across many notebooks "
-            "(pending pages, an import run, or a manual pick)."
+            "Batch: same OCR plan across many notebooks "
+            "(single model or compare models; pending pages, an import run, "
+            "or a manual pick)."
         ),
     )
     if target is None:
@@ -591,12 +604,14 @@ def _render_this_notebook_launch(
         "optionally produce a composite candidate with the text model. "
         "Vision phases skip post-OCR cleanup unless you opt in below."
     )
+    multi_default = _multipass_default_selection(form["names"])
     multi_models = st.multiselect(
         "Vision models for multipass",
         options=form["names"],
-        default=[],
+        default=multi_default,
         format_func=form["model_label"],
         help="Select at least two models. Order matters: first model runs fully.",
+        key="tx_this_compare_models",
     )
     render_model_information(
         form["all_models"],
@@ -613,12 +628,14 @@ def _render_this_notebook_launch(
             "Off by default so compare is a raw-model comparison. "
             "Cleanup still uses the cleanup/text model when enabled."
         ),
+        key="tx_this_compare_cleanup",
     )
     no_auto_comp = st.checkbox(
         "Do not auto-activate composite",
         value=not bool(project.settings.auto_activate_composite),
+        key="tx_this_no_auto_comp",
     )
-    if st.button("Start multipass compare"):
+    if st.button("Start multipass compare", key="tx_this_start_multipass"):
         if form["remote"] and not form["allow_remote"]:
             st.error("Enable the remote-host acknowledgement first.")
         elif len(multi_models) < 2:
@@ -650,6 +667,18 @@ def _render_this_notebook_launch(
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
+
+
+def _multipass_default_selection(available: list[str]) -> list[str]:
+    """Workspace multipass_default_models filtered to currently listed models."""
+    try:
+        from transcribe.config.facade import get_config
+
+        configured = list(get_config().effective.ocr.multipass_default_models or ())
+    except Exception:
+        configured = []
+    avail = set(available)
+    return [m for m in configured if m in avail]
 
 
 def _render_batch_launch(
@@ -737,8 +766,10 @@ def _render_batch_launch(
         with st.expander("Recent batch OCR runs", expanded=False):
             for run in recent:
                 ok = sum(1 for i in run.items if i.state == "completed")
+                mode_bit = " · multipass" if run.mode == "multipass" else ""
                 st.caption(
-                    f"`{run.ocr_run_id}` · {run.status} · {ok}/{len(run.items)} notebooks"
+                    f"`{run.ocr_run_id}` · {run.status}{mode_bit} · "
+                    f"{ok}/{len(run.items)} notebooks"
                 )
                 if run.status in {"pending", "running"} or any(
                     i.state in {"pending", "running"} for i in run.items
@@ -765,6 +796,79 @@ def _render_batch_launch(
                     settings=settings,
                     force=form["force"],
                     import_run_id=import_run_id,
+                )
+                batch_coord.start(new_run.ocr_run_id)
+                st.session_state[_BATCH_WAS_RUNNING_KEY] = True
+                st.session_state.pop(_BATCH_POST_RUN_KEY, None)
+                st.rerun()
+            except (JobConflictError, TranscribeError, ValidationError) as exc:
+                st.error(str(exc))
+
+    st.divider()
+    st.subheader("Compare models")
+    st.caption(
+        "Run two or more vision models on each selected notebook (sequentially), "
+        "then rank and optionally produce a composite with the text model. "
+        "Cost scales with models × notebooks × pages."
+    )
+    batch_multi_default = _multipass_default_selection(form["names"])
+    batch_multi_models = st.multiselect(
+        "Vision models for batch multipass",
+        options=form["names"],
+        default=batch_multi_default,
+        format_func=form["model_label"],
+        help="Select at least two models. Applied to every notebook in the batch.",
+        key="tx_batch_compare_models",
+    )
+    render_model_information(
+        form["all_models"],
+        selected=batch_multi_models,
+        role="vision",
+        key="tx_batch_compare_model_info",
+    )
+    if batch_multi_models:
+        warn_if_first_compare_model_is_general_vlm(batch_multi_models)
+    batch_compare_cleanup = st.checkbox(
+        "Clean OCR during compare",
+        value=False,
+        help=(
+            "Off by default so compare is a raw-model comparison. "
+            "Cleanup still uses the cleanup/text model when enabled."
+        ),
+        key="tx_batch_compare_cleanup",
+    )
+    batch_no_auto_comp = st.checkbox(
+        "Do not auto-activate composite",
+        value=not bool(seed.auto_activate_composite),
+        key="tx_batch_no_auto_comp",
+    )
+    if st.button("Start batch multipass compare", key="tx_batch_start_multipass"):
+        if form["remote"] and not form["allow_remote"]:
+            st.error("Enable the remote-host acknowledgement first.")
+        elif not selected:
+            st.error("Select at least one notebook.")
+        elif len(batch_multi_models) < 2:
+            st.error("Select at least two vision models.")
+        else:
+            try:
+                settings = _form_to_settings(seed, form)
+                if batch_compare_cleanup:
+                    settings.cleanup_model_name = (
+                        form["cleanup_model"] or form["text_model"]
+                    )
+                elif form["text_model"] and not settings.cleanup_model_name:
+                    settings.cleanup_model_name = form["text_model"]
+                if form["text_model"]:
+                    settings.text_model_name = form["text_model"]
+                settings.auto_activate_composite = not batch_no_auto_comp
+                new_run = batch_coord.create_run(
+                    selected,
+                    settings=settings,
+                    force=form["force"],
+                    import_run_id=import_run_id,
+                    mode="multipass",
+                    vision_model_names=list(batch_multi_models),
+                    multipass_cleanup_enabled=bool(batch_compare_cleanup),
                 )
                 batch_coord.start(new_run.ocr_run_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True

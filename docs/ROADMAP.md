@@ -119,6 +119,7 @@ Ambitious OCR features on the durable attempt model: multipass multi-model runs,
 | **W3** | [x] | Compare/Prefer Review GUI + single-page re-run |
 | **W4** | [x] | Preference ledger + pre-run hints |
 | **W5** | [x] | Fine-tune export + docs |
+| **Batch multipass** | [x] | Compare models over OcrBatchRun (UI + `bulk-run` multi `--model`) |
 
 ---
 

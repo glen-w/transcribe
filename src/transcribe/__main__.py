@@ -7,7 +7,12 @@ import os
 import sys
 from pathlib import Path
 
-from transcribe.errors import JobConflictError, ProviderError, TranscribeError
+from transcribe.errors import (
+    JobConflictError,
+    ProviderError,
+    TranscribeError,
+    ValidationError,
+)
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import (
     OllamaVisionProvider,
@@ -259,7 +264,15 @@ def main(argv: list[str] | None = None) -> int:
     bulk_run_sub = p_bulk_run.add_subparsers(dest="bulk_run_cmd", required=True)
 
     def _add_bulk_run_ocr_flags(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--model", required=True)
+        parser.add_argument(
+            "--model",
+            action="append",
+            required=True,
+            help=(
+                "Vision model (repeat for multipass compare; "
+                "one value = single-model batch)"
+            ),
+        )
         parser.add_argument("--base-url", default=None)
         parser.add_argument("--force", action="store_true")
         parser.add_argument("--workers", type=int, default=1)
@@ -267,7 +280,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument(
             "--cleanup",
             action="store_true",
-            help="Enable optional post-OCR text-model cleanup",
+            help=(
+                "Single-model: enable post-OCR text cleanup. "
+                "Multipass (≥2 --model): opt in vision-phase cleanup during compare"
+            ),
         )
         parser.add_argument(
             "--cleanup-mode",
@@ -275,6 +291,16 @@ def main(argv: list[str] | None = None) -> int:
             default=None,
         )
         parser.add_argument("--cleanup-model", default=None)
+        parser.add_argument(
+            "--text-model",
+            default=None,
+            help="Text model for multipass rank/composite (and cleanup when unset)",
+        )
+        parser.add_argument(
+            "--no-auto-composite",
+            action="store_true",
+            help="Multipass: do not auto-activate composite candidates",
+        )
 
     p_br_pending = bulk_run_sub.add_parser(
         "pending",
@@ -752,25 +778,32 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
 
     if args.bulk_run_cmd == "status":
         run = store.load(args.ocr_run_id)
+        models = (
+            ",".join(run.vision_model_names)
+            if run.mode == "multipass" and run.vision_model_names
+            else (run.settings or {}).get("model_name", "")
+        )
         print(
-            f"ocr_run_id={run.ocr_run_id} status={run.status} "
-            f"force={run.force} items={len(run.items)}"
+            f"ocr_run_id={run.ocr_run_id} status={run.status} mode={run.mode} "
+            f"models={models} force={run.force} items={len(run.items)}"
         )
         if run.import_run_id:
             print(f"import_run_id={run.import_run_id}")
         for item in run.items:
             err = f" error={item.error_message}" if item.error_message else ""
+            pass_bit = f" pass_id={item.pass_id}" if item.pass_id else ""
             print(
                 f"  {item.notebook_id} {item.state} "
                 f"pages={item.pages_completed}/{item.pages_total} "
-                f"failed={item.pages_failed} skipped={item.pages_skipped}{err}"
+                f"failed={item.pages_failed} skipped={item.pages_skipped}"
+                f"{pass_bit}{err}"
             )
         return 0
 
     if args.bulk_run_cmd == "resume":
         progress = coord.resume(args.ocr_run_id, blocking=True)
         run = store.load(progress.ocr_run_id)
-        print(f"ocr_run_id={run.ocr_run_id} status={run.status}")
+        print(f"ocr_run_id={run.ocr_run_id} status={run.status} mode={run.mode}")
         for item in run.items:
             print(f"  {item.notebook_id} {item.state}")
         return 0 if run.status in {"completed", "partial"} else 1
@@ -783,6 +816,11 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
             file=sys.stderr,
         )
         return 2
+    models = [m.strip() for m in (args.model or []) if m and str(m).strip()]
+    if not models:
+        print("error: at least one --model is required", file=sys.stderr)
+        return 2
+    is_multipass = len(models) >= 2
     if (args.cleanup_mode or args.cleanup_model) and not args.cleanup:
         print(
             "error: --cleanup-mode / --cleanup-model require --cleanup",
@@ -790,14 +828,18 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
         )
         return 2
 
+    text_model = (args.text_model or "").strip()
+    cleanup_model = (args.cleanup_model or "").strip() or text_model
     settings = OCRSettings(
-        model_name=args.model,
+        model_name=models[0],
         base_url=url,
         max_workers=max(1, min(2, args.workers)),
         allow_non_loopback=bool(args.allow_remote_ollama),
-        cleanup_enabled=bool(args.cleanup),
+        cleanup_enabled=bool(args.cleanup) and not is_multipass,
         cleanup_mode=args.cleanup_mode or "strip_leak",
-        cleanup_model_name=(args.cleanup_model or "").strip(),
+        cleanup_model_name=cleanup_model,
+        text_model_name=text_model or cleanup_model,
+        auto_activate_composite=not bool(getattr(args, "no_auto_composite", False)),
     )
     coord.provider = OllamaVisionProvider(url)
     candidates = list_candidates(corpus, clock=clock, ids=ids)
@@ -823,15 +865,23 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
     if not selected:
         print("No notebooks selected.")
         return 1
-    run = coord.create_run(
-        selected,
-        settings=settings,
-        force=bool(args.force),
-        import_run_id=import_run_id,
-    )
+    try:
+        run = coord.create_run(
+            selected,
+            settings=settings,
+            force=bool(args.force),
+            import_run_id=import_run_id,
+            mode="multipass" if is_multipass else "single",
+            vision_model_names=models if is_multipass else None,
+            multipass_cleanup_enabled=bool(args.cleanup) if is_multipass else False,
+        )
+    except ValidationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    model_label = ",".join(models) if is_multipass else models[0]
     print(
         f"ocr_run_id={run.ocr_run_id} notebooks={len(run.items)} "
-        f"model={settings.model_name} force={run.force}"
+        f"mode={run.mode} models={model_label} force={run.force}"
     )
     progress = coord.run_blocking(run.ocr_run_id)
     finished = store.load(progress.ocr_run_id)
@@ -840,7 +890,6 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
         err = f" error={item.error_message}" if item.error_message else ""
         print(f"  {item.notebook_id} {item.state}{err}")
     return 0 if finished.status in {"completed", "partial"} else 1
-
 
 def _cmd_corpus_doctor(args: argparse.Namespace) -> int:
     from transcribe.corpus.paths import CorpusPaths
