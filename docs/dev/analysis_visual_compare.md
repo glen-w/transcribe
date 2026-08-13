@@ -34,7 +34,7 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 | `stats` | chips + tokens/page bars | yes |
 | `lexical_diversity` | chips + TTR line | yes |
 | `understandability` | chips + Flesch line | yes |
-| `wordclouds` | **real word-cloud image** (optional `wordcloud` pkg) + token-weight expander | no |
+| `wordclouds` | **Basic** static cloud or **Advanced** interactive explorer (TX controls) | no |
 | `ner` | type mix + top surfaces; Places map | no |
 | `entity_sentiment` | entity mean-sentiment bars + table | no |
 | `sentiment` | compound line + tone mix | yes |
@@ -66,7 +66,7 @@ entity tone, action-item groups.
 3. **Read-model only** — never re-runs modules; averages published envelopes.
 4. **Exclude current notebook** from the average so deltas are vs peers.
 5. **Undated notebooks** included for “Entire corpus”, excluded for year/range.
-6. **Word clouds in the UI** — TX renders with `wordcloud` + matplotlib figures; Transcribe renders from published frequencies with `WordCloud.to_image()` (Pillow) in the Overview tab. Analysis module still emits only `tokens[]` (contract unchanged). Soft-falls back to token-weight bars when the optional dep is missing.
+6. **Word clouds in the UI** — TX renders a static PNG via `wordcloud` and an interactive explorer HTML (`wordcloud2.js` + search / top N / min value / sort / CSV). Transcribe Overview offers the same **Basic / Advanced** choice: Basic uses `WordCloud.to_image()` (Pillow); Advanced embeds a TX-shaped explorer with **vendored** `wordcloud2.js` (offline; TX uses a CDN). Analysis module still emits only `tokens[]`. Soft-falls back to token-weight bars when the Python package is missing.
 
 ## Do not
 

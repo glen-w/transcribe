@@ -98,12 +98,15 @@ def test_product_views_read_real_payload_shapes():
 
 
 def test_overview_renders_real_wordcloud_when_available():
-    assert "render_wordcloud_from_payload" in PRODUCT
+    assert "render_wordcloud_section" in PRODUCT
     path = Path("src/transcribe/ui/wordcloud_render.py")
     assert path.is_file()
     text = path.read_text(encoding="utf-8")
     assert "generate_from_frequencies" in text
     assert "to_image" in text
+    assert "build_wordcloud_explorer_html" in text
+    assert '"Basic"' in text and '"Advanced"' in text
+    assert Path("src/transcribe/ui/assets/wordcloud2.js").is_file()
     assert "wordcloud>=" in Path("pyproject.toml").read_text(encoding="utf-8")
 
 

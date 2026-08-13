@@ -31,7 +31,6 @@ from transcribe.ui.analysis_display_helpers import (
     sentiment_bucket_counts,
     topic_weight_rows,
     unit_series,
-    wordcloud_rows,
 )
 from transcribe.ui.analysis_health_view import (
     module_may_show_payload,
@@ -39,11 +38,7 @@ from transcribe.ui.analysis_health_view import (
     render_advanced_payload,
     render_module_unavailable,
 )
-from transcribe.ui.wordcloud_render import (
-    render_wordcloud_from_payload,
-    wordcloud_available,
-    wordcloud_unavailable_reason,
-)
+from transcribe.ui.wordcloud_render import render_wordcloud_section
 
 
 def _env_payload(mh: ModuleHealth) -> tuple[dict[str, Any], dict[str, Any], str | None]:
@@ -224,36 +219,8 @@ def render_overview_product(
         if mh is not None:
             payload = _show_or_note(mh, title="Word themes")
             if payload is not None:
-                rows = wordcloud_rows(payload, limit=40)
                 st.markdown("**Word themes**")
-                if rows:
-                    # TX-style raster cloud from published frequencies (UI-only).
-                    image = render_wordcloud_from_payload(payload)
-                    if image is not None:
-                        st.image(image, width="stretch")
-                    elif not wordcloud_available():
-                        st.caption(wordcloud_unavailable_reason() or "")
-                    with st.expander("Token weights", expanded=image is None):
-                        st.bar_chart(
-                            {
-                                "token": [r["token"] for r in rows],
-                                "weight": [r["weight"] for r in rows],
-                            },
-                            x="token",
-                            y="weight",
-                        )
-                        top = rows[:12]
-                        st.caption(
-                            "Top · "
-                            + " · ".join(
-                                f"{r['token']}×{r['count']}"
-                                if r["count"]
-                                else r["token"]
-                                for r in top
-                            )
-                        )
-                else:
-                    st.info("Word themes: no tokens yet.")
+                render_wordcloud_section(payload, key_prefix="overview_wc")
                 render_advanced_payload("wordclouds", payload)
 
     if "ner" in overview_ids:
