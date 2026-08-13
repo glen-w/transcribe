@@ -64,9 +64,7 @@ class ImportPlanItem:
             page_ids=[str(i) for i in data.get("page_ids") or []],
             render_ids=[str(i) for i in data.get("render_ids") or []],
             provenance=(
-                dict(data["provenance"])
-                if isinstance(data.get("provenance"), dict)
-                else None
+                dict(data["provenance"]) if isinstance(data.get("provenance"), dict) else None
             ),
             corpus_wide_dedupe=bool(data.get("corpus_wide_dedupe", False)),
             original_filename=(
@@ -89,10 +87,7 @@ class ImportPlan:
             "schema_version": self.schema_version,
             "plan_id": self.plan_id,
             "import_policy_id": self.import_policy_id,
-            "items": [
-                item.as_dict(include_provenance=include_provenance)
-                for item in self.items
-            ],
+            "items": [item.as_dict(include_provenance=include_provenance) for item in self.items],
         }
 
     @classmethod
@@ -101,9 +96,7 @@ class ImportPlan:
             plan_id=str(data.get("plan_id") or ""),
             import_policy_id=str(data.get("import_policy_id") or ""),
             schema_version=int(data.get("schema_version", PLAN_SCHEMA_VERSION)),
-            items=[
-                ImportPlanItem.from_dict(item) for item in data.get("items") or []
-            ],
+            items=[ImportPlanItem.from_dict(item) for item in data.get("items") or []],
         )
 
     def body_for_fingerprint(self) -> dict[str, Any]:
@@ -126,9 +119,7 @@ def plan_body_for_fingerprint(plan: ImportPlan) -> dict[str, Any]:
 
 def validate_import_plan(plan: ImportPlan) -> None:
     if plan.schema_version != PLAN_SCHEMA_VERSION:
-        raise ValidationError(
-            f"unsupported ImportPlan schema_version {plan.schema_version}"
-        )
+        raise ValidationError(f"unsupported ImportPlan schema_version {plan.schema_version}")
     _require_nonempty(plan.plan_id, "plan_id")
     if plan.import_policy_id not in IMPORT_POLICY_IDS:
         raise ValidationError(f"unknown import_policy_id: {plan.import_policy_id!r}")
@@ -153,18 +144,12 @@ def _validate_item(item: ImportPlanItem) -> None:
         raise ValidationError(f"{item.item_id}.page_indexes contains duplicates")
     expected = list(range(len(item.page_indexes)))
     if item.page_indexes != expected:
-        raise ValidationError(
-            f"{item.item_id}.page_indexes must be contiguous {expected}"
-        )
+        raise ValidationError(f"{item.item_id}.page_indexes must be contiguous {expected}")
     _require_nonempty(item.source_id, f"{item.item_id}.source_id")
     if len(item.page_ids) != len(item.page_indexes):
-        raise ValidationError(
-            f"{item.item_id}.page_ids length must match page_indexes"
-        )
+        raise ValidationError(f"{item.item_id}.page_ids length must match page_indexes")
     if len(item.render_ids) != len(item.page_indexes):
-        raise ValidationError(
-            f"{item.item_id}.render_ids length must match page_indexes"
-        )
+        raise ValidationError(f"{item.item_id}.render_ids length must match page_indexes")
     for idx, page_id in enumerate(item.page_ids):
         _require_nonempty(page_id, f"{item.item_id}.page_ids[{idx}]")
     for idx, render_id in enumerate(item.render_ids):

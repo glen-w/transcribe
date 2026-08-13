@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 _CORE_ROOT = Path(__file__).resolve().parents[2] / "src" / "transcribe"
 _SKIP_PARTS = {"ui"}
 

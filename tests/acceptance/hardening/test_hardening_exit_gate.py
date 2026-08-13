@@ -196,10 +196,7 @@ def test_gate_export_provenance_revision(tmp_path: Path):
 def test_gate_product_language_and_last_run_summary():
     """Exit bullet 5 — ordinary workflows use product language, not enums."""
     assert product_capability_label("unavailable_model") == "Needs a text model"
-    assert (
-        product_capability_label("unavailable_extra")
-        == "Optional component not installed"
-    )
+    assert product_capability_label("unavailable_extra") == "Optional component not installed"
     assert product_capability_label(None, "insufficient_data") == "Not enough text yet"
     assert product_aggregate_label("stale") == "Out of date"
     assert product_aggregate_label("interrupted") == "Interrupted"
@@ -228,8 +225,5 @@ def test_gate_aggregate_interrupted_beats_module_state():
             live_evidence=[],
         )
     ]
-    assert (
-        aggregate_module_health(modules, active_run_status="interrupted")
-        == "interrupted"
-    )
+    assert aggregate_module_health(modules, active_run_status="interrupted") == "interrupted"
     assert aggregate_module_health(modules, active_run_status="running") == "running"

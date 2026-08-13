@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pymupdf
 
-from transcribe.services.export_document import ExportDocument, ExportPart, ExportSection
+from transcribe.services.export_document import (
+    ExportDocument,
+    ExportPart,
+    ExportSection,
+)
 from transcribe.services.export_options import ExportOptions
 
 # A4 in points
@@ -135,9 +139,7 @@ class _PdfBuilder:
         self._write_textbox(part.title, fontsize=self.heading_size * 1.15)
         self._gap(0.4)
         if part.date_start_label or part.date_end_label:
-            span = " – ".join(
-                x for x in (part.date_start_label, part.date_end_label) if x
-            )
+            span = " – ".join(x for x in (part.date_start_label, part.date_end_label) if x)
             self._write_textbox(span, fontsize=self.fontsize * 0.9)
             self._gap(0.3)
         if self.document.is_bundle:

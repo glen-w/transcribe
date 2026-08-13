@@ -11,9 +11,7 @@ from PIL import Image
 
 ALGORITHM_VERSION = "1"
 
-InkHue = Literal[
-    "black", "blue", "red", "brown", "green", "other", "mixed", "none"
-]
+InkHue = Literal["black", "blue", "red", "brown", "green", "other", "mixed", "none"]
 PaperTone = Literal["white", "cream", "grey", "warm", "cool", "unknown"]
 
 # Max long edge before downsample (keeps scans fast; identity uses render SHA, not pixels).
@@ -197,9 +195,7 @@ def analyse_image(image: Image.Image) -> PageInkMetrics:
     hue, hue_deg = _classify_hue(ink_rgb)
     # Sample for paper tone: brighter non-ink pixels.
     paper_samples = [
-        px
-        for px, luma in zip(pixels, lumas)
-        if luma > paper_luma - INK_LUMA_DELTA / 2
+        px for px, luma in zip(pixels, lumas) if luma > paper_luma - INK_LUMA_DELTA / 2
     ]
     tone = _paper_tone_from_samples(paper_samples[:5000] or pixels[:5000])
 

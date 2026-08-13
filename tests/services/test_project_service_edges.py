@@ -238,9 +238,7 @@ def test_delete_page_reindexes_pdf_source(tmp_path: Path) -> None:
         assert render.image_relpath.startswith(expected_prefix)
         assert projects.paths.resolve_contained(render.image_relpath).is_file()
         assert render.pdf_page_index == page.page_index
-    assert not (
-        projects.paths.pages_dir / middle.source_id / "0002"
-    ).exists()
+    assert not (projects.paths.pages_dir / middle.source_id / "0002").exists()
 
 
 def test_delete_first_pdf_page_reindexes_without_collision(tmp_path: Path) -> None:

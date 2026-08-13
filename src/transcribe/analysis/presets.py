@@ -88,16 +88,14 @@ def preset_policy_fingerprint(policy: PresetPolicy | PresetPolicyConfig) -> str:
             "allow_heavy": policy.allow_heavy,
             "heavy_module_ids": list(policy.heavy_module_ids),
             "include_excluded_from_default": policy.include_excluded_from_default,
-            "module_ids": None if policy.module_ids is None else list(policy.module_ids),
+            "module_ids": (None if policy.module_ids is None else list(policy.module_ids)),
         }
     return hashlib.sha256(canonical_json_bytes(body)).hexdigest()
 
 
 def custom_modules_fingerprint(module_ids: Sequence[str]) -> str:
     """Stable identity surrogate for Custom preset selections."""
-    return hashlib.sha256(
-        canonical_json_bytes({"module_ids": list(module_ids)})
-    ).hexdigest()
+    return hashlib.sha256(canonical_json_bytes({"module_ids": list(module_ids)})).hexdigest()
 
 
 def bump_preset_content_versions(
@@ -288,9 +286,7 @@ def resolve_analysis_preset(
     policies = policies_from_effective(cfg)
 
     if preset_key == "custom":
-        kept, _ = reconcile_custom_modules(
-            list(custom_modules or ()), suitable=suitable
-        )
+        kept, _ = reconcile_custom_modules(list(custom_modules or ()), suitable=suitable)
         if not kept:
             balanced = resolve_analysis_preset("balanced", effective=cfg)
             kept = balanced.module_ids

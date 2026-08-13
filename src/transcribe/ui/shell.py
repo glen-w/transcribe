@@ -8,7 +8,6 @@ from pathlib import Path
 
 import streamlit as st
 
-
 # Notebooks section
 _NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")
 # Workflow section (create → import → OCR → review, then analyse / export)
@@ -582,9 +581,7 @@ def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav")
     }
     if st.button(text, **kwargs):
         # Re-clicking the active mode clears page-viewer overlay (no separate Back).
-        if st.session_state.get("ui_mode") != mode or st.session_state.get(
-            "show_page_viewer"
-        ):
+        if st.session_state.get("ui_mode") != mode or st.session_state.get("show_page_viewer"):
             set_ui_mode(mode)
 
 
@@ -599,9 +596,7 @@ def _selectbox_index_kwargs(
     if key in st.session_state:
         current = st.session_state.get(key)
         if current not in options:
-            st.session_state[key] = (
-                preferred if preferred in options else options[fallback_index]
-            )
+            st.session_state[key] = preferred if preferred in options else options[fallback_index]
         return {}
     if preferred and preferred in options:
         return {"index": options.index(preferred)}
@@ -651,9 +646,7 @@ def render_notebook_picker(
         "Notebook",
         choices,
         format_func=lambda x: (
-            SELECTBOX_PLACEHOLDER_NOTEBOOK
-            if x == ""
-            else labels.get(x, Path(x).name)
+            SELECTBOX_PLACEHOLDER_NOTEBOOK if x == "" else labels.get(x, Path(x).name)
         ),
         key=NOTEBOOK_SELECTOR_KEY,
         label_visibility="collapsed",

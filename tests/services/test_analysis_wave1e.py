@@ -24,7 +24,6 @@ from transcribe.analysis.modules import (
     get_registered_modules,
 )
 from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
-from transcribe.analysis.modules.llm_summary import LLMSummaryModule
 from transcribe.analysis.runner import AnalysisRunner
 from transcribe.ingest import IngestService
 from transcribe.services.project import ProjectService, open_project_paths
@@ -55,8 +54,7 @@ def _project_with_pages(tmp_path: Path, texts: list[str]):
 
 
 TEXTS = [
-    "Gardens and flowers need water every morning.\n\n"
-    "The soil must stay damp for seedlings.",
+    "Gardens and flowers need water every morning.\n\n" "The soil must stay damp for seedlings.",
     "Terrible storms ruined the harvest yesterday.\n\n"
     "Farmers decided to postpone planting decisions.",
     "Happy teams celebrated wonderful progress on notebooks and topics.",
@@ -180,9 +178,7 @@ def test_entity_sentiment_with_injected_ner(tmp_path: Path):
 
 def test_llm_summary_recorded_double(tmp_path: Path):
     double = RecordedDoubleClient(
-        responses={
-            "default": '{"summary":"Notebook about gardens.","bullets":["water","soil"]}'
-        }
+        responses={"default": '{"summary":"Notebook about gardens.","bullets":["water","soil"]}'}
     )
     set_text_llm_client(double)
     try:
@@ -208,8 +204,7 @@ def test_llm_custom_qa_grounding_and_abstain(tmp_path: Path):
         RecordedDoubleClient(
             responses={
                 "default": (
-                    f'{{"answer":"They need water.","unit_ids":["{unit_id}"],'
-                    f'"abstain":false}}'
+                    f'{{"answer":"They need water.","unit_ids":["{unit_id}"],' f'"abstain":false}}'
                 )
             }
         )
@@ -227,9 +222,7 @@ def test_llm_custom_qa_grounding_and_abstain(tmp_path: Path):
     # Ungrounded / fabricated ids → abstain
     set_text_llm_client(
         RecordedDoubleClient(
-            responses={
-                "default": '{"answer":"Nope","unit_ids":["missing-id"],"abstain":false}'
-            }
+            responses={"default": '{"answer":"Nope","unit_ids":["missing-id"],"abstain":false}'}
         )
     )
     try:
@@ -316,9 +309,7 @@ def test_batch_runs_parents_before_consumers(tmp_path: Path):
 
 def test_llm_summary_cache_hit_with_double(tmp_path: Path):
     set_text_llm_client(
-        RecordedDoubleClient(
-            responses={"default": '{"summary":"Cached gardens.","bullets":["a"]}'}
-        )
+        RecordedDoubleClient(responses={"default": '{"summary":"Cached gardens.","bullets":["a"]}'})
     )
     try:
         projects, runner = _project_with_pages(tmp_path, TEXTS)
@@ -400,9 +391,7 @@ def test_llm_summary_strict_schema_abstains(tmp_path: Path):
         env = runner.run_module("llm_summary")
         assert env["outcome"] == "skipped_not_applicable"
         assert "raw" not in (env.get("payload") or {})
-        assert any(
-            w.get("code") == "abstain_unparseable" for w in (env.get("warnings") or [])
-        )
+        assert any(w.get("code") == "abstain_unparseable" for w in (env.get("warnings") or []))
     finally:
         set_text_llm_client(None)
 
@@ -414,16 +403,12 @@ def test_qa_question_text_via_runner(tmp_path: Path):
     set_text_llm_client(
         RecordedDoubleClient(
             responses={
-                "default": (
-                    f'{{"answer":"Water.","unit_ids":["{unit_id}"],"abstain":false}}'
-                )
+                "default": (f'{{"answer":"Water.","unit_ids":["{unit_id}"],"abstain":false}}')
             }
         )
     )
     try:
-        env = runner.run_module(
-            "llm_custom_qa", question_text="What do gardens need?"
-        )
+        env = runner.run_module("llm_custom_qa", question_text="What do gardens need?")
         assert env["outcome"] == "success"
         assert env["llm"]["question_text"] == "What do gardens need?"
         evidence = env.get("evidence") or []
@@ -439,18 +424,14 @@ def test_load_published_read_model_none_is_stale(tmp_path: Path):
     from transcribe.analysis.storage import AnalysisStorage
 
     set_text_llm_client(
-        RecordedDoubleClient(
-            responses={"default": '{"summary":"x","bullets":["y"]}'}
-        )
+        RecordedDoubleClient(responses={"default": '{"summary":"x","bullets":["y"]}'})
     )
     try:
         projects, runner = _project_with_pages(tmp_path, TEXTS)
         env = runner.run_module("llm_summary")
         assert env["outcome"] == "success"
         storage = AnalysisStorage(projects.paths)
-        rm = load_published_read_model(
-            storage, "llm_summary", current_cache_identity=None
-        )
+        rm = load_published_read_model(storage, "llm_summary", current_cache_identity=None)
         assert rm["status"] == "stale"
         assert rm["envelope"] is not None
     finally:
@@ -468,9 +449,7 @@ def test_highlights_stopwords_in_identity(tmp_path: Path):
 
 def test_narrative_summary_success_with_double(tmp_path: Path):
     set_text_llm_client(
-        RecordedDoubleClient(
-            responses={"default": '{"narrative":"A short garden story."}'}
-        )
+        RecordedDoubleClient(responses={"default": '{"narrative":"A short garden story."}'})
     )
     try:
         projects, runner = _project_with_pages(tmp_path, TEXTS)
@@ -486,9 +465,7 @@ def test_narrative_summary_success_with_double(tmp_path: Path):
 
 
 def test_llm_action_items_rejects_non_list_items(tmp_path: Path):
-    set_text_llm_client(
-        RecordedDoubleClient(responses={"default": '{"items":"not-a-list"}'})
-    )
+    set_text_llm_client(RecordedDoubleClient(responses={"default": '{"items":"not-a-list"}'}))
     try:
         projects, runner = _project_with_pages(tmp_path, TEXTS)
         env = runner.run_module("llm_action_items")

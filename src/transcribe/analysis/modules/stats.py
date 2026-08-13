@@ -60,7 +60,12 @@ class StatsModule:
             "document_char_count": len(document.text),
             "units": unit_rows,
         }
-        return {"outcome": "success", "payload": payload, "warnings": [], "partial": False}
+        return {
+            "outcome": "success",
+            "payload": payload,
+            "warnings": [],
+            "partial": False,
+        }
 
 
 def provenance_files() -> list[dict[str, str]]:

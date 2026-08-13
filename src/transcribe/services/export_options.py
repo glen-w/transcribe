@@ -141,9 +141,7 @@ class ExportOptions:
 class ExportConfig:
     """Workspace ``export`` config subtree (mirrors ExportOptions)."""
 
-    formats: tuple[str, ...] = field(
-        default_factory=lambda: tuple(sorted(DEFAULT_FORMATS))
-    )
+    formats: tuple[str, ...] = field(default_factory=lambda: tuple(sorted(DEFAULT_FORMATS)))
     page_breaks: PageBreakMode = "per_page"
     include_dates: bool = True
     include_blank_pages: bool = True

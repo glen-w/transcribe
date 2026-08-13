@@ -12,7 +12,11 @@ from transcribe.prompt_engine.definition import (
     PromptFamily,
     validate_prompt_definition,
 )
-from transcribe.prompt_engine.hub import list_catalogue, ocr_render_for_job, resolve_prompt
+from transcribe.prompt_engine.hub import (
+    list_catalogue,
+    ocr_render_for_job,
+    resolve_prompt,
+)
 from transcribe.prompt_engine.store import (
     delete_override,
     load_overrides,

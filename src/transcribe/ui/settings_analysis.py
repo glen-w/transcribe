@@ -19,7 +19,10 @@ from transcribe.config.models import (
     UiPresetsConfig,
     deep_merge_dict,
 )
-from transcribe.config.persistence import load_workspace_settings, save_workspace_settings
+from transcribe.config.persistence import (
+    load_workspace_settings,
+    save_workspace_settings,
+)
 from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.config.reset import reset_subtree
 
@@ -92,9 +95,7 @@ def _render_preset_editor(
         draft["heavy_module_ids"] = st.multiselect(
             "Heavy allowlist (empty = all heavy modules)",
             options=heavy_options,
-            default=[
-                m for m in (draft.get("heavy_module_ids") or []) if m in heavy_options
-            ],
+            default=[m for m in (draft.get("heavy_module_ids") or []) if m in heavy_options],
             format_func=format_module_label,
             key=f"{prefix}_heavy_ids",
         )
@@ -111,9 +112,7 @@ def _render_preset_editor(
         "Override with explicit module list",
         value=draft.get("module_ids") is not None,
         key=f"{prefix}_use_override",
-        help=widget_help(
-            "When enabled, policy filters are ignored and only this list runs."
-        ),
+        help=widget_help("When enabled, policy filters are ignored and only this list runs."),
     )
     if use_override:
         current = list(draft.get("module_ids") or [])

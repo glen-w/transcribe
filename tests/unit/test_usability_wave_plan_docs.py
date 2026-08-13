@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 DOCS = Path(__file__).resolve().parents[2] / "docs"
 ROOT = DOCS.parent
 
@@ -49,9 +48,9 @@ def test_history_docs_point_at_usability_wave_now():
     ):
         text = (DOCS / rel).read_text(encoding="utf-8")
         assert "Now — Product hardening" not in text, f"{rel} has stale Now heading"
-        assert "usability_wave_plan.md" in text or "Usability wave" in text, (
-            f"{rel} should point at usability wave"
-        )
+        assert (
+            "usability_wave_plan.md" in text or "Usability wave" in text
+        ), f"{rel} should point at usability wave"
 
 
 def test_hardening_checklist_splits_phase6_items():

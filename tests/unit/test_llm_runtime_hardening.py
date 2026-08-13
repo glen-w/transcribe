@@ -91,6 +91,7 @@ def test_suitable_text_model_names_filters_vision_and_embedding():
         "unknown-caps-ok",
     ]
 
+
 def test_bind_requires_explicit_model_for_non_double():
     stub = _StubTextClient()
     assert bind_text_llm_context(text_model_name="", client=stub) is None
@@ -128,7 +129,7 @@ def test_bind_unhealthy_returns_none():
 
 def test_parse_json_object_and_unavailable_helper():
     assert parse_json_object('{"a":1}') == {"a": 1}
-    assert parse_json_object("prefix {\"a\": 2} trailing") == {"a": 2}
+    assert parse_json_object('prefix {"a": 2} trailing') == {"a": 2}
     assert parse_json_object("[1,2]") is None
     assert parse_json_object("") is None
     result = unavailable_model_result()

@@ -121,22 +121,15 @@ def test_duplicate_classification_taxonomy(tmp_path: Path) -> None:
     first = _png_bytes(color=(1, 2, 3))
     second = _png_bytes(color=(4, 5, 6))
 
-    nb1 = _registered_project(
-        corpus, "nb1", prefix="a", filename="note.png", data=first
-    )
-    nb2 = _registered_project(
-        corpus, "nb2", prefix="b", filename="note.png", data=second
-    )
+    nb1 = _registered_project(corpus, "nb1", prefix="a", filename="note.png", data=first)
+    nb2 = _registered_project(corpus, "nb2", prefix="b", filename="note.png", data=second)
 
     same_target = _plan_item(
         notebook_id=nb1.id,
         source_sha256=sha256_bytes(first),
         original_filename="copy.png",
     )
-    assert (
-        classify_duplicate(corpus, same_target).classification
-        == CLASS_SAME_BYTES_SAME_NOTEBOOK
-    )
+    assert classify_duplicate(corpus, same_target).classification == CLASS_SAME_BYTES_SAME_NOTEBOOK
 
     other_target = _plan_item(
         notebook_id=nb2.id,
@@ -144,8 +137,7 @@ def test_duplicate_classification_taxonomy(tmp_path: Path) -> None:
         original_filename="other-name.png",
     )
     assert (
-        classify_duplicate(corpus, other_target).classification
-        == CLASS_SAME_BYTES_OTHER_NOTEBOOK
+        classify_duplicate(corpus, other_target).classification == CLASS_SAME_BYTES_OTHER_NOTEBOOK
     )
 
     filename_collision = _plan_item(

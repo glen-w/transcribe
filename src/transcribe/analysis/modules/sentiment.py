@@ -175,7 +175,12 @@ class SentimentModule:
             },
             "units": units_out,
         }
-        return {"outcome": "success", "payload": payload, "warnings": [], "partial": False}
+        return {
+            "outcome": "success",
+            "payload": payload,
+            "warnings": [],
+            "partial": False,
+        }
 
 
 def provenance_files() -> list[dict[str, str]]:

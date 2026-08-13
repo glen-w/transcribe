@@ -28,10 +28,7 @@ def cache_identity_payload(
     return {
         "algorithm_version": algorithm_version,
         "project_id": project_id,
-        "pages": [
-            {"page_id": pid, "render_sha256": sha}
-            for pid, sha in page_render_pairs
-        ],
+        "pages": [{"page_id": pid, "render_sha256": sha} for pid, sha in page_render_pairs],
     }
 
 
@@ -93,9 +90,7 @@ class PageMetricsService:
         self.clock = clock
         self.storage = PageMetricsStorage(self.paths)
 
-    def _measurable_pairs(
-        self, project: Project
-    ) -> list[tuple[str, str, str, object]]:
+    def _measurable_pairs(self, project: Project) -> list[tuple[str, str, str, object]]:
         """Return (page_id, render_id, render_sha256, image_path) for measurable pages."""
         out: list[tuple[str, str, str, object]] = []
         for page in project.pages:

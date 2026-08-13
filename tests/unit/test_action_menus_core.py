@@ -34,7 +34,6 @@ from transcribe.ui.action_menus.handlers import (
     is_action_available,
 )
 from transcribe.ui.action_menus.ids import (
-    SECTION_ORDER,
     ActionId,
     NavStyle,
     ReturnMode,
@@ -157,9 +156,11 @@ def test_section_defaults() -> None:
 
 
 def test_sanitise_drops_unknown_and_duplicates() -> None:
-    assert sanitise_action_ids(
-        ["open", "bogus", "analyse", "open", ActionId.EXPORT]
-    ) == [ActionId.OPEN, ActionId.ANALYSE, ActionId.EXPORT]
+    assert sanitise_action_ids(["open", "bogus", "analyse", "open", ActionId.EXPORT]) == [
+        ActionId.OPEN,
+        ActionId.ANALYSE,
+        ActionId.EXPORT,
+    ]
 
 
 def test_merge_partial_preserves_custom_and_fills_missing_sections() -> None:
@@ -220,7 +221,9 @@ def test_load_non_object_fail_closed(tmp_path: Path) -> None:
     assert path.read_text(encoding="utf-8").startswith("[")
 
 
-def test_render_isolation_swallows_resolve_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_render_isolation_swallows_resolve_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """One strip failure must not raise into the Archive/View loop."""
     import transcribe.ui.action_menus.render as render_mod
 
@@ -371,9 +374,7 @@ def test_unwritable_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     )
     result = save_interface_prefs(draft, path=path)
     assert result.ok is False
-    assert "permission" in (result.error or "").lower() or "write" in (
-        result.error or ""
-    ).lower()
+    assert "permission" in (result.error or "").lower() or "write" in (result.error or "").lower()
 
 
 def test_draft_dirty_and_reload(tmp_path: Path) -> None:
@@ -433,9 +434,7 @@ def test_identity_path_free_equality(tmp_path: Path) -> None:
     b = build_canonical_identity(project_id="x", project_root=str(tmp_path / "a"))
     assert a == b
     assert hash(a) == hash(b)
-    assert not hasattr(a, "project_root") or not isinstance(
-        getattr(a, "project_root", None), Path
-    )
+    assert not hasattr(a, "project_root") or not isinstance(getattr(a, "project_root", None), Path)
     with pytest.raises(IdentityError):
         build_canonical_identity(project_id="", project_root=tmp_path)
 
@@ -563,9 +562,7 @@ def test_viewer_page_ids_puts_cover_first(tmp_path: Path) -> None:
     assert navigate_open(ctx, session=session, rerun=False) is True
     assert session["view_page_id"] == mid
     assert session["view_page_ids"][0] == mid
-    assert session["view_page_ids"] == viewer_page_ids(
-        projects_svc.load(reconcile=False)
-    )
+    assert session["view_page_ids"] == viewer_page_ids(projects_svc.load(reconcile=False))
 
 
 def test_empty_notebook_open_unavailable(tmp_path: Path) -> None:
@@ -602,9 +599,9 @@ def test_catalog_helpers_and_unknown_section_fallback() -> None:
         ActionId.DELETE,
     )
     # Unknown subject_type falls back to allowlist first action.
-    assert section_default_actions(
-        SectionId.ARCHIVE_NOTEBOOK, subject_type="page"
-    ) == (SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK][0],)
+    assert section_default_actions(SectionId.ARCHIVE_NOTEBOOK, subject_type="page") == (
+        SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK][0],
+    )
 
 
 def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> None:
@@ -625,9 +622,7 @@ def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> 
         ActionId.RENAME,
         ActionId.DELETE,
     ]
-    archive_actions = resolve_section_actions(
-        SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs
-    )
+    archive_actions = resolve_section_actions(SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs)
     assert ActionId.RENAME not in archive_actions
     assert ActionId.DELETE not in archive_actions
     assert ActionId.RENAME in SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK]
@@ -694,11 +689,7 @@ def test_rendering_path_performs_no_mutation_writes(tmp_path: Path) -> None:
     project, root = _make_project(projects, "ro", with_page=True)
     prefs_path = tmp_path / "config" / "interface_menus.json"
     _write_envelope(prefs_path, built_in_prefs())
-    before = {
-        p: p.stat().st_mtime_ns
-        for p in [prefs_path, root / "project.json"]
-        if p.exists()
-    }
+    before = {p: p.stat().st_mtime_ns for p in [prefs_path, root / "project.json"] if p.exists()}
     ctx = load_live_notebook_context(
         project_id=project.id,
         project_root=root,
@@ -707,11 +698,7 @@ def test_rendering_path_performs_no_mutation_writes(tmp_path: Path) -> None:
     )
     prefs, _ = load_interface_prefs(prefs_path)
     resolve_section_actions(SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs)
-    after = {
-        p: p.stat().st_mtime_ns
-        for p in [prefs_path, root / "project.json"]
-        if p.exists()
-    }
+    after = {p: p.stat().st_mtime_ns for p in [prefs_path, root / "project.json"] if p.exists()}
     assert before == after
 
 
@@ -731,9 +718,7 @@ def test_deleted_notebook_context_zero_actions(tmp_path: Path) -> None:
         return_mode=ReturnMode.VIEW,
     )
     assert ctx.project_exists is False
-    assert resolve_section_actions(
-        SectionId.VIEW_NOTEBOOK, ctx, prefs=built_in_prefs()
-    ) == []
+    assert resolve_section_actions(SectionId.VIEW_NOTEBOOK, ctx, prefs=built_in_prefs()) == []
 
 
 def test_archive_view_wire_uses_configured_actions() -> None:
@@ -752,10 +737,7 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     # Cover hover/hit-target must require a direct-child cover key (not any ancestor).
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
     # Action-strip flex overrides must exclude ancestor Archive notebook grids.
-    assert (
-        ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])'
-        in shell
-    )
+    assert ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])' in shell
     assert "Settings" in shell
 
 
@@ -780,9 +762,7 @@ def test_multi_notebook_resolve_smoke(tmp_path: Path) -> None:
             return_mode=ReturnMode.ARCHIVE,
             instance_prefix="archive",
         )
-        actions = resolve_section_actions(
-            SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs
-        )
+        actions = resolve_section_actions(SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs)
         assert actions == [ActionId.ANALYSE, ActionId.OPEN, ActionId.EXPORT]
         for action in actions:
             keys.add(

@@ -80,7 +80,13 @@ class DoctorService:
                         "result_filename_mismatch",
                         f"result file {path.name} does not match page_id {page.page_id}",
                     )
-            except (ValidationError, ProjectError, OSError, ValueError, KeyError) as exc:
+            except (
+                ValidationError,
+                ProjectError,
+                OSError,
+                ValueError,
+                KeyError,
+            ) as exc:
                 report.add(
                     "error",
                     "page_result_invalid",

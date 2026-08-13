@@ -222,9 +222,7 @@ class StreamlitProgressCallback:
             return
         snap["status"] = "completed"
         snap["phase"] = "completed"
-        snap["pct"] = (
-            100.0 if int(snap.get("total", 0) or 0) else float(snap.get("pct", 0) or 0)
-        )
+        snap["pct"] = 100.0 if int(snap.get("total", 0) or 0) else float(snap.get("pct", 0) or 0)
         snap["latest_event"] = "Analysis completed"
         self._append_log("run_completed")
         self.refresh_panel()

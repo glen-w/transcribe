@@ -71,7 +71,11 @@ def test_select_pending_skips_fully_transcribed(tmp_path: Path) -> None:
 
 
 def test_select_from_import_run_uses_committed_notebooks_only(tmp_path: Path) -> None:
-    from transcribe.corpus.import_run import ImportRun, ImportRunItemOutcome, ImportRunStore
+    from transcribe.corpus.import_run import (
+        ImportRun,
+        ImportRunItemOutcome,
+        ImportRunStore,
+    )
     from transcribe.corpus.plan import POLICY_SKIP_EXISTING_V1
 
     corpus = _corpus(tmp_path)
@@ -158,8 +162,7 @@ def test_batch_ocr_resumes_multipage_partial_notebook(tmp_path: Path) -> None:
     succeeded = sum(
         1
         for page in project.pages
-        if (result := projects.load_page_result(page.page_id))
-        and result.status == "succeeded"
+        if (result := projects.load_page_result(page.page_id)) and result.status == "succeeded"
     )
     assert 1 <= succeeded < len(project.pages)
 
@@ -174,6 +177,24 @@ def test_batch_ocr_resumes_multipage_partial_notebook(tmp_path: Path) -> None:
         result = projects.load_page_result(page.page_id)
         assert result is not None
         assert result.status == "succeeded"
+
+
+def test_batch_ocr_model_load_circuits_within_notebook(tmp_path: Path) -> None:
+    """Fatal vision load errors must skip remaining pages inside a batch notebook."""
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("mload")
+    _make_notebook(corpus, "nb", clock=clock, ids=ids, pages=4)
+    provider = FakeVisionOCRProvider(fail_codes=["model_load"] * 4)
+    coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids, provider=provider)
+    selected = select_pending(list_candidates(corpus, clock=clock, ids=ids))
+    run = coord.create_run(selected, settings=OCRSettings(model_name="fake-vision"), force=False)
+    progress = coord.run_blocking(run.ocr_run_id)
+    stored = OcrBatchRunStore(corpus).load(run.ocr_run_id)
+    assert progress.status in {"completed", "partial"}
+    assert provider.calls == 1
+    assert stored.items[0].pages_failed == 1
+    assert stored.items[0].pages_skipped == 3
+    assert "cannot load this vision model" in (stored.items[0].error_message or "").lower()
 
 
 def test_batch_ocr_cancel_does_not_start_next_notebook(tmp_path: Path) -> None:
@@ -193,9 +214,7 @@ def test_batch_ocr_cancel_does_not_start_next_notebook(tmp_path: Path) -> None:
     coord.provider = provider
     selected = select_pending(list_candidates(corpus, clock=clock, ids=ids))
     # Stable order by discover_project_roots (sorted folder names): first, second
-    run = coord.create_run(
-        selected, settings=OCRSettings(model_name="fake-vision"), force=False
-    )
+    run = coord.create_run(selected, settings=OCRSettings(model_name="fake-vision"), force=False)
     progress = coord.run_blocking(run.ocr_run_id)
     stored = OcrBatchRunStore(corpus).load(run.ocr_run_id)
     states = [i.state for i in stored.items]
@@ -227,7 +246,9 @@ def test_create_run_multipass_validation(tmp_path: Path) -> None:
         coord.create_run(
             selected,
             settings=OCRSettings(
-                model_name="a", text_model_name="text-rank", cleanup_model_name="text-rank"
+                model_name="a",
+                text_model_name="text-rank",
+                cleanup_model_name="text-rank",
             ),
             mode="multipass",
             vision_model_names=["only-one"],

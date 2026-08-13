@@ -50,9 +50,7 @@ def validate_settings(settings: object) -> None:
     if settings.max_workers not in (1, 2):
         raise ValidationError("settings.max_workers must be 1 or 2")
     if settings.preprocess_profile not in ("none", "gentle_contrast"):
-        raise ValidationError(
-            f"unsupported preprocess_profile: {settings.preprocess_profile!r}"
-        )
+        raise ValidationError(f"unsupported preprocess_profile: {settings.preprocess_profile!r}")
     if settings.prefer_mode not in PREFER_MODES:
         raise ValidationError(f"unsupported prefer_mode: {settings.prefer_mode!r}")
     if not isinstance(settings.auto_activate_composite, bool):
@@ -66,9 +64,7 @@ def validate_settings(settings: object) -> None:
         )
     path = (parsed.path or "").rstrip("/")
     if path:
-        raise ValidationError(
-            "settings.base_url must be the server root without a path"
-        )
+        raise ValidationError("settings.base_url must be the server root without a path")
     temp = settings.generation_options.temperature
     if not isinstance(temp, (int, float)) or isinstance(temp, bool):
         raise ValidationError("generation_options.temperature must be a number")
@@ -119,9 +115,7 @@ def validate_project(
     render_ids: set[str] = set()
     for rid, render in project.renders.items():
         if rid != render.render_id:
-            raise ValidationError(
-                f"renders map key {rid!r} != render_id {render.render_id!r}"
-            )
+            raise ValidationError(f"renders map key {rid!r} != render_id {render.render_id!r}")
         if rid in render_ids:
             raise ValidationError(f"duplicate render_id: {rid}")
         render_ids.add(rid)
@@ -144,13 +138,9 @@ def validate_project(
             raise ValidationError(f"duplicate page_id: {pid}")
         page_ids.add(pid)
         if page.source_id not in source_ids:
-            raise ValidationError(
-                f"page {pid} references missing source {page.source_id}"
-            )
+            raise ValidationError(f"page {pid} references missing source {page.source_id}")
         if page.active_render_id not in project.renders:
-            raise ValidationError(
-                f"page {pid} missing render {page.active_render_id}"
-            )
+            raise ValidationError(f"page {pid} missing render {page.active_render_id}")
         if page.page_index < 0:
             raise ValidationError(f"page {pid} has negative page_index")
         _require_positive_int(page.width, "page.width")
@@ -223,9 +213,7 @@ def validate_project(
             if deep:
                 digest = sha256_bytes(abs_path.read_bytes())
                 if digest != source.sha256:
-                    raise ValidationError(
-                        f"source sha256 mismatch for {source.source_id}"
-                    )
+                    raise ValidationError(f"source sha256 mismatch for {source.source_id}")
         for render in project.renders.values():
             abs_path = paths.resolve_contained(render.image_relpath)
             if not abs_path.is_file():
@@ -233,9 +221,7 @@ def validate_project(
             if deep:
                 digest = sha256_bytes(abs_path.read_bytes())
                 if digest != render.rendered_image_sha256:
-                    raise ValidationError(
-                        f"render sha256 mismatch for {render.render_id}"
-                    )
+                    raise ValidationError(f"render sha256 mismatch for {render.render_id}")
 
 
 def validate_page_result(result: PageResult, *, expected_page_id: str | None = None) -> None:
@@ -249,9 +235,7 @@ def validate_page_result(result: PageResult, *, expected_page_id: str | None = N
         )
     page_id = _require_nonempty_str(result.page_id, "page_id")
     if expected_page_id is not None and page_id != expected_page_id:
-        raise ValidationError(
-            f"page-result page_id {page_id!r} != expected {expected_page_id!r}"
-        )
+        raise ValidationError(f"page-result page_id {page_id!r} != expected {expected_page_id!r}")
     attempt_ids: set[str] = set()
     for attempt in result.attempts:
         aid = _require_nonempty_str(attempt.attempt_id, "attempt.attempt_id")
@@ -266,9 +250,7 @@ def validate_page_result(result: PageResult, *, expected_page_id: str | None = N
             raise ValidationError(f"illegal attempt_kind: {kind!r}")
         if kind == "composite":
             for sid in attempt.source_attempt_ids or []:
-                if sid not in attempt_ids and sid not in {
-                    a.attempt_id for a in result.attempts
-                }:
+                if sid not in attempt_ids and sid not in {a.attempt_id for a in result.attempts}:
                     # Sources may be listed before all ids collected; check after loop
                     pass
     for attempt in result.attempts:
@@ -282,9 +264,7 @@ def validate_page_result(result: PageResult, *, expected_page_id: str | None = N
                 )
     if result.active_attempt_id is not None:
         if result.active_attempt_id not in attempt_ids:
-            raise ValidationError(
-                f"active_attempt_id {result.active_attempt_id!r} not in attempts"
-            )
+            raise ValidationError(f"active_attempt_id {result.active_attempt_id!r} not in attempts")
     if result.preferred_attempt_id is not None:
         if result.preferred_attempt_id not in attempt_ids:
             raise ValidationError(
@@ -293,9 +273,7 @@ def validate_page_result(result: PageResult, *, expected_page_id: str | None = N
     if result.comparison is not None:
         for rid in result.comparison.ranked_attempt_ids:
             if rid not in attempt_ids:
-                raise ValidationError(
-                    f"comparison ranked_attempt_id {rid!r} not in attempts"
-                )
+                raise ValidationError(f"comparison ranked_attempt_id {rid!r} not in attempts")
             ranked = next(a for a in result.attempts if a.attempt_id == rid)
             if (ranked.attempt_kind or "vision") == "composite":
                 raise ValidationError(

@@ -10,9 +10,9 @@ from transcribe.ui.components import info_tooltip
 def test_build_info_tooltip_html_escapes_and_is_accessible(monkeypatch) -> None:
     monkeypatch.setattr(info_tooltip, "info_tooltips_enabled", lambda: True)
     html_out = info_tooltip.build_info_tooltip_html(
-        ['Line <b>one</b>', 'Line "two"'],
+        ["Line <b>one</b>", 'Line "two"'],
         control_id="tip-a",
-        aria_label='Help for <section>',
+        aria_label="Help for <section>",
         test_id="tx-info-tooltip",
     )
     assert "<b>one</b>" not in html_out
@@ -29,9 +29,7 @@ def test_build_info_tooltip_html_escapes_and_is_accessible(monkeypatch) -> None:
 def test_build_info_tooltip_html_empty_when_no_lines(monkeypatch) -> None:
     monkeypatch.setattr(info_tooltip, "info_tooltips_enabled", lambda: True)
     assert info_tooltip.build_info_tooltip_html([], control_id="x", aria_label="a") == ""
-    assert (
-        info_tooltip.build_info_tooltip_html("  ", control_id="x", aria_label="a") == ""
-    )
+    assert info_tooltip.build_info_tooltip_html("  ", control_id="x", aria_label="a") == ""
 
 
 def test_build_info_tooltip_html_respects_prefs_off(monkeypatch) -> None:

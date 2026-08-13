@@ -75,9 +75,7 @@ def test_content_revision_matches_hex_helper(tmp_path: Path):
     )
     rev = projects.content_revision()
     project = projects.load(reconcile=False)
-    results = {
-        p.page_id: projects.load_page_result(p.page_id) for p in project.pages
-    }
+    results = {p.page_id: projects.load_page_result(p.page_id) for p in project.pages}
     assert content_revision_hex(project, results) == rev
 
     storage = AnalysisStorage(paths)

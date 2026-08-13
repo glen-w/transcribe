@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from transcribe.detection.custom import CustomDetectorDefinition, compile_custom_detector
+from transcribe.detection.custom import (
+    CustomDetectorDefinition,
+    compile_custom_detector,
+)
 from transcribe.detection.definition import DetectorScope
 
 

@@ -26,9 +26,7 @@ def _notebook_with_edit(tmp_path: Path, title: str = "Notebook") -> tuple:
     settings = project.settings
     settings.model_name = "fake-vision"
     project = projects.save_settings(project, settings)
-    coord = JobCoordinator(
-        paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids
-    )
+    coord = JobCoordinator(paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids)
     coord.run_blocking()
     projects.save_user_edit(project.pages[0].page_id, f"edited {title}")
     return paths, projects
@@ -77,9 +75,7 @@ def test_typography_does_not_change_content_revision(tmp_path: Path):
     a = build_document([snap], ExportOptions())
     b = build_document(
         [snap],
-        ExportOptions(
-            typography=ExportTypography(body_size_pt=18.0, body_font="sans")
-        ),
+        ExportOptions(typography=ExportTypography(body_size_pt=18.0, body_font="sans")),
     )
     assert a.bundle_revision == b.bundle_revision
     assert a.parts[0].content_revision == snap.content_revision
@@ -111,9 +107,7 @@ def test_multi_notebook_anthology(tmp_path: Path):
     written = export.export_snapshots(
         [snap_a, snap_b],
         dest_dir=tmp_path / "bundle",
-        options=ExportOptions(
-            formats=frozenset({"json", "markdown", "html", "pdf", "epub"})
-        ),
+        options=ExportOptions(formats=frozenset({"json", "markdown", "html", "pdf", "epub"})),
         title="Two notebooks",
     )
     manifest = read_json(written["manifest"])

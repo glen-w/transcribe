@@ -27,8 +27,7 @@ class AffectTensionModule:
     ported_from_commit = TX_COMMIT
     semantic_class = "adaptation"
     semantic_delta = (
-        "Join emotion intensity with sentiment polarity into tension vs order; "
-        "no speakers"
+        "Join emotion intensity with sentiment polarity into tension vs order; " "no speakers"
     )
 
     def cache_config(self) -> dict[str, Any]:
@@ -50,9 +49,7 @@ class AffectTensionModule:
             return {"outcome": "insufficient_data", "payload": {}}
 
         by_emo = {
-            row.get("unit_id"): row
-            for row in (emotion.get("units") or [])
-            if isinstance(row, dict)
+            row.get("unit_id"): row for row in (emotion.get("units") or []) if isinstance(row, dict)
         }
         by_sent = {
             row.get("unit_id"): row

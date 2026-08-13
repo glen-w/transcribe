@@ -254,9 +254,10 @@ def test_is_fatal_model_load_error_markers():
     assert is_fatal_model_load_error("unknown model architecture: 'mllama'")
     assert is_fatal_model_load_error("llama-server process has terminated")
     assert not is_fatal_model_load_error("connection reset")
-    assert "architecture unsupported" in friendly_model_load_message(
-        "unknown model architecture: 'mllama'"
-    ).lower()
+    assert (
+        "architecture unsupported"
+        in friendly_model_load_message("unknown model architecture: 'mllama'").lower()
+    )
 
     invalidate_discovery_cache()
     calls = {"n": 0}
@@ -319,7 +320,11 @@ def test_generate_maps_model_missing_404():
         if req.full_url.endswith("/api/tags"):
             return _Resp({"models": []})
         raise urllib.error.HTTPError(
-            req.full_url, 404, "Not Found", hdrs=None, fp=BytesIO(b'{"error":"model not found"}')
+            req.full_url,
+            404,
+            "Not Found",
+            hdrs=None,
+            fp=BytesIO(b'{"error":"model not found"}'),
         )
 
     provider = OllamaVisionProvider("http://localhost:11434")

@@ -63,9 +63,7 @@ def _list_runs(corpus: CorpusPaths) -> list[ImportRun]:
 
 def _policy_id(policy: str) -> str:
     return (
-        POLICY_CREATE_DUPLICATE_V1
-        if policy == "create_duplicate_v1"
-        else POLICY_SKIP_EXISTING_V1
+        POLICY_CREATE_DUPLICATE_V1 if policy == "create_duplicate_v1" else POLICY_SKIP_EXISTING_V1
     )
 
 
@@ -145,16 +143,10 @@ def _render_single_folder(
                     )
                 if not dry:
                     run = orchestrator.create_run_from_plan(plan)
-                    completed = _commit_run_with_progress(
-                        orchestrator, run.import_run_id, runtime
-                    )
-                    st.success(
-                        f"Import run `{completed.import_run_id}` → **{completed.status}**"
-                    )
+                    completed = _commit_run_with_progress(orchestrator, run.import_run_id, runtime)
+                    st.success(f"Import run `{completed.import_run_id}` → **{completed.status}**")
                     st.session_state["import_inbox_flash_run"] = completed.import_run_id
-                    st.session_state["import_inbox_flash_transcribe"] = (
-                        completed.import_run_id
-                    )
+                    st.session_state["import_inbox_flash_transcribe"] = completed.import_run_id
                     st.rerun()
             except (TranscribeError, ValidationError, OSError) as exc:
                 st.error(str(exc))
@@ -233,17 +225,11 @@ def _render_parent_folders(
                     f"notebook `{conflict.notebook_id}` · {conflict.title}"
                 )
         if scan.empty_skipped:
-            st.caption(
-                "Empty skipped: " + ", ".join(f"`{p.name}`" for p in scan.empty_skipped)
-            )
+            st.caption("Empty skipped: " + ", ".join(f"`{p.name}`" for p in scan.empty_skipped))
 
     confirm_text = ""
     overwrite_ready = True
-    if (
-        on_existing == ON_EXISTING_OVERWRITE
-        and scan is not None
-        and scan.already_imported
-    ):
+    if on_existing == ON_EXISTING_OVERWRITE and scan is not None and scan.already_imported:
         st.warning(
             "Overwrite permanently deletes the managed notebook directories for the "
             "folders listed above (imported copies under the projects directory). "
@@ -303,16 +289,10 @@ def _render_parent_folders(
                     confirm=confirm_text,
                     clock=clock,
                 )
-                st.info(
-                    f"Wiped {len(plan_scan.already_imported)} existing managed notebook(s)."
-                )
+                st.info(f"Wiped {len(plan_scan.already_imported)} existing managed notebook(s).")
             run = orchestrator.create_run_from_plan(plan)
-            completed = _commit_run_with_progress(
-                orchestrator, run.import_run_id, runtime
-            )
-            st.success(
-                f"Import run `{completed.import_run_id}` → **{completed.status}**"
-            )
+            completed = _commit_run_with_progress(orchestrator, run.import_run_id, runtime)
+            st.success(f"Import run `{completed.import_run_id}` → **{completed.status}**")
             st.session_state["import_inbox_flash_run"] = completed.import_run_id
             st.session_state["import_inbox_flash_transcribe"] = completed.import_run_id
             st.rerun()

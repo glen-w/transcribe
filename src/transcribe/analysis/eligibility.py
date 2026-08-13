@@ -26,9 +26,7 @@ def evaluate_notebook_eligibility_v1(
         if isinstance(ref, dict) and ref.get("kind") in {"page", "page_span"}:
             page_id = ref.get("page_id")
         if page_id is not None and page_id in excluded:
-            decisions.append(
-                {"unit_id": unit.unit_id, "eligible": False, "reason": "excluded"}
-            )
+            decisions.append({"unit_id": unit.unit_id, "eligible": False, "reason": "excluded"})
             continue
         if unit.text == "" or unit.text.strip() == "":
             decisions.append(
@@ -40,9 +38,7 @@ def evaluate_notebook_eligibility_v1(
             )
             continue
         if len(unit.text.strip()) < 3:
-            decisions.append(
-                {"unit_id": unit.unit_id, "eligible": False, "reason": "too_short"}
-            )
+            decisions.append({"unit_id": unit.unit_id, "eligible": False, "reason": "too_short"})
             continue
         decisions.append({"unit_id": unit.unit_id, "eligible": True, "reason": "ok"})
 

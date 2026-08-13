@@ -85,16 +85,10 @@ def render_export_panel(
         st.session_state["export_title_page"] = export_cfg.title_page
         st.session_state["export_body_font"] = export_cfg.typography.body_font
         st.session_state["export_body_size"] = float(export_cfg.typography.body_size_pt)
-        st.session_state["export_line_height"] = float(
-            export_cfg.typography.line_height
-        )
-        st.session_state["export_para_spacing"] = float(
-            export_cfg.typography.paragraph_spacing_em
-        )
+        st.session_state["export_line_height"] = float(export_cfg.typography.line_height)
+        st.session_state["export_para_spacing"] = float(export_cfg.typography.paragraph_spacing_em)
         st.session_state["export_margin"] = float(export_cfg.typography.margin_in)
-        st.session_state["export_heading_scale"] = float(
-            export_cfg.typography.heading_scale
-        )
+        st.session_state["export_heading_scale"] = float(export_cfg.typography.heading_scale)
         st.session_state[seed_key] = True
 
     st.markdown("#### Formats")
@@ -279,12 +273,8 @@ def render_export_panel(
                     text=f"Reading notebook {i + 1}/{n} · {label}",
                 )
                 nb_paths = open_project_paths(Path(nb_root))
-                nb_projects = ProjectService(
-                    nb_paths, clock=SystemClock(), ids=UuidGenerator()
-                )
-                snapshots.append(
-                    ExportService.capture_snapshot_at(nb_paths, nb_projects)
-                )
+                nb_projects = ProjectService(nb_paths, clock=SystemClock(), ids=UuidGenerator())
+                snapshots.append(ExportService.capture_snapshot_at(nb_paths, nb_projects))
             bar.progress(
                 min(1.0, n / max(n + 1, 1)),
                 text="Writing export files…",
@@ -297,18 +287,12 @@ def render_export_panel(
             from transcribe.persistence.atomic import read_json
 
             manifest = read_json(written["manifest"])
-            rev = str(
-                manifest.get("bundle_revision")
-                or manifest.get("content_revision")
-                or ""
-            )
+            rev = str(manifest.get("bundle_revision") or manifest.get("content_revision") or "")
             if rev:
                 st.success(f"Exported revision `{rev[:16]}…`")
             for kind, path in written.items():
                 st.write(f"**{kind}:** `{path}`")
-            st.session_state["_export_written"] = {
-                k: str(v) for k, v in written.items()
-            }
+            st.session_state["_export_written"] = {k: str(v) for k, v in written.items()}
         except EpubDependencyError as exc:
             st.error(str(exc))
         except Exception as exc:  # noqa: BLE001

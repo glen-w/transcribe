@@ -46,9 +46,7 @@ def configured_actions_for_section(
     elif section_prefs.mode == "use_standard":
         candidates = _standard_menu_ids(prefs)
     else:
-        candidates = list(
-            section_default_actions(section, subject_type=subject_type)
-        )
+        candidates = list(section_default_actions(section, subject_type=subject_type))
 
     allow = set(SECTION_ALLOWLISTS[section])
     seen: set[ActionId] = set()

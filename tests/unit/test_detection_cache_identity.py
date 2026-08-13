@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from transcribe.detection.cache_identity import build_cache_identity_object, cache_identity_hex
+from transcribe.detection.cache_identity import (
+    build_cache_identity_object,
+    cache_identity_hex,
+)
 from transcribe.detection.definition import (
     CandidateStrategy,
     DetectorDefinition,

@@ -89,9 +89,20 @@ def extract_foundations_display(payload: dict[str, Any], module_id: str) -> list
     bits: list[tuple[str, str]] = []
     for key, value in metrics.items():
         label = labels.get(key, key.replace("_", " "))
-        if key in {"ttr", "hapax_rate", "lexical_density", "hedge_share", "booster_share"}:
+        if key in {
+            "ttr",
+            "hapax_rate",
+            "lexical_density",
+            "hedge_share",
+            "booster_share",
+        }:
             bits.append((label, f"{value:.3f}"))
-        elif key in {"mtld", "flesch_reading_ease", "gunning_fog_index", "avg_sentence_length"}:
+        elif key in {
+            "mtld",
+            "flesch_reading_ease",
+            "gunning_fog_index",
+            "avg_sentence_length",
+        }:
             bits.append((label, f"{value:.1f}"))
         elif key in {"compound_mean", "intensity_mean", "tension_mean"}:
             bits.append((label, f"{value:.3f}"))
@@ -139,7 +150,9 @@ class ModuleBaseline:
     baseline_label: str = "Corpus average"
 
 
-def _project_date_bounds(root: Path) -> tuple[ApproximateDate | None, ApproximateDate | None]:
+def _project_date_bounds(
+    root: Path,
+) -> tuple[ApproximateDate | None, ApproximateDate | None]:
     try:
         data = read_json(root / "project.json")
     except (OSError, ValueError, TypeError):

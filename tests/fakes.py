@@ -35,9 +35,7 @@ class FakeVisionOCRProvider:
         return None
 
     def list_vision_models(self, *, refresh: bool = False) -> DiscoveryResult:
-        return DiscoveryResult(
-            models=[m for m in self.models if "vision" in m.capabilities]
-        )
+        return DiscoveryResult(models=[m for m in self.models if "vision" in m.capabilities])
 
     def list_models(self, *, refresh: bool = False) -> DiscoveryResult:
         return DiscoveryResult(models=list(self.models))

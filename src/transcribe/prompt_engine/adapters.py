@@ -10,7 +10,11 @@ from transcribe.prompt_engine.definition import (
     PromptDefinition,
     PromptFamily,
 )
-from transcribe.prompts import FAITHFUL_MARKDOWN, FAITHFUL_TEXT, REGISTRY as OCR_REGISTRY
+from transcribe.prompts import (
+    FAITHFUL_MARKDOWN,
+    FAITHFUL_TEXT,
+    REGISTRY as OCR_REGISTRY,
+)
 
 
 def ocr_templates_as_definitions() -> list[PromptDefinition]:

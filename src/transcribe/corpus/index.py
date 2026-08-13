@@ -73,9 +73,7 @@ def validate_corpus_index(index: CorpusIndex, *, paths: CorpusPaths) -> None:
     if index.format != "transcribe.corpus-index":
         raise ValidationError(f"unexpected corpus-index format: {index.format!r}")
     if index.schema_version != 1:
-        raise ValidationError(
-            f"unsupported corpus-index schema_version {index.schema_version}"
-        )
+        raise ValidationError(f"unsupported corpus-index schema_version {index.schema_version}")
     seen_ids: set[str] = set()
     seen_paths: set[str] = set()
     for entry in index.entries:
@@ -103,9 +101,7 @@ def validate_entry_matches_project(
     project_id: str,
 ) -> None:
     if notebook_id != project_id:
-        raise ValidationError(
-            f"notebook_id {notebook_id!r} != project.id {project_id!r}"
-        )
+        raise ValidationError(f"notebook_id {notebook_id!r} != project.id {project_id!r}")
 
 
 class CorpusIndexStore:
@@ -147,9 +143,7 @@ class CorpusIndexStore:
     ) -> CorpusIndex:
         """Append or refresh a notebook entry. Holds corpus lock only."""
         if project_id is not None:
-            validate_entry_matches_project(
-                notebook_id=notebook_id, project_id=project_id
-            )
+            validate_entry_matches_project(notebook_id=notebook_id, project_id=project_id)
         # Containment check before lock
         self.paths.resolve_managed(managed_relpath)
         self.paths.ensure_layout()

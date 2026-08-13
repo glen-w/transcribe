@@ -21,7 +21,11 @@ from transcribe.analysis.modules.wordclouds import (
     wordclouds_config,
 )
 from transcribe.analysis.parents import resolve_optional_parents
-from transcribe.analysis.runner import AnalysisRunner, load_published_read_model, _module_provenance
+from transcribe.analysis.runner import (
+    AnalysisRunner,
+    load_published_read_model,
+    _module_provenance,
+)
 from transcribe.analysis.storage import AnalysisStorage
 from transcribe.ingest import IngestService
 from transcribe.persistence.atomic import write_json_atomic
@@ -78,10 +82,7 @@ def test_registry_includes_wordclouds_and_wave11_unchanged():
 
 
 def test_wordclouds_golden_and_determinism():
-    text = (
-        "Alpha beta gamma alpha beta alpha. "
-        "Notebook clouds prefer alpha over zebra zebra."
-    )
+    text = "Alpha beta gamma alpha beta alpha. " "Notebook clouds prefer alpha over zebra zebra."
     doc = _doc(text)
     mod = WordcloudsModule()
     a = mod.run(doc)
@@ -138,9 +139,7 @@ def test_optional_parent_ignore_matrix(tmp_path: Path):
     )
     storage = AnalysisStorage(projects.paths)
     # Absent
-    assert resolve_optional_parents(
-        "wordclouds", enrichment_mode="baseline", storage=storage
-    ) == []
+    assert resolve_optional_parents("wordclouds", enrichment_mode="baseline", storage=storage) == []
 
     def _write_keyphrases(outcome: str, cache_identity: str = "kp-id") -> None:
         write_json_atomic(
@@ -196,9 +195,7 @@ def test_optional_parent_ignore_matrix(tmp_path: Path):
 
 
 def test_config_change_changes_cache_identity(tmp_path: Path):
-    projects, runner = _project_with_pages(
-        tmp_path, ["Garden flowers bloom in spring gardens."]
-    )
+    projects, runner = _project_with_pages(tmp_path, ["Garden flowers bloom in spring gardens."])
     project = projects.load()
     doc = build_page_v1_document(project, projects)
     cfg = wordclouds_config()
@@ -279,7 +276,7 @@ def test_max_tokens_truncation_preserves_pretruncation_weights():
     alphabet = "abcdefghijklmnopqrstuvwxyz"
     names = []
     for i in range(120):
-        # base-26 style unique labels: aa, ab, ... 
+        # base-26 style unique labels: aa, ab, ...
         a, b = divmod(i, 26)
         names.append(f"zz{alphabet[a]}{alphabet[b]}")
     parts = []
@@ -361,15 +358,13 @@ def test_wave11_non_regression_with_wordclouds(tmp_path: Path):
     )
     # Run 1.1 modules only first
     before = {
-        mid: runner.run_module(mid)
-        for mid in ("stats", "lexical_diversity", "understandability")
+        mid: runner.run_module(mid) for mid in ("stats", "lexical_diversity", "understandability")
     }
     # Introduce wordclouds
     wc = runner.run_module("wordclouds")
     assert wc["outcome"] == "success"
     after = {
-        mid: runner.run_module(mid)
-        for mid in ("stats", "lexical_diversity", "understandability")
+        mid: runner.run_module(mid) for mid in ("stats", "lexical_diversity", "understandability")
     }
     for mid in before:
         assert after[mid]["cache_identity"] == before[mid]["cache_identity"]

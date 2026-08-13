@@ -39,9 +39,7 @@ class DetectionStorage:
             old_state = existing.get("attempt_state")
             new_state = envelope.get("attempt_state")
             if old_state not in (None, "running") and not (
-                old_state == "succeeded"
-                and new_state == "succeeded"
-                and "published" in envelope
+                old_state == "succeeded" and new_state == "succeeded" and "published" in envelope
             ):
                 raise ValueError(f"attempt already terminal: {attempt_id}")
         write_json_atomic(path, envelope)

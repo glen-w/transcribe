@@ -70,9 +70,7 @@ def _archive_notebook_show_count(
 
 
 def _cover_open_key(instance_prefix: str, project_id: str) -> str:
-    digest = hashlib.sha1(
-        f"{instance_prefix}|{project_id}|cover_open".encode()
-    ).hexdigest()[:10]
+    digest = hashlib.sha1(f"{instance_prefix}|{project_id}|cover_open".encode()).hexdigest()[:10]
     return f"tx_cover_{instance_prefix}_{project_id}_{digest}"
 
 
@@ -425,9 +423,7 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         spike_note = f" · {excluded} undated (excluded from spikes)"
     else:
         spike_note = f" · {excluded} undated/out-of-range (excluded from spikes)"
-    st.markdown(
-        f"Showing **{timeline.showing}** of **{timeline.total}** pages" + spike_note
-    )
+    st.markdown(f"Showing **{timeline.showing}** of **{timeline.total}** pages" + spike_note)
 
     if timeline.bins:
         clicked = _activity_chart(
@@ -737,7 +733,7 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
         range_end=range_end if period_key == "range" else None,
         query="",
         tags=tags,
-        media_types=tuple(selected_media) if set(selected_media) != set(media_keys) else (),
+        media_types=(tuple(selected_media) if set(selected_media) != set(media_keys) else ()),
         include_undated=include_undated,
     )
     result = archive.search(
@@ -748,18 +744,14 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
         if query.strip() or tags or period_key != "all":
             st.info("No matching pages for these filters.")
         else:
-            st.info(
-                "No searchable page text yet. Run OCR on a notebook, then try again."
-            )
+            st.info("No searchable page text yet. Run OCR on a notebook, then try again.")
         return
 
     start = result.offset + 1
     end = result.offset + result.showing
     st.markdown(f"Showing **{start}–{end}** of **{result.total_matched}**")
 
-    entries = [
-        {"page_id": h.page_id, "project_root": str(h.project_root)} for h in result.hits
-    ]
+    entries = [{"page_id": h.page_id, "project_root": str(h.project_root)} for h in result.hits]
     # Preserve full nav list across Load more by accumulating in session.
     if offset == 0:
         st.session_state["search_nav_entries"] = entries
@@ -797,10 +789,7 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 limit=nav_limit,
                 offset=0,
             )
-            nav = [
-                {"page_id": h.page_id, "project_root": str(h.project_root)}
-                for h in full.hits
-            ]
+            nav = [{"page_id": h.page_id, "project_root": str(h.project_root)} for h in full.hits]
             if not any(e["page_id"] == hit.page_id for e in nav):
                 nav.insert(
                     0,

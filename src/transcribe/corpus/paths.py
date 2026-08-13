@@ -57,14 +57,16 @@ class CorpusPaths:
 
     def resolve_managed(self, managed_relpath: str) -> Path:
         """Resolve a corpus entry locator under projects_dir with containment."""
-        if not managed_relpath or managed_relpath.startswith("/") or managed_relpath.startswith("\\"):
+        if (
+            not managed_relpath
+            or managed_relpath.startswith("/")
+            or managed_relpath.startswith("\\")
+        ):
             raise ValueError(f"absolute or empty managed_relpath rejected: {managed_relpath!r}")
         root = self.projects_dir.resolve()
         candidate = (self.projects_dir / managed_relpath).resolve()
         try:
             candidate.relative_to(root)
         except ValueError as exc:
-            raise ValueError(
-                f"managed_relpath escapes projects_dir: {managed_relpath!r}"
-            ) from exc
+            raise ValueError(f"managed_relpath escapes projects_dir: {managed_relpath!r}") from exc
         return candidate

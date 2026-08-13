@@ -53,9 +53,7 @@ class ThumbnailService:
 
     def cover_page_id(self, project: Project) -> str | None:
         """Explicit cover if valid; otherwise first page in notebook order."""
-        if project.cover_page_id and any(
-            p.page_id == project.cover_page_id for p in project.pages
-        ):
+        if project.cover_page_id and any(p.page_id == project.cover_page_id for p in project.pages):
             return project.cover_page_id
         if not project.pages:
             return None

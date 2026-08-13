@@ -21,9 +21,7 @@ TERMINAL_STATUSES = frozenset(
         "cancelled_with_commits",
     }
 )
-ITEM_STATES = frozenset(
-    {"pending", "committed", "skipped", "failed", "cancelled_pending"}
-)
+ITEM_STATES = frozenset({"pending", "committed", "skipped", "failed", "cancelled_pending"})
 
 # Fields included in plan_fingerprint input (paths/provenance excluded).
 _PLAN_FINGERPRINT_ITEM_KEYS = (

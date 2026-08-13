@@ -5,7 +5,10 @@ from __future__ import annotations
 import streamlit as st
 
 from transcribe.detection.api import DetectionService
-from transcribe.detection.custom import CustomDetectorDefinition, compile_custom_detector
+from transcribe.detection.custom import (
+    CustomDetectorDefinition,
+    compile_custom_detector,
+)
 from transcribe.detection.registry import list_all_detectors
 
 
@@ -15,9 +18,7 @@ def render_detection_settings_panel() -> None:
 
     dets = list_all_detectors()
     for d in dets:
-        st.markdown(
-            f"- **{d.title}** (`{d.detector_id}` v{d.version}) — {d.description[:120]}"
-        )
+        st.markdown(f"- **{d.title}** (`{d.detector_id}` v{d.version}) — {d.description[:120]}")
 
     st.divider()
     st.markdown("#### Custom detector")

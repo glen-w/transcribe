@@ -17,7 +17,6 @@ from transcribe.corpus import (
     ImportOrchestrator,
     ImportPlan,
     ImportPlanItem,
-    POLICY_CREATE_DUPLICATE_V1,
     POLICY_SKIP_EXISTING_V1,
 )
 from transcribe.domain.fingerprint import sha256_bytes
@@ -299,9 +298,7 @@ def test_pdf_multipage_plan_commit_provenance(tmp_path: Path) -> None:
     index = CorpusIndexStore(corpus, clock=clock).load()
     assert index is not None and len(index.entries) == 1
     root = corpus.projects_dir / index.entries[0].managed_relpath
-    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(
-        reconcile=False
-    )
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(reconcile=False)
     assert len(project.pages) == len(plan.items[0].page_indexes)
     assert len(project.sources) == 1
     assert project.sources[0].media_type == "application/pdf"

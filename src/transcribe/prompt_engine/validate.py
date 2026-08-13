@@ -159,7 +159,9 @@ def validate_lists_window_response_v1(obj: dict[str, Any]) -> dict[str, Any] | N
     }
 
 
-def validate_quotations_window_response_v1(obj: dict[str, Any]) -> dict[str, Any] | None:
+def validate_quotations_window_response_v1(
+    obj: dict[str, Any],
+) -> dict[str, Any] | None:
     base = _window_base(obj)
     if base is None:
         return None
@@ -175,7 +177,9 @@ def validate_quotations_window_response_v1(obj: dict[str, Any]) -> dict[str, Any
     }
 
 
-def validate_beer_labels_window_response_v1(obj: dict[str, Any]) -> dict[str, Any] | None:
+def validate_beer_labels_window_response_v1(
+    obj: dict[str, Any],
+) -> dict[str, Any] | None:
     base = _window_base(obj)
     if base is None:
         return None

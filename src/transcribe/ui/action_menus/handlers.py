@@ -64,9 +64,7 @@ def _button(
     icon = icon_for(action)
     help_text = help_for(action)
     if ctx.nav_style == NavStyle.ON_CLICK:
-        render_action_link(
-            label, key=key, icon=icon, help=help_text, on_click=on_activate
-        )
+        render_action_link(label, key=key, icon=icon, help=help_text, on_click=on_activate)
     else:
         if render_action_link(label, key=key, icon=icon, help=help_text):
             on_activate()
@@ -89,9 +87,7 @@ def _render_transcribe(ctx: ActionContext, *, section: SectionId, key: str) -> N
             rerun=False,
         )
 
-    _button(
-        ctx, action=ActionId.TRANSCRIBE, section=section, key=key, on_activate=_go
-    )
+    _button(ctx, action=ActionId.TRANSCRIBE, section=section, key=key, on_activate=_go)
 
 
 def _render_analyse(ctx: ActionContext, *, section: SectionId, key: str) -> None:
@@ -150,9 +146,9 @@ def _notebook_title_for_dialog(
     try:
         root = validate_project_root(project_root_key, projects_dir=projects_dir_key)
         paths = open_project_paths(root)
-        project = ProjectService(
-            paths, clock=SystemClock(), ids=UuidGenerator()
-        ).load(reconcile=False)
+        project = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator()).load(
+            reconcile=False
+        )
         title = (project.title or "").strip()
         return title or fallback
     except Exception:  # noqa: BLE001
@@ -183,9 +179,7 @@ def _scrub_viewer_entries_for_deleted(root: Path) -> None:
         clear_page_viewer_state()
         return
     st.session_state["view_entries"] = kept
-    st.session_state["view_page_ids"] = [
-        str(e.get("page_id")) for e in kept if e.get("page_id")
-    ]
+    st.session_state["view_page_ids"] = [str(e.get("page_id")) for e in kept if e.get("page_id")]
     current_id = st.session_state.get("view_page_id")
     if current_id and current_id not in st.session_state["view_page_ids"]:
         st.session_state["view_page_id"] = st.session_state["view_page_ids"][0]
@@ -325,9 +319,7 @@ def _rename_notebook_dialog(
                 st.rerun()
                 return
             try:
-                root = validate_project_root(
-                    project_root_key, projects_dir=projects_dir_key
-                )
+                root = validate_project_root(project_root_key, projects_dir=projects_dir_key)
                 paths = open_project_paths(root)
                 ProjectService(
                     paths, clock=SystemClock(), ids=UuidGenerator()
@@ -397,24 +389,18 @@ def assert_handler_registry_closed() -> None:
     if catalogue_ids != handler_ids:
         missing = catalogue_ids - handler_ids
         extra = handler_ids - catalogue_ids
-        raise AssertionError(
-            f"handler registry not closed: missing={missing!r} extra={extra!r}"
-        )
+        raise AssertionError(f"handler registry not closed: missing={missing!r} extra={extra!r}")
 
 
 assert_handler_registry_closed()
 
 
-def is_action_available(
-    action: ActionId, ctx: ActionContext, caps: ContextCapabilities
-) -> bool:
+def is_action_available(action: ActionId, ctx: ActionContext, caps: ContextCapabilities) -> bool:
     handler = HANDLERS.get(action)
     if handler is None:
         return False
     return handler.is_available(ctx, caps)
 
 
-def render_action(
-    action: ActionId, ctx: ActionContext, *, section: SectionId, key: str
-) -> None:
+def render_action(action: ActionId, ctx: ActionContext, *, section: SectionId, key: str) -> None:
     HANDLERS[action].render(ctx, section=section, key=key)

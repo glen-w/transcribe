@@ -73,10 +73,7 @@ def test_transcription_model_label_from_provenance():
 
 
 def test_transcription_model_label_falls_back_to_fingerprint():
-    assert (
-        _transcription_model_label(_attempt(fingerprint_model="llava:latest"))
-        == "llava:latest"
-    )
+    assert _transcription_model_label(_attempt(fingerprint_model="llava:latest")) == "llava:latest"
 
 
 def test_transcription_model_label_none_without_attempt():
@@ -248,7 +245,5 @@ def test_shows_compare_attempts_requires_two_succeeded():
 def test_shows_compare_attempts_true_for_lone_composite():
     from types import SimpleNamespace
 
-    comp = SimpleNamespace(
-        status="succeeded", raw_text="merged", attempt_kind="composite"
-    )
+    comp = SimpleNamespace(status="succeeded", raw_text="merged", attempt_kind="composite")
     assert _shows_compare_attempts(SimpleNamespace(attempts=[comp])) is True

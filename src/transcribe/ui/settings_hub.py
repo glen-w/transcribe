@@ -11,8 +11,15 @@ from transcribe.config.defaults import builtin_names_for
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.gui_support import COMMON_SETTINGS_SCHEMA
-from transcribe.config.models import PROFILE_TARGETS, ProfileActivations, deep_merge_dict
-from transcribe.config.persistence import load_workspace_settings, save_workspace_settings
+from transcribe.config.models import (
+    PROFILE_TARGETS,
+    ProfileActivations,
+    deep_merge_dict,
+)
+from transcribe.config.persistence import (
+    load_workspace_settings,
+    save_workspace_settings,
+)
 from transcribe.config.profiles import (
     list_user_profile_names,
     save_user_profile,
@@ -34,8 +41,7 @@ def render_configuration_panel() -> None:
     view = get_config()
     if view.readonly_recovery:
         st.error(
-            f"Workspace settings unreadable ({view.recovery_code}). "
-            "Use Reset workspace below."
+            f"Workspace settings unreadable ({view.recovery_code}). " "Use Reset workspace below."
         )
 
     runtime = build_runtime_paths()
@@ -113,8 +119,7 @@ def render_configuration_panel() -> None:
                     frac = min(1.0, done / max(1, total))
                     bar.progress(
                         frac,
-                        text=f"Decluttering {done}/{total}"
-                        + (f" · {message}" if message else ""),
+                        text=f"Decluttering {done}/{total}" + (f" · {message}" if message else ""),
                     )
                     if message:
                         status.caption(message)
@@ -139,9 +144,7 @@ def render_configuration_panel() -> None:
         min_value=0,
         value=int(view.effective.ui.archive_notebooks_initial),
         key="settings_archive_notebooks_initial",
-        help=widget_help(
-            "How many notebook cards load before “Show more”. 0 shows all notebooks."
-        ),
+        help=widget_help("How many notebook cards load before “Show more”. 0 shows all notebooks."),
     )
     if st.button("Save archive defaults", type="primary", key="settings_archive_save"):
         try:
@@ -298,7 +301,7 @@ def render_profiles_panel() -> None:
         try:
             loaded = load_workspace_settings()
             acts = ProfileActivations(
-                workflow=chosen if target == "workflow" else loaded.activations.workflow,
+                workflow=(chosen if target == "workflow" else loaded.activations.workflow),
                 ocr=chosen if target == "ocr" else loaded.activations.ocr,
                 llm=chosen if target == "llm" else loaded.activations.llm,
                 export=chosen if target == "export" else loaded.activations.export,

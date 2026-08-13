@@ -81,6 +81,7 @@ def call_with_retries(
     assert last_error is not None
     raise last_error
 
+
 _discovery_lock = threading.Lock()
 _discovery_cache: dict[str, "_DiscoveryEntry"] = {}
 
@@ -240,11 +241,7 @@ class OllamaVisionProvider:
 
     def list_vision_models(self, *, refresh: bool = False) -> DiscoveryResult:
         result = self.list_models(refresh=refresh)
-        vision = [
-            m
-            for m in result.models
-            if m.capability_known and "vision" in m.capabilities
-        ]
+        vision = [m for m in result.models if m.capability_known and "vision" in m.capabilities]
         return DiscoveryResult(models=vision, error=result.error)
 
     def resolve_model_identity(self, model_name: str) -> tuple[str | None, bool]:
@@ -278,9 +275,7 @@ class OllamaVisionProvider:
         digest, verified = self.resolve_model_identity(model)
 
         def once() -> dict[str, Any]:
-            payload = self._http_post(
-                "/api/generate", body, timeout=self.request_timeout
-            )
+            payload = self._http_post("/api/generate", body, timeout=self.request_timeout)
             if not isinstance(payload, dict):
                 raise ProviderError(
                     "Ollama returned a non-object JSON response",
@@ -346,12 +341,10 @@ class OllamaVisionProvider:
                     ModelInfo(
                         name=name,
                         digest=digest_s,
-                        size=row.get("size") if isinstance(row.get("size"), int) else None,
-                        family=details.get("family") if isinstance(details, dict) else None,
+                        size=(row.get("size") if isinstance(row.get("size"), int) else None),
+                        family=(details.get("family") if isinstance(details, dict) else None),
                         parameter_size=(
-                            details.get("parameter_size")
-                            if isinstance(details, dict)
-                            else None
+                            details.get("parameter_size") if isinstance(details, dict) else None
                         ),
                         capabilities=caps,
                         capability_known=capability_known,

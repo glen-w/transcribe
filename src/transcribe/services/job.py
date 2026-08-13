@@ -49,12 +49,10 @@ TIMEOUT_CIRCUIT_THRESHOLD = 3
 MODEL_LOAD_CIRCUIT_THRESHOLD = 1
 
 _CIRCUIT_MSG_TIMEOUT = (
-    f"Stopped remaining pages after {TIMEOUT_CIRCUIT_THRESHOLD} "
-    "consecutive Ollama timeouts"
+    f"Stopped remaining pages after {TIMEOUT_CIRCUIT_THRESHOLD} " "consecutive Ollama timeouts"
 )
 _CIRCUIT_MSG_MODEL_LOAD = (
-    "Ollama cannot load this vision model; remaining pages for this model "
-    "were skipped"
+    "Ollama cannot load this vision model; remaining pages for this model " "were skipped"
 )
 
 
@@ -205,22 +203,12 @@ class JobCoordinator:
     ) -> str:
         self._validate_cleanup_settings_or_raise()
         with self._lock:
-            if (
-                self._job is not None
-                and self._job.thread
-                and self._job.thread.is_alive()
-            ):
-                raise JobConflictError(
-                    "a transcription job is already running in this process"
-                )
+            if self._job is not None and self._job.thread and self._job.thread.is_alive():
+                raise JobConflictError("a transcription job is already running in this process")
             if job_lock_held(self.paths.job_lock) and not self._job_file_lock.held:
-                raise JobConflictError(
-                    "another process holds the OCR job lock for this project"
-                )
+                raise JobConflictError("another process holds the OCR job lock for this project")
             if not self._job_file_lock.try_acquire():
-                raise JobConflictError(
-                    "another process holds the OCR job lock for this project"
-                )
+                raise JobConflictError("another process holds the OCR job lock for this project")
             job_id = self.ids.new_id()
             progress = JobProgress(job_id=job_id, status="running", message="Starting…")
             state = JobState(progress=progress)
@@ -238,9 +226,7 @@ class JobCoordinator:
                 finally:
                     self._job_file_lock.release()
 
-            thread = threading.Thread(
-                target=runner, name=f"transcribe-job-{job_id}", daemon=True
-            )
+            thread = threading.Thread(target=runner, name=f"transcribe-job-{job_id}", daemon=True)
             state.thread = thread
             thread.start()
             return job_id
@@ -255,9 +241,7 @@ class JobCoordinator:
         """CLI-friendly synchronous run (still uses job lock)."""
         self._validate_cleanup_settings_or_raise()
         if not self._job_file_lock.try_acquire():
-            raise JobConflictError(
-                "another process holds the OCR job lock for this project"
-            )
+            raise JobConflictError("another process holds the OCR job lock for this project")
         job_id = self.ids.new_id()
         progress = JobProgress(job_id=job_id, status="running")
         state = JobState(progress=progress)
@@ -286,9 +270,7 @@ class JobCoordinator:
         acquired = False
         if hold_lock:
             if not self._job_file_lock.try_acquire():
-                raise JobConflictError(
-                    "another process holds the OCR job lock for this project"
-                )
+                raise JobConflictError("another process holds the OCR job lock for this project")
             acquired = True
         progress = JobProgress(job_id=plan.job_id, status="running")
         state = JobState(progress=progress, plan=plan)
@@ -513,18 +495,14 @@ class JobCoordinator:
             attempt_kind=attempt_kind,
         )
 
-    def _seal_provider(
-        self, plan: JobPlan, start_provider: VisionOCRProvider
-    ) -> VisionOCRProvider:
+    def _seal_provider(self, plan: JobPlan, start_provider: VisionOCRProvider) -> VisionOCRProvider:
         """Freeze a provider instance for this job from the plan + start-time provider."""
         current_url = getattr(start_provider, "base_url", None)
         if current_url == plan.base_url:
             return start_provider
         from transcribe.providers.ollama import OllamaVisionProvider
 
-        if plan.provider_id == "ollama" or isinstance(
-            start_provider, OllamaVisionProvider
-        ):
+        if plan.provider_id == "ollama" or isinstance(start_provider, OllamaVisionProvider):
             return OllamaVisionProvider(plan.base_url)
         return start_provider
 
@@ -835,9 +813,7 @@ class JobCoordinator:
         provider: VisionOCRProvider,
     ) -> str:
         page = next(p for p in project.pages if p.page_id == page_id)
-        fingerprint, fp_payload, image_bytes = self._compute_fingerprint(
-            project, page_id, plan
-        )
+        fingerprint, fp_payload, image_bytes = self._compute_fingerprint(project, page_id, plan)
 
         attempt_id = self.ids.new_id()
         started = to_iso(self.clock.now())
@@ -881,9 +857,7 @@ class JobCoordinator:
             )
             if running.provenance:
                 running.provenance.model_digest = result.model_digest
-                running.provenance.model_identity_verified = (
-                    result.model_identity_verified
-                )
+                running.provenance.model_identity_verified = result.model_identity_verified
 
             vision_text = result.text
             final_text, cleanup_record = run_ocr_cleanup(
@@ -923,9 +897,7 @@ class JobCoordinator:
             return "succeeded"
         except ProviderError as exc:
             running.status = "failed"
-            running.error = AttemptError(
-                code=exc.code, message=str(exc), retriable=exc.retriable
-            )
+            running.error = AttemptError(code=exc.code, message=str(exc), retriable=exc.retriable)
             running.completed_at = to_iso(self.clock.now())
             self.projects.record_generation(page_id, running, activate=plan.activate)
             if exc.code == "timeout":
@@ -935,9 +907,7 @@ class JobCoordinator:
             return "failed"
         except Exception as exc:  # noqa: BLE001
             running.status = "failed"
-            running.error = AttemptError(
-                code="internal", message=str(exc), retriable=False
-            )
+            running.error = AttemptError(code="internal", message=str(exc), retriable=False)
             running.completed_at = to_iso(self.clock.now())
             self.projects.record_generation(page_id, running, activate=plan.activate)
             return "failed"

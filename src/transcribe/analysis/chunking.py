@@ -184,20 +184,18 @@ def cite_ids_from_chunks(chunks: list[dict[str, Any]]) -> set[str]:
 def chunks_fingerprint(chunks: list[dict[str, Any]]) -> str:
     from hashlib import sha256
     from transcribe.domain.fingerprint import canonical_json_bytes
+
     return sha256(canonical_json_bytes(chunks)).hexdigest()
 
 
-def filter_units_by_ids(
-    document: AnalysisDocument, eligible_ids: list[str]
-) -> list[AnalysisUnit]:
+def filter_units_by_ids(document: AnalysisDocument, eligible_ids: list[str]) -> list[AnalysisUnit]:
     allow = set(eligible_ids)
     return [u for u in document.units if u.unit_id in allow]
 
 
-def resolve_span_quote(
-    document: AnalysisDocument, cite_id: str
-) -> dict[str, Any] | None:
+def resolve_span_quote(document: AnalysisDocument, cite_id: str) -> dict[str, Any] | None:
     from hashlib import sha256
+
     unit_id = cite_id.split("#", 1)[0]
     by_id = {u.unit_id: u for u in document.units}
     unit = by_id.get(unit_id)

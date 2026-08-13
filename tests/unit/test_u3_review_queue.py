@@ -58,9 +58,7 @@ def _seed_result(
     )
 
 
-def _project_with_pages(
-    tmp_path: Path, n: int = 3
-) -> tuple[ProjectService, Project, FakeClock]:
+def _project_with_pages(tmp_path: Path, n: int = 3) -> tuple[ProjectService, Project, FakeClock]:
     paths = open_project_paths(tmp_path / "nb")
     clock, ids = FakeClock(), SequentialIds()
     projects = ProjectService(paths, clock=clock, ids=ids)
@@ -87,9 +85,7 @@ def test_review_queue_filters(tmp_path: Path) -> None:
     projects.approve_page_date(p0, ApproximateDate(2024, 1, 2))
     project = projects.load(reconcile=False)
     page1 = next(p for p in project.pages if p.page_id == p1)
-    page1.set_date_state(
-        ApproximateDate(2024, 2, 1), approved=False, source=DATE_SOURCE_EXTRACTED
-    )
+    page1.set_date_state(ApproximateDate(2024, 2, 1), approved=False, source=DATE_SOURCE_EXTRACTED)
     project = _write_project(projects, project)
 
     assert unapproved_date_page_ids(project) == [p1]

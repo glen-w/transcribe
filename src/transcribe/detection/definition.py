@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from transcribe.prompt_engine.definition import InputMode, ModelRequirements
+from transcribe.prompt_engine.definition import ModelRequirements
 
 
 class DetectorScope(str, Enum):

@@ -77,8 +77,14 @@ def _module_from_read_model(rm: dict[str, Any]) -> ModuleHealth:
     return ModuleHealth(
         module_id=str(rm.get("module_id") or ""),
         freshness=freshness,  # type: ignore[arg-type]
-        capability=(str(env_dict["capability"]) if env_dict and env_dict.get("capability") is not None else None),
-        outcome=(str(env_dict["outcome"]) if env_dict and env_dict.get("outcome") is not None else None),
+        capability=(
+            str(env_dict["capability"])
+            if env_dict and env_dict.get("capability") is not None
+            else None
+        ),
+        outcome=(
+            str(env_dict["outcome"]) if env_dict and env_dict.get("outcome") is not None else None
+        ),
         envelope=env_dict,
         live_evidence=list(rm.get("live_evidence") or []),
     )
@@ -101,15 +107,21 @@ def aggregate_module_health(
     if all(m.freshness == "unavailable" for m in modules):
         return "missing"
     if any(
-        m.freshness == "ok" and (m.outcome == "failed" or m.capability == "failed")
-        for m in modules
+        m.freshness == "ok" and (m.outcome == "failed" or m.capability == "failed") for m in modules
     ):
         return "failed"
     if any(
         m.freshness == "ok"
         and (
             (m.capability in _DEGRADED_CAPABILITIES)
-            or (m.outcome in {"unavailable_dependency", "insufficient_data", "skipped_not_applicable"})
+            or (
+                m.outcome
+                in {
+                    "unavailable_dependency",
+                    "insufficient_data",
+                    "skipped_not_applicable",
+                }
+            )
         )
         for m in modules
     ):
@@ -128,9 +140,7 @@ def derive_analysis_health(
 ) -> AnalysisHealth:
     """Single derived health model for Analyse surfaces (Ask is out of batch scope)."""
     scoped = tuple(str(m) for m in module_ids)
-    read_models = module_freshness(
-        runner, storage, scoped, question_text=question_text
-    )
+    read_models = module_freshness(runner, storage, scoped, question_text=question_text)
     modules = {rm["module_id"]: _module_from_read_model(rm) for rm in read_models}
     ordered = [modules[mid] for mid in scoped if mid in modules]
     return AnalysisHealth(
@@ -148,16 +158,12 @@ def scope_analysis_health(
 ) -> AnalysisHealth:
     """Re-scope an already-derived health object without recomputing freshness."""
     scoped = tuple(str(m) for m in module_ids)
-    modules = {
-        mid: health.modules[mid] for mid in scoped if mid in health.modules
-    }
+    modules = {mid: health.modules[mid] for mid in scoped if mid in health.modules}
     ordered = [modules[mid] for mid in scoped if mid in modules]
     return AnalysisHealth(
         content_revision=health.content_revision,
         modules=modules,
-        aggregate=aggregate_module_health(
-            ordered, active_run_status=health.active_run_status
-        ),
+        aggregate=aggregate_module_health(ordered, active_run_status=health.active_run_status),
         active_run_status=health.active_run_status,
         scoped_module_ids=scoped,
     )

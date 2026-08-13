@@ -47,9 +47,7 @@ class PageMetricsRow:
             blankness_pct=float(data["blankness_pct"]),
             ink_hue=str(data["ink_hue"]),
             ink_hue_degrees=(
-                None
-                if data.get("ink_hue_degrees") is None
-                else float(data["ink_hue_degrees"])
+                None if data.get("ink_hue_degrees") is None else float(data["ink_hue_degrees"])
             ),
             paper_tone=str(data["paper_tone"]),
             width=int(data["width"]),

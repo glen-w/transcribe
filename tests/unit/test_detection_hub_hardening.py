@@ -65,15 +65,9 @@ def test_prompt_override_changes_planned_cache_identity(tmp_path: Path, monkeypa
     projects.save_user_edit(page.page_id, "a short poem\nline two")
 
     rt = _rt(tmp_path)
-    monkeypatch.setattr(
-        "transcribe.runtime_paths.build_runtime_paths", lambda: rt
-    )
-    monkeypatch.setattr(
-        "transcribe.prompt_engine.hub.build_runtime_paths", lambda: rt
-    )
-    monkeypatch.setattr(
-        "transcribe.prompt_engine.store.build_runtime_paths", lambda: rt
-    )
+    monkeypatch.setattr("transcribe.runtime_paths.build_runtime_paths", lambda: rt)
+    monkeypatch.setattr("transcribe.prompt_engine.hub.build_runtime_paths", lambda: rt)
+    monkeypatch.setattr("transcribe.prompt_engine.store.build_runtime_paths", lambda: rt)
 
     runner = DetectionService(projects, text_ctx=_bind(_empty_client())).runner
     det = resolve_detector("poetry")
@@ -142,9 +136,7 @@ def test_custom_detector_snapshot_on_success(tmp_path: Path, monkeypatch):
 
     custom_root = tmp_path / "cfg" / "detection" / "custom"
     custom_root.mkdir(parents=True)
-    monkeypatch.setattr(
-        "transcribe.detection.custom._custom_config_dir", lambda: custom_root
-    )
+    monkeypatch.setattr("transcribe.detection.custom._custom_config_dir", lambda: custom_root)
 
     custom = CustomDetectorDefinition(
         name="Milk mentions",

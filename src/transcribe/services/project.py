@@ -137,9 +137,7 @@ class ProjectService:
             try:
                 from transcribe.config.facade import get_config
 
-                declutter = bool(
-                    get_config().effective.ingest.visual_declutter_enabled
-                )
+                declutter = bool(get_config().effective.ingest.visual_declutter_enabled)
             except Exception:
                 pass
             IngestService(
@@ -216,17 +214,13 @@ class ProjectService:
         while an OCR job lock is held.
         """
         if job_lock_held(self.paths.job_lock):
-            raise JobConflictError(
-                "cannot delete page while an OCR job is running"
-            )
+            raise JobConflictError("cannot delete page while an OCR job is running")
 
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
             if len(current.pages) <= 1:
-                raise ProjectError(
-                    "cannot delete the last page; delete the notebook instead"
-                )
+                raise ProjectError("cannot delete the last page; delete the notebook instead")
             page = self._require_page(current, page_id)
             source_id = page.source_id
             deleted_index = page.page_index
@@ -258,9 +252,7 @@ class ProjectService:
             ]
             siblings.sort(key=lambda p: p.page_index)
             if siblings:
-                staging_root = (
-                    self.paths.pages_dir / source_id / f".reindex-{page_id}"
-                )
+                staging_root = self.paths.pages_dir / source_id / f".reindex-{page_id}"
                 if staging_root.exists():
                     shutil.rmtree(staging_root, ignore_errors=True)
                 staging_root.mkdir(parents=True, exist_ok=True)
@@ -287,9 +279,7 @@ class ProjectService:
                         prefix = f"pages/{source_id}/{old_index:04d}/"
                         new_prefix = f"pages/{source_id}/{new_index:04d}/"
                         if old_rel.startswith(prefix):
-                            sib_render.image_relpath = (
-                                new_prefix + old_rel[len(prefix) :]
-                            )
+                            sib_render.image_relpath = new_prefix + old_rel[len(prefix) :]
                         if sib_render.pdf_page_index == old_index:
                             sib_render.pdf_page_index = new_index
                 try:
@@ -297,9 +287,7 @@ class ProjectService:
                 except OSError:
                     shutil.rmtree(staging_root, ignore_errors=True)
 
-            remaining_in_source = [
-                p for p in current.pages if p.source_id == source_id
-            ]
+            remaining_in_source = [p for p in current.pages if p.source_id == source_id]
             source_file: Path | None = None
             if remaining_in_source:
                 for source in current.sources:
@@ -311,14 +299,10 @@ class ProjectService:
                     (s for s in current.sources if s.source_id == source_id),
                     None,
                 )
-                current.sources = [
-                    s for s in current.sources if s.source_id != source_id
-                ]
+                current.sources = [s for s in current.sources if s.source_id != source_id]
                 if source_obj is not None:
                     try:
-                        source_file = self.paths.resolve_contained(
-                            source_obj.stored_relpath
-                        )
+                        source_file = self.paths.resolve_contained(source_obj.stored_relpath)
                     except ValueError:
                         source_file = None
                 source_pages_root = self.paths.pages_dir / source_id
@@ -359,9 +343,7 @@ class ProjectService:
     def list_date_regressions(self, project: Project | None = None) -> list[DateRegression]:
         """Notebook-order date regressions for bulk-approve honesty."""
         current = project if project is not None else self.load(reconcile=False)
-        return find_date_regressions(
-            [(page.page_id, page.date) for page in current.pages]
-        )
+        return find_date_regressions([(page.page_id, page.date) for page in current.pages])
 
     def approve_all_suggested_dates(
         self,
@@ -429,9 +411,7 @@ class ProjectService:
             old_source = page.date_source
             result = self._load_page_result_unlocked(page_id)
             text = result.effective_text() if result else None
-            self._apply_suggestion(
-                current.pages, idx, text, cover_page_id=current.cover_page_id
-            )
+            self._apply_suggestion(current.pages, idx, text, cover_page_id=current.cover_page_id)
             page = current.pages[idx]
             value_changed = old_date != page.date
             state_changed = (
@@ -518,9 +498,7 @@ class ProjectService:
         raise ProjectError(f"unknown page_id: {page_id}")
 
     @staticmethod
-    def _cover_page_index(
-        pages: list[PageIndex], cover_page_id: str | None
-    ) -> int | None:
+    def _cover_page_index(pages: list[PageIndex], cover_page_id: str | None) -> int | None:
         if not pages:
             return None
         if cover_page_id:
@@ -542,9 +520,7 @@ class ProjectService:
             return
         extracted = extract_page_date(text)
         if extracted is not None:
-            page.set_date_state(
-                extracted, approved=False, source=DATE_SOURCE_EXTRACTED
-            )
+            page.set_date_state(extracted, approved=False, source=DATE_SOURCE_EXTRACTED)
             return
         # Failed-looking stamp: stay undated for Review (do not inherit).
         if looks_like_unparsed_date_stamp(text):
@@ -552,9 +528,7 @@ class ProjectService:
             return
         for prev in reversed(pages[:idx]):
             if prev.date is not None:
-                page.set_date_state(
-                    prev.date, approved=False, source=DATE_SOURCE_INHERITED
-                )
+                page.set_date_state(prev.date, approved=False, source=DATE_SOURCE_INHERITED)
                 return
         # Cover pages rarely carry a diary stamp; inherit the first dated page.
         cover_idx = self._cover_page_index(pages, cover_page_id)
@@ -562,9 +536,7 @@ class ProjectService:
             for other in pages:
                 if other.page_id == page.page_id or other.date is None:
                     continue
-                page.set_date_state(
-                    other.date, approved=False, source=DATE_SOURCE_INHERITED
-                )
+                page.set_date_state(other.date, approved=False, source=DATE_SOURCE_INHERITED)
                 return
         page.set_date_state(None, approved=True, source=None)
 
@@ -620,9 +592,7 @@ class ProjectService:
         activate: bool = True,
     ) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
-            existing = self._load_page_result_unlocked(page_id) or PageResult(
-                page_id=page_id
-            )
+            existing = self._load_page_result_unlocked(page_id) or PageResult(page_id=page_id)
             # Replace same attempt_id if updating running→terminal; else append.
             replaced = False
             for i, old in enumerate(existing.attempts):
@@ -727,14 +697,11 @@ class ProjectService:
             self._append_preference_event(
                 page_id=page_id,
                 attempt=attempt,
-                action=action_override
-                or ("prefer" if not promote else "prefer"),
+                action=action_override or ("prefer" if not promote else "prefer"),
             )
         return result
 
-    def save_comparison(
-        self, page_id: str, comparison: ComparisonRecord | None
-    ) -> PageResult:
+    def save_comparison(self, page_id: str, comparison: ComparisonRecord | None) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
             existing = self._load_page_result_unlocked(page_id)
             if existing is None:
@@ -767,12 +734,8 @@ class ProjectService:
                 notebook_id=project.id,
                 page_id=page_id,
                 attempt_id=attempt.attempt_id,
-                model_name=(
-                    attempt.provenance.model_name if attempt.provenance else ""
-                ),
-                model_digest=(
-                    attempt.provenance.model_digest if attempt.provenance else None
-                ),
+                model_name=(attempt.provenance.model_name if attempt.provenance else ""),
+                model_digest=(attempt.provenance.model_digest if attempt.provenance else None),
                 attempt_kind=attempt.attempt_kind or "vision",
                 action=action,
                 pass_id=attempt.pass_id,
@@ -816,15 +779,11 @@ class ProjectService:
         from transcribe.persistence.atomic import write_bytes_atomic
 
         if job_lock_held(self.paths.job_lock):
-            raise JobConflictError(
-                "cannot re-apply visual declutter while an OCR job is running"
-            )
+            raise JobConflictError("cannot re-apply visual declutter while an OCR job is running")
 
         stats = DeclutterReapplyStats()
         with mutation_lock(self.paths.mutation_lock):
-            payload = require_format(
-                read_json(self.paths.manifest), "transcribe.project"
-            )
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
             stats.pages_total = len(current.pages)
             old_files: list[Path] = []
@@ -878,9 +837,7 @@ class ProjectService:
                     continue
 
                 new_rid = self.ids.new_id()
-                new_path = self.paths.page_render_path(
-                    page.source_id, page.page_index, new_rid
-                )
+                new_path = self.paths.page_render_path(page.source_id, page.page_index, new_rid)
                 write_bytes_atomic(new_path, result.image_bytes)
                 new_rel = self.paths.relativize(new_path)
                 new_render = RenderProvenance(
@@ -1007,14 +964,10 @@ def delete_managed_notebook(
     try:
         root.relative_to(projects)
     except ValueError as exc:
-        raise ProjectError(
-            f"project root escapes projects directory: {root}"
-        ) from exc
+        raise ProjectError(f"project root escapes projects directory: {root}") from exc
 
     if root == projects:
-        raise ProjectError(
-            "refusing to delete projects directory itself; pass a notebook root"
-        )
+        raise ProjectError("refusing to delete projects directory itself; pass a notebook root")
     if not root.is_dir():
         raise ProjectError(f"project root is not a directory: {root}")
     if not (root / "project.json").is_file():
@@ -1022,9 +975,7 @@ def delete_managed_notebook(
 
     job_lock = root / ".transcribe.job.lock"
     if job_lock_held(job_lock):
-        raise JobConflictError(
-            "cannot delete notebook while an OCR job is running"
-        )
+        raise JobConflictError("cannot delete notebook while an OCR job is running")
 
     # Brief exclusive section so concurrent mutators fail closed before removal.
     mutation = root / ".transcribe.lock"

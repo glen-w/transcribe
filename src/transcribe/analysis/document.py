@@ -92,9 +92,7 @@ class AnalysisDocument:
 
 def _reject_surrogates(label: str, value: str) -> None:
     if _SURROGATE_RE.search(value):
-        raise AnalysisDocumentError(
-            "invalid_text", f"{label} contains unpaired surrogates"
-        )
+        raise AnalysisDocumentError("invalid_text", f"{label} contains unpaired surrogates")
 
 
 def concatenate_document_text(units: list[AnalysisUnit]) -> str:
@@ -122,9 +120,7 @@ def validate_analysis_document(doc: AnalysisDocument) -> AnalysisDocument:
         if not unit.unit_id:
             raise AnalysisDocumentError("missing_unit_id", "unit lacks unit_id")
         if unit.unit_id in seen:
-            raise AnalysisDocumentError(
-                "duplicate_unit_id", f"duplicate unit_id: {unit.unit_id}"
-            )
+            raise AnalysisDocumentError("duplicate_unit_id", f"duplicate unit_id: {unit.unit_id}")
         seen.add(unit.unit_id)
         if not isinstance(unit.text, str) or unit.text == "":
             raise AnalysisDocumentError("empty_unit_text", "unit text is empty")
@@ -133,9 +129,7 @@ def validate_analysis_document(doc: AnalysisDocument) -> AnalysisDocument:
             raise AnalysisDocumentError("invalid_order", f"invalid order: {unit.order}")
         if unit.date is not None:
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", unit.date):
-                raise AnalysisDocumentError(
-                    "invalid_date", f"invalid date: {unit.date!r}"
-                )
+                raise AnalysisDocumentError("invalid_date", f"invalid date: {unit.date!r}")
         _validate_source_ref(unit.source_ref, unit_text=unit.text)
 
     sorted_units = sorted(doc.units, key=lambda u: (u.order, u.unit_id))
@@ -151,9 +145,7 @@ def validate_analysis_document(doc: AnalysisDocument) -> AnalysisDocument:
     return doc
 
 
-def _validate_source_ref(
-    ref: dict[str, Any], *, unit_text: str | None = None
-) -> None:
+def _validate_source_ref(ref: dict[str, Any], *, unit_text: str | None = None) -> None:
     kind = ref.get("kind")
     if kind == "page":
         if set(ref.keys()) - {"kind", "page_id"}:

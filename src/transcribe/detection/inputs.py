@@ -91,6 +91,8 @@ def load_render_bytes(
 
 def scope_fingerprint(page_inputs: list[PageInput]) -> str:
     payload = {
-        "pages": [p.fingerprint_dict() for p in sorted(page_inputs, key=lambda x: x.page_order_index)],
+        "pages": [
+            p.fingerprint_dict() for p in sorted(page_inputs, key=lambda x: x.page_order_index)
+        ],
     }
     return hashlib.sha256(canonical_json_bytes(payload)).hexdigest()

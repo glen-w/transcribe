@@ -47,6 +47,16 @@ Update the **owning** doc:
 
 Then skim guides for stale summaries (replace normative drift with a one-line summary + link).
 
+## Formatting
+
+`pyproject.toml` pins **Black** and **Ruff** to line-length **100** and **py310**. Before opening a PR that touches Python:
+
+```bash
+black src tests
+ruff check --fix src tests
+black --check src tests && ruff check src tests
+```
+
 ## Code orientation
 
 See [developer_quickstart.md](../developer_quickstart.md). Prefer tests that stay offline. Do not add a TranscriptX dependency.

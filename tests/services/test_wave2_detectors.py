@@ -9,7 +9,10 @@ from pathlib import Path
 from PIL import Image
 
 from transcribe.analysis.llm_runtime import RecordedDoubleClient, TextLLMContext
-from transcribe.detection.aggregate import merge_adjacent_spans, raw_from_window_response
+from transcribe.detection.aggregate import (
+    merge_adjacent_spans,
+    raw_from_window_response,
+)
 from transcribe.detection.api import DetectionService
 from transcribe.detection.registry import get_builtin_detector
 from transcribe.ingest import IngestService
@@ -130,9 +133,7 @@ def test_cross_type_do_not_merge():
         window_id="w2",
     )
     assert todo and lst
-    merged = merge_adjacent_spans(
-        [todo, lst], ordered_page_ids=ordered, confidence_threshold=0.7
-    )
+    merged = merge_adjacent_spans([todo, lst], ordered_page_ids=ordered, confidence_threshold=0.7)
     assert len(merged) == 2
 
 
@@ -203,9 +204,7 @@ def test_lists_detector_runs(tmp_path: Path):
         responses={"default": _resp(list_kind="shopping", list_style="mixed")},
         digest="d",
     )
-    ctx = TextLLMContext(
-        client=client, model_name=client.model_name, resolved_model_digest="d"
-    )
+    ctx = TextLLMContext(client=client, model_name=client.model_name, resolved_model_digest="d")
     svc = DetectionService(projects, text_ctx=ctx)
     result = svc.run_detector("lists", force=True)
     assert result["outcome"] == "success"
@@ -264,9 +263,7 @@ def test_beer_labels_detector_runs(tmp_path: Path):
         },
         digest="d",
     )
-    ctx = TextLLMContext(
-        client=client, model_name=client.model_name, resolved_model_digest="d"
-    )
+    ctx = TextLLMContext(client=client, model_name=client.model_name, resolved_model_digest="d")
     svc = DetectionService(projects, text_ctx=ctx)
     result = svc.run_detector("beer_labels", force=True)
     assert result["outcome"] == "success"

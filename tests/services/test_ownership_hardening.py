@@ -251,9 +251,7 @@ def test_progress_get_returns_snapshot(tmp_path: Path):
     settings = project.settings
     settings.model_name = "fake-vision"
     projects.save_settings(project, settings)
-    coord = JobCoordinator(
-        paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids
-    )
+    coord = JobCoordinator(paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids)
     coord.run_blocking()
     snap = coord.get_progress()
     snap.completed = 999
@@ -270,9 +268,7 @@ def test_job_record_persisted(tmp_path: Path):
     settings = project.settings
     settings.model_name = "fake-vision"
     projects.save_settings(project, settings)
-    coord = JobCoordinator(
-        paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids
-    )
+    coord = JobCoordinator(paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids)
     progress = coord.run_blocking()
     records = list(paths.jobs_dir.glob("*.json"))
     assert len(records) == 1

@@ -17,8 +17,7 @@ def test_derive_capability_matrix():
     assert derive_capability(outcome="success", partial=True) == "partial"
     assert derive_capability(outcome="insufficient_data") == "insufficient_data"
     assert (
-        derive_capability(outcome="insufficient_data", reason="invalid_document")
-        == "invalid_input"
+        derive_capability(outcome="insufficient_data", reason="invalid_document") == "invalid_input"
     )
     assert derive_capability(outcome="unavailable_dependency") == "unavailable_dependency"
     assert (

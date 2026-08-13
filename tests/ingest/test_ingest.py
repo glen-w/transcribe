@@ -64,7 +64,7 @@ def test_import_path_does_not_modify_user_file(tmp_path: Path):
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     projects = ProjectService(paths, clock=clock, ids=ids)
-    project = projects.create("t")
+    projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
     ingest.import_path(user)
     assert user.read_bytes() == before
@@ -89,7 +89,7 @@ def test_oversized_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     projects = ProjectService(paths, clock=clock, ids=ids)
-    project = projects.create("t")
+    projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
     with pytest.raises(IngestError):
         ingest.import_bytes("big.png", _png_bytes())

@@ -6,7 +6,11 @@ import hashlib
 from typing import Any
 
 from transcribe.analysis import ADAPTER_VERSION, CACHE_IDENTITY_VERSION
-from transcribe.analysis.document import CONTENT_FINGERPRINT_VERSION, AnalysisDocument, content_fingerprint
+from transcribe.analysis.document import (
+    CONTENT_FINGERPRINT_VERSION,
+    AnalysisDocument,
+    content_fingerprint,
+)
 from transcribe.domain.fingerprint import canonical_json_bytes
 
 

@@ -108,8 +108,7 @@ class ImportOrchestrator:
             status="pending",
             plan_schema_version=plan.schema_version,
             items=[
-                ImportRunItemOutcome(item_id=item.item_id, state="pending")
-                for item in plan.items
+                ImportRunItemOutcome(item_id=item.item_id, state="pending") for item in plan.items
             ],
             plan_body=plan.as_dict(include_provenance=True),
         )
@@ -219,9 +218,7 @@ class ImportOrchestrator:
 
         open_project_paths, _ = _project_helpers()
         project_paths = open_project_paths(root)
-        self._commit_source(
-            project_paths, item, run.import_run_id, crash_hook=crash_hook
-        )
+        self._commit_source(project_paths, item, run.import_run_id, crash_hook=crash_hook)
         return self._set_outcome(
             run,
             ImportRunItemOutcome(
@@ -243,9 +240,7 @@ class ImportOrchestrator:
         open_project_paths, _seed_ocr_settings = _project_helpers()
         project_paths = open_project_paths(root)
         now = to_iso(self.clock.now())
-        with ordered_corpus_then_notebook_lock(
-            self.paths.lock_path, project_paths.mutation_lock
-        ):
+        with ordered_corpus_then_notebook_lock(self.paths.lock_path, project_paths.mutation_lock):
             if project_paths.manifest.exists():
                 project = self._load_project(root)
                 if project.id != item.notebook_id:
@@ -263,9 +258,7 @@ class ImportOrchestrator:
                 validate_project(project)
                 write_json_atomic(project_paths.manifest, project.as_dict())
                 self._hook(crash_hook, "notebook_creation")
-            self._register_notebook_unlocked(
-                item.notebook_id, root, project_id=item.notebook_id
-            )
+            self._register_notebook_unlocked(item.notebook_id, root, project_id=item.notebook_id)
             self._hook(crash_hook, "corpus_registration")
         return root
 
@@ -280,9 +273,7 @@ class ImportOrchestrator:
         self._ensure_no_live_journal(project_paths)
         data, safe_name, source_path = self._source_bytes(project_paths, item)
         if len(data) > MAX_SOURCE_BYTES:
-            raise IngestError(
-                f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes"
-            )
+            raise IngestError(f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes")
         source_sha = sha256_bytes(data)
         if source_sha != item.source_sha256:
             raise IngestError(f"source SHA mismatch for {item.item_id}")
@@ -294,9 +285,7 @@ class ImportOrchestrator:
         dpi = self._render_dpi(item)
         _ensure_disk_budget(project_paths.root, additional=len(data))
 
-        staging = project_paths.staging_attempt_dir(
-            f"bulk-{import_run_id}-{item.item_id}"
-        )
+        staging = project_paths.staging_attempt_dir(f"bulk-{import_run_id}-{item.item_id}")
         staging.mkdir(parents=True, exist_ok=True)
         final_source = project_paths.sources_dir / f"{item.source_id}-{safe_name}"
         source_rel = project_paths.relativize(final_source)
@@ -349,9 +338,7 @@ class ImportOrchestrator:
                     )
                     if final_png.exists():
                         if sha256_bytes(final_png.read_bytes()) != png_sha:
-                            raise IngestError(
-                                f"managed render collision for {render_id}"
-                            )
+                            raise IngestError(f"managed render collision for {render_id}")
                     else:
                         staged_png = staging / f"{page_index:04d}-{render_id}.png"
                         write_bytes_atomic(staged_png, png)
@@ -378,9 +365,7 @@ class ImportOrchestrator:
             self._hook(crash_hook, "render_promotion")
 
             with mutation_lock(project_paths.mutation_lock):
-                payload = require_format(
-                    read_json(project_paths.manifest), "transcribe.project"
-                )
+                payload = require_format(read_json(project_paths.manifest), "transcribe.project")
                 project = Project.from_dict(payload)
                 if not self._project_has_planned_item(project, item):
                     self._check_id_collisions(project, item)
@@ -460,21 +445,13 @@ class ImportOrchestrator:
             clock=self.clock,
             ids=self.ids,
             visual_declutter_enabled=self.visual_declutter_enabled,
-        ).recover_incomplete_ingest(
-            visual_declutter_enabled=self.visual_declutter_enabled
-        )
+        ).recover_incomplete_ingest(visual_declutter_enabled=self.visual_declutter_enabled)
         if paths.ingest_journal.exists():
-            raise CorpusError(
-                f"live ingest journal already exists: {paths.ingest_journal}"
-            )
+            raise CorpusError(f"live ingest journal already exists: {paths.ingest_journal}")
 
-    def _register_notebook_unlocked(
-        self, notebook_id: str, root: Path, *, project_id: str
-    ) -> None:
+    def _register_notebook_unlocked(self, notebook_id: str, root: Path, *, project_id: str) -> None:
         if notebook_id != project_id:
-            raise ValidationError(
-                f"notebook_id {notebook_id!r} != project_id {project_id!r}"
-            )
+            raise ValidationError(f"notebook_id {notebook_id!r} != project_id {project_id!r}")
         rel = root.resolve().relative_to(self.paths.projects_dir.resolve()).as_posix()
         now = to_iso(self.clock.now())
         if self.paths.index_path.exists():
@@ -528,9 +505,7 @@ class ImportOrchestrator:
             return False
         page_ids = {p.page_id for p in project.pages}
         render_ids = set(project.renders)
-        return set(item.page_ids).issubset(page_ids) and set(item.render_ids).issubset(
-            render_ids
-        )
+        return set(item.page_ids).issubset(page_ids) and set(item.render_ids).issubset(render_ids)
 
     def _check_id_collisions(self, project: Project, item: ImportPlanItem) -> None:
         if any(source.source_id == item.source_id for source in project.sources):

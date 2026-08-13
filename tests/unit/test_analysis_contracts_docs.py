@@ -6,7 +6,6 @@ from pathlib import Path
 
 from transcribe.persistence.schema import SUPPORTED
 
-
 DOCS = Path(__file__).resolve().parents[2] / "docs"
 CONTRACTS = DOCS / "contracts"
 
@@ -72,7 +71,9 @@ def test_run_storage_binds_project_id_and_owns_dependency_table():
     assert "(project_id, module_id, cache_identity)" in text
     assert "entity_sentiment" in text
     assert "affect_tension" in text
-    assert "does not redefine" in text.lower() or "Reference only" in text or "reference only" in text
+    assert (
+        "does not redefine" in text.lower() or "Reference only" in text or "reference only" in text
+    )
 
 
 def test_analysis_formats_registered_in_supported():

@@ -8,8 +8,14 @@ from transcribe.analysis.cache_identity import config_fingerprint
 from transcribe.analysis.llm_runtime import TextLLMContext, bind_text_llm_context
 from transcribe.config.facade import bind_operation_config, snapshot_for_operation
 from transcribe.config.knobs import llm_generation_options
-from transcribe.detection.aggregate import merge_adjacent_spans, raw_from_window_response
-from transcribe.detection.cache_identity import build_cache_identity_object, cache_identity_hex
+from transcribe.detection.aggregate import (
+    merge_adjacent_spans,
+    raw_from_window_response,
+)
+from transcribe.detection.cache_identity import (
+    build_cache_identity_object,
+    cache_identity_hex,
+)
 from transcribe.detection.candidates import select_candidates
 from transcribe.detection.custom import load_custom_detectors
 from transcribe.detection.definition import DetectorDefinition
@@ -178,9 +184,7 @@ class DetectionRunner:
         if detector is None:
             raise ValueError(f"unknown detector: {detector_id}")
 
-        planned_id, scope_fp, _ = self.planned_cache_identity(
-            detector, page_ids=page_ids
-        )
+        planned_id, scope_fp, _ = self.planned_cache_identity(detector, page_ids=page_ids)
         if not force:
             cached = self.storage.validate_cache_hit(
                 detector_id=detector_id,
@@ -402,9 +406,7 @@ class DetectionRunner:
                 executor = (
                     vision_ctx.client
                     if route.input_mode == InputMode.VISION and vision_ctx
-                    else text_ctx.client
-                    if text_ctx
-                    else None
+                    else text_ctx.client if text_ctx else None
                 )
                 if executor is None:
                     window_failures += 1
@@ -474,9 +476,7 @@ class DetectionRunner:
                         "reason": raw.reason,
                         "snippets": [raw.reason[:500]] if raw.reason else [],
                         "window_raw": {
-                            k: v
-                            for k, v in (raw.raw or {}).items()
-                            if k != "items" or True
+                            k: v for k, v in (raw.raw or {}).items() if k != "items" or True
                         },
                     },
                     prompt_provenance=prompt_prov,

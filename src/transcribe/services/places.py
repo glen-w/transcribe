@@ -50,8 +50,7 @@ LOCATIONS_FILENAME = "locations.json"
 _NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 # Nominatim requires an identifying User-Agent (TX uses geopy user_agent="transcriptx").
 _USER_AGENT = (
-    "TranscribeNotebookOCR/0.2 (local-first; places map; "
-    "https://github.com/glen-w/transcribe)"
+    "TranscribeNotebookOCR/0.2 (local-first; places map; " "https://github.com/glen-w/transcribe)"
 )
 _MIN_REQUEST_INTERVAL_S = 1.05
 _DEFAULT_TIMEOUT_S = 10.0  # match TX geopy timeout
@@ -219,9 +218,7 @@ def extract_from_ner_payload(
             notebook_title=notebook_title,
             sample_quote=quotes.get(pk[0]),
         )
-        for pk in sorted(
-            place_counts.keys(), key=lambda k: (-place_counts[k], k[0], k[1])
-        )
+        for pk in sorted(place_counts.keys(), key=lambda k: (-place_counts[k], k[0], k[1]))
     ]
     people_out = [
         PersonMention(
@@ -262,7 +259,7 @@ def _merge_snapshots(parts: Iterable[PlacesSnapshot]) -> PlacesSnapshot:
                     "count": p.count,
                     "page_ids": set(p.page_ids),
                     "notebook_ids": {p.notebook_id} if p.notebook_id else set(),
-                    "notebook_titles": {p.notebook_title} if p.notebook_title else set(),
+                    "notebook_titles": ({p.notebook_title} if p.notebook_title else set()),
                     "sample_quote": p.sample_quote,
                 }
             else:
@@ -314,9 +311,7 @@ def _merge_snapshots(parts: Iterable[PlacesSnapshot]) -> PlacesSnapshot:
             count=int(slot["count"]),
             page_ids=tuple(sorted(slot["page_ids"])),
         )
-        for _k, slot in sorted(
-            person_merge.items(), key=lambda kv: (-kv[1]["count"], kv[0])
-        )
+        for _k, slot in sorted(person_merge.items(), key=lambda kv: (-kv[1]["count"], kv[0]))
     ]
     return PlacesSnapshot(
         places=places,
@@ -608,9 +603,7 @@ def resolve_places(
     """
     geocode = geocode_fn or nominatim_geocode
     sleeper = sleep_fn or time.sleep
-    ordered = sorted(
-        places, key=lambda p: (-int(p.count), normalize_place_query(p.surface))
-    )
+    ordered = sorted(places, key=lambda p: (-int(p.count), normalize_place_query(p.surface)))
     out: list[GeocodedPlace] = []
     network_used = 0
     last_network_at = 0.0
@@ -644,8 +637,7 @@ def resolve_places(
             result = {
                 **result,
                 "status": status,
-                "message": result.get("message")
-                or "geocoder returned ok without coordinates",
+                "message": result.get("message") or "geocoder returned ok without coordinates",
             }
         entry = {
             "status": status,
@@ -747,9 +739,7 @@ def build_ner_locations_artifact(
 
 
 def locations_artifact_path(project_root: Path) -> Path:
-    return (
-        open_project_paths(Path(project_root)).analysis_dir / "ner" / LOCATIONS_FILENAME
-    )
+    return open_project_paths(Path(project_root)).analysis_dir / "ner" / LOCATIONS_FILENAME
 
 
 def write_ner_locations_artifact(

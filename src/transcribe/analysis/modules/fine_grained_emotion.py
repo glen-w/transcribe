@@ -56,7 +56,11 @@ class FineGrainedEmotionModule:
     ) -> dict[str, Any]:
         _ = parents, llm_ctx, question_text
         if not document.units or not document.text.strip():
-            return {"outcome": "insufficient_data", "payload": {}, "capability_reason": None}
+            return {
+                "outcome": "insufficient_data",
+                "payload": {},
+                "capability_reason": None,
+            }
         if not _transformer_emotion_available():
             return {
                 "outcome": "skipped_not_applicable",

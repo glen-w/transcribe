@@ -74,9 +74,7 @@ class LLMCustomQAModule:
             return {
                 "outcome": "insufficient_data",
                 "payload": {},
-                "warnings": [
-                    {"code": "missing_question", "message": "question_text required"}
-                ],
+                "warnings": [{"code": "missing_question", "message": "question_text required"}],
             }
         ctx = require_llm_ctx(llm_ctx)
         if not isinstance(ctx, TextLLMContext):
@@ -132,14 +130,10 @@ class LLMCustomQAModule:
                     "payload": {"error": {"code": "llm_generate", "message": str(exc)}},
                 }
             last_raw = raw
-            result = self._validate_answer(
-                document, question, raw, allowed, ctx.model_name
-            )
+            result = self._validate_answer(document, question, raw, allowed, ctx.model_name)
             if result["outcome"] == "success":
                 return result
-        return self._validate_answer(
-            document, question, last_raw, meta["cite_ids"], ctx.model_name
-        )
+        return self._validate_answer(document, question, last_raw, meta["cite_ids"], ctx.model_name)
 
     def _validate_answer(
         self,

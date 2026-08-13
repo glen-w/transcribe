@@ -44,7 +44,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 ### Prerequisites
 
 - A running Ollama server (`http://localhost:11434` by default)
-- At least one **vision-capable** model (e.g. `gemma3:4b`, `llava:7b`, `qwen3-vl:8b`)
+- At least one **vision-capable**, OCR-friendly model (e.g. `deepseek-ocr`, `granite3.2-vision`, `qwen2.5vl:7b`). Prefer OCR-oriented tags over general VLMs; some listed “vision” tags still fail to load on a given Ollama build — see [known_limitations.md](docs/known_limitations.md)
 
 ## How you use it
 
@@ -68,12 +68,12 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 ## What it does today
 
 - Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
-- Local Ollama vision OCR with content fingerprints for skip/resume; multipass compare / prefer / promote / composite / fine-tune export
+- Local Ollama vision OCR with content fingerprints for skip/resume; multipass compare / prefer / promote / composite / fine-tune export; timeout and model-load fail-fast circuits
 - Immutable OCR attempts; human edits live in `edited_text`; page delete from the viewer
 - Workspace Archive / View / Search (activity-bin filter, strip paging) over your projects directory
 - Unified Import / Transcribe targets (this notebook vs batch) with live job progress; corpus bulk import supported
 - Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
-- Analyse presets (Quick / Balanced / Thorough / Custom) with product read-models
+- Analyse presets (Quick / Balanced / Thorough / Custom) with product read-models (corpus/period compare on Overview/Mood; Moments jump-to-page)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
 - **Core notebook analysis** on transcribed text (Overview, Themes, Mood, Moments, Places, Summaries, Ask) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
@@ -85,7 +85,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** (trust / Analyse product UX → first-run operability → daily workbench; corpus bulk import supported) — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** — **U0–U1** and **U3** done; open track **U2** first-run operability; **U4** corpus gate green — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

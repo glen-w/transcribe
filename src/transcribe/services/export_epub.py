@@ -29,9 +29,7 @@ def _section_body(text: str) -> str:
         return '<p class="blank">(blank page)</p>'
     blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
     if not blocks:
-        return "".join(
-            f"<p>{html.escape(line)}</p>" for line in text.splitlines() if line.strip()
-        )
+        return "".join(f"<p>{html.escape(line)}</p>" for line in text.splitlines() if line.strip())
     out: list[str] = []
     for block in blocks:
         out.append(f"<p>{html.escape(block).replace(chr(10), '<br/>')}</p>")
@@ -90,9 +88,7 @@ def build_epub(document: ExportDocument, options: ExportOptions) -> bytes:
                 f"<body><h1>{html.escape(part.title)}</h1>"
             )
             if part.date_start_label or part.date_end_label:
-                span = " – ".join(
-                    x for x in (part.date_start_label, part.date_end_label) if x
-                )
+                span = " – ".join(x for x in (part.date_start_label, part.date_end_label) if x)
                 part_html += f"<p class='meta'>{html.escape(span)}</p>"
             part_html += "</body></html>"
             part_ch = epub.EpubHtml(

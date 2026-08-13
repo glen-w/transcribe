@@ -200,7 +200,9 @@ def _bounds_dates(dates: list[ApproximateDate]) -> list[ApproximateDate]:
     return precise if precise else dated
 
 
-def _notebook_bounds(project: Project) -> tuple[ApproximateDate | None, ApproximateDate | None]:
+def _notebook_bounds(
+    project: Project,
+) -> tuple[ApproximateDate | None, ApproximateDate | None]:
     dated = _bounds_dates([p.date for p in project.pages if p.date is not None])
     derived_start, derived_end = min_date(dated), max_date(dated)
     start = project.date_start if project.date_start is not None else derived_start
@@ -300,8 +302,7 @@ class ArchiveService:
         self._validated_generation = None
 
     def _ensure_schema(self, conn: sqlite3.Connection) -> None:
-        conn.executescript(
-            """
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS meta (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
@@ -333,25 +334,17 @@ class ArchiveService:
             );
             CREATE INDEX IF NOT EXISTS idx_pages_project ON pages(project_id);
             CREATE INDEX IF NOT EXISTS idx_pages_sort ON pages(sort_key);
-            """
-        )
-        row = conn.execute(
-            "SELECT value FROM meta WHERE key = 'cache_schema_version'"
-        ).fetchone()
+            """)
+        row = conn.execute("SELECT value FROM meta WHERE key = 'cache_schema_version'").fetchone()
         if row is not None:
             cache_version = int(row["value"])
             if cache_version != _CACHE_SCHEMA_VERSION:
-                raise sqlite3.DatabaseError(
-                    f"incompatible archive cache schema {cache_version}"
-                )
-        row = conn.execute(
-            "SELECT value FROM meta WHERE key = 'fts_schema_version'"
-        ).fetchone()
+                raise sqlite3.DatabaseError(f"incompatible archive cache schema {cache_version}")
+        row = conn.execute("SELECT value FROM meta WHERE key = 'fts_schema_version'").fetchone()
         current = int(row["value"]) if row else 0
         if current < _FTS_SCHEMA_VERSION:
             conn.execute("DROP TABLE IF EXISTS pages_fts")
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE VIRTUAL TABLE pages_fts USING fts5(
                   page_id UNINDEXED,
                   project_id UNINDEXED,
@@ -359,8 +352,7 @@ class ArchiveService:
                   tags,
                   title
                 )
-                """
-            )
+                """)
             conn.execute(
                 "INSERT OR REPLACE INTO meta(key, value) VALUES ('fts_schema_version', ?)",
                 (str(_FTS_SCHEMA_VERSION),),
@@ -371,6 +363,7 @@ class ArchiveService:
             "INSERT OR REPLACE INTO meta(key, value) VALUES ('cache_schema_version', ?)",
             (str(_CACHE_SCHEMA_VERSION),),
         )
+
     def _project_signature(self, root: Path, project: Project) -> str:
         parts = [project.updated_at, str(len(project.pages))]
         results = root / "results"
@@ -424,9 +417,7 @@ class ArchiveService:
                         )
                     known = {
                         row["project_id"]: (row["signature"], row["root"])
-                        for row in conn.execute(
-                            "SELECT project_id, signature, root FROM notebooks"
-                        )
+                        for row in conn.execute("SELECT project_id, signature, root FROM notebooks")
                     }
                     seen: set[str] = set()
                     for root in roots:
@@ -453,15 +444,9 @@ class ArchiveService:
                         self._reindex_project(conn, root, project, projects, sig)
                     stale = set(known) - seen
                     for project_id in stale:
-                        conn.execute(
-                            "DELETE FROM pages_fts WHERE project_id = ?", (project_id,)
-                        )
-                        conn.execute(
-                            "DELETE FROM pages WHERE project_id = ?", (project_id,)
-                        )
-                        conn.execute(
-                            "DELETE FROM notebooks WHERE project_id = ?", (project_id,)
-                        )
+                        conn.execute("DELETE FROM pages_fts WHERE project_id = ?", (project_id,))
+                        conn.execute("DELETE FROM pages WHERE project_id = ?", (project_id,))
+                        conn.execute("DELETE FROM notebooks WHERE project_id = ?", (project_id,))
                     conn.commit()
                 self._mark_validated()
                 return
@@ -576,9 +561,7 @@ class ArchiveService:
         return ApproximateDate.from_dict(json.loads(raw))
 
     def _load_page_rows(self, conn: sqlite3.Connection) -> list[sqlite3.Row]:
-        return list(
-            conn.execute(
-                """
+        return list(conn.execute("""
                 SELECT p.*, n.title AS project_title, n.root AS project_root,
                        n.page_count AS notebook_page_count,
                        n.date_start_json AS nb_date_start_json,
@@ -587,9 +570,7 @@ class ArchiveService:
                        n.cover_page_id AS notebook_cover_page_id
                 FROM pages p
                 JOIN notebooks n ON n.project_id = p.project_id
-                """
-            )
-        )
+                """))
 
     def _row_matches(self, row: sqlite3.Row, filters: ArchiveFilters) -> bool:
         page_date = self._parse_date(row["date_json"])
@@ -762,9 +743,7 @@ class ArchiveService:
                     continue
 
                 matched_dates = [
-                    d
-                    for d in (self._parse_date(r["date_json"]) for r in matched)
-                    if d is not None
+                    d for d in (self._parse_date(r["date_json"]) for r in matched) if d is not None
                 ]
                 dated_only = _spike_dates(matched_dates)
                 bounds_dates = _bounds_dates(matched_dates)

@@ -60,9 +60,7 @@ _MONTH_NAME_TO_NUM: dict[str, int] = {
     "dec": 12,
 }
 # Longer names first so "September" wins over "Sep".
-_MONTH_NAME_ALT = "|".join(
-    sorted(_MONTH_NAME_TO_NUM.keys(), key=len, reverse=True)
-)
+_MONTH_NAME_ALT = "|".join(sorted(_MONTH_NAME_TO_NUM.keys(), key=len, reverse=True))
 _MONTH_NAME_RE = rf"(?:{_MONTH_NAME_ALT})"
 _ORDINAL_SUFFIX_RE = r"(?:st|nd|rd|th)?"
 
@@ -197,20 +195,20 @@ def find_date_regressions(
     prev_number: int | None = None
     prev_id: str | None = None
     prev_date: ApproximateDate | None = None
-    for i, (page_id, date) in enumerate(pages, start=1):
-        if date is None:
+    for i, (page_id, page_date) in enumerate(pages, start=1):
+        if page_date is None:
             continue
         if (
             prev_date is not None
             and prev_number is not None
             and prev_id is not None
-            and date.clearly_before(prev_date)
+            and page_date.clearly_before(prev_date)
         ):
             out.append(
                 DateRegression(
                     page_number=i,
                     page_id=page_id,
-                    date=date,
+                    date=page_date,
                     previous_page_number=prev_number,
                     previous_page_id=prev_id,
                     previous_date=prev_date,
@@ -218,7 +216,7 @@ def find_date_regressions(
             )
         prev_number = i
         prev_id = page_id
-        prev_date = date
+        prev_date = page_date
     return out
 
 
@@ -262,9 +260,7 @@ def canonicalize_page_date_state(
             raise ValueError("approved date must have date_source null")
         return date, True, None
     if date_source not in DATE_SOURCES:
-        raise ValueError(
-            "unapproved date requires date_source 'extracted' or 'inherited'"
-        )
+        raise ValueError("unapproved date requires date_source 'extracted' or 'inherited'")
     return date, False, date_source
 
 
@@ -487,7 +483,12 @@ def extract_page_date(
     for m in re.finditer(r"(?<!\d)(\d{4})([-./])(\d{1,2})(?!\d)", text):
         # Avoid matching the YYYY-MM prefix of an already-matched YYYY-MM-DD.
         after = m.end()
-        if after < len(text) and text[after] in "-./" and after + 1 < len(text) and text[after + 1].isdigit():
+        if (
+            after < len(text)
+            and text[after] in "-./"
+            and after + 1 < len(text)
+            and text[after + 1].isdigit()
+        ):
             continue
         try:
             d = ApproximateDate(year=int(m.group(1)), month=int(m.group(3)))

@@ -24,7 +24,11 @@ def _finding(
         confidence=0.9,
         evidence={"reason": "x", "snippets": []},
         prompt_provenance={"prompt_id": "poetry_detect_text_v1", "version": "1"},
-        model_provenance={"model_name": "m", "model_digest": None, "input_mode": "text"},
+        model_provenance={
+            "model_name": "m",
+            "model_digest": None,
+            "input_mode": "text",
+        },
         input_fingerprint="fp",
         created_at="2026-01-01T00:00:00+00:00",
         updated_at="2026-01-01T00:00:00+00:00",
@@ -35,15 +39,9 @@ def _finding(
 def test_carry_forward_preserves_approved_rejected_by_span():
     prior = {
         "findings": [
-            _finding(
-                finding_id="old1", start="p1", end="p2", review_status="approved"
-            ).as_dict(),
-            _finding(
-                finding_id="old2", start="p3", end="p3", review_status="rejected"
-            ).as_dict(),
-            _finding(
-                finding_id="old3", start="p9", end="p9", review_status="unreviewed"
-            ).as_dict(),
+            _finding(finding_id="old1", start="p1", end="p2", review_status="approved").as_dict(),
+            _finding(finding_id="old2", start="p3", end="p3", review_status="rejected").as_dict(),
+            _finding(finding_id="old3", start="p9", end="p9", review_status="unreviewed").as_dict(),
         ]
     }
     new = [

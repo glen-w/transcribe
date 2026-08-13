@@ -12,9 +12,7 @@ from transcribe.persistence.locks import mutation_lock
 from transcribe.persistence.schema import require_format
 
 TERMINAL_STATUSES = frozenset({"completed", "partial", "failed", "cancelled"})
-ITEM_STATES = frozenset(
-    {"pending", "running", "completed", "skipped", "failed", "cancelled"}
-)
+ITEM_STATES = frozenset({"pending", "running", "completed", "skipped", "failed", "cancelled"})
 LIVE_STATUSES = frozenset({"pending", "running"})
 OCR_BATCH_MODES = frozenset({"single", "multipass"})
 
@@ -137,9 +135,7 @@ def validate_ocr_batch_run(run: OcrBatchRun) -> None:
     if run.mode not in OCR_BATCH_MODES:
         raise ValidationError(f"invalid ocr-batch-run mode: {run.mode!r}")
     if run.mode == "multipass" and len(run.vision_model_names) < 2:
-        raise ValidationError(
-            "multipass ocr-batch-run requires at least two vision_model_names"
-        )
+        raise ValidationError("multipass ocr-batch-run requires at least two vision_model_names")
     seen: set[str] = set()
     for item in run.items:
         if item.state not in ITEM_STATES:

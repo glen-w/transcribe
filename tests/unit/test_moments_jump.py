@@ -38,7 +38,4 @@ def test_page_id_for_moment_paragraph_unit_id():
 
 
 def test_page_id_for_moment_page_v1_unit_id():
-    assert (
-        _page_id_for_moment({"unit_id": "page-uuid"}, evidence_by_unit={})
-        == "page-uuid"
-    )
+    assert _page_id_for_moment({"unit_id": "page-uuid"}, evidence_by_unit={}) == "page-uuid"

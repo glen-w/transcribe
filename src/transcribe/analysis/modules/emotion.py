@@ -121,7 +121,10 @@ class EmotionModule:
                 "outcome": "insufficient_data",
                 "payload": {},
                 "warnings": [
-                    {"code": "empty_document", "message": "No units / empty document text"}
+                    {
+                        "code": "empty_document",
+                        "message": "No units / empty document text",
+                    }
                 ],
             }
 
@@ -156,4 +159,9 @@ class EmotionModule:
             },
             "units": units_out,
         }
-        return {"outcome": "success", "payload": payload, "warnings": [], "partial": False}
+        return {
+            "outcome": "success",
+            "payload": payload,
+            "warnings": [],
+            "partial": False,
+        }

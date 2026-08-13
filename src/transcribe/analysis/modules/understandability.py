@@ -81,9 +81,7 @@ class UnderstandabilityModule:
     module_id = MODULE_ID
     module_version = MODULE_VERSION
     semantic_class = "adaptation"
-    semantic_delta = (
-        "speaker grouping removed; pure-Python readability (no nltk/textstat)"
-    )
+    semantic_delta = "speaker grouping removed; pure-Python readability (no nltk/textstat)"
 
     def run(
         self,

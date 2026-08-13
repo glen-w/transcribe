@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 import streamlit as st
 
@@ -18,7 +17,7 @@ from transcribe.prompt_engine.definition import (
     validate_prompt_definition,
 )
 from transcribe.prompt_engine.execute import execute_prompt
-from transcribe.prompt_engine.hub import list_catalogue, resolve_prompt
+from transcribe.prompt_engine.hub import list_catalogue
 from transcribe.prompt_engine.render import PromptRenderer
 from transcribe.prompt_engine.store import (
     delete_custom_prompt,
@@ -62,10 +61,7 @@ def render_prompts_panel() -> None:
 
     used = detectors_using_prompt(defn.prompt_id)
     if used:
-        st.caption(
-            "Used by detectors: "
-            + ", ".join(f"`{d.detector_id}`" for d in used[:8])
-        )
+        st.caption("Used by detectors: " + ", ".join(f"`{d.detector_id}`" for d in used[:8]))
 
     st.markdown(f"**Source:** {entry.source} · **Mode:** {defn.input_mode.value}")
     system = st.text_area("System prompt", value=defn.system_prompt, height=120)
@@ -174,9 +170,21 @@ def _dry_run(defn: PromptDefinition, sample: str) -> None:
         st.info("OCR/cleanup prompts return free text; showing rendered user prompt.")
         from transcribe.prompt_engine.render import render_prompt
 
-        slots = {"content": sample, "ocr_text": sample, "page_labels": "PAGE 1", "instruction": ""}
+        slots = {
+            "content": sample,
+            "ocr_text": sample,
+            "page_labels": "PAGE 1",
+            "instruction": "",
+        }
         try:
-            rendered = render_prompt(defn, {k: v for k, v in slots.items() if "{{" + k + "}}" in defn.user_template or k == "content"})
+            rendered = render_prompt(
+                defn,
+                {
+                    k: v
+                    for k, v in slots.items()
+                    if "{{" + k + "}}" in defn.user_template or k == "content"
+                },
+            )
         except ValueError:
             # fill required slots loosely
             rendered = render_prompt(
@@ -237,7 +245,6 @@ def _dry_run(defn: PromptDefinition, sample: str) -> None:
         )
     except ValueError as exc:
         # Missing slots — try content only
-        from transcribe.prompt_engine.render import render_prompt as rp
 
         minimal = defn
         result = execute_prompt(

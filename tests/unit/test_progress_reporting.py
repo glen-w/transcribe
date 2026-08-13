@@ -169,9 +169,7 @@ def test_batch_ocr_progress_names_notebook_and_page(tmp_path: Path) -> None:
 
     coord.provider = Recording()
     selected = select_pending(list_candidates(corpus, clock=clock, ids=ids))
-    run = coord.create_run(
-        selected, settings=OCRSettings(model_name="fake-vision"), force=True
-    )
+    run = coord.create_run(selected, settings=OCRSettings(model_name="fake-vision"), force=True)
     progress = coord.run_blocking(run.ocr_run_id)
     assert progress.status == "completed"
     blob = " ".join(seen)

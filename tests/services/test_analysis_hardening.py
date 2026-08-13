@@ -18,7 +18,11 @@ from transcribe.analysis.eligibility import (
     eligibility_fingerprint,
     evaluate_notebook_eligibility_v1,
 )
-from transcribe.analysis.envelope import CAPABILITIES, derive_capability, filter_live_evidence
+from transcribe.analysis.envelope import (
+    CAPABILITIES,
+    derive_capability,
+    filter_live_evidence,
+)
 from transcribe.analysis.modules.stats import StatsModule
 from transcribe.analysis.runner import (
     ELIGIBILITY_REQUIRED,
@@ -67,7 +71,13 @@ TEXTS = [
 
 def _fake_ner_extract(text: str):
     out = []
-    for name, label in (("Alice", "PERSON"), ("Bob", "PERSON"), ("Paris", "GPE"), ("Carol", "PERSON"), ("Dana", "PERSON")):
+    for name, label in (
+        ("Alice", "PERSON"),
+        ("Bob", "PERSON"),
+        ("Paris", "GPE"),
+        ("Carol", "PERSON"),
+        ("Dana", "PERSON"),
+    ):
         if name in text:
             i = text.index(name)
             out.append((name, label, i, i + len(name)))
@@ -273,7 +283,9 @@ def test_emotion_lexicon_on_envelope(tmp_path: Path):
 
 def test_filter_live_evidence_and_read_model(tmp_path: Path):
     assert filter_live_evidence(None, current_content_fingerprint="abc") == []
-    assert filter_live_evidence([{"content_fingerprint": "x"}], current_content_fingerprint=None) == []
+    assert (
+        filter_live_evidence([{"content_fingerprint": "x"}], current_content_fingerprint=None) == []
+    )
     live = filter_live_evidence(
         [
             {"content_fingerprint": "abc", "quote": "a"},
@@ -293,13 +305,9 @@ def test_filter_live_evidence_and_read_model(tmp_path: Path):
         assert env["outcome"] == "success"
         storage = AnalysisStorage(projects.paths)
         identity = runner.planned_cache_identity("ner")
-        rm = load_published_read_model(
-            storage, "ner", current_cache_identity=identity
-        )
+        rm = load_published_read_model(storage, "ner", current_cache_identity=identity)
         assert rm["status"] == "ok"
-        stale = load_published_read_model(
-            storage, "ner", current_cache_identity="deadbeef"
-        )
+        stale = load_published_read_model(storage, "ner", current_cache_identity="deadbeef")
         assert stale["status"] == "stale"
         assert stale["live_evidence"] == []
     finally:
