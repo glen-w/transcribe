@@ -233,7 +233,11 @@ def test_extract_rejects_hhmm_timestamps_as_years():
 def test_is_plausible_diary_year():
     from datetime import date
 
-    from transcribe.domain.dates import is_hhmm_shaped_year, is_plausible_diary_year, looks_like_hhmm
+    from transcribe.domain.dates import (
+        is_hhmm_shaped_year,
+        is_plausible_diary_year,
+        looks_like_hhmm,
+    )
 
     today = date(2026, 8, 10)
     assert is_plausible_diary_year(1900, today=today)
@@ -249,6 +253,7 @@ def test_is_plausible_diary_year():
     assert is_hhmm_shaped_year(ApproximateDate(1902))
     assert not is_hhmm_shaped_year(ApproximateDate(2024, 5, 6))
     assert not is_hhmm_shaped_year(ApproximateDate(1960))
+
 
 def test_canonicalize_invariants():
     assert canonicalize_page_date_state(None, False, None) == (None, True, None)

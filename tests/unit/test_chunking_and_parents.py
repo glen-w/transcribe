@@ -45,9 +45,27 @@ def test_estimate_tokens_whitespace_v1():
 
 def test_select_chunks_for_prompt_leaves_remainder():
     chunks = [
-        {"chunk_index": 0, "text": "a b c", "token_estimate": 3, "unit_ids": ["u0"], "cite_ids": ["u0"]},
-        {"chunk_index": 1, "text": "d e f", "token_estimate": 3, "unit_ids": ["u1"], "cite_ids": ["u1"]},
-        {"chunk_index": 2, "text": "g h i", "token_estimate": 3, "unit_ids": ["u2"], "cite_ids": ["u2"]},
+        {
+            "chunk_index": 0,
+            "text": "a b c",
+            "token_estimate": 3,
+            "unit_ids": ["u0"],
+            "cite_ids": ["u0"],
+        },
+        {
+            "chunk_index": 1,
+            "text": "d e f",
+            "token_estimate": 3,
+            "unit_ids": ["u1"],
+            "cite_ids": ["u1"],
+        },
+        {
+            "chunk_index": 2,
+            "text": "g h i",
+            "token_estimate": 3,
+            "unit_ids": ["u2"],
+            "cite_ids": ["u2"],
+        },
     ]
     selected, remainder = select_chunks_for_prompt(chunks, total_token_budget=5)
     # First chunk always admitted; second would exceed remaining budget.
@@ -88,9 +106,7 @@ def test_parents_for_identity_strips_payload():
         }
     ]
     ident = parents_for_identity(rows)
-    assert ident == [
-        {"module_id": "summary", "cache_identity": "abc", "outcome": "success"}
-    ]
+    assert ident == [{"module_id": "summary", "cache_identity": "abc", "outcome": "success"}]
     assert "payload" not in ident[0]
     payloads = parent_payloads(rows)
     assert payloads["summary"]["overview"] == "secret"

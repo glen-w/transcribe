@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 
 import streamlit as st
 
@@ -41,8 +40,7 @@ def _render_run(projects: ProjectService) -> None:
     )
     project = projects.load()
     page_labels = {
-        f"Page {i + 1} ({p.page_id[:8]}…)": p.page_id
-        for i, p in enumerate(project.pages)
+        f"Page {i + 1} ({p.page_id[:8]}…)": p.page_id for i, p in enumerate(project.pages)
     }
     scope = st.radio("Scope", ["Whole notebook", "Selected pages"], horizontal=True)
     page_ids = None
@@ -63,7 +61,10 @@ def _render_run(projects: ProjectService) -> None:
             status.info(f"Running `{did}`…")
 
             def _progress(done: int, total: int, _did: str = did) -> None:
-                progress.progress(min(1.0, done / max(1, total)), text=f"{_did}: {done}/{total} windows")
+                progress.progress(
+                    min(1.0, done / max(1, total)),
+                    text=f"{_did}: {done}/{total} windows",
+                )
 
             try:
                 result = svc.run_detector(
@@ -111,9 +112,7 @@ def _render_findings(projects: ProjectService, project_root: str) -> None:
                 if isinstance(start_i, int) and isinstance(end_i, int)
                 else f"{f.start_page_id}…{f.end_page_id}"
             )
-            with st.expander(
-                f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"
-            ):
+            with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
                 st.write(f.evidence.get("reason") or "")
                 if f.detector_data:
                     st.json(f.detector_data)

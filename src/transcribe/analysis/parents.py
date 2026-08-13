@@ -92,9 +92,7 @@ def resolve_optional_parents(
         for mid in ("emotion", "sentiment", "topic_shift"):
             pub = storage.read_published(mid)
             if pub and pub.get("outcome") == "success":
-                if not _parent_fresh(
-                    mid, pub, expected_identity=expected_identity
-                ):
+                if not _parent_fresh(mid, pub, expected_identity=expected_identity):
                     continue
                 consumed.append(_snapshot_row(mid, pub))
     return consumed

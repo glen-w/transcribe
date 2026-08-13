@@ -89,10 +89,7 @@ class DetectionService:
         published = self.storage.read_published(detector_id)
         if published is None:
             return []
-        return [
-            DetectionFinding.from_dict(row)
-            for row in (published.get("findings") or [])
-        ]
+        return [DetectionFinding.from_dict(row) for row in (published.get("findings") or [])]
 
     def list_all_findings(self) -> list[DetectionFinding]:
         out: list[DetectionFinding] = []

@@ -119,9 +119,7 @@ def _soft_max_band_px(
     single edge cannot consume the page before the joint remaining-area check.
     """
     by_edge = max(0, dim - min_remaining_edge_px)
-    by_frac = dim - (
-        (dim * min_remaining_fraction_num) // min_remaining_fraction_den
-    )
+    by_frac = dim - ((dim * min_remaining_fraction_num) // min_remaining_fraction_den)
     return min(by_edge, by_frac)
 
 
@@ -167,10 +165,7 @@ def _region_mean_horizontal(gray: Image.Image, y0: int, y1: int) -> float:
 
 
 def _is_scanner_grey(mean: float, var: float, params: ScanBorderParams) -> bool:
-    return (
-        params.grey_mean_min <= mean <= params.grey_mean_max
-        and var <= params.max_strip_variance
-    )
+    return params.grey_mean_min <= mean <= params.grey_mean_max and var <= params.max_strip_variance
 
 
 def _mean_in_grey_range(mean: float, params: ScanBorderParams) -> bool:
@@ -179,10 +174,7 @@ def _mean_in_grey_range(mean: float, params: ScanBorderParams) -> bool:
 
 def _is_noisy_bed(mean: float, var: float, params: ScanBorderParams) -> bool:
     """Bed-like mean with elevated variance (texture / compression), not paper."""
-    return (
-        _mean_in_grey_range(mean, params)
-        and var <= params.noisy_bed_variance_max
-    )
+    return _mean_in_grey_range(mean, params) and var <= params.noisy_bed_variance_max
 
 
 def _is_stark_white(mean: float, var: float, params: UniformOverscanParams) -> bool:
@@ -336,9 +328,7 @@ def _edge_inset(
             return _region_mean_vertical(gray, width - k, width)
 
         def probe_mean(k: int, offset: int, probe: int) -> float:
-            return _region_mean_vertical(
-                gray, width - k - offset - probe, width - k - offset
-            )
+            return _region_mean_vertical(gray, width - k - offset - probe, width - k - offset)
 
     elif edge == "top":
 
@@ -360,9 +350,7 @@ def _edge_inset(
             return _region_mean_horizontal(gray, height - k, height)
 
         def probe_mean(k: int, offset: int, probe: int) -> float:
-            return _region_mean_horizontal(
-                gray, height - k - offset - probe, height - k - offset
-            )
+            return _region_mean_horizontal(gray, height - k - offset - probe, height - k - offset)
 
     k = walk(dim=dim, params=walk_params, sample=sample)
     remaining = dim - k
@@ -595,7 +583,9 @@ def _bed_run_from_left(
     return run
 
 
-def _best_corner_trim(runs: list[int], *, min_wedge_px: int, paper_inset_px: int) -> tuple[int, int]:
+def _best_corner_trim(
+    runs: list[int], *, min_wedge_px: int, paper_inset_px: int
+) -> tuple[int, int]:
     """Minimal (along_edge_a, along_edge_b) axis-aligned trim clearing bed runs.
 
     ``runs[i]`` is bed depth along edge B on the i-th scanline from edge A.
@@ -780,9 +770,7 @@ def detect_declutter_border_insets(
 
     for _ in range(_MAX_BORDER_PASSES):
         grey_insets, grey_reason = detect_scan_border_insets(working, scan_params)
-        white_insets, white_reason = detect_white_border_insets(
-            working, overscan_params
-        )
+        white_insets, white_reason = detect_white_border_insets(working, overscan_params)
         merged = _merge_insets(grey_insets, white_insets)
         # Corner wedges only after an edge bed crop: residual light-bed triangles
         # at rounded page corners. Running on the full frame false-fires on the

@@ -13,7 +13,10 @@ TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 
 
 def summary_config() -> dict[str, Any]:
-    return {"payload_schema": PAYLOAD_SCHEMA, "algorithm_version": "summary_from_highlights_v1"}
+    return {
+        "payload_schema": PAYLOAD_SCHEMA,
+        "algorithm_version": "summary_from_highlights_v1",
+    }
 
 
 def provenance_files() -> list[dict[str, str]]:
@@ -46,7 +49,10 @@ class SummaryModule:
                 "outcome": "insufficient_data",
                 "payload": {},
                 "warnings": [
-                    {"code": "no_highlights", "message": "highlights produced no quotes"}
+                    {
+                        "code": "no_highlights",
+                        "message": "highlights produced no quotes",
+                    }
                 ],
             }
         bullets = [str(q.get("text") or "").strip() for q in quotes[:8] if q.get("text")]

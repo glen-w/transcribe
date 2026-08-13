@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Sequence
+from typing import Iterable, Iterator
 
 TECHNICAL_OTHER_TITLE = "Technical / Other"
 TECHNICAL_OTHER_KEY = "technical_other"

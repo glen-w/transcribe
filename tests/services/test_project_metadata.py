@@ -19,7 +19,7 @@ def test_legacy_project_without_archive_fields_loads(tmp_path: Path):
     paths = open_project_paths(tmp_path / "legacy")
     clock, ids = FakeClock(), SequentialIds()
     projects = ProjectService(paths, clock=clock, ids=ids)
-    project = projects.create("Legacy")
+    projects.create("Legacy")
     payload = read_json(paths.manifest)
     # Simulate pre-archive manifest: strip additive fields.
     for key in ("tags", "cover_page_id", "date_start", "date_end"):
@@ -75,7 +75,7 @@ def test_legacy_dated_page_loads_as_approved(tmp_path: Path):
     projects = ProjectService(paths, clock=clock, ids=ids)
     projects.create("Legacy")
     ingest = IngestService(paths, clock=clock, ids=ids)
-    project = ingest.import_bytes("a.png", _png_bytes())
+    ingest.import_bytes("a.png", _png_bytes())
     payload = read_json(paths.manifest)
     payload["pages"][0]["date"] = {"y": 2020, "m": 5, "d": 23}
     payload["pages"][0].pop("date_approved", None)
@@ -133,9 +133,7 @@ def test_delete_managed_notebook_removes_project_keeps_external(
     clock, ids = FakeClock(), SequentialIds()
     projects = ProjectService(paths, clock=clock, ids=ids)
     projects.create("To delete")
-    IngestService(paths, clock=clock, ids=ids).import_bytes(
-        "scan.png", original.read_bytes()
-    )
+    IngestService(paths, clock=clock, ids=ids).import_bytes("scan.png", original.read_bytes())
     assert paths.manifest.is_file()
     assert any(paths.sources_dir.iterdir())
 

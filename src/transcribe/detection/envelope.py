@@ -55,9 +55,7 @@ def build_detection_envelope(
         "scope_fingerprint": scope_fingerprint,
         "attempt_state": attempt_state,
         "outcome": outcome,
-        "capability": derive_capability(
-            outcome=outcome, partial=partial, reason=capability_reason
-        ),
+        "capability": derive_capability(outcome=outcome, partial=partial, reason=capability_reason),
         "provenance": {
             **(provenance or {}),
             "detector_version": detector_version,

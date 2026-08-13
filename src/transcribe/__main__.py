@@ -268,10 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             "--model",
             action="append",
             required=True,
-            help=(
-                "Vision model (repeat for multipass compare; "
-                "one value = single-model batch)"
-            ),
+            help=("Vision model (repeat for multipass compare; " "one value = single-model batch)"),
         )
         parser.add_argument("--base-url", default=None)
         parser.add_argument("--force", action="store_true")
@@ -445,14 +442,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "export-finetune":
             return _cmd_export_finetune(args, clock=clock, ids=ids)
 
-        paths, projects, coord, ingest = build_coordinator(
-            args.project, clock=clock, ids=ids
-        )
+        paths, projects, coord, ingest = build_coordinator(args.project, clock=clock, ids=ids)
 
         if args.cmd == "import":
             projects.load()
             project = ingest.import_path(args.source, render_dpi=args.dpi)
-            print(f"Imported {args.source.name}: {project.pages[-1].page_index + 1 if project.pages else 0} page(s); total pages={len(project.pages)}")
+            print(
+                f"Imported {args.source.name}: {project.pages[-1].page_index + 1 if project.pages else 0} page(s); total pages={len(project.pages)}"
+            )
             return 0
 
         if args.cmd == "status":
@@ -532,9 +529,7 @@ def main(argv: list[str] | None = None) -> int:
                     settings.cleanup_model_name = settings.text_model_name
             project = projects.save_settings(project, settings)
             coord.provider = OllamaVisionProvider(settings.base_url)
-            multi = MultiPassCoordinator(
-                jobs=coord, projects=projects, clock=clock, ids=ids
-            )
+            multi = MultiPassCoordinator(jobs=coord, projects=projects, clock=clock, ids=ids)
             if args.resume:
                 progress = multi.resume_blocking(args.resume)
             else:
@@ -573,7 +568,12 @@ def main(argv: list[str] | None = None) -> int:
                     f"  {f.get('finding_type')} pages {f.get('start_page_id')}.."
                     f"{f.get('end_page_id')} confidence={f.get('confidence')}"
                 )
-            return 0 if result.get("outcome") in ("success", "skipped_not_applicable", "insufficient_data") else 1
+            return (
+                0
+                if result.get("outcome")
+                in ("success", "skipped_not_applicable", "insufficient_data")
+                else 1
+            )
 
         parser.error(f"unknown command {args.cmd}")
         return 2
@@ -633,12 +633,8 @@ def _cmd_export(args: argparse.Namespace, *, clock, ids) -> int:
     typo = base.typography
     typo = ExportTypography(
         body_font=args.body_font or typo.body_font,  # type: ignore[arg-type]
-        body_size_pt=float(
-            args.body_size if args.body_size is not None else typo.body_size_pt
-        ),
-        line_height=float(
-            args.line_height if args.line_height is not None else typo.line_height
-        ),
+        body_size_pt=float(args.body_size if args.body_size is not None else typo.body_size_pt),
+        line_height=float(args.line_height if args.line_height is not None else typo.line_height),
         paragraph_spacing_em=typo.paragraph_spacing_em,
         margin_in=float(args.margin if args.margin is not None else typo.margin_in),
         heading_scale=typo.heading_scale,
@@ -775,10 +771,7 @@ def _cmd_bulk_import(args: argparse.Namespace, *, clock, ids) -> int:
                 confirm=args.confirm_overwrite or "",
                 clock=clock,
             )
-            print(
-                f"overwrite wiped={len(scan.already_imported)} "
-                f"managed notebook(s)"
-            )
+            print(f"overwrite wiped={len(scan.already_imported)} " f"managed notebook(s)")
         run = orchestrator.create_run_from_plan(plan)
         completed = orchestrator.commit_run(run.import_run_id)
         print(f"import_run_id={completed.import_run_id} status={completed.status}")

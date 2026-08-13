@@ -98,7 +98,11 @@ def test_validator_rejected_discards_candidate():
     assert text == vision
     assert rec.execution_status == "provider_ok"
     assert rec.acceptance_status == "validator_rejected"
-    assert rec.note in {"prompt_artefact", "min_retained_failed", "faithfulness_artefact"}
+    assert rec.note in {
+        "prompt_artefact",
+        "min_retained_failed",
+        "faithfulness_artefact",
+    }
     assert rec.pre_cleanup_text is None
     assert rec.candidate_length is not None
 

@@ -101,8 +101,7 @@ def test_semantic_similarity_matrix_and_motifs(tmp_path: Path):
     assert payload["matrix"][0][0] == 1.0
     # Pages 0 and 2 are near-duplicates → high similarity motif.
     assert any(
-        {m["unit_id_a"], m["unit_id_b"]}
-        and m["similarity"] >= payload["motif_threshold"]
+        {m["unit_id_a"], m["unit_id_b"]} and m["similarity"] >= payload["motif_threshold"]
         for m in payload["motifs"]
     )
     # Diagonal-adjacent near-dup pair should outrank unrelated.
@@ -137,9 +136,7 @@ def test_bertopic_baseline_ignores_keyphrases(tmp_path: Path):
     projects, runner = _project_with_pages(tmp_path, SHIFT_TEXTS)
     runner.run_module("keyphrases")
     storage = AnalysisStorage(projects.paths)
-    parents = resolve_optional_parents(
-        "bertopic", enrichment_mode="baseline", storage=storage
-    )
+    parents = resolve_optional_parents("bertopic", enrichment_mode="baseline", storage=storage)
     assert parents == []
     env = runner.run_module("bertopic")
     assert env["parents"] == []

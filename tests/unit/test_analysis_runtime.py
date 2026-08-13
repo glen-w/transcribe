@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from transcribe.analysis.adapter import build_page_v1_document
-from transcribe.analysis.document import AnalysisUnit, content_fingerprint, validate_analysis_document
+from transcribe.analysis.document import (
+    AnalysisUnit,
+    content_fingerprint,
+    validate_analysis_document,
+)
 from transcribe.analysis.eligibility import evaluate_notebook_eligibility_v1
 from transcribe.analysis.runner import AnalysisRunner
 from transcribe.analysis.storage import AnalysisStorage
@@ -149,10 +153,6 @@ def test_text_edit_invalidates_cache_identity(tmp_path: Path):
 
 
 def test_cache_hit_refuses_module_version_mismatch(tmp_path: Path):
-    from transcribe.analysis.cache_identity import (
-        build_cache_identity_object,
-        cache_identity_hex,
-    )
     from transcribe.persistence.atomic import write_json_atomic
 
     paths, projects, clock, ids = _transcribed_project(tmp_path, n_pages=1)
@@ -254,9 +254,7 @@ def test_lexical_partial_when_below_mtld_threshold(tmp_path: Path):
     paths, projects, clock, ids = _transcribed_project(tmp_path, n_pages=1)
     # Override with short but tokenizable text (< 50 tokens)
     page_id = projects.load().pages[0].page_id
-    projects.save_user_edit(
-        page_id, "short alpha beta gamma delta epsilon zeta eta"
-    )
+    projects.save_user_edit(page_id, "short alpha beta gamma delta epsilon zeta eta")
     runner = AnalysisRunner(projects, clock=clock, ids=ids)
     env = runner.run_module("lexical_diversity")
     assert env["outcome"] == "success"

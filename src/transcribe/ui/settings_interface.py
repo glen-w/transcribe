@@ -20,7 +20,6 @@ from transcribe.ui.action_menus.ids import (
     SECTION_LABELS,
     SECTION_ORDER,
     ActionId,
-    SectionId,
 )
 from transcribe.ui.action_menus.prefs import (
     DRAFT_SESSION_KEY,
@@ -51,18 +50,14 @@ def _sync_widgets_from_draft() -> None:
         "Built-in" if prefs.standard_menu_mode == "built_in" else "Custom"
     )
     for action in ACTIONS:
-        st.session_state[f"iface_std_{action.id.value}"] = (
-            action.id in prefs.standard_menu
-        )
+        st.session_state[f"iface_std_{action.id.value}"] = action.id in prefs.standard_menu
     for sid in SECTION_ORDER:
         sec = prefs.sections[sid]
         st.session_state[f"iface_show_{sid.value}"] = sec.show_menu
         st.session_state[f"iface_mode_{sid.value}"] = sec.mode
         allow = SECTION_ALLOWLISTS[sid]
         for action_id in allow:
-            st.session_state[f"iface_sel_{sid.value}_{action_id.value}"] = (
-                action_id in sec.selected
-            )
+            st.session_state[f"iface_sel_{sid.value}_{action_id.value}"] = action_id in sec.selected
 
 
 def _request_widget_sync() -> None:
@@ -72,9 +67,7 @@ def _request_widget_sync() -> None:
 def _pull_widgets_into_draft() -> None:
     draft = st.session_state[DRAFT_SESSION_KEY]
     prefs = draft.prefs
-    prefs.show_info_tooltips = bool(
-        st.session_state.get("iface_show_info_tooltips", True)
-    )
+    prefs.show_info_tooltips = bool(st.session_state.get("iface_show_info_tooltips", True))
     std_mode = st.session_state.get("iface_std_mode", "Built-in")
     prefs.standard_menu_mode = "built_in" if std_mode == "Built-in" else "custom"
     selected_std: list[ActionId] = []
@@ -123,9 +116,7 @@ def render_interface_panel() -> None:
         st.caption("Unsaved changes")
 
     st.markdown("##### Instructional tips")
-    st.caption(
-        "Show or hide instructional ⓘ tips on widgets and page-viewer notes."
-    )
+    st.caption("Show or hide instructional ⓘ tips on widgets and page-viewer notes.")
     st.checkbox(
         "Show info tooltips",
         key="iface_show_info_tooltips",

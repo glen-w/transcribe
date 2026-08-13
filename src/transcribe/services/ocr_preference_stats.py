@@ -14,9 +14,7 @@ LEDGER_FORMAT = "transcribe.ocr-preference-ledger"
 LEDGER_SCHEMA_VERSION = 1
 LEDGER_FILENAME = "ocr_preference_ledger.json"
 
-PREFERENCE_ACTIONS = frozenset(
-    {"prefer", "promote", "auto_composite"}
-)
+PREFERENCE_ACTIONS = frozenset({"prefer", "promote", "auto_composite"})
 
 
 @dataclass

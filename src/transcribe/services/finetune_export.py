@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from transcribe.domain.models import OCRAttempt, PageResult, Project
+from transcribe.domain.models import OCRAttempt, PageResult
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import write_json_atomic
 from transcribe.services.export import ExportService
@@ -33,7 +33,11 @@ def _pick_training_text(
     """Return (text, source_attempt, had_human_edit)."""
     had_edit = result.edited_text is not None
     if prefer_effective_text and had_edit:
-        return result.edited_text or "", result.preferred_attempt() or result.active_attempt(), True
+        return (
+            result.edited_text or "",
+            result.preferred_attempt() or result.active_attempt(),
+            True,
+        )
     preferred = result.preferred_attempt()
     if preferred is not None and preferred.status == "succeeded" and preferred.raw_text:
         return preferred.raw_text, preferred, False
@@ -130,9 +134,7 @@ class FinetuneExportService:
                         {
                             "attempt_id": attempt.attempt_id,
                             "model_name": (
-                                attempt.provenance.model_name
-                                if attempt.provenance
-                                else ""
+                                attempt.provenance.model_name if attempt.provenance else ""
                             ),
                             "text": attempt.raw_text,
                         }

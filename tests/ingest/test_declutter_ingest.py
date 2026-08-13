@@ -31,9 +31,7 @@ def test_import_declutter_enabled_crops_and_records_provenance(tmp_path: Path) -
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     ProjectService(paths, clock=clock, ids=ids).create("t")
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=True
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=True)
     project = ingest.import_bytes("scan.png", _paper_png(bed=80))
     render = project.renders[project.pages[0].active_render_id]
     assert render.declutter_state == "enabled_cropped"
@@ -48,9 +46,7 @@ def test_import_declutter_disabled_state(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     ProjectService(paths, clock=clock, ids=ids).create("t")
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=False
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=False)
     project = ingest.import_bytes("scan.png", _paper_png(bed=80))
     render = project.renders[project.pages[0].active_render_id]
     assert render.declutter_state == "disabled"
@@ -62,9 +58,7 @@ def test_import_declutter_noop_preserves_raster_sha(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     ProjectService(paths, clock=clock, ids=ids).create("t")
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=True
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=True)
     from transcribe.ingest import _load_image_bytes
 
     raw = _paper_png(bed=None)
@@ -80,9 +74,7 @@ def test_recover_discards_when_promoted_sha_mismatches(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     ProjectService(paths, clock=clock, ids=ids).create("t")
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=True
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=True)
     project = ingest.import_bytes("scan.png", _paper_png(bed=80))
     source = project.sources[0]
     page = project.pages[0]
@@ -165,9 +157,7 @@ def test_recover_discards_journal_on_identity_mismatch(tmp_path: Path) -> None:
             "pages": [],
         },
     )
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=False
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=False)
     ingest.recover_incomplete_ingest()
     assert not paths.ingest_journal.exists()
     project = ProjectService(paths, clock=clock, ids=ids).load()
@@ -180,16 +170,16 @@ def test_pdf_import_records_declutter_on_each_page(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
     ProjectService(paths, clock=clock, ids=ids).create("t")
-    ingest = IngestService(
-        paths, clock=clock, ids=ids, visual_declutter_enabled=True
-    )
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=True)
     doc = pymupdf.open()
     for i in range(3):
         page = doc.new_page(width=400, height=500)
         page.draw_rect(page.rect, color=(0.5, 0.5, 0.5), fill=(0.5, 0.5, 0.5))
         # Inner paper-ish white rect leaving grey bed on the right
         page.draw_rect(
-            pymupdf.Rect(0, 0, 320, 500), color=(0.95, 0.94, 0.9), fill=(0.95, 0.94, 0.9)
+            pymupdf.Rect(0, 0, 320, 500),
+            color=(0.95, 0.94, 0.9),
+            fill=(0.95, 0.94, 0.9),
         )
         page.insert_text((40, 80), f"Page {i}")
     pdf = doc.tobytes()
@@ -207,9 +197,7 @@ def test_pdf_import_records_declutter_on_each_page(tmp_path: Path) -> None:
         assert render.declutter_version is not None
 
 
-def test_build_coordinator_honours_workspace_declutter_flag(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_build_coordinator_honours_workspace_declutter_flag(tmp_path: Path, monkeypatch) -> None:
     from types import SimpleNamespace
 
     from transcribe.services.job import build_coordinator
@@ -219,9 +207,7 @@ def test_build_coordinator_honours_workspace_declutter_flag(
             ingest=SimpleNamespace(visual_declutter_enabled=False, render_dpi=175)
         )
     )
-    monkeypatch.setattr(
-        "transcribe.config.facade.get_config", lambda **_kw: fake
-    )
+    monkeypatch.setattr("transcribe.config.facade.get_config", lambda **_kw: fake)
     _paths, _projects, _coord, ingest = build_coordinator(
         tmp_path / "proj_cli", clock=FakeClock(), ids=SequentialIds()
     )

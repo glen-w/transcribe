@@ -92,9 +92,8 @@ def render_run_import(
                 text=f"Importing {done}/{total} · {f.name}",
             )
         if ok:
-            st.session_state["import_flash"] = (
-                f"Imported {ok} file{'s' if ok != 1 else ''}"
-                + (f" ({len(errors)} failed)" if errors else "")
+            st.session_state["import_flash"] = f"Imported {ok} file{'s' if ok != 1 else ''}" + (
+                f" ({len(errors)} failed)" if errors else ""
             )
         if errors:
             st.session_state["import_errors"] = errors
@@ -116,12 +115,8 @@ def render_run_import(
             project = projects.update_notebook_metadata(title=cleaned)
             bump_archive_generation(runtime)
             st.success("Notebook name saved")
-    tags_in = st.text_input(
-        "Notebook tags (comma-separated)", value=", ".join(project.tags)
-    )
+    tags_in = st.text_input("Notebook tags (comma-separated)", value=", ".join(project.tags))
     if st.button("Save notebook tags"):
-        project = projects.update_notebook_metadata(
-            tags=[t for t in tags_in.split(",")]
-        )
+        project = projects.update_notebook_metadata(tags=[t for t in tags_in.split(",")])
         bump_archive_generation(runtime)
         st.success("Tags saved")

@@ -47,7 +47,11 @@ def _env_payload(mh: ModuleHealth) -> tuple[dict[str, Any], dict[str, Any], str 
     if not isinstance(payload, dict):
         payload = {}
     outcome = env.get("outcome") if isinstance(env, dict) else None
-    return env if isinstance(env, dict) else {}, payload, str(outcome) if outcome else None
+    return (
+        env if isinstance(env, dict) else {},
+        payload,
+        str(outcome) if outcome else None,
+    )
 
 
 def _show_or_note(mh: ModuleHealth, *, title: str) -> dict[str, Any] | None:
@@ -181,9 +185,7 @@ def render_overview_product(
             continue
         bits = extract_foundations_display(payload, mid)
         if bits:
-            st.markdown(
-                f"**{title}** · " + " · ".join(f"{lab}={val}" for lab, val in bits[:8])
-            )
+            st.markdown(f"**{title}** · " + " · ".join(f"{lab}={val}" for lab, val in bits[:8]))
         else:
             st.markdown(f"**{title}** · ready")
         _maybe_compare(
@@ -209,9 +211,7 @@ def render_overview_product(
             orders, flesch = unit_series(units, "flesch_reading_ease")
             if orders:
                 st.caption("Flesch reading ease across pages")
-                st.line_chart(
-                    {"order": orders, "flesch": flesch}, x="order", y="flesch"
-                )
+                st.line_chart({"order": orders, "flesch": flesch}, x="order", y="flesch")
         render_advanced_payload(mid, payload)
 
     if "wordclouds" in overview_ids:
@@ -341,12 +341,8 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
         if mid == "keyphrases" and payload.get("phrases"):
             st.markdown("**Keyphrases**")
             phrases = [p for p in payload["phrases"] if isinstance(p, dict)][:16]
-            st.write(
-                ", ".join(p.get("phrase", "") for p in phrases if p.get("phrase"))
-            )
-            scored = [
-                p for p in phrases if p.get("phrase") and p.get("score") is not None
-            ]
+            st.write(", ".join(p.get("phrase", "") for p in phrases if p.get("phrase")))
+            scored = [p for p in phrases if p.get("phrase") and p.get("score") is not None]
             if scored:
                 st.bar_chart(
                     {
@@ -390,8 +386,7 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
                 )
                 for m in motifs[:6]:
                     st.write(
-                        f"- `{m['unit_id_a']}` ↔ `{m['unit_id_b']}` · "
-                        f"sim={m['similarity']:.3f}"
+                        f"- `{m['unit_id_a']}` ↔ `{m['unit_id_b']}` · " f"sim={m['similarity']:.3f}"
                     )
             else:
                 st.caption("No similar pairs above the threshold.")
@@ -407,9 +402,7 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
                 st.line_chart(
                     {
                         "order": [c.get("from_order") for c in consecutive],
-                        "similarity": [
-                            float(c.get("similarity") or 0) for c in consecutive
-                        ],
+                        "similarity": [float(c.get("similarity") or 0) for c in consecutive],
                     },
                     x="order",
                     y="similarity",
@@ -417,14 +410,12 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
             if shifts:
                 for sh in shifts[:8]:
                     st.write(
-                        f"- after order {sh.get('order_after')} "
-                        f"(sim={sh.get('similarity')})"
+                        f"- after order {sh.get('order_after')} " f"(sim={sh.get('similarity')})"
                     )
         elif mid == "bertopic":
             rows = topic_weight_rows(payload, limit=8)
             st.markdown(
-                f"**BERTopic clusters** · "
-                f"{product_capability_label(mh.capability, mh.outcome)}"
+                f"**BERTopic clusters** · " f"{product_capability_label(mh.capability, mh.outcome)}"
             )
             if rows:
                 st.bar_chart(
@@ -493,9 +484,7 @@ def render_mood_product(
                 _bar_pairs(buckets, x_name="tone", y_name="pages")
         elif mid == "emotion":
             gs = payload.get("global_stats") or {}
-            st.markdown(
-                f"**Emotion** · intensity mean {gs.get('intensity_mean', '—')}"
-            )
+            st.markdown(f"**Emotion** · intensity mean {gs.get('intensity_mean', '—')}")
             labels = emotion_label_totals(payload)
             if labels:
                 st.caption("Emotion lexicon totals")
@@ -561,9 +550,7 @@ def render_mood_product(
             label_counts = contextual_label_counts(payload)
             orders, intensities = unit_series(units, "intensity")
             top = label_counts[0][0] if label_counts else None
-            mean_i = (
-                sum(intensities) / len(intensities) if intensities else None
-            )
+            mean_i = sum(intensities) / len(intensities) if intensities else None
             bits = []
             if top:
                 bits.append(f"dominant={top}")
@@ -646,9 +633,7 @@ def render_moments_product(
     on_jump: Callable[[str], None] | None = None,
 ) -> None:
     st.subheader("Moments")
-    st.caption(
-        "Salient quotes from the notebook. Run analysis from the preset form above."
-    )
+    st.caption("Salient quotes from the notebook. Run analysis from the preset form above.")
     mh = health.modules["moments"]
     payload = _show_or_note(mh, title="Moments")
     if payload is None:
@@ -675,9 +660,13 @@ def render_moments_product(
         quote = (row.get("quote") or "")[:240]
         st.markdown(f"- _{row['score']:.3g}_ · {quote}")
         page_id = _page_id_for_moment(row, evidence_by_unit=evidence_by_unit)
-        if on_jump and page_id and st.button(
-            "Jump to page",
-            key=f"moment_jump_{page_id}_{hash(quote) & 0xFFFF}",
+        if (
+            on_jump
+            and page_id
+            and st.button(
+                "Jump to page",
+                key=f"moment_jump_{page_id}_{hash(quote) & 0xFFFF}",
+            )
         ):
             on_jump(str(page_id))
     for w in env.get("warnings") or []:
@@ -714,17 +703,11 @@ def render_summaries_product(health: AnalysisHealth, synth_ids: list[str]) -> No
         if mid == "highlights":
             quotes = payload.get("quotes") or []
             if quotes:
-                scored = [
-                    q
-                    for q in quotes
-                    if isinstance(q, dict) and q.get("score") is not None
-                ]
+                scored = [q for q in quotes if isinstance(q, dict) and q.get("score") is not None]
                 if scored:
                     st.bar_chart(
                         {
-                            "quote": [
-                                (q.get("text") or "")[:36] for q in scored[:12]
-                            ],
+                            "quote": [(q.get("text") or "")[:36] for q in scored[:12]],
                             "score": [float(q["score"]) for q in scored[:12]],
                         },
                         x="quote",
@@ -739,11 +722,7 @@ def render_summaries_product(health: AnalysisHealth, synth_ids: list[str]) -> No
             else:
                 st.caption("No highlight quotes yet.")
         elif mid == "summary":
-            overview = (
-                payload.get("overview")
-                or payload.get("summary")
-                or payload.get("text")
-            )
+            overview = payload.get("overview") or payload.get("summary") or payload.get("text")
             bullets = payload.get("bullets") or []
             if overview:
                 st.markdown(str(overview))
@@ -853,11 +832,7 @@ def render_ask_product(
             "unavailable_dependency",
             "failed",
         }:
-            st.warning(
-                product_capability_label(
-                    env.get("capability"), env.get("outcome")
-                )
-            )
+            st.warning(product_capability_label(env.get("capability"), env.get("outcome")))
         if payload.get("answer"):
             st.markdown(payload["answer"])
         evidence = env.get("evidence") or []

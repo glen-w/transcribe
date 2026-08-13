@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
 
 from transcribe.domain.models import AttemptError, OCRAttempt, PageResult
 from transcribe.ingest import IngestService
@@ -13,7 +12,6 @@ from transcribe.services.job import JobCoordinator
 from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
-
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 

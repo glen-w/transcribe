@@ -20,8 +20,7 @@ MODULE_VERSION = "1e.2.1"
 PAYLOAD_SCHEMA = "llm_summary_payload_v1"
 TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 SYSTEM = (
-    "Summarize notebook OCR text. Reply with JSON only: "
-    '{"summary":"...","bullets":["..."]}.'
+    "Summarize notebook OCR text. Reply with JSON only: " '{"summary":"...","bullets":["..."]}.'
 )
 
 

@@ -10,7 +10,6 @@ from transcribe.providers.base import ModelInfo
 from transcribe.providers.ollama import (
     DEFAULT_MAX_RETRIES,
     OllamaVisionProvider,
-    call_with_retries,
     normalize_base_url,
 )
 from transcribe.runtime_paths import default_ollama_base_url

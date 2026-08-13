@@ -6,11 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from transcribe.domain.models import PageIndex, Project, RenderProvenance, SourceDocument
+from transcribe.domain.models import (
+    PageIndex,
+    Project,
+    RenderProvenance,
+    SourceDocument,
+)
 from transcribe.domain.validation import validate_project
 from transcribe.errors import ValidationError
 from transcribe.ingest import IngestService
-from transcribe.persistence.atomic import write_json_atomic
 from transcribe.services.doctor import DoctorService
 from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds

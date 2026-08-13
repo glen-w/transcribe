@@ -132,12 +132,7 @@ class ProjectPaths:
         return to_posix_rel(rel)
 
     def page_render_path(self, source_id: str, page_index: int, render_id: str) -> Path:
-        return (
-            self.pages_dir
-            / source_id
-            / f"{page_index:04d}"
-            / f"{render_id}.png"
-        )
+        return self.pages_dir / source_id / f"{page_index:04d}" / f"{render_id}.png"
 
     def result_path(self, page_id: str) -> Path:
         return self.results_dir / f"{page_id}.json"

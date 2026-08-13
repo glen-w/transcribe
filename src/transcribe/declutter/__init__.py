@@ -24,13 +24,9 @@ from transcribe.domain.fingerprint import canonical_json_bytes
 # v3: light-grey top beds + remove_corner_wedges (rounded-corner residual beds).
 DECLUTTER_VERSION = 3
 
-DECLUTTER_STATES = frozenset(
-    {"disabled", "enabled_noop", "enabled_cropped", "error_fallback"}
-)
+DECLUTTER_STATES = frozenset({"disabled", "enabled_noop", "enabled_cropped", "error_fallback"})
 
-DeclutterState = Literal[
-    "disabled", "enabled_noop", "enabled_cropped", "error_fallback"
-]
+DeclutterState = Literal["disabled", "enabled_noop", "enabled_cropped", "error_fallback"]
 
 ENABLED_OPS: tuple[str, ...] = (
     "remove_scan_borders",
@@ -267,9 +263,7 @@ def _apply_declutter_inner(image_bytes: bytes, *, enabled: bool) -> DeclutterRes
         )
 
 
-def journal_matches_identity(
-    journal: dict[str, Any], *, enabled: bool
-) -> bool:
+def journal_matches_identity(journal: dict[str, Any], *, enabled: bool) -> bool:
     """True when journal may be finished under the current effective declutter setting.
 
     - Missing ``declutter_identity_sha256``: legacy journal; allow finish (pixels were

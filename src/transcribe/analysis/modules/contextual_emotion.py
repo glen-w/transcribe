@@ -62,7 +62,10 @@ class ContextualEmotionModule:
                 "outcome": "insufficient_data",
                 "payload": {},
                 "warnings": [
-                    {"code": "empty_document", "message": "No units / empty document text"}
+                    {
+                        "code": "empty_document",
+                        "message": "No units / empty document text",
+                    }
                 ],
             }
 

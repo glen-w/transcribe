@@ -52,9 +52,7 @@ class PresetPolicyConfig:
             llm_module_ids=tuple(str(x) for x in (data.get("llm_module_ids") or ())),
             allow_heavy=bool(data.get("allow_heavy", False)),
             heavy_module_ids=tuple(str(x) for x in (data.get("heavy_module_ids") or ())),
-            include_excluded_from_default=bool(
-                data.get("include_excluded_from_default", False)
-            ),
+            include_excluded_from_default=bool(data.get("include_excluded_from_default", False)),
             module_ids=mid,
             content_version=content_version,
         )
@@ -223,9 +221,7 @@ class AnalysisConfig:
     keyphrases: KeyphrasesConfig = field(default_factory=KeyphrasesConfig)
     highlights: HighlightsConfig = field(default_factory=HighlightsConfig)
     moments: MomentsConfig = field(default_factory=MomentsConfig)
-    semantic_similarity: SemanticSimilarityConfig = field(
-        default_factory=SemanticSimilarityConfig
-    )
+    semantic_similarity: SemanticSimilarityConfig = field(default_factory=SemanticSimilarityConfig)
     topic_shift: TopicShiftConfig = field(default_factory=TopicShiftConfig)
     wordclouds: WordcloudsConfig = field(default_factory=WordcloudsConfig)
     topic_modeling: TopicModelingConfig = field(default_factory=TopicModelingConfig)
@@ -250,9 +246,7 @@ class AnalysisConfig:
             keyphrases=KeyphrasesConfig.from_dict(data.get("keyphrases")),
             highlights=HighlightsConfig.from_dict(data.get("highlights")),
             moments=MomentsConfig.from_dict(data.get("moments")),
-            semantic_similarity=SemanticSimilarityConfig.from_dict(
-                data.get("semantic_similarity")
-            ),
+            semantic_similarity=SemanticSimilarityConfig.from_dict(data.get("semantic_similarity")),
             topic_shift=TopicShiftConfig.from_dict(data.get("topic_shift")),
             wordclouds=WordcloudsConfig.from_dict(data.get("wordclouds")),
             topic_modeling=TopicModelingConfig.from_dict(data.get("topic_modeling")),
@@ -357,15 +351,9 @@ class OcrWorkspaceConfig:
             prefer_mode=prefer,
             auto_activate_composite=bool(data.get("auto_activate_composite", True)),
             multipass_default_models=models,
-            finetune_include_edited_pages=bool(
-                data.get("finetune_include_edited_pages", True)
-            ),
-            finetune_require_preferred=bool(
-                data.get("finetune_require_preferred", False)
-            ),
-            finetune_prefer_effective_text=bool(
-                data.get("finetune_prefer_effective_text", True)
-            ),
+            finetune_include_edited_pages=bool(data.get("finetune_include_edited_pages", True)),
+            finetune_require_preferred=bool(data.get("finetune_require_preferred", False)),
+            finetune_prefer_effective_text=bool(data.get("finetune_prefer_effective_text", True)),
             finetune_include_rejected_candidates=bool(
                 data.get("finetune_include_rejected_candidates", False)
             ),
@@ -422,6 +410,7 @@ class IngestConfig:
             render_dpi=dpi,
             visual_declutter_enabled=bool(declutter),
         )
+
 
 KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset(
     {"analysis", "llm", "ocr", "ingest", "export", "ui"}

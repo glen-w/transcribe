@@ -24,7 +24,9 @@ def _png_bytes(image: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def _paper(width: int = 400, height: int = 500, *, fill: tuple[int, ...] = (245, 240, 230)) -> Image.Image:
+def _paper(
+    width: int = 400, height: int = 500, *, fill: tuple[int, ...] = (245, 240, 230)
+) -> Image.Image:
     return Image.new("RGB", (width, height), fill)
 
 
@@ -38,7 +40,10 @@ def _with_right_grey_bed(
 
 
 def _with_bottom_white_gutter(
-    paper: Image.Image, *, gutter: int = 80, white: tuple[int, int, int] = (255, 255, 255)
+    paper: Image.Image,
+    *,
+    gutter: int = 80,
+    white: tuple[int, int, int] = (255, 255, 255),
 ) -> Image.Image:
     w, h = paper.size
     canvas = Image.new("RGB", (w, h + gutter), white)
@@ -284,7 +289,7 @@ def test_rounded_corner_residual_wedge_after_beds() -> None:
     cx, cy = paper_w - radius, radius
     for y in range(radius):
         for x in range(paper_w - radius, paper_w):
-            if (x - cx) ** 2 + (y - cy) ** 2 > radius ** 2:
+            if (x - cx) ** 2 + (y - cy) ** 2 > radius**2:
                 paper.putpixel((x, y), bed)
     canvas = Image.new("RGB", (paper_w + bed_r, paper_h + bed_t), bed)
     canvas.paste(paper, (0, bed_t))
@@ -471,20 +476,12 @@ def test_ocr_fingerprint_invalidates_on_crop_not_on_noop() -> None:
         preprocess_version=1,
         generation_options={},
     )
-    fp_pre, _ = compute_input_fingerprint(
-        input_sha256=sha256_bytes(bordered), **common
-    )
-    fp_post, _ = compute_input_fingerprint(
-        input_sha256=sha256_bytes(cropped.image_bytes), **common
-    )
+    fp_pre, _ = compute_input_fingerprint(input_sha256=sha256_bytes(bordered), **common)
+    fp_post, _ = compute_input_fingerprint(input_sha256=sha256_bytes(cropped.image_bytes), **common)
     assert fp_pre != fp_post
 
-    fp_clean, _ = compute_input_fingerprint(
-        input_sha256=sha256_bytes(clean), **common
-    )
-    fp_noop, _ = compute_input_fingerprint(
-        input_sha256=sha256_bytes(noop.image_bytes), **common
-    )
+    fp_clean, _ = compute_input_fingerprint(input_sha256=sha256_bytes(clean), **common)
+    fp_noop, _ = compute_input_fingerprint(input_sha256=sha256_bytes(noop.image_bytes), **common)
     assert fp_clean == fp_noop
 
 

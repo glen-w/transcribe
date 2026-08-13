@@ -149,9 +149,16 @@ def render_module_health_banner(mh: ModuleHealth, *, style: str = "default") -> 
     banner = f"**{title}:** {label}"
     if honesty:
         banner += f" — _{honesty}_"
-    if mh.capability in {"unavailable_extra", "unavailable_model", "unavailable_dependency"}:
+    if mh.capability in {
+        "unavailable_extra",
+        "unavailable_model",
+        "unavailable_dependency",
+    }:
         st.warning(banner)
-    elif mh.capability in {"insufficient_data", "skipped_not_applicable"} or mh.outcome in {
+    elif mh.capability in {
+        "insufficient_data",
+        "skipped_not_applicable",
+    } or mh.outcome in {
         "insufficient_data",
         "skipped_not_applicable",
     }:
@@ -192,9 +199,7 @@ def last_run_product_summary(
     n = len(last)
     ok = sum(1 for v in last.values() if v.get("outcome") == "success")
     failed = sum(
-        1
-        for v in last.values()
-        if v.get("outcome") == "failed" or v.get("capability") == "failed"
+        1 for v in last.values() if v.get("outcome") == "failed" or v.get("capability") == "failed"
     )
     if failed:
         health = "issues"

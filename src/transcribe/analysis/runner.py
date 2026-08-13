@@ -6,7 +6,10 @@ import sys
 from typing import Any, Sequence
 
 from transcribe.analysis import ADAPTER_VERSION
-from transcribe.analysis.adapter import build_page_v1_document, build_paragraph_v1_document
+from transcribe.analysis.adapter import (
+    build_page_v1_document,
+    build_paragraph_v1_document,
+)
 from transcribe.analysis.cache_identity import (
     build_cache_identity_object,
     cache_identity_hex,
@@ -78,9 +81,7 @@ ELIGIBILITY_REQUIRED = frozenset(
     {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
 )
 PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa", "moments"})
-LLM_MODULES = frozenset(
-    {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
-)
+LLM_MODULES = frozenset({"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"})
 
 _UNSET = object()
 
@@ -151,7 +152,9 @@ def _module_provenance(module: Any) -> dict[str, Any]:
     }
 
 
-def _build_document(project: Any, project_service: ProjectService, module_id: str) -> AnalysisDocument:
+def _build_document(
+    project: Any, project_service: ProjectService, module_id: str
+) -> AnalysisDocument:
     if module_id in PARAGRAPH_PREFERRED:
         try:
             return build_paragraph_v1_document(project, project_service)
@@ -423,11 +426,7 @@ class AnalysisRunner:
         if module is None:
             raise KeyError(f"unknown module_id: {module_id}")
 
-        start_msg = (
-            "Ask notebook…"
-            if module_id == "llm_custom_qa"
-            else f"Running {module_id}…"
-        )
+        start_msg = "Ask notebook…" if module_id == "llm_custom_qa" else f"Running {module_id}…"
         _adhoc_progress_log(
             status="running",
             module_id=module_id,
@@ -788,9 +787,7 @@ class AnalysisRunner:
             )
 
         try:
-            doc_now = _build_document(
-                project_now, self.project_service, module.module_id
-            )
+            doc_now = _build_document(project_now, self.project_service, module.module_id)
             elig_now: dict[str, Any] | None = None
             if module.module_id in ELIGIBILITY_REQUIRED:
                 filtered_now, skip_now, elig_now = _apply_eligibility(doc_now)
@@ -835,9 +832,7 @@ class AnalysisRunner:
                     llm_obj["input_fingerprint"] = refreshed["llm"]["input_fingerprint"]
                     llm_obj["question_text"] = refreshed["llm"].get("question_text")
                     llm_bits_now = {
-                        "resolved_model_digest": planned_llm_bits.get(
-                            "resolved_model_digest"
-                        ),
+                        "resolved_model_digest": planned_llm_bits.get("resolved_model_digest"),
                         "llm": llm_obj,
                     }
             return cache_identity_hex(
@@ -908,9 +903,7 @@ class AnalysisRunner:
         if empty_document or document is None:
             if module.module_id in LLM_MODULES:
                 llm_bits = {
-                    "resolved_model_digest": (
-                        llm_ctx.resolved_model_digest if llm_ctx else None
-                    ),
+                    "resolved_model_digest": (llm_ctx.resolved_model_digest if llm_ctx else None),
                     "llm": build_llm_object(
                         grounding_strategy_id=(
                             GROUND_HIGHLIGHTS_SUMMARY_V1
@@ -1060,9 +1053,5 @@ def module_freshness(
     out: list[dict[str, Any]] = []
     for mid in module_ids:
         identity = runner.planned_cache_identity(mid, question_text=question_text)
-        out.append(
-            load_published_read_model(
-                storage, mid, current_cache_identity=identity
-            )
-        )
+        out.append(load_published_read_model(storage, mid, current_cache_identity=identity))
     return out

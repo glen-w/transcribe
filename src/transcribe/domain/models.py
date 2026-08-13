@@ -206,24 +206,16 @@ class CleanupRecord:
             note=data.get("note"),
             pre_cleanup_text=data.get("pre_cleanup_text"),
             original_length=(
-                int(data["original_length"])
-                if data.get("original_length") is not None
-                else None
+                int(data["original_length"]) if data.get("original_length") is not None else None
             ),
             candidate_length=(
-                int(data["candidate_length"])
-                if data.get("candidate_length") is not None
-                else None
+                int(data["candidate_length"]) if data.get("candidate_length") is not None else None
             ),
             length_ratio=(
-                float(data["length_ratio"])
-                if data.get("length_ratio") is not None
-                else None
+                float(data["length_ratio"]) if data.get("length_ratio") is not None else None
             ),
             cleanup_validator_policy_id=data.get("cleanup_validator_policy_id"),
-            cleanup_validator_policy_version=data.get(
-                "cleanup_validator_policy_version"
-            ),
+            cleanup_validator_policy_version=data.get("cleanup_validator_policy_version"),
         )
 
 
@@ -309,15 +301,11 @@ class RenderProvenance:
                 else None
             ),
             declutter_ops=(
-                list(data["declutter_ops"])
-                if data.get("declutter_ops") is not None
-                else None
+                list(data["declutter_ops"]) if data.get("declutter_ops") is not None else None
             ),
             declutter_identity_sha256=data.get("declutter_identity_sha256"),
             declutter_params=(
-                dict(data["declutter_params"])
-                if data.get("declutter_params") is not None
-                else None
+                dict(data["declutter_params"]) if data.get("declutter_params") is not None else None
             ),
             declutter_original_width=(
                 int(data["declutter_original_width"])
@@ -565,9 +553,7 @@ class Project:
         raise KeyError(page_id)
 
 
-ATTEMPT_STATUSES = frozenset(
-    {"running", "succeeded", "failed", "cancelled", "interrupted"}
-)
+ATTEMPT_STATUSES = frozenset({"running", "succeeded", "failed", "cancelled", "interrupted"})
 
 
 @dataclass
@@ -692,9 +678,7 @@ class ComparisonRecord:
             pass_id=str(data.get("pass_id") or ""),
             ranked_attempt_ids=[str(x) for x in (data.get("ranked_attempt_ids") or [])],
             created_at=str(data.get("created_at") or ""),
-            entries=[
-                ComparisonEntry.from_dict(e) for e in entries_raw if isinstance(e, dict)
-            ],
+            entries=[ComparisonEntry.from_dict(e) for e in entries_raw if isinstance(e, dict)],
             ranker_model_name=data.get("ranker_model_name"),
             ranker_model_digest=data.get("ranker_model_digest"),
             ranker_prompt_id=data.get("ranker_prompt_id"),
@@ -916,10 +900,7 @@ def prune_attempts(
         for attempt in ordered:
             if len(priority) >= max_retained:
                 break
-            if (
-                attempt.attempt_id in protected
-                and attempt.attempt_id not in priority_ids
-            ):
+            if attempt.attempt_id in protected and attempt.attempt_id not in priority_ids:
                 priority.append(attempt)
                 priority_ids.add(attempt.attempt_id)
         # Oldest first, newest last (matches prior retention order).

@@ -56,7 +56,7 @@ def render_page_metrics_strip(row: PageMetricsRow | None) -> None:
         f"border-radius:2px;background:{swatch};"
         f'border:1px solid rgba(0,0,0,0.25);" title="ink hue"></span>'
         f"</span>"
-        f"<span style=\"opacity:0.75;\">Paper: {row.paper_tone}</span>"
+        f'<span style="opacity:0.75;">Paper: {row.paper_tone}</span>'
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -89,21 +89,23 @@ def render_overview_page_metrics(
     m1, m2, m3 = st.columns(3)
     m1.metric(
         "Mean page used",
-        f"{rollup.mean_ink_coverage_pct:.1f}%"
-        if rollup.mean_ink_coverage_pct is not None
-        else "—",
+        (
+            f"{rollup.mean_ink_coverage_pct:.1f}%"
+            if rollup.mean_ink_coverage_pct is not None
+            else "—"
+        ),
     )
     m2.metric(
         "Median page used",
-        f"{rollup.median_ink_coverage_pct:.1f}%"
-        if rollup.median_ink_coverage_pct is not None
-        else "—",
+        (
+            f"{rollup.median_ink_coverage_pct:.1f}%"
+            if rollup.median_ink_coverage_pct is not None
+            else "—"
+        ),
     )
     m3.metric(
         "Mean blank",
-        f"{rollup.mean_blankness_pct:.1f}%"
-        if rollup.mean_blankness_pct is not None
-        else "—",
+        (f"{rollup.mean_blankness_pct:.1f}%" if rollup.mean_blankness_pct is not None else "—"),
     )
 
     chart_rows: dict[str, Any] = {

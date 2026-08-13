@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 from typing import Any
 
@@ -142,9 +141,7 @@ class EpistemicMarkersModule:
                         "category": hit.category,
                     }
                 )
-            unit_stats = stats_for_scope(
-                unit_counts, tokens, CATEGORIES, MIN_TOKENS_FOR_RATES
-            )
+            unit_stats = stats_for_scope(unit_counts, tokens, CATEGORIES, MIN_TOKENS_FOR_RATES)
             units_out.append(
                 {
                     "unit_id": unit.unit_id,

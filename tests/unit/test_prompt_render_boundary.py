@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from transcribe.prompt_engine.definition import InputMode, PromptDefinition
-from transcribe.prompt_engine.render import PromptRenderer, render_prompt
+from transcribe.prompt_engine.render import render_prompt
 
 
 def test_content_wrapped_in_data_delimiters():

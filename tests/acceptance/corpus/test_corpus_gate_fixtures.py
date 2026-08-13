@@ -196,9 +196,7 @@ def test_failed_ocr_does_not_lose_import_identity(tmp_path: Path) -> None:
     projects.save_settings(project, settings)
 
     provider = FakeVisionOCRProvider(fail_times=1)
-    progress = JobCoordinator(
-        paths, projects, provider, clock=clock, ids=ids
-    ).run_blocking()
+    progress = JobCoordinator(paths, projects, provider, clock=clock, ids=ids).run_blocking()
     assert progress.failed == 1
     assert progress.completed == 1
 

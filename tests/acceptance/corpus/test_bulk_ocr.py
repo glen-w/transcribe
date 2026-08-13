@@ -62,16 +62,12 @@ def test_batch_ocr_three_notebooks_offline(tmp_path: Path) -> None:
     coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids, provider=provider)
     selected = select_pending(list_candidates(corpus, clock=clock, ids=ids))
     assert len(selected) == 3
-    run = coord.create_run(
-        selected, settings=OCRSettings(model_name="fake-vision"), force=False
-    )
+    run = coord.create_run(selected, settings=OCRSettings(model_name="fake-vision"), force=False)
     progress = coord.run_blocking(run.ocr_run_id)
     assert progress.status == "completed"
     assert provider.calls == 3
     for cand in selected:
-        projects = ProjectService(
-            open_project_paths(cand.root), clock=clock, ids=ids
-        )
+        projects = ProjectService(open_project_paths(cand.root), clock=clock, ids=ids)
         project = projects.load()
         result = projects.load_page_result(project.pages[0].page_id)
         assert result is not None
@@ -95,9 +91,7 @@ def test_batch_multipass_two_notebooks_offline(tmp_path: Path) -> None:
         verified=True,
     )
     text = RankCompositeClient(responses={"default": "unused"})
-    coord = BatchOcrCoordinator(
-        corpus, clock=clock, ids=ids, provider=provider, text_client=text
-    )
+    coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids, provider=provider, text_client=text)
     selected = select_pending(list_candidates(corpus, clock=clock, ids=ids))
     settings = OCRSettings(
         model_name="vision-a",
@@ -120,9 +114,7 @@ def test_batch_multipass_two_notebooks_offline(tmp_path: Path) -> None:
     assert all(i.state == "completed" for i in stored.items)
     assert all(i.pass_id for i in stored.items)
     for cand in selected:
-        projects = ProjectService(
-            open_project_paths(cand.root), clock=clock, ids=ids
-        )
+        projects = ProjectService(open_project_paths(cand.root), clock=clock, ids=ids)
         project = projects.load()
         result = projects.load_page_result(project.pages[0].page_id)
         assert result is not None
@@ -133,9 +125,7 @@ def test_batch_multipass_two_notebooks_offline(tmp_path: Path) -> None:
         ]
         assert len(vision) >= 2
         assert result.comparison is not None
-        composites = [
-            a for a in result.attempts if (a.attempt_kind or "") == "composite"
-        ]
+        composites = [a for a in result.attempts if (a.attempt_kind or "") == "composite"]
         assert composites
 
 

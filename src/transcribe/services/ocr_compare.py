@@ -75,9 +75,7 @@ def _format_candidates(attempts: list[OCRAttempt]) -> str:
         if attempt.provenance is not None:
             model = attempt.provenance.model_name
         text = attempt.raw_text or ""
-        blocks.append(
-            f"--- attempt_id={attempt.attempt_id} model={model} ---\n{text}\n"
-        )
+        blocks.append(f"--- attempt_id={attempt.attempt_id} model={model} ---\n{text}\n")
     return "\n".join(blocks)
 
 

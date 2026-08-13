@@ -14,12 +14,9 @@ from transcribe.analysis.cache_identity import (
 )
 from transcribe.analysis.document import content_fingerprint
 from transcribe.analysis.eligibility import evaluate_notebook_eligibility_v1
-from transcribe.analysis.modules.lexical_diversity import LexicalDiversityModule
 from transcribe.analysis.modules.stats import StatsModule
-from transcribe.analysis.modules.understandability import UnderstandabilityModule
 from transcribe.analysis.runner import AnalysisRunner, load_published_read_model
 from transcribe.analysis.storage import AnalysisStorage
-from transcribe.domain.models import PageResult
 from transcribe.ingest import IngestService
 from transcribe.persistence.atomic import read_json, write_json_atomic
 from transcribe.persistence.schema import SUPPORTED, SchemaError, require_format
@@ -103,7 +100,6 @@ def test_exclusion_and_blank_change_fingerprint(tmp_path: Path):
 
     from transcribe.domain.models import Project
     from transcribe.persistence.locks import mutation_lock
-    from transcribe.persistence.atomic import read_json, write_json_atomic
     from transcribe.persistence.schema import require_format
 
     with mutation_lock(projects.paths.mutation_lock):
@@ -190,8 +186,16 @@ def test_stale_publish_refuses_after_edit(tmp_path: Path):
         attempt_state="succeeded",
         outcome=result["outcome"],
         payload=result["payload"],
-        provenance={"ported_from": {"repo": "t", "commit": "n/a", "module_id": "stats", "files": []},
-                    "semantic_class": "adaptation", "semantic_delta": ""},
+        provenance={
+            "ported_from": {
+                "repo": "t",
+                "commit": "n/a",
+                "module_id": "stats",
+                "files": [],
+            },
+            "semantic_class": "adaptation",
+            "semantic_delta": "",
+        },
         config_fingerprint=planned["config_fingerprint"],
         attempt_id=attempt_id,
         published=False,
@@ -272,8 +276,16 @@ def test_crash_boundary_between_attempt_and_publish(tmp_path: Path):
         attempt_state="succeeded",
         outcome="success",
         payload={"unit_count": 1},
-        provenance={"ported_from": {"repo": "t", "commit": "n/a", "module_id": "stats", "files": []},
-                    "semantic_class": "adaptation", "semantic_delta": ""},
+        provenance={
+            "ported_from": {
+                "repo": "t",
+                "commit": "n/a",
+                "module_id": "stats",
+                "files": [],
+            },
+            "semantic_class": "adaptation",
+            "semantic_delta": "",
+        },
         config_fingerprint=planned["config_fingerprint"],
         attempt_id="crash-attempt",
         published=False,
@@ -315,7 +327,9 @@ def test_eligibility_lib_but_ungated_modules_still_run(tmp_path: Path):
 
 
 def test_min_input_lexical_and_understandability(tmp_path: Path):
-    projects, runner = _project_with_pages(tmp_path, ["x"])  # one letter token after tokenize? "x" len 1 filtered
+    projects, runner = _project_with_pages(
+        tmp_path, ["x"]
+    )  # one letter token after tokenize? "x" len 1 filtered
     # TX tokenize requires len >= 2, so "x" → 0 tokens → insufficient_data for lexical
     lex = runner.run_module("lexical_diversity")
     assert lex["outcome"] == "insufficient_data"

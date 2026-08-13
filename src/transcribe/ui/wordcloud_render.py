@@ -171,9 +171,7 @@ def render_wordcloud_from_payload(
     tokens = payload.get("tokens") if isinstance(payload, dict) else None
     freq = frequencies_from_tokens(tokens if isinstance(tokens, list) else None)
     max_words = len(freq) if freq else 100
-    return render_wordcloud_image(
-        freq, width=width, height=height, max_words=max_words
-    )
+    return render_wordcloud_image(freq, width=width, height=height, max_words=max_words)
 
 
 def build_wordcloud_explorer_html(
@@ -190,15 +188,11 @@ def build_wordcloud_explorer_html(
     js_src = wordcloud2_js
     if js_src is None:
         if not _WORDCLOUD2_JS.is_file():
-            raise FileNotFoundError(
-                f"vendored wordcloud2.js missing at {_WORDCLOUD2_JS}"
-            )
+            raise FileNotFoundError(f"vendored wordcloud2.js missing at {_WORDCLOUD2_JS}")
         js_src = _WORDCLOUD2_JS.read_text(encoding="utf-8")
     safe_title = html.escape(title or "Word themes")
     # Payload is JSON-embedded; json.dumps handles escaping for </script>.
-    terms_json = json.dumps(terms_payload, ensure_ascii=False).replace(
-        "</", "<\\/"
-    )
+    terms_json = json.dumps(terms_payload, ensure_ascii=False).replace("</", "<\\/")
     # Script body must not close early; wordcloud2.js is trusted vendored source.
     return f"""<!doctype html>
 <html lang="en">
@@ -497,7 +491,5 @@ def render_wordcloud_section(
         top = rows[:12]
         st.caption(
             "Top · "
-            + " · ".join(
-                f"{r['token']}×{r['count']}" if r["count"] else r["token"] for r in top
-            )
+            + " · ".join(f"{r['token']}×{r['count']}" if r["count"] else r["token"] for r in top)
         )

@@ -16,10 +16,7 @@ from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
 
-
-CLEAN_PAGE = (
-    "Gush notebook notes about weather metro and past future days together"
-)
+CLEAN_PAGE = "Gush notebook notes about weather metro and past future days together"
 
 
 class CountingCleanupClient(RecordedDoubleClient):
@@ -85,9 +82,7 @@ def test_batch_mixed_cleanup_outcomes(tmp_path: Path):
     cleanup.responses["contains:Gush notebook"] = CLEAN_PAGE
 
     _enable_cleanup(projects)
-    coord = JobCoordinator(
-        paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup
-    )
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup)
     progress = coord.run_blocking()
     assert progress.status == "completed"
     assert progress.failed == 0
@@ -185,13 +180,9 @@ def test_plan_freezes_cleanup_identity(tmp_path: Path):
         digest="fixed-digest",
     )
     provider = FakeVisionOCRProvider(default_text=CLEAN_PAGE)
-    coord = JobCoordinator(
-        paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup
-    )
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup)
     project = projects.load()
-    plan = coord._build_plan(
-        project, job_id="j1", page_ids=None, force=False, provider=provider
-    )
+    plan = coord._build_plan(project, job_id="j1", page_ids=None, force=False, provider=provider)
     assert plan.cleanup.enabled
     assert plan.cleanup.mode == "strip_leak"
     assert plan.cleanup.model_digest == "fixed-digest"
@@ -234,18 +225,14 @@ def test_adapter_sees_cleaned_text_when_applied(tmp_path: Path):
     projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
     ingest.import_bytes("p.png", _png_bytes())
-    leaked = (
-        "- Do not change the order of words in sentences\n---\n" + CLEAN_PAGE
-    )
+    leaked = "- Do not change the order of words in sentences\n---\n" + CLEAN_PAGE
     provider = FakeVisionOCRProvider(text_by_call=[leaked])
     cleanup = CountingCleanupClient(
         responses={"default": CLEAN_PAGE},
         digest="fixed-digest",
     )
     _enable_cleanup(projects)
-    coord = JobCoordinator(
-        paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup
-    )
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup)
     coord.run_blocking()
     project = projects.load()
     doc = build_page_v1_document(project, projects)

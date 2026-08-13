@@ -41,9 +41,7 @@ def test_extract_places_and_people_from_ner_payload() -> None:
             {"surface": "Monday", "label": "DATE", "unit_id": "p1"},
         ],
     }
-    snap = extract_from_ner_payload(
-        payload, notebook_id="nb1", notebook_title="Travel"
-    )
+    snap = extract_from_ner_payload(payload, notebook_id="nb1", notebook_title="Travel")
     assert snap.ner_available
     assert [p.surface for p in snap.places] == ["Paris", "Seine"]
     paris = snap.places[0]
@@ -85,9 +83,7 @@ def test_resolve_places_uses_cache_without_network(tmp_path: Path) -> None:
         calls.append(q)
         raise AssertionError("network should not be called")
 
-    resolved = resolve_places(
-        places, cache, allow_network=False, geocode_fn=boom
-    )
+    resolved = resolve_places(places, cache, allow_network=False, geocode_fn=boom)
     assert calls == []
     assert resolved[0].status == "ok"
     assert resolved[0].lat == pytest.approx(48.8566)
@@ -379,9 +375,7 @@ def test_ner_locations_artifact_shape(tmp_path: Path) -> None:
             count=1,
         ),
     ]
-    payload = build_ner_locations_artifact(
-        geocoded, notebook_id="nb1", notebook_title="Travel"
-    )
+    payload = build_ner_locations_artifact(geocoded, notebook_id="nb1", notebook_title="Travel")
     assert payload["format"] == "transcribe.ner-locations"
     assert payload["schema_version"] == 1
     assert len(payload["places"]) == 1
@@ -392,9 +386,7 @@ def test_ner_locations_artifact_shape(tmp_path: Path) -> None:
     nb = tmp_path / "proj"
     (nb / "analysis" / "ner").mkdir(parents=True)
     (nb / "project.json").write_text("{}", encoding="utf-8")
-    path = write_ner_locations_artifact(
-        nb, geocoded, notebook_id="nb1", notebook_title="Travel"
-    )
+    path = write_ner_locations_artifact(nb, geocoded, notebook_id="nb1", notebook_title="Travel")
     assert path is not None
     assert path.name == "locations.json"
     written = json.loads(path.read_text(encoding="utf-8"))

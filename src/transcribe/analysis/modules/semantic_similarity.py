@@ -98,9 +98,7 @@ class SemanticSimilarityModule:
     module_version = MODULE_VERSION
     ported_from_commit = TX_COMMIT
     semantic_class = "adaptation"
-    semantic_delta = (
-        "BoW TF-IDF cosine across notebook units; multi-speaker gate dropped"
-    )
+    semantic_delta = "BoW TF-IDF cosine across notebook units; multi-speaker gate dropped"
 
     def cache_config(self) -> dict[str, Any]:
         return semantic_similarity_config()

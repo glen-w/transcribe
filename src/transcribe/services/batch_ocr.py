@@ -203,13 +203,10 @@ class BatchOcrCoordinator:
         models = [m.strip() for m in (vision_model_names or []) if m and str(m).strip()]
         if mode_norm == "multipass":
             if len(models) < 2:
-                raise ValidationError(
-                    "multipass batch requires at least two vision models"
-                )
-            text_model = (
-                (settings.cleanup_model_name or "").strip()
-                or (settings.text_model_name or "").strip()
-            )
+                raise ValidationError("multipass batch requires at least two vision models")
+            text_model = (settings.cleanup_model_name or "").strip() or (
+                settings.text_model_name or ""
+            ).strip()
             if not text_model:
                 raise ValidationError(
                     "multipass batch requires a text/cleanup model "
@@ -258,11 +255,7 @@ class BatchOcrCoordinator:
 
     def start(self, ocr_run_id: str) -> str:
         with self._lock:
-            if (
-                self._state is not None
-                and self._state.thread
-                and self._state.thread.is_alive()
-            ):
+            if self._state is not None and self._state.thread and self._state.thread.is_alive():
                 raise JobConflictError("a batch transcription job is already running")
             run = self.store.load(ocr_run_id)
             progress = BatchOcrProgress(
@@ -294,11 +287,7 @@ class BatchOcrCoordinator:
 
     def run_blocking(self, ocr_run_id: str) -> BatchOcrProgress:
         with self._lock:
-            if (
-                self._state is not None
-                and self._state.thread
-                and self._state.thread.is_alive()
-            ):
+            if self._state is not None and self._state.thread and self._state.thread.is_alive():
                 raise JobConflictError("a batch transcription job is already running")
             run = self.store.load(ocr_run_id)
             progress = BatchOcrProgress(
@@ -312,9 +301,7 @@ class BatchOcrCoordinator:
         self._run_batch(state)
         return self.get_progress()
 
-    def resume(
-        self, ocr_run_id: str, *, blocking: bool = True
-    ) -> BatchOcrProgress | str:
+    def resume(self, ocr_run_id: str, *, blocking: bool = True) -> BatchOcrProgress | str:
         run = self.store.load(ocr_run_id)
         for item in run.items:
             if item.state == "running":
@@ -360,16 +347,12 @@ class BatchOcrCoordinator:
                 state.progress.mode = run.mode
                 state.progress.current_item = label
                 state.progress.message = (
-                    f"Comparing models in {label}"
-                    if is_multipass
-                    else f"Transcribing {label}"
+                    f"Comparing models in {label}" if is_multipass else f"Transcribing {label}"
                 )
                 state.progress.total = total
                 state.progress.phase = ""
                 state.progress.model_index = 0
-                state.progress.model_total = (
-                    len(run.vision_model_names) if is_multipass else 0
-                )
+                state.progress.model_total = len(run.vision_model_names) if is_multipass else 0
                 state.progress.current_model = ""
                 snap = _snapshot(state.progress)
             _default_progress_log(snap)
@@ -446,9 +429,7 @@ class BatchOcrCoordinator:
             state.progress.phase = ""
             state.progress.current_model = ""
             state.progress.model_index = 0
-            state.progress.completed = sum(
-                1 for i in run.items if i.state == "completed"
-            )
+            state.progress.completed = sum(1 for i in run.items if i.state == "completed")
             state.progress.failed = sum(1 for i in run.items if i.state == "failed")
             state.progress.skipped = sum(1 for i in run.items if i.state == "skipped")
             snap = _snapshot(state.progress)
@@ -532,9 +513,7 @@ class BatchOcrCoordinator:
             state.inner_multipass = multi
 
         models = list(run.vision_model_names)
-        auto_activate = bool(
-            OCRSettings.from_dict(run.settings).auto_activate_composite
-        )
+        auto_activate = bool(OCRSettings.from_dict(run.settings).auto_activate_composite)
 
         def on_progress(mp: MultiPassProgress, *, _label=label) -> None:
             if state.cancel_event.is_set():
@@ -563,9 +542,7 @@ class BatchOcrCoordinator:
                 state.progress.pages_skipped = job.skipped
                 state.progress.pages_total = job.total or mp.pages_total
                 state.progress.message = mp.message or (
-                    f"Compare {model_name} in {_label}"
-                    if model_name
-                    else f"Compare in {_label}"
+                    f"Compare {model_name} in {_label}" if model_name else f"Compare in {_label}"
                 )
                 state.progress.cancel_requested = state.cancel_event.is_set()
 

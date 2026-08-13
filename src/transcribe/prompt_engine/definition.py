@@ -56,9 +56,7 @@ class PromptDefinition:
     user_template: str
     input_mode: InputMode
     response_schema_id: str
-    model_requirements: ModelRequirements = field(
-        default_factory=lambda: ModelRequirements()
-    )
+    model_requirements: ModelRequirements = field(default_factory=lambda: ModelRequirements())
     default_generation_options: dict[str, Any] = field(default_factory=dict)
     prompt_family: PromptFamily = PromptFamily.DETECTION
     is_builtin: bool = True
@@ -104,14 +102,16 @@ class PromptDefinition:
             input_mode=InputMode(str(data.get("input_mode") or "text")),
             response_schema_id=str(data.get("response_schema_id") or FREE_TEXT_SCHEMA),
             model_requirements=ModelRequirements(
-                capability=ModelCapability(cap)
-                if cap in ("text", "vision")
-                else ModelCapability.TEXT
+                capability=(
+                    ModelCapability(cap) if cap in ("text", "vision") else ModelCapability.TEXT
+                )
             ),
             default_generation_options=dict(data.get("default_generation_options") or {}),
-            prompt_family=PromptFamily(family)
-            if family in {f.value for f in PromptFamily}
-            else PromptFamily.CUSTOM,
+            prompt_family=(
+                PromptFamily(family)
+                if family in {f.value for f in PromptFamily}
+                else PromptFamily.CUSTOM
+            ),
             is_builtin=bool(data.get("is_builtin", False)),
             is_override=bool(data.get("is_override", False)),
         )

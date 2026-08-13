@@ -7,7 +7,11 @@ from collections.abc import Sequence
 import streamlit as st
 
 from transcribe.providers.base import ModelInfo
-from transcribe.services.model_advice import advise_model, is_general_vlm_name, use_case_label
+from transcribe.services.model_advice import (
+    advise_model,
+    is_general_vlm_name,
+    use_case_label,
+)
 from transcribe.services.ocr_preference_stats import preference_hint_for_model
 
 
@@ -27,9 +31,7 @@ def _identity_caption(info: ModelInfo | None) -> str:
     digest = (info.digest or "").strip()
     if digest:
         short = digest if len(digest) <= 16 else f"{digest[:12]}…"
-        return (
-            f"Identity: verified ({short}). Matching fingerprints can skip re-OCR."
-        )
+        return f"Identity: verified ({short}). Matching fingerprints can skip re-OCR."
     return (
         "Identity: unverified (no digest from Ollama). "
         "Fingerprints may not skip re-OCR reliably until identity is verified."

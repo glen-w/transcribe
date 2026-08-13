@@ -88,9 +88,7 @@ def test_notebook_overlaps_period_year_and_range():
             include_undated=False,
         ),
     )
-    assert notebook_overlaps_period(
-        None, None, ComparePeriod(kind="all", include_undated=True)
-    )
+    assert notebook_overlaps_period(None, None, ComparePeriod(kind="all", include_undated=True))
     assert not notebook_overlaps_period(
         None, None, ComparePeriod(kind="year", year=2020, include_undated=False)
     )

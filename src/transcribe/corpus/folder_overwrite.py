@@ -28,8 +28,7 @@ def prepare_folder_overwrite(
     """
     if confirm != OVERWRITE_CONFIRM_PHRASE:
         raise ValidationError(
-            f"overwrite refused: type {OVERWRITE_CONFIRM_PHRASE!r} to confirm "
-            f"(got {confirm!r})"
+            f"overwrite refused: type {OVERWRITE_CONFIRM_PHRASE!r} to confirm " f"(got {confirm!r})"
         )
     if not conflicts:
         return []
@@ -39,17 +38,11 @@ def prepare_folder_overwrite(
     for conflict in conflicts:
         root = conflict.project_root
         if root.is_dir() and (root / "project.json").is_file():
-            unregister_notebook(
-                corpus_paths, conflict.notebook_id, clock=clk
-            )
-            delete_managed_notebook(
-                root, projects_dir=corpus_paths.projects_dir
-            )
+            unregister_notebook(corpus_paths, conflict.notebook_id, clock=clk)
+            delete_managed_notebook(root, projects_dir=corpus_paths.projects_dir)
             wiped.append(conflict)
         else:
             # Index entry without loadable project: still drop the locator.
-            unregister_notebook(
-                corpus_paths, conflict.notebook_id, clock=clk
-            )
+            unregister_notebook(corpus_paths, conflict.notebook_id, clock=clk)
             wiped.append(conflict)
     return wiped

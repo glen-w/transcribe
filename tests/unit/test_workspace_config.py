@@ -28,7 +28,12 @@ from transcribe.config.facade import (
     snapshot_for_operation,
 )
 from transcribe.config.knobs import module_knob_dict
-from transcribe.config.models import EffectiveConfig, IngestConfig, ProfileActivations, UiConfig
+from transcribe.config.models import (
+    EffectiveConfig,
+    IngestConfig,
+    ProfileActivations,
+    UiConfig,
+)
 from transcribe.config.persistence import (
     load_workspace_settings,
     save_workspace_settings,
@@ -103,7 +108,11 @@ def test_precedence_workspace_over_defaults(runtime: RuntimePaths) -> None:
         runtime=runtime,
     )
     resolved = resolve_effective_config(
-        workspace_config={"analysis": {"keyphrases": {"top_n": 7}}, "llm": {}, "ocr": {}},
+        workspace_config={
+            "analysis": {"keyphrases": {"top_n": 7}},
+            "llm": {},
+            "ocr": {},
+        },
         activations=ProfileActivations(),
         runtime=runtime,
     )
@@ -186,7 +195,9 @@ def test_visual_declutter_workspace_round_trip(runtime: RuntimePaths) -> None:
     assert loaded.config["ingest"]["visual_declutter_enabled"] is False
 
 
-def test_precedence_env_over_workspace(runtime: RuntimePaths, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_precedence_env_over_workspace(
+    runtime: RuntimePaths, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("TRANSCRIBE_OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     resolved = resolve_effective_config(
         workspace_config={
@@ -299,9 +310,7 @@ def test_threshold_change_changes_fingerprint(runtime: RuntimePaths) -> None:
     from transcribe.config.models import AnalysisConfig, KeyphrasesConfig
 
     cfg_a = EffectiveConfig()
-    cfg_b = EffectiveConfig(
-        analysis=AnalysisConfig(keyphrases=KeyphrasesConfig(top_n=3))
-    )
+    cfg_b = EffectiveConfig(analysis=AnalysisConfig(keyphrases=KeyphrasesConfig(top_n=3)))
     fp_a = config_fingerprint(module_knob_dict(cfg_a, "keyphrases"))
     fp_b = config_fingerprint(module_knob_dict(cfg_b, "keyphrases"))
     assert fp_a != fp_b

@@ -13,9 +13,7 @@ from transcribe.persistence.schema import SchemaError, require_format
 
 # Reserved directory name under analysis/ — never treated as a module id.
 RUNS_DIR_NAME = "runs"
-_RUN_TERMINAL_STATUSES = frozenset(
-    {"completed", "cancelled", "failed", "interrupted"}
-)
+_RUN_TERMINAL_STATUSES = frozenset({"completed", "cancelled", "failed", "interrupted"})
 
 
 class AnalysisStorage:
@@ -54,9 +52,7 @@ class AnalysisStorage:
             new_state = envelope.get("attempt_state")
             # Allow running → terminal, and published-flag updates on succeeded attempts.
             if old_state not in (None, "running") and not (
-                old_state == "succeeded"
-                and new_state == "succeeded"
-                and "published" in envelope
+                old_state == "succeeded" and new_state == "succeeded" and "published" in envelope
             ):
                 raise ValueError(f"attempt already terminal: {attempt_id}")
         write_json_atomic(path, envelope)

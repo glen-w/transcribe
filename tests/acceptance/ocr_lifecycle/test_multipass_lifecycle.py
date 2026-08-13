@@ -25,7 +25,12 @@ class RankCompositeClient(RecordedDoubleClient):
     """Returns valid rank JSON when prompt asks to rank; otherwise merges text."""
 
     def generate_with_meta(self, *, model, prompt, system=None, options=None):
-        if "rank competing OCR" in prompt.lower() or '"order"' in prompt or "Candidates:" in prompt and "JSON" in prompt:
+        if (
+            "rank competing OCR" in prompt.lower()
+            or '"order"' in prompt
+            or "Candidates:" in prompt
+            and "JSON" in prompt
+        ):
             # Extract attempt ids from prompt labels
             import re
 
@@ -168,9 +173,7 @@ def test_multipass_rank_composite_prefer_finetune(tmp_path: Path, monkeypatch):
     settings.prefer_mode = "prefer_only"
     projects.save_settings(project, settings)
     other = vision[0].attempt_id
-    prefer_result = projects.set_preferred_attempt(
-        page_id, other, mode="prefer_only"
-    )
+    prefer_result = projects.set_preferred_attempt(page_id, other, mode="prefer_only")
     assert prefer_result.preferred_attempt_id == other
     assert prefer_result.active_attempt_id == composites[0].attempt_id
 
@@ -226,9 +229,7 @@ def test_multipass_resume_after_partial_vision(tmp_path: Path, monkeypatch):
         kept = [
             a
             for a in result.attempts
-            if not (
-                (a.attempt_kind or "") == "composite" and a.pass_id == pass_id
-            )
+            if not ((a.attempt_kind or "") == "composite" and a.pass_id == pass_id)
         ]
         result.attempts = kept
         if result.active_attempt_id and not any(
@@ -347,16 +348,12 @@ def test_multipass_cancel_skips_remaining_models(tmp_path: Path, monkeypatch):
         if result is None:
             continue
         vision_b += sum(
-            1
-            for a in result.attempts
-            if a.provenance and a.provenance.model_name == "vision-b"
+            1 for a in result.attempts if a.provenance and a.provenance.model_name == "vision-b"
         )
     assert vision_b == 0
 
 
-def test_multipass_cancel_still_ranks_pages_with_two_successes(
-    tmp_path: Path, monkeypatch
-):
+def test_multipass_cancel_still_ranks_pages_with_two_successes(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(tmp_path / "data"))
     projects, coord, page_ids = _setup_project(tmp_path)
     holder: dict = {}

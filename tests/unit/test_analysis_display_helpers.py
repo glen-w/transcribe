@@ -32,7 +32,12 @@ def test_wordcloud_and_topic_rows():
     topics = topic_weight_rows(
         {
             "topics": [
-                {"label": "weather", "terms": ["rain", "cloud"], "weight": 3, "unit_ids": [1, 2, 3]},
+                {
+                    "label": "weather",
+                    "terms": ["rain", "cloud"],
+                    "weight": 3,
+                    "unit_ids": [1, 2, 3],
+                },
                 {"label": "travel", "terms": ["train"], "unit_ids": [4]},
             ]
         }
@@ -70,9 +75,10 @@ def test_aggregate_entity_sentiment():
 
 
 def test_contextual_and_emotion_aggregates():
-    assert emotion_label_totals(
-        {"global_stats": {"label_totals": {"joy": 2.0, "anger": 1.0}}}
-    )[0][0] == "joy"
+    assert (
+        emotion_label_totals({"global_stats": {"label_totals": {"joy": 2.0, "anger": 1.0}}})[0][0]
+        == "joy"
+    )
     counts = contextual_label_counts(
         {
             "units": [

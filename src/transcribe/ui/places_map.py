@@ -134,9 +134,7 @@ def render_places_panel(
     # TX always writes ner-locations beside NER; persist when we have coords.
     if project_root is not None and any(g.status == "ok" for g in geocoded):
         nb_id = next((p.notebook_id for p in snapshot.places if p.notebook_id), None)
-        nb_title = next(
-            (p.notebook_title for p in snapshot.places if p.notebook_title), None
-        )
+        nb_title = next((p.notebook_title for p in snapshot.places if p.notebook_title), None)
         written = write_ner_locations_artifact(
             project_root,
             geocoded,
@@ -153,9 +151,7 @@ def render_places_panel(
     ok_n = sum(1 for g in geocoded if g.status == "ok")
     skipped_n = sum(1 for g in geocoded if g.status == "skipped")
     missing_n = sum(1 for g in geocoded if g.status == "not_found")
-    st.caption(
-        f"Resolved {ok_n}/{len(geocoded)} · skipped {skipped_n} · not found {missing_n}"
-    )
+    st.caption(f"Resolved {ok_n}/{len(geocoded)} · skipped {skipped_n} · not found {missing_n}")
 
 
 def render_notebook_places_tab(
@@ -192,9 +188,7 @@ def render_notebook_places_tab(
         if not module_may_show_payload(entity_sentiment_health):
             # Soft: NER map still useful without entity tone.
             if entity_sentiment_health.envelope is not None:
-                render_module_unavailable(
-                    entity_sentiment_health, product_title="Entity tone"
-                )
+                render_module_unavailable(entity_sentiment_health, product_title="Entity tone")
             return
         env = entity_sentiment_health.envelope or {}
         payload = env.get("payload") if isinstance(env, dict) else {}
@@ -202,9 +196,7 @@ def render_notebook_places_tab(
             payload = {}
         outcome = env.get("outcome") if isinstance(env, dict) else None
         if outcome in {"failed", "insufficient_data", "skipped_not_applicable"}:
-            render_module_unavailable(
-                entity_sentiment_health, product_title="Entity tone"
-            )
+            render_module_unavailable(entity_sentiment_health, product_title="Entity tone")
             return
         st.divider()
         render_entity_sentiment_section(payload)

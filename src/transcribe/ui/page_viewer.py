@@ -79,9 +79,7 @@ def _transcription_model_help(attempt: OCRAttempt | None, model_label: str) -> s
             parts.append("Identity verified.")
         parts.append("Matching fingerprints can skip re-OCR.")
     else:
-        parts.append(
-            "Identity unverified — fingerprint skip is disabled for this model tag."
-        )
+        parts.append("Identity unverified — fingerprint skip is disabled for this model tag.")
     parts.append(f"Prompt: {prov.prompt_id} v{prov.prompt_version}.")
     profile = prov.preprocess_profile or "none"
     parts.append(f"Preprocess: {profile}.")
@@ -108,7 +106,24 @@ def _escape_markdown_plain(text: str) -> str:
     """Escape markdown so st.caption/st.markdown never promote OCR into headings."""
     # Backslash first so later escapes are not re-escaped.
     out = text.replace("\\", "\\\\")
-    for ch in ("`", "*", "_", "{", "}", "[", "]", "(", ")", "#", "+", "-", ".", "!", "|", "~"):
+    for ch in (
+        "`",
+        "*",
+        "_",
+        "{",
+        "}",
+        "[",
+        "]",
+        "(",
+        ")",
+        "#",
+        "+",
+        "-",
+        ".",
+        "!",
+        "|",
+        "~",
+    ):
         out = out.replace(ch, "\\" + ch)
     return out
 
@@ -128,9 +143,7 @@ def _shows_compare_attempts(result: Any) -> bool:
     if result is None:
         return False
     succeeded = [
-        a
-        for a in result.attempts
-        if a.status == "succeeded" and (a.raw_text or "").strip()
+        a for a in result.attempts if a.status == "succeeded" and (a.raw_text or "").strip()
     ]
     if len(succeeded) >= 2:
         return True
@@ -154,14 +167,14 @@ def _render_attempt_compare(
     if not _shows_compare_attempts(result):
         return
     succeeded = [
-        a
-        for a in result.attempts
-        if a.status == "succeeded" and (a.raw_text or "").strip()
+        a for a in result.attempts if a.status == "succeeded" and (a.raw_text or "").strip()
     ]
 
     with st.expander("Compare OCR attempts", expanded=True):
         settings = project.settings
-        prefer_mode = settings.prefer_mode if settings.prefer_mode in PREFER_MODES else DEFAULT_PREFER_MODE
+        prefer_mode = (
+            settings.prefer_mode if settings.prefer_mode in PREFER_MODES else DEFAULT_PREFER_MODE
+        )
         mode_labels = {
             "prefer_is_promote": "Prefer = promote (default)",
             "prefer_only": "Prefer only (stats / fine-tune)",
@@ -186,22 +199,14 @@ def _render_attempt_compare(
                 projects.save_settings(project, settings)
                 st.rerun()
 
-        vision = [
-            a for a in succeeded if (a.attempt_kind or "vision") == "vision"
-        ]
-        composites = [
-            a for a in succeeded if (a.attempt_kind or "vision") == "composite"
-        ]
+        vision = [a for a in succeeded if (a.attempt_kind or "vision") == "vision"]
+        composites = [a for a in succeeded if (a.attempt_kind or "vision") == "composite"]
 
         # Order vision by comparison rank when present
         ordered_vision = list(vision)
         if result.comparison and result.comparison.ranked_attempt_ids:
-            rank_map = {
-                aid: i for i, aid in enumerate(result.comparison.ranked_attempt_ids)
-            }
-            ordered_vision.sort(
-                key=lambda a: rank_map.get(a.attempt_id, 10_000)
-            )
+            rank_map = {aid: i for i, aid in enumerate(result.comparison.ranked_attempt_ids)}
+            ordered_vision.sort(key=lambda a: rank_map.get(a.attempt_id, 10_000))
         else:
             ordered_vision.sort(key=lambda a: a.started_at, reverse=True)
 
@@ -298,9 +303,7 @@ def _render_attempt_card(
         try:
             edit_choice = None
             if prefer_mode == "prefer_promote_with_edit_gate" and result.edited_text is not None:
-                edit_choice = st.session_state.get(
-                    f"edit_gate_{page_id}", "keep_edit"
-                )
+                edit_choice = st.session_state.get(f"edit_gate_{page_id}", "keep_edit")
             projects.set_preferred_attempt(
                 page_id,
                 attempt.attempt_id,
@@ -330,9 +333,7 @@ def _render_attempt_card(
             "Human edit is present — how to prefer?",
             options=["keep_edit", "adopt_new"],
             format_func=lambda x: (
-                "Keep edit overlay"
-                if x == "keep_edit"
-                else "Adopt new (clear edit)"
+                "Keep edit overlay" if x == "keep_edit" else "Adopt new (clear edit)"
             ),
             key=f"edit_gate_{page_id}",
         )
@@ -411,9 +412,7 @@ def _scrub_viewer_after_page_delete(page_id: str, project_root: Path) -> None:
             return
 
     page_ids = [
-        pid
-        for pid in (st.session_state.get("view_page_ids") or [])
-        if pid and pid != page_id
+        pid for pid in (st.session_state.get("view_page_ids") or []) if pid and pid != page_id
     ]
     if not page_ids:
         clear_page_viewer_state()
@@ -572,11 +571,7 @@ def render_page_viewer(
     ``presentation="read"`` hides mutating controls (Reading mode).
     """
     read_only = presentation == "read"
-    active_root = (
-        str(paths.root)
-        if paths is not None
-        else str(st.session_state.get("root") or "")
-    )
+    active_root = str(paths.root) if paths is not None else str(st.session_state.get("root") or "")
     entries = _resolve_view_entries(
         page_ids=page_ids,
         project_root=active_root,
@@ -599,7 +594,12 @@ def render_page_viewer(
     st.session_state["root"] = root
     st.session_state["view_page_id"] = page_id
 
-    if paths is None or projects is None or project is None or str(paths.root) != str(Path(root).resolve()):
+    if (
+        paths is None
+        or projects is None
+        or project is None
+        or str(paths.root) != str(Path(root).resolve())
+    ):
         paths = open_project_paths(Path(root))
         projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
         project = projects.load(reconcile=False)
@@ -616,8 +616,7 @@ def render_page_viewer(
         project.pages[0].page_id if project.pages else None
     )
     needs_date_suggest = (not read_only) and (
-        (not page.date_approved)
-        or (page.date is None and page.page_id == effective_cover_id)
+        (not page.date_approved) or (page.date is None and page.page_id == effective_cover_id)
     )
     if needs_date_suggest:
         try:
@@ -651,8 +650,7 @@ def render_page_viewer(
         _navigate_to_entry(entries[idx - 1])
         st.rerun()
     top[2].markdown(
-        f"**{project.title}**"
-        + (f" · {page.date.format_display()}" if page.date else " · Undated")
+        f"**{project.title}**" + (f" · {page.date.format_display()}" if page.date else " · Undated")
     )
     with top[3]:
         with st.form("page_viewer_jump", border=False, clear_on_submit=False):
@@ -697,14 +695,10 @@ def render_page_viewer(
                         f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}{stale}"
                     )
                     if cols[1].button("✓", key=f"pv_ap_{f.finding_id}", help="Approve"):
-                        det_svc.set_review_status(
-                            f.detector_id, f.finding_id, "approved"
-                        )
+                        det_svc.set_review_status(f.detector_id, f.finding_id, "approved")
                         st.rerun()
                     if cols[2].button("✗", key=f"pv_rj_{f.finding_id}", help="Reject"):
-                        det_svc.set_review_status(
-                            f.detector_id, f.finding_id, "rejected"
-                        )
+                        det_svc.set_review_status(f.detector_id, f.finding_id, "rejected")
                         st.rerun()
         except Exception:  # noqa: BLE001 — optional surface; never break viewer
             pass
@@ -774,9 +768,7 @@ def render_page_viewer(
                     _cleanup_mode_help(cu),
                 )
             elif cu.acceptance_status == "unchanged":
-                body = (
-                    f"Cleanup: unchanged ({cu.note or 'identical'}) — kept OCR text"
-                )
+                body = f"Cleanup: unchanged ({cu.note or 'identical'}) — kept OCR text"
                 if cu.mode:
                     render_caption_with_info(body, _cleanup_mode_help(cu))
                 else:
@@ -809,12 +801,7 @@ def render_page_viewer(
 
         raw = attempt.raw_text if attempt else ""
         edited = result.edited_text if result else None
-        if (
-            not read_only
-            and edited is not None
-            and attempt
-            and attempt.raw_text is not None
-        ):
+        if not read_only and edited is not None and attempt and attempt.raw_text is not None:
             st.caption("An edit is active. New OCR raw text is preserved separately.")
             if st.button("Use new transcription"):
                 projects.adopt_raw_as_edit(page.page_id)
@@ -845,9 +832,7 @@ def render_page_viewer(
             else:
                 st.caption("No transcription text on this page.")
             if page.date is not None and not page.date_approved:
-                st.caption(
-                    "Date is suggested, not approved — Archive timeline still indexes it."
-                )
+                st.caption("Date is suggested, not approved — Archive timeline still indexes it.")
         else:
             text = st.text_area("Transcription", value=default_text, height=320)
             if st.button("Save edit"):
@@ -856,12 +841,8 @@ def render_page_viewer(
                 st.success("Saved")
 
             with st.expander("Re-run this page", expanded=False):
-                st.caption(
-                    "Force OCR on this page with the notebook’s current model settings."
-                )
-                if st.button(
-                    "Re-run OCR on this page", key=f"rerun_page_{page.page_id}"
-                ):
+                st.caption("Force OCR on this page with the notebook’s current model settings.")
+                if st.button("Re-run OCR on this page", key=f"rerun_page_{page.page_id}"):
                     try:
                         from transcribe.services.job import build_coordinator
 
@@ -888,9 +869,7 @@ def render_page_viewer(
             if page.date is None:
                 page_text = result.effective_text() if result else None
                 if looks_like_unparsed_date_stamp(page_text):
-                    st.caption(
-                        "Possible date in text wasn't recognized — set manually"
-                    )
+                    st.caption("Possible date in text wasn't recognized — set manually")
             if page.date is not None and not page.date_approved:
                 if page.date_source == DATE_SOURCE_EXTRACTED:
                     suggest_label = "Suggested from transcription — not yet approved"
@@ -938,10 +917,8 @@ def render_page_viewer(
                                     "suspicious. Click ✓✓ again to approve anyway."
                                 )
                             else:
-                                updated, approved_n, _regs = (
-                                    projects.approve_all_suggested_dates(
-                                        confirm_regressions=True
-                                    )
+                                updated, approved_n, _regs = projects.approve_all_suggested_dates(
+                                    confirm_regressions=True
                                 )
                                 bump_archive_generation(build_runtime_paths())
                                 st.session_state.pop(confirm_key, None)
@@ -986,9 +963,7 @@ def render_page_viewer(
             if st.button("Save metadata"):
                 try:
                     new_date = parse_date_input(date_in)
-                    project, _date_changed = projects.approve_page_date(
-                        page.page_id, new_date
-                    )
+                    project, _date_changed = projects.approve_page_date(page.page_id, new_date)
                     project = projects.update_page_metadata(
                         page.page_id,
                         tags=normalize_tags([t for t in tags_in.split(",")]),
@@ -1004,9 +979,7 @@ def render_page_viewer(
                 try:
                     from transcribe.ui.action_menus.nav import viewer_page_ids
 
-                    project = projects.update_notebook_metadata(
-                        cover_page_id=page.page_id
-                    )
+                    project = projects.update_notebook_metadata(cover_page_id=page.page_id)
                     thumbs.ensure_thumb(project, page.page_id)
                     bump_archive_generation(build_runtime_paths())
                     ordered = viewer_page_ids(project)
@@ -1034,9 +1007,7 @@ def render_page_viewer(
                 )
             if st.button("Delete page"):
                 if len(project.pages) <= 1:
-                    st.error(
-                        "Cannot delete the last page; delete the notebook instead."
-                    )
+                    st.error("Cannot delete the last page; delete the notebook instead.")
                 else:
                     st.session_state[pending_delete] = True
                     st.rerun()
@@ -1047,7 +1018,6 @@ def render_page_viewer(
         st.session_state["reading_page_by_root"] = by_root
 
     return project
-
 
 
 def open_page_context(

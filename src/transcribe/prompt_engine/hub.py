@@ -11,7 +11,11 @@ from transcribe.prompt_engine.adapters import (
     resolve_cleanup_prompt_text,
     resolve_ocr_prompt_text,
 )
-from transcribe.prompt_engine.definition import PromptDefinition, PromptFamily, PromptRef
+from transcribe.prompt_engine.definition import (
+    PromptDefinition,
+    PromptFamily,
+    PromptRef,
+)
 from transcribe.prompt_engine.registry import (
     VISION_PROMPT_FOR_TEXT,
     get_prompt as get_code_prompt,
@@ -95,7 +99,10 @@ def list_catalogue(
         pid = e.definition.prompt_id
         if pid not in best or priority[e.source] < priority[best[pid].source]:
             best[pid] = e
-    return sorted(best.values(), key=lambda e: (e.definition.prompt_family.value, e.definition.prompt_id))
+    return sorted(
+        best.values(),
+        key=lambda e: (e.definition.prompt_family.value, e.definition.prompt_id),
+    )
 
 
 def resolve_prompt(
@@ -125,19 +132,14 @@ def resolve_prompt(
     code = get_code_prompt(prompt_id, version=version)
     if code is not None:
         return code
-    for defn in (
-        ocr_templates_as_definitions()
-        + cleanup_templates_as_definitions()
-    ):
+    for defn in ocr_templates_as_definitions() + cleanup_templates_as_definitions():
         if defn.prompt_id == prompt_id and (version is None or defn.version == version):
             return defn
     try:
         from transcribe.services.ocr_compare import compare_templates_as_definitions
 
         for defn in compare_templates_as_definitions():
-            if defn.prompt_id == prompt_id and (
-                version is None or defn.version == version
-            ):
+            if defn.prompt_id == prompt_id and (version is None or defn.version == version):
                 return defn
     except Exception:  # noqa: BLE001
         pass
@@ -168,12 +170,8 @@ def resolve_for_input_mode(
     """Pick vision twin when routing to vision; else text prompt (with overrides)."""
     if want_vision:
         vision_id = VISION_PROMPT_FOR_TEXT.get(text_prompt_id, text_prompt_id)
-        return resolve_prompt(
-            vision_id, runtime=runtime, project_prompts_dir=project_prompts_dir
-        )
-    return resolve_prompt(
-        text_prompt_id, runtime=runtime, project_prompts_dir=project_prompts_dir
-    )
+        return resolve_prompt(vision_id, runtime=runtime, project_prompts_dir=project_prompts_dir)
+    return resolve_prompt(text_prompt_id, runtime=runtime, project_prompts_dir=project_prompts_dir)
 
 
 def ocr_render_for_job(

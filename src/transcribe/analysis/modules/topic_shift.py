@@ -35,8 +35,7 @@ class TopicShiftModule:
     ported_from_commit = TX_COMMIT
     semantic_class = "adaptation"
     semantic_delta = (
-        "Shift boundaries from consecutive BoW cosine drops vs unit order; "
-        "no segment timestamps"
+        "Shift boundaries from consecutive BoW cosine drops vs unit order; " "no segment timestamps"
     )
 
     def cache_config(self) -> dict[str, Any]:

@@ -230,9 +230,7 @@ class RecordedDoubleClient:
         options: dict[str, Any] | None = None,
     ) -> tuple[str, dict[str, Any]]:
         _ = model
-        key = hashlib.sha256(
-            f"{system or ''}\n{prompt}".encode("utf-8")
-        ).hexdigest()[:16]
+        key = hashlib.sha256(f"{system or ''}\n{prompt}".encode("utf-8")).hexdigest()[:16]
         meta: dict[str, Any] = {}
         if options and isinstance(options.get("eval_count"), (int, float)):
             meta["eval_count"] = options["eval_count"]
@@ -318,9 +316,7 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
     return None
 
 
-def unavailable_model_result(
-    *, message: str = "text LLM runtime unavailable"
-) -> dict[str, Any]:
+def unavailable_model_result(*, message: str = "text LLM runtime unavailable") -> dict[str, Any]:
     return {
         "outcome": "skipped_not_applicable",
         "payload": {},

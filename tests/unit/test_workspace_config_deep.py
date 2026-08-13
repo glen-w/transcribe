@@ -137,16 +137,15 @@ def test_project_switch_reloads_project_layer(runtime: RuntimePaths) -> None:
     assert view_b.effective.ocr.base_url == "http://b:11434"
 
 
-def test_project_overlay_does_not_pollute_workspace_cache(runtime: RuntimePaths) -> None:
+def test_project_overlay_does_not_pollute_workspace_cache(
+    runtime: RuntimePaths,
+) -> None:
     """Job snapshots with cleanup-enabled project must not seed later creates."""
     dirty = OCRSettings(cleanup_enabled=True, cleanup_model_name="x", text_model_name="x")
-    view_dirty = reload_config(
-        runtime=runtime, project_settings=dirty, project_id="dirty"
-    )
+    view_dirty = reload_config(runtime=runtime, project_settings=dirty, project_id="dirty")
     assert view_dirty.effective.ocr.cleanup_enabled is True
     view_clean = get_config(runtime=runtime)
     assert view_clean.effective.ocr.cleanup_enabled is False
-
 
 
 def test_default_ollama_uses_env_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:

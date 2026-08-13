@@ -43,9 +43,7 @@ def test_terms_and_filter_mirror_tx_explorer():
         ]
     )
     assert terms[0]["term"] == "rain" and terms[0]["rank"] == 1
-    filtered = filter_terms(
-        terms, search="rai", top_n=10, min_value=2, sort_mode="value"
-    )
+    filtered = filter_terms(terms, search="rai", top_n=10, min_value=2, sort_mode="value")
     assert [t["term"] for t in filtered] == ["rain", "railway"]
     by_term = filter_terms(terms, sort_mode="term")
     assert [t["term"] for t in by_term] == ["railway", "rain", "zebra"]

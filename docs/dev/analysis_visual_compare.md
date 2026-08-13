@@ -47,7 +47,7 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 | `contextual_emotion` | dominant-label counts + intensity | no |
 | `fine_grained_emotion` | same when payload exists | no |
 | `affect_tension` | tension line | yes |
-| `moments` / `highlights` | score bars + quote list | no |
+| `moments` / `highlights` | score bars + quote list; Moments **Jump to page** → Review | no |
 | `summary` / `insights` / LLM text | prose / grouped lists | no |
 | `llm_action_items` | grouped action / decision / question | no |
 | `llm_custom_qa` | Ask answer + evidence | no |

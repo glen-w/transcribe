@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from transcribe.errors import ProviderError
-from transcribe.providers.ollama import is_local_machine_host, is_loopback_host, normalize_base_url
+from transcribe.providers.ollama import (
+    is_local_machine_host,
+    is_loopback_host,
+    normalize_base_url,
+)
 
 
 def test_normalize_rejects_api_path():

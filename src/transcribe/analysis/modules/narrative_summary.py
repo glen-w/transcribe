@@ -39,9 +39,7 @@ def provenance_files() -> list[dict[str, str]]:
 
 
 def summary_prompt_fingerprint(overview: str, bullets: list[str]) -> str:
-    return sha256(
-        canonical_json_bytes({"overview": overview, "bullets": bullets[:8]})
-    ).hexdigest()
+    return sha256(canonical_json_bytes({"overview": overview, "bullets": bullets[:8]})).hexdigest()
 
 
 class NarrativeSummaryModule:

@@ -157,11 +157,7 @@ def _render_job_progress(progress: JobProgress) -> None:
 def _render_multipass_progress(multi: MultiPassProgress, job: JobProgress) -> None:
     st.write(
         f"Compare: **{multi.status}** — {multi.phase or 'starting'}"
-        + (
-            f" · model {multi.model_index}/{multi.model_total}"
-            if multi.model_total
-            else ""
-        )
+        + (f" · model {multi.model_index}/{multi.model_total}" if multi.model_total else "")
     )
     if multi.phase == "vision" and job.status in {
         "running",
@@ -290,9 +286,7 @@ def _batch_progress_to_snapshot(progress: BatchOcrProgress) -> dict[str, Any]:
         if progress.current_model:
             detail_bits.append(progress.current_model)
         elif progress.model_total:
-            detail_bits.append(
-                f"model {progress.model_index}/{progress.model_total}"
-            )
+            detail_bits.append(f"model {progress.model_index}/{progress.model_total}")
     if progress.current_page_label:
         detail_bits.append(progress.current_page_label)
     return {
@@ -341,10 +335,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
                 unit_label="notebooks",
                 current_label="Current notebook",
             )
-            if (
-                st.session_state.get(_BATCH_WAS_RUNNING_KEY)
-                and progress.status != "running"
-            ):
+            if st.session_state.get(_BATCH_WAS_RUNNING_KEY) and progress.status != "running":
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = False
                 st.session_state[_BATCH_POST_RUN_KEY] = progress.ocr_run_id
                 bump_archive_generation(runtime)
@@ -365,9 +356,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
     return True
 
 
-def _render_batch_complete_actions(
-    coord: BatchOcrCoordinator, progress: BatchOcrProgress
-) -> None:
+def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOcrProgress) -> None:
     st.markdown("#### Next")
     run = None
     try:
@@ -443,9 +432,7 @@ def render_run_transcribe(
     projects: ProjectService | None,
     project: Project | None,
 ) -> None:
-    batch_coord = get_batch_ocr_coordinator(
-        str(runtime.data_dir), str(runtime.projects_dir)
-    )
+    batch_coord = get_batch_ocr_coordinator(str(runtime.data_dir), str(runtime.projects_dir))
     if _render_batch_progress(batch_coord, runtime):
         return
 
@@ -470,15 +457,11 @@ def render_run_transcribe(
         target = st.session_state.get(TRANSCRIBE_TARGET_KEY) or TARGET_THIS
 
     if target == TARGET_THIS and root and projects is not None and project is not None:
-        if _render_this_notebook_live(
-            runtime, root=root, projects=projects, project=project
-        ):
+        if _render_this_notebook_live(runtime, root=root, projects=projects, project=project):
             return
 
     seed = (
-        project.settings
-        if project is not None
-        else OCRSettings(base_url=default_ollama_base_url())
+        project.settings if project is not None else OCRSettings(base_url=default_ollama_base_url())
     )
     form = _render_ocr_settings_form(seed, key_prefix="tx")
     if form is None:
@@ -491,9 +474,7 @@ def render_run_transcribe(
     if project is None or projects is None or not root:
         st.info("Select a notebook above, or create one under Workflow → New notebook.")
         return
-    _render_this_notebook_launch(
-        runtime, root=root, projects=projects, project=project, form=form
-    )
+    _render_this_notebook_launch(runtime, root=root, projects=projects, project=project, form=form)
 
 
 def _render_this_notebook_live(
@@ -648,9 +629,7 @@ def _render_this_notebook_launch(
                 project = _apply_form_settings(projects, project, form)
                 if compare_cleanup:
                     settings = project.settings
-                    settings.cleanup_model_name = (
-                        form["cleanup_model"] or form["text_model"]
-                    )
+                    settings.cleanup_model_name = form["cleanup_model"] or form["text_model"]
                     project = projects.save_settings(project, settings)
                 elif form["text_model"] and not project.settings.cleanup_model_name:
                     settings = project.settings
@@ -856,9 +835,7 @@ def _render_batch_launch(
             try:
                 settings = _form_to_settings(seed, form)
                 if batch_compare_cleanup:
-                    settings.cleanup_model_name = (
-                        form["cleanup_model"] or form["text_model"]
-                    )
+                    settings.cleanup_model_name = form["cleanup_model"] or form["text_model"]
                 elif form["text_model"] and not settings.cleanup_model_name:
                     settings.cleanup_model_name = form["text_model"]
                 if form["text_model"]:
@@ -925,9 +902,7 @@ def _render_ocr_settings_form(
 
     allow_remote = False
     if remote:
-        st.warning(
-            "This Ollama host is not loopback. Page images will leave this machine."
-        )
+        st.warning("This Ollama host is not loopback. Page images will leave this machine.")
         allow_remote = st.checkbox(
             "I understand and want to use this remote host",
             key=f"{key_prefix}_allow_remote",
@@ -967,9 +942,7 @@ def _render_ocr_settings_form(
         key=f"{key_prefix}_model",
     )
     text_model_options = suitable_text_model_names(all_discovery.models)
-    if settings.text_model_name and is_unsuitable_text_model_name(
-        settings.text_model_name
-    ):
+    if settings.text_model_name and is_unsuitable_text_model_name(settings.text_model_name):
         st.warning(
             f"Saved text model `{settings.text_model_name}` is "
             "vision/embedding — choose a text model below."
@@ -1018,9 +991,7 @@ def _render_ocr_settings_form(
         ]
         default_prompt = settings.prompt_id or "faithful_markdown"
         prompt_index = ocr_ids.index(default_prompt) if default_prompt in ocr_ids else 0
-        prompt_id = st.selectbox(
-            "Prompt", ocr_ids, index=prompt_index, key=f"{key_prefix}_prompt"
-        )
+        prompt_id = st.selectbox("Prompt", ocr_ids, index=prompt_index, key=f"{key_prefix}_prompt")
         custom = st.text_area(
             "Custom prompt override (optional)",
             value=settings.custom_prompt or "",

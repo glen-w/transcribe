@@ -34,7 +34,9 @@ Stars begin to glow"""
 PROSE_P1 = "Today I went to the market and bought eggs, milk, and bread for the week."
 
 
-def _poetry_response(*, detected: bool, continues_before: bool, continues_after: bool, conf: float = 0.9):
+def _poetry_response(
+    *, detected: bool, continues_before: bool, continues_after: bool, conf: float = 0.9
+):
     return json.dumps(
         {
             "detected": detected,

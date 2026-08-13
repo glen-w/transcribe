@@ -13,7 +13,10 @@ TX_COMMIT = "50a0ede8e7acd03bbd9125a5a5237049f3291304"
 
 
 def insights_config() -> dict[str, Any]:
-    return {"payload_schema": PAYLOAD_SCHEMA, "algorithm_version": "insights_compose_v1"}
+    return {
+        "payload_schema": PAYLOAD_SCHEMA,
+        "algorithm_version": "insights_compose_v1",
+    }
 
 
 def provenance_files() -> list[dict[str, str]]:
@@ -55,10 +58,7 @@ class InsightsModule:
                     "topic_id": t.get("topic_id"),
                 }
             )
-        notable = [
-            {"quote_id": q.get("quote_id"), "text": q.get("text")}
-            for q in quotes[:6]
-        ]
+        notable = [{"quote_id": q.get("quote_id"), "text": q.get("text")} for q in quotes[:6]]
         return {
             "outcome": "success",
             "payload": {

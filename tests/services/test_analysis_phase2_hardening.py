@@ -73,9 +73,7 @@ def test_frozen_config_survives_mid_run_settings_mutation(tmp_path: Path):
 
             clear_config_cache()
         seen_cfg.append(require_operation_config().as_dict())
-        return original_run(
-            module, project=project, question_text=question_text, **kwargs
-        )
+        return original_run(module, project=project, question_text=question_text, **kwargs)
 
     runner._run_module_unlocked = wrapped  # type: ignore[method-assign]
     results = runner.run_batch_from_plan(plan)
@@ -84,6 +82,7 @@ def test_frozen_config_survives_mid_run_settings_mutation(tmp_path: Path):
     assert seen_cfg[0] == seen_cfg[1] == plan.effective_config.as_dict()
     # Disk settings changed after plan freeze.
     assert projects.load(reconcile=False).settings.model_name == "mutated-mid-run-model"
+
 
 def test_async_coordinator_survives_without_ui_handles(tmp_path: Path):
     projects, _runner, clock, ids = _project_with_pages(

@@ -48,7 +48,9 @@ def get_registered_modules(*, through: str | None = None) -> dict[str, AnalysisM
     from transcribe.analysis.modules.emotion import EmotionModule
     from transcribe.analysis.modules.entity_sentiment import EntitySentimentModule
     from transcribe.analysis.modules.epistemic_markers import EpistemicMarkersModule
-    from transcribe.analysis.modules.fine_grained_emotion import FineGrainedEmotionModule
+    from transcribe.analysis.modules.fine_grained_emotion import (
+        FineGrainedEmotionModule,
+    )
     from transcribe.analysis.modules.highlights import HighlightsModule
     from transcribe.analysis.modules.insights import InsightsModule
     from transcribe.analysis.modules.keyphrases import KeyphrasesModule

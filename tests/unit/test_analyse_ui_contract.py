@@ -40,7 +40,7 @@ def test_run_analysis_uses_coordinator_not_blocking_runner_loop():
     assert "runner.run_module" not in RUN
     assert "_execute_pending_launch" not in RUN
     assert "Include Ask notebook question" in RUN
-    assert "pending.get(\"plan\")" in RUN or 'pending.get("plan")' in RUN
+    assert 'pending.get("plan")' in RUN or 'pending.get("plan")' in RUN
 
 
 def test_run_analysis_freezes_plan_before_start():
@@ -115,9 +115,9 @@ def test_analyse_wires_corpus_compare_into_overview_and_mood():
     assert "project_id=project.id" in APP
     assert Path("src/transcribe/services/analysis_compare.py").is_file()
     assert Path("src/transcribe/ui/analysis_compare_view.py").is_file()
-    assert "load_module_baseline" in Path(
-        "src/transcribe/services/analysis_compare.py"
-    ).read_text(encoding="utf-8")
+    assert "load_module_baseline" in Path("src/transcribe/services/analysis_compare.py").read_text(
+        encoding="utf-8"
+    )
     assert "render_module_compare_charts" in Path(
         "src/transcribe/ui/analysis_compare_view.py"
     ).read_text(encoding="utf-8")
@@ -130,9 +130,7 @@ def test_entity_sentiment_is_on_people_places_batch():
     assert "entity_sentiment_health" in places
     assert "render_entity_sentiment_section" in places
     assert "Entity tone" in places or "entity tone" in places.lower()
-    helpers = Path("src/transcribe/ui/analysis_display_helpers.py").read_text(
-        encoding="utf-8"
-    )
+    helpers = Path("src/transcribe/ui/analysis_display_helpers.py").read_text(encoding="utf-8")
     assert "aggregate_entity_sentiment" in helpers
 
 

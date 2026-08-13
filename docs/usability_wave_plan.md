@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2**; **U4** acceptance gate is **green** (Inbox polish may continue).
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2**; **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments jump, Overview/Mood corpus/period charts) is **shipped** — not a new wave track.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 

@@ -24,9 +24,7 @@ WEIGHTING_POLICY = "count_over_max_v1"
 STEM_LEMMA_POLICY = "none"
 STOPWORDS_ID = "wordclouds_stopwords_v1"
 
-_STOPWORDS_PATH = (
-    Path(__file__).resolve().parents[1] / "data" / "wordclouds_stopwords_v1.json"
-)
+_STOPWORDS_PATH = Path(__file__).resolve().parents[1] / "data" / "wordclouds_stopwords_v1.json"
 _STOPWORDS_CACHE: set[str] | None = None
 _STOPWORDS_DIGEST: str | None = None
 
@@ -38,9 +36,7 @@ def _load_stopwords() -> tuple[set[str], str]:
     payload = json.loads(_STOPWORDS_PATH.read_text(encoding="utf-8"))
     words = [str(w).casefold() for w in payload["words"]]
     digest = hashlib.sha256(
-        json.dumps(sorted(words), separators=(",", ":"), ensure_ascii=False).encode(
-            "utf-8"
-        )
+        json.dumps(sorted(words), separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
     _STOPWORDS_CACHE = set(words)
     _STOPWORDS_DIGEST = digest
@@ -148,7 +144,12 @@ class WordcloudsModule:
                 ],
                 "partial": False,
             }
-        return {"outcome": "success", "payload": payload, "warnings": [], "partial": False}
+        return {
+            "outcome": "success",
+            "payload": payload,
+            "warnings": [],
+            "partial": False,
+        }
 
 
 def provenance_files() -> list[dict[str, str]]:

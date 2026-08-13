@@ -89,11 +89,11 @@ def progress_to_snapshot(progress: AnalysisProgress) -> dict[str, Any]:
         "total": total,
         "pct": pct,
         "latest_event": progress.message or "",
-        "recent_logs": list(
-            st.session_state.get(SNAPSHOT_KEY, {}).get("recent_logs") or []
-        )
-        if isinstance(st.session_state.get(SNAPSHOT_KEY), dict)
-        else [],
+        "recent_logs": (
+            list(st.session_state.get(SNAPSHOT_KEY, {}).get("recent_logs") or [])
+            if isinstance(st.session_state.get(SNAPSHOT_KEY), dict)
+            else []
+        ),
         "error": progress.error,
     }
 
@@ -272,9 +272,7 @@ def _start_coordinator_run(
         plan = AnalysisRunPlan.from_dict(plan_raw)
         expected = str(pending.get("plan_hash") or plan.plan_hash or "")
         if not expected or plan.plan_hash != expected or not verify_plan_hash(plan):
-            raise PlanHashMismatchError(
-                "pending plan_hash does not match the frozen analysis plan"
-            )
+            raise PlanHashMismatchError("pending plan_hash does not match the frozen analysis plan")
         run_id = coord.start(plan)
         st.session_state[_ACTIVE_RUN_ID_KEY] = run_id
         pending["started"] = True
@@ -344,9 +342,7 @@ def _render_config_and_launch(
 
     if preset == "custom":
         if _CUSTOM_WIDGET_KEY not in st.session_state:
-            st.session_state[_CUSTOM_WIDGET_KEY] = [
-                m for m in stored_custom if m in suitable
-            ]
+            st.session_state[_CUSTOM_WIDGET_KEY] = [m for m in stored_custom if m in suitable]
         selected = st.multiselect(
             "Select modules",
             options=suitable,
@@ -468,9 +464,7 @@ def _render_config_and_launch(
             else "LLM unavailable (modules will report unavailable_model)"
         )
         version_bit = (
-            f" · preset v{resolved.content_version}"
-            if resolved.preset != "custom"
-            else " · custom"
+            f" · preset v{resolved.content_version}" if resolved.preset != "custom" else " · custom"
         )
         st.session_state[_PENDING_LAUNCH_KEY] = {
             "modules": list(frozen.module_ids),
@@ -505,9 +499,7 @@ def render_run_analysis_form(
     if coord is None:
         from transcribe.analysis.coordinator import AnalysisCoordinator
 
-        coord = AnalysisCoordinator(
-            projects, clock=SystemClock(), ids=UuidGenerator()
-        )
+        coord = AnalysisCoordinator(projects, clock=SystemClock(), ids=UuidGenerator())
 
     running = analysis_run_in_progress(coord)
 

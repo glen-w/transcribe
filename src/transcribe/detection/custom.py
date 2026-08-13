@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,7 +61,9 @@ def load_custom_detectors() -> list[DetectorDefinition]:
     return out
 
 
-def compile_custom_detector(payload: dict[str, Any] | CustomDetectorDefinition) -> DetectorDefinition | None:
+def compile_custom_detector(
+    payload: dict[str, Any] | CustomDetectorDefinition,
+) -> DetectorDefinition | None:
     if isinstance(payload, CustomDetectorDefinition):
         custom = payload
     else:
@@ -86,11 +87,7 @@ def compile_custom_detector(payload: dict[str, Any] | CustomDetectorDefinition) 
         model_mode = ModelMode(custom.model_mode)
     except ValueError:
         model_mode = ModelMode.AUTO
-    prompt_id = (
-        "custom_detect_vision_v1"
-        if model_mode == ModelMode.VISION
-        else "custom_detect_v1"
-    )
+    prompt_id = "custom_detect_vision_v1" if model_mode == ModelMode.VISION else "custom_detect_v1"
     version = "1"
     if isinstance(payload, dict) and payload.get("version"):
         version = str(payload["version"])

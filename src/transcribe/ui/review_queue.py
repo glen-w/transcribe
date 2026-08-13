@@ -20,9 +20,7 @@ REVIEW_FILTER_LABELS: dict[ReviewFilter, str] = {
 def unapproved_date_page_ids(project: Project) -> list[str]:
     """Pages with a suggested date that is not yet human-approved."""
     return [
-        page.page_id
-        for page in project.pages
-        if page.date is not None and not page.date_approved
+        page.page_id for page in project.pages if page.date is not None and not page.date_approved
     ]
 
 

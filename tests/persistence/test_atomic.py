@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from transcribe.persistence.atomic import read_json, write_bytes_atomic, write_json_atomic
+from transcribe.persistence.atomic import (
+    read_json,
+    write_bytes_atomic,
+    write_json_atomic,
+)
 
 
 def test_atomic_json_roundtrip(tmp_path: Path):

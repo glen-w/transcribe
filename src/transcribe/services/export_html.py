@@ -27,12 +27,10 @@ def build_html(document: ExportDocument, options: ExportOptions) -> str:
     parts_html: list[str] = []
     rev = document.stamp_revision
     if options.title_page:
-        parts_html.append(f"<header class=\"title-page\">")
+        parts_html.append('<header class="title-page">')
         parts_html.append(f"<h1>{html.escape(document.title)}</h1>")
         if document.is_bundle:
-            parts_html.append(
-                f'<p class="meta">{len(document.parts)} notebooks</p>'
-            )
+            parts_html.append(f'<p class="meta">{len(document.parts)} notebooks</p>')
         parts_html.append(
             f'<p class="revision">transcribe.content_revision: {html.escape(rev)}</p>'
         )
@@ -43,14 +41,10 @@ def build_html(document: ExportDocument, options: ExportOptions) -> str:
             parts_html.append('<section class="part-title-page">')
             parts_html.append(f"<h2>{html.escape(part.title)}</h2>")
             if part.date_start_label or part.date_end_label:
-                span = " – ".join(
-                    x for x in (part.date_start_label, part.date_end_label) if x
-                )
+                span = " – ".join(x for x in (part.date_start_label, part.date_end_label) if x)
                 parts_html.append(f'<p class="meta">{html.escape(span)}</p>')
             if document.is_bundle:
-                parts_html.append(
-                    f'<p class="revision">{html.escape(part.content_revision)}</p>'
-                )
+                parts_html.append(f'<p class="revision">{html.escape(part.content_revision)}</p>')
             parts_html.append("</section>")
 
         for section in part.sections:

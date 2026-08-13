@@ -8,9 +8,7 @@ from transcribe.ui.activity_selection import selected_bin_label
 
 
 def test_selected_bin_label_from_altair_event() -> None:
-    event = SimpleNamespace(
-        selection={"bin_select": [{"label": "2024-03", "pages": 4}]}
-    )
+    event = SimpleNamespace(selection={"bin_select": [{"label": "2024-03", "pages": 4}]})
     assert selected_bin_label(event) == "2024-03"
 
 

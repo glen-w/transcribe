@@ -21,9 +21,7 @@ def _project_with_pages(tmp_path: Path, n: int = 2):
     project = projects.create("t")
     ingest = IngestService(paths, clock=clock, ids=ids)
     for i in range(n):
-        project = ingest.import_bytes(
-            f"p{i}.png", _png_bytes(color=(i * 10, 20, 30))
-        )
+        project = ingest.import_bytes(f"p{i}.png", _png_bytes(color=(i * 10, 20, 30)))
     settings = project.settings
     settings.model_name = "fake-vision"
     project = projects.save_settings(project, settings)

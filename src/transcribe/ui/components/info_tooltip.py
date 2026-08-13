@@ -67,12 +67,8 @@ def build_info_tooltip_html(
     tip_id = html.escape(control_id, quote=True)
     aria = html.escape(aria_label, quote=True)
     test = html.escape(test_id, quote=True)
-    wrap_cls = html.escape(
-        f"tx-run-id-info {wrap_extra_class}".strip(), quote=True
-    )
-    tip_cls = html.escape(
-        f"tx-run-id-info-tip {tip_extra_class}".strip(), quote=True
-    )
+    wrap_cls = html.escape(f"tx-run-id-info {wrap_extra_class}".strip(), quote=True)
+    tip_cls = html.escape(f"tx-run-id-info-tip {tip_extra_class}".strip(), quote=True)
     return (
         f'<span class="{wrap_cls}" data-testid="{test}">'
         f'<button type="button" class="tx-run-id-info-btn" tabindex="0" '

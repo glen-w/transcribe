@@ -194,11 +194,7 @@ def validate_cleanup_candidate(
     else:
         if budget.max_abs_delta is not None and abs(delta) > budget.max_abs_delta:
             return _res("abs_ceiling_exceeded")
-        if (
-            budget.mode_ratio is not None
-            and ratio is not None
-            and ratio > budget.mode_ratio
-        ):
+        if budget.mode_ratio is not None and ratio is not None and ratio > budget.mode_ratio:
             return _res("ratio_exceeded")
 
     recall, precision = token_coverage(src, cand)

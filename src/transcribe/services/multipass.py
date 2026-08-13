@@ -110,22 +110,14 @@ class MultiPassCoordinator:
             raise TranscribeError("multipass requires at least two vision models")
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
-                raise JobConflictError(
-                    "a transcription job is already running in this process"
-                )
+                raise JobConflictError("a transcription job is already running in this process")
             if self.jobs.is_running():
-                raise JobConflictError(
-                    "a transcription job is already running in this process"
-                )
+                raise JobConflictError("a transcription job is already running in this process")
             if not self._job_lock.try_acquire():
-                raise JobConflictError(
-                    "another process holds the OCR job lock for this project"
-                )
+                raise JobConflictError("another process holds the OCR job lock for this project")
             self._cancel.clear()
             pass_id = self.ids.new_id()
-            progress = MultiPassProgress(
-                pass_id=pass_id, status="running", message="Starting…"
-            )
+            progress = MultiPassProgress(pass_id=pass_id, status="running", message="Starting…")
             self._progress = progress
 
             def runner() -> None:
@@ -165,9 +157,7 @@ class MultiPassCoordinator:
             raise TranscribeError("multipass requires at least two vision models")
         self._cancel.clear()
         if not self._job_lock.try_acquire():
-            raise JobConflictError(
-                "another process holds the OCR job lock for this project"
-            )
+            raise JobConflictError("another process holds the OCR job lock for this project")
         try:
             return self._run(
                 models=models,
@@ -203,17 +193,13 @@ class MultiPassCoordinator:
         cleanup_enabled = bool(payload.get("cleanup_enabled", False))
         self._cancel.clear()
         if not self._job_lock.try_acquire():
-            raise JobConflictError(
-                "another process holds the OCR job lock for this project"
-            )
+            raise JobConflictError("another process holds the OCR job lock for this project")
         try:
             return self._run(
                 models=models,
                 page_ids=page_ids,
                 force=bool(payload.get("force")),
-                auto_activate_composite=bool(
-                    payload.get("auto_activate_composite", True)
-                ),
+                auto_activate_composite=bool(payload.get("auto_activate_composite", True)),
                 on_progress=on_progress,
                 pass_id=pass_id,
                 start_model_index=start_idx if phase == "vision" else len(models),
@@ -286,8 +272,7 @@ class MultiPassCoordinator:
             else bool(auto_activate_composite)
         )
         ranker = (ranker_override or "").strip() or (
-            (settings.cleanup_model_name or "").strip()
-            or (settings.text_model_name or "").strip()
+            (settings.cleanup_model_name or "").strip() or (settings.text_model_name or "").strip()
         )
         if not ranker:
             raise TranscribeError(
@@ -333,10 +318,7 @@ class MultiPassCoordinator:
             for idx, model_name in enumerate(models):
                 if idx < start_model_index:
                     continue
-                if (
-                    self._cancel.is_set()
-                    or self.jobs.get_progress().status == "cancelled"
-                ):
+                if self._cancel.is_set() or self.jobs.get_progress().status == "cancelled":
                     cancelled = True
                     break
                 self._emit(
@@ -376,9 +358,7 @@ class MultiPassCoordinator:
             for page_id in targets:
                 existing = self.projects.load_page_result(page_id)
                 has_comparison = bool(
-                    existing
-                    and existing.comparison
-                    and existing.comparison.pass_id == plan.pass_id
+                    existing and existing.comparison and existing.comparison.pass_id == plan.pass_id
                 )
                 has_composite = bool(
                     existing
@@ -389,9 +369,7 @@ class MultiPassCoordinator:
                         for a in existing.attempts
                     )
                 )
-                if has_comparison and (
-                    has_composite or not plan.auto_activate_composite
-                ):
+                if has_comparison and (has_composite or not plan.auto_activate_composite):
                     if has_comparison:
                         progress.pages_ranked += 1
                     if has_composite:
@@ -411,9 +389,7 @@ class MultiPassCoordinator:
                 )
                 self._persist(plan, progress, terminal=False)
 
-            terminal_status = (
-                "cancelled" if cancelled or self._cancel.is_set() else "completed"
-            )
+            terminal_status = "cancelled" if cancelled or self._cancel.is_set() else "completed"
             terminal_message = (
                 f"Stopped — ranked {progress.pages_ranked}, "
                 f"composite {progress.pages_composite}"
@@ -538,9 +514,7 @@ class MultiPassCoordinator:
             if page and composite_attempt.provenance:
                 composite_attempt.provenance.render_id = page.active_render_id
             activate = bool(plan.auto_activate_composite)
-            self.projects.record_generation(
-                page_id, composite_attempt, activate=activate
-            )
+            self.projects.record_generation(page_id, composite_attempt, activate=activate)
             progress.pages_composite += 1
             if activate:
                 if plan.prefer_mode == "prefer_is_promote":
@@ -571,9 +545,9 @@ class MultiPassCoordinator:
                 if rank.comparison and rank.comparison.ranked_attempt_ids:
                     best_id = rank.comparison.ranked_attempt_ids[0]
                 elif pass_attempts:
-                    best_id = sorted(
-                        pass_attempts, key=lambda a: a.started_at, reverse=True
-                    )[0].attempt_id
+                    best_id = sorted(pass_attempts, key=lambda a: a.started_at, reverse=True)[
+                        0
+                    ].attempt_id
                 if best_id:
                     self.projects.set_active_attempt(page_id, best_id)
 

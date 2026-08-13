@@ -12,7 +12,10 @@ from pathlib import Path
 
 import streamlit as st
 
-from transcribe.analysis.coordinator import AnalysisCoordinator, build_analysis_coordinator
+from transcribe.analysis.coordinator import (
+    AnalysisCoordinator,
+    build_analysis_coordinator,
+)
 from transcribe.corpus.paths import CorpusPaths
 from transcribe.errors import TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
@@ -125,12 +128,13 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
     ):
-        from transcribe.ui.action_menus.nav import chronological_page_ids, viewer_page_ids
+        from transcribe.ui.action_menus.nav import (
+            chronological_page_ids,
+            viewer_page_ids,
+        )
 
         page_ids = st.session_state.get("view_page_ids") or (
-            chronological_page_ids(project)
-            if section == "Reading"
-            else viewer_page_ids(project)
+            chronological_page_ids(project) if section == "Reading" else viewer_page_ids(project)
         )
         render_page_viewer(
             paths=paths,
@@ -148,7 +152,6 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     if section == "Analyse":
         _render_analyse_this_notebook(runtime, paths, projects, project)
         return
-
     st.caption(f"Project: `{paths.root}`")
 
     if section == "Export":
@@ -343,9 +346,7 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     default_id = st.session_state.get("view_page_id") or page_ids[0]
     if default_id not in page_ids:
         default_id = page_ids[0]
-    view_entries = [
-        {"page_id": pid, "project_root": str(paths.root)} for pid in page_ids
-    ]
+    view_entries = [{"page_id": pid, "project_root": str(paths.root)} for pid in page_ids]
     st.session_state["view_page_id"] = default_id
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
@@ -391,17 +392,13 @@ def _render_reading_mode(paths, projects, project) -> None:
         selected = st.selectbox(
             "Jump by date",
             choices,
-            format_func=lambda pid: (
-                "— Jump by date —" if pid == choices[0] else jump_labels[pid]
-            ),
+            format_func=lambda pid: ("— Jump by date —" if pid == choices[0] else jump_labels[pid]),
             key="reading_jump_by_date",
         )
         if selected != choices[0] and selected in page_ids:
             default_id = selected
 
-    view_entries = [
-        {"page_id": pid, "project_root": root_key} for pid in page_ids
-    ]
+    view_entries = [{"page_id": pid, "project_root": root_key} for pid in page_ids]
     st.session_state["view_page_id"] = default_id
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
@@ -561,6 +558,7 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         )
 
     with tab_moments:
+
         def _jump_to_page(page_id: str) -> None:
             from transcribe.ui.action_menus.nav import viewer_page_ids
             from transcribe.ui.page_viewer import open_page_context
@@ -608,9 +606,7 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         if rm.get("envelope"):
             st.divider()
             if rm.get("status") == "stale":
-                st.caption(
-                    "Last Ask answer is out of date — ask again to refresh."
-                )
+                st.caption("Last Ask answer is out of date — ask again to refresh.")
             else:
                 st.caption("Last Ask answer")
                 payload = (rm["envelope"] or {}).get("payload") or {}
@@ -618,7 +614,6 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
                     st.markdown(payload["answer"])
                 with st.expander("Advanced · last Ask"):
                     st.json(payload)
-
 
 
 _PAGE_SHELL: dict[str, tuple[str, str]] = {

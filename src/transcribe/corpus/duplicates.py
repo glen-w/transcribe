@@ -47,9 +47,7 @@ class DuplicateClassification:
         return payload
 
 
-def should_skip_for_policy(
-    classification: DuplicateClassification, import_policy_id: str
-) -> bool:
+def should_skip_for_policy(classification: DuplicateClassification, import_policy_id: str) -> bool:
     if import_policy_id == POLICY_SKIP_EXISTING_V1:
         return classification.should_skip_existing
     if import_policy_id == POLICY_CREATE_DUPLICATE_V1:

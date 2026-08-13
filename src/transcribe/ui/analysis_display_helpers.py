@@ -69,7 +69,9 @@ def topic_weight_rows(payload: dict[str, Any], *, limit: int = 8) -> list[dict[s
         label = str(t.get("label") or t.get("topic_id") or "topic")
         terms = [str(x) for x in (t.get("terms") or t.get("words") or []) if x][:6]
         try:
-            weight = float(t.get("weight") if t.get("weight") is not None else len(t.get("unit_ids") or []))
+            weight = float(
+                t.get("weight") if t.get("weight") is not None else len(t.get("unit_ids") or [])
+            )
         except (TypeError, ValueError):
             weight = 0.0
         rows.append({"label": label, "terms": terms, "weight": weight})

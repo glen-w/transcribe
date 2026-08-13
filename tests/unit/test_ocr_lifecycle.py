@@ -121,9 +121,7 @@ def test_prefer_edit_gate_requires_choice(tmp_path: Path) -> None:
     projects.save_user_edit(page_id, "human edit")
     projects.record_generation(page_id, a2, activate=True)
     with pytest.raises(ProjectError, match="edit_gate_choice"):
-        projects.set_preferred_attempt(
-            page_id, "a1", mode="prefer_promote_with_edit_gate"
-        )
+        projects.set_preferred_attempt(page_id, "a1", mode="prefer_promote_with_edit_gate")
     result = projects.set_preferred_attempt(
         page_id,
         "a1",

@@ -81,10 +81,7 @@ class KeyphrasesModule:
             idf = math.log((n_docs + 1) / (df[phrase] + 1)) + 1.0
             scored.append((count * idf, phrase))
         scored.sort(key=lambda row: (-row[0], row[1]))
-        phrases = [
-            {"phrase": phrase, "score": round(score, 6)}
-            for score, phrase in scored[:top_n]
-        ]
+        phrases = [{"phrase": phrase, "score": round(score, 6)} for score, phrase in scored[:top_n]]
         return {
             "outcome": "success",
             "payload": {

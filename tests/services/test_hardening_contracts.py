@@ -81,7 +81,11 @@ def test_export_formats_share_snapshot(tmp_path: Path):
     settings.model_name = "fake-vision"
     projects.save_settings(project, settings)
     JobCoordinator(
-        paths, projects, FakeVisionOCRProvider(default_text="snap-text"), clock=clock, ids=ids
+        paths,
+        projects,
+        FakeVisionOCRProvider(default_text="snap-text"),
+        clock=clock,
+        ids=ids,
     ).run_blocking()
     export = ExportService(paths, projects)
     snap = export.capture_snapshot()

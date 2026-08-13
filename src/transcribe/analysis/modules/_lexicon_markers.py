@@ -44,11 +44,7 @@ class MarkerHit:
 
 
 def tokenize(text: str) -> list[str]:
-    return [
-        m.group(0).casefold()
-        for m in _TOKEN_RE.finditer(text or "")
-        if len(m.group(0)) >= 2
-    ]
+    return [m.group(0).casefold() for m in _TOKEN_RE.finditer(text or "") if len(m.group(0)) >= 2]
 
 
 def count_tokens(text: str) -> int:
@@ -89,9 +85,7 @@ def iter_phrases(
     lexicon: Mapping[str, Sequence[MarkerPhrase]],
     enabled_categories: Iterable[str] | None = None,
 ) -> list[MarkerPhrase]:
-    enabled = (
-        None if enabled_categories is None else {str(c) for c in enabled_categories}
-    )
+    enabled = None if enabled_categories is None else {str(c) for c in enabled_categories}
     phrases: list[MarkerPhrase] = []
     for category, items in lexicon.items():
         if enabled is not None and category not in enabled:
@@ -176,9 +170,7 @@ def stats_for_scope(
         "token_count": int(token_count),
         "total_marker_hits": int(total_hits),
         "category_counts": {c: int(category_counts.get(c, 0)) for c in categories},
-        "hits_per_100_tokens": (
-            (total_hits * 100.0 / token_count) if can_rate else None
-        ),
+        "hits_per_100_tokens": ((total_hits * 100.0 / token_count) if can_rate else None),
         "category_rates_per_100_tokens": rates,
     }
 

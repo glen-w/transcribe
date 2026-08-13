@@ -42,7 +42,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Human edits preserved separately from raw OCR attempts
 - Portable export without required absolute paths
 - Core notebook analysis modules and Analyse (optional local text Ollama for LLM modules)
-- Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability, daily workbench ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
+- Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability (**U2** open), daily workbench (**U3** done); OCR fail-fast and Analyse corpus-compare / Moments jump are shipped deepen-in-place ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
 
 **Out of scope for current core**
 

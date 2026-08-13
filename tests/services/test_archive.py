@@ -560,10 +560,7 @@ def test_project_tags_are_or(tmp_path: Path):
 
 def test_search_pagination(tmp_path: Path):
     runtime = _runtime(tmp_path)
-    specs = [
-        {"date": ApproximateDate(2020, 1, i + 1), "text": f"page token {i}"}
-        for i in range(5)
-    ]
+    specs = [{"date": ApproximateDate(2020, 1, i + 1), "text": f"page token {i}"} for i in range(5)]
     _make_notebook(runtime, "pages", title="Pages", page_specs=specs)
     archive = ArchiveService(runtime)
     page1 = archive.search("token", limit=2, offset=0)

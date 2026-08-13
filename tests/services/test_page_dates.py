@@ -303,7 +303,11 @@ def test_ocr_success_despite_suggestion_failure(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr(projects, "suggest_page_date", boom)
     coord = JobCoordinator(
-        paths, projects, FakeVisionOCRProvider(default_text="260523 hi"), clock=clock, ids=ids
+        paths,
+        projects,
+        FakeVisionOCRProvider(default_text="260523 hi"),
+        clock=clock,
+        ids=ids,
     )
     coord.run_blocking()
     progress = coord.get_progress()
@@ -363,9 +367,7 @@ def test_export_always_emits_date_triple(tmp_path: Path):
     projects.suggest_page_date(pages[3].page_id)
 
     notebook = ExportService(paths, projects).build_notebook(projects.load(reconcile=False))
-    triples = [
-        (p["date"], p["date_approved"], p["date_source"]) for p in notebook["pages"]
-    ]
+    triples = [(p["date"], p["date_approved"], p["date_source"]) for p in notebook["pages"]]
     assert triples[0] == (None, True, None)
     assert triples[1] == ({"y": 2020, "m": 1, "d": 2}, True, None)
     assert triples[2] == ({"y": 2026, "m": 5, "d": 23}, False, "extracted")

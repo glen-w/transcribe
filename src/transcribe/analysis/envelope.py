@@ -18,9 +18,7 @@ OUTCOMES = frozenset(
         "failed",
     }
 )
-ATTEMPT_STATES = frozenset(
-    {"running", "succeeded", "failed", "cancelled", "interrupted"}
-)
+ATTEMPT_STATES = frozenset({"running", "succeeded", "failed", "cancelled", "interrupted"})
 CACHEABLE_OUTCOMES = frozenset(
     {
         "success",
@@ -98,8 +96,7 @@ def filter_live_evidence(
     return [
         e
         for e in evidence
-        if isinstance(e, dict)
-        and e.get("content_fingerprint") == current_content_fingerprint
+        if isinstance(e, dict) and e.get("content_fingerprint") == current_content_fingerprint
     ]
 
 
@@ -140,9 +137,7 @@ def build_envelope(
         "content_fingerprint": content_fingerprint,
         "attempt_state": attempt_state,
         "outcome": outcome,
-        "capability": derive_capability(
-            outcome=outcome, partial=partial, reason=capability_reason
-        ),
+        "capability": derive_capability(outcome=outcome, partial=partial, reason=capability_reason),
         "provenance": {
             **provenance,
             "module_version": module_version,

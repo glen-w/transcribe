@@ -32,7 +32,9 @@ def provenance_files() -> list[dict[str, str]]:
     return []
 
 
-def _soft_maps(parents: dict[str, Any]) -> tuple[dict[str, float], dict[str, float], set[str], list[str]]:
+def _soft_maps(
+    parents: dict[str, Any],
+) -> tuple[dict[str, float], dict[str, float], set[str], list[str]]:
     emo_by: dict[str, float] = {}
     sent_by: dict[str, float] = {}
     shift_boundary: set[str] = set()
@@ -89,7 +91,10 @@ class MomentsModule:
                 "outcome": "insufficient_data",
                 "payload": {},
                 "warnings": [
-                    {"code": "empty_document", "message": "No units / empty document text"}
+                    {
+                        "code": "empty_document",
+                        "message": "No units / empty document text",
+                    }
                 ],
             }
 
@@ -107,9 +112,7 @@ class MomentsModule:
         for unit, toks in unit_tokens:
             length_score = min(1.0, len(toks) / 40.0)
             if toks:
-                idf_mean = sum(math.log((n_docs + 1) / (df[t] + 1)) + 1.0 for t in toks) / len(
-                    toks
-                )
+                idf_mean = sum(math.log((n_docs + 1) / (df[t] + 1)) + 1.0 for t in toks) / len(toks)
                 info_score = min(1.0, idf_mean / 3.0)
             else:
                 info_score = 0.0
@@ -117,11 +120,7 @@ class MomentsModule:
             sent = sent_by.get(unit.unit_id, 0.0)
             shift = 1.0 if unit.unit_id in shift_boundary else 0.0
             score = round(
-                0.35 * length_score
-                + 0.25 * info_score
-                + 0.20 * emo
-                + 0.15 * sent
-                + 0.05 * shift,
+                0.35 * length_score + 0.25 * info_score + 0.20 * emo + 0.15 * sent + 0.05 * shift,
                 6,
             )
             quote = unit.text.strip()

@@ -50,9 +50,7 @@ def validate_project_root(
     try:
         candidate.relative_to(projects)
     except ValueError as exc:
-        raise ProjectRootError(
-            f"project root escapes projects directory: {candidate}"
-        ) from exc
+        raise ProjectRootError(f"project root escapes projects directory: {candidate}") from exc
 
     if candidate == projects:
         raise ProjectRootError("project root must be a notebook directory, not projects root")
@@ -79,11 +77,7 @@ def viewer_page_ids(
     page_ids = [p.page_id for p in project.pages]
     if not page_ids:
         return []
-    cover = (
-        preferred_cover_id
-        if preferred_cover_id is not None
-        else project.cover_page_id
-    )
+    cover = preferred_cover_id if preferred_cover_id is not None else project.cover_page_id
     if cover and cover in page_ids and page_ids[0] != cover:
         return [cover] + [pid for pid in page_ids if pid != cover]
     return page_ids
@@ -264,9 +258,7 @@ def navigate_open(
     state["pending_notebook_root"] = str(root)
     state["view_page_id"] = page_id
     state["view_page_ids"] = page_ids
-    state["view_entries"] = [
-        {"page_id": pid, "project_root": str(root)} for pid in page_ids
-    ]
+    state["view_entries"] = [{"page_id": pid, "project_root": str(root)} for pid in page_ids]
     state["show_page_viewer"] = True
     state["page_return_mode"] = return_mode
     state["ui_mode"] = return_mode

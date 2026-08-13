@@ -14,11 +14,20 @@ import pymupdf
 from PIL import Image, ImageOps
 
 from transcribe.domain.fingerprint import sha256_bytes
-from transcribe.domain.models import PageIndex, Project, RenderProvenance, SourceDocument
+from transcribe.domain.models import (
+    PageIndex,
+    Project,
+    RenderProvenance,
+    SourceDocument,
+)
 from transcribe.domain.validation import validate_project
 from transcribe.errors import IngestError, ProjectError, ValidationError
 from transcribe.paths import ProjectPaths
-from transcribe.persistence.atomic import read_json, write_bytes_atomic, write_json_atomic
+from transcribe.persistence.atomic import (
+    read_json,
+    write_bytes_atomic,
+    write_json_atomic,
+)
 from transcribe.persistence.locks import mutation_lock
 from transcribe.persistence.quarantine import quarantine_path
 from transcribe.persistence.schema import require_format
@@ -52,9 +61,7 @@ def is_cover_filename(name: str) -> bool:
     return Path(name).name.casefold() in _COVER_FILENAMES
 
 
-def _journal_promoted_pixels_coherent(
-    paths: ProjectPaths, journal: dict[str, Any]
-) -> bool:
+def _journal_promoted_pixels_coherent(paths: ProjectPaths, journal: dict[str, Any]) -> bool:
     """True when every journal page final PNG exists and SHA matches ``png_sha``."""
     source = journal.get("source") or {}
     final_source_rel = source.get("final_rel")
@@ -140,6 +147,7 @@ def _apply_visual_declutter(
         result.provenance_dict(),
     )
 
+
 @dataclass
 class _AttemptCreated:
     paths: list[Path]
@@ -185,9 +193,7 @@ def _detect_media(data: bytes, filename: str) -> str:
     except IngestError:
         raise
     except Exception as exc:
-        raise IngestError(
-            f"could not decode '{filename}' as JPEG/PNG/PDF: {exc}"
-        ) from exc
+        raise IngestError(f"could not decode '{filename}' as JPEG/PNG/PDF: {exc}") from exc
 
 
 def _load_image_bytes(data: bytes) -> tuple[bytes, int, int, str]:
@@ -203,9 +209,7 @@ def _load_image_bytes(data: bytes) -> tuple[bytes, int, int, str]:
     if width < 1 or height < 1:
         raise IngestError("invalid image dimensions")
     if width > MAX_DIMENSION or height > MAX_DIMENSION:
-        raise IngestError(
-            f"image dimensions {width}x{height} exceed maximum {MAX_DIMENSION}"
-        )
+        raise IngestError(f"image dimensions {width}x{height} exceed maximum {MAX_DIMENSION}")
     if width * height > MAX_IMAGE_PIXELS:
         raise IngestError("image exceeds maximum pixel limits")
     if image.mode not in ("RGB", "RGBA", "L"):
@@ -221,9 +225,7 @@ def _render_pdf_page(doc: pymupdf.Document, page_index: int, dpi: int) -> tuple[
     zoom = dpi / 72.0
     pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
     if pix.width > MAX_DIMENSION or pix.height > MAX_DIMENSION:
-        raise IngestError(
-            f"rendered page {page_index} dimensions exceed maximum {MAX_DIMENSION}"
-        )
+        raise IngestError(f"rendered page {page_index} dimensions exceed maximum {MAX_DIMENSION}")
     if pix.width * pix.height > MAX_IMAGE_PIXELS:
         raise IngestError(f"rendered page {page_index} exceeds maximum pixel limits")
     return pix.tobytes("png"), pix.width, pix.height
@@ -288,9 +290,7 @@ class IngestService:
         visual_declutter_enabled: bool | None = None,
     ) -> Project:
         if len(data) > MAX_SOURCE_BYTES:
-            raise IngestError(
-                f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes"
-            )
+            raise IngestError(f"source exceeds maximum size of {MAX_SOURCE_BYTES} bytes")
         dpi = render_dpi or self.default_dpi
         if dpi < 72 or dpi > 600:
             raise IngestError("render_dpi must be between 72 and 600")
@@ -300,9 +300,7 @@ class IngestService:
             else bool(visual_declutter_enabled)
         )
 
-        self.recover_incomplete_ingest(
-            visual_declutter_enabled=declutter_on
-        )
+        self.recover_incomplete_ingest(visual_declutter_enabled=declutter_on)
         _ensure_disk_budget(self.paths.root, additional=len(data))
 
         media = _detect_media(data, filename)
@@ -373,8 +371,7 @@ class IngestService:
                         rendered_budget += len(png)
                         if rendered_budget > MAX_RENDERED_BYTES:
                             raise IngestError(
-                                f"rendered output exceeds maximum of "
-                                f"{MAX_RENDERED_BYTES} bytes"
+                                f"rendered output exceeds maximum of " f"{MAX_RENDERED_BYTES} bytes"
                             )
                         _ensure_disk_budget(self.paths.root, additional=len(png))
                         page_id = self.ids.new_id()
@@ -409,9 +406,7 @@ class IngestService:
 
             page_entries: list[dict[str, Any]] = []
             for sp in staged_pages:
-                final_png = self.paths.page_render_path(
-                    source_id, sp.page_index, sp.render_id
-                )
+                final_png = self.paths.page_render_path(source_id, sp.page_index, sp.render_id)
                 entry: dict[str, Any] = {
                     "page_id": sp.page_id,
                     "page_index": sp.page_index,
@@ -423,9 +418,7 @@ class IngestService:
                     "staged_rel": self.paths.relativize(sp.staged_path),
                     "final_rel": self.paths.relativize(final_png),
                     "renderer": "pymupdf" if is_pdf else "pillow",
-                    "renderer_version": (
-                        str(renderer_version) if is_pdf else str(pillow_version)
-                    ),
+                    "renderer_version": (str(renderer_version) if is_pdf else str(pillow_version)),
                     "source_sha256": source_sha,
                     "render_dpi": dpi,
                 }
@@ -470,9 +463,7 @@ class IngestService:
                 journal["state"] = "manifest_pending"
                 write_json_atomic(self.paths.ingest_journal, journal)
 
-                payload = require_format(
-                    read_json(self.paths.manifest), "transcribe.project"
-                )
+                payload = require_format(read_json(self.paths.manifest), "transcribe.project")
                 project = Project.from_dict(payload)
                 validate_project(project)
 
@@ -533,9 +524,7 @@ class IngestService:
                         pass
             raise
 
-    def recover_incomplete_ingest(
-        self, *, visual_declutter_enabled: bool | None = None
-    ) -> None:
+    def recover_incomplete_ingest(self, *, visual_declutter_enabled: bool | None = None) -> None:
         """Roll back or finish a crash-interrupted ingest using the durable journal.
 
         Incomplete staged/promoting attempts are rolled back. Journals whose frozen
@@ -581,9 +570,7 @@ class IngestService:
             project: Project | None = None
             if self.paths.manifest.exists():
                 try:
-                    payload = require_format(
-                        read_json(self.paths.manifest), "transcribe.project"
-                    )
+                    payload = require_format(read_json(self.paths.manifest), "transcribe.project")
                     project = Project.from_dict(payload)
                 except (
                     OSError,
@@ -596,9 +583,7 @@ class IngestService:
                     project = None
 
             already_committed = bool(
-                project
-                and source_id
-                and any(s.source_id == source_id for s in project.sources)
+                project and source_id and any(s.source_id == source_id for s in project.sources)
             )
 
             if (
@@ -647,9 +632,7 @@ class IngestService:
             except OSError:
                 pass
 
-    def _apply_journal_to_project(
-        self, project: Project, journal: dict[str, Any]
-    ) -> None:
+    def _apply_journal_to_project(self, project: Project, journal: dict[str, Any]) -> None:
         source = journal["source"]
         source_id = source["source_id"]
         if any(s.source_id == source_id for s in project.sources):

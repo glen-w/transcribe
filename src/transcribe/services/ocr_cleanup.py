@@ -78,13 +78,10 @@ def resolve_cleanup_plan_config(
     mode = (settings.cleanup_mode or "").strip()
     if mode not in CLEANUP_MODES:
         raise TranscribeError(
-            f"Invalid cleanup mode {mode!r}; "
-            f"expected one of {sorted(CLEANUP_MODES)}"
+            f"Invalid cleanup mode {mode!r}; " f"expected one of {sorted(CLEANUP_MODES)}"
         )
 
-    model = (settings.cleanup_model_name or "").strip() or (
-        settings.text_model_name or ""
-    ).strip()
+    model = (settings.cleanup_model_name or "").strip() or (settings.text_model_name or "").strip()
     if not model:
         raise TranscribeError(
             "Cleanup is enabled but no cleanup model or text analysis model is set"
@@ -98,9 +95,7 @@ def resolve_cleanup_plan_config(
             retriable=True,
         )
     if cli.is_unsuitable_model(model):
-        raise TranscribeError(
-            f"Cleanup model {model!r} is unsuitable (vision/embedding)"
-        )
+        raise TranscribeError(f"Cleanup model {model!r} is unsuitable (vision/embedding)")
     resolved = cli.resolve_configured_model(model)
     if not resolved:
         raise ProviderError(
@@ -114,9 +109,7 @@ def resolve_cleanup_plan_config(
             "cleanup requires verified model identity"
         )
 
-    prompt_id, prompt_version, prompt_text = render_cleanup_prompt(
-        mode=mode, ocr_text="{ocr_text}"
-    )
+    prompt_id, prompt_version, prompt_text = render_cleanup_prompt(mode=mode, ocr_text="{ocr_text}")
     return CleanupPlanConfig(
         enabled=True,
         mode=mode,
@@ -150,14 +143,10 @@ def _record(
         model_digest=plan.model_digest or None,
         prompt_id=prompt_id if prompt_id is not None else (plan.prompt_id or None),
         prompt_version=(
-            prompt_version
-            if prompt_version is not None
-            else (plan.prompt_version or None)
+            prompt_version if prompt_version is not None else (plan.prompt_version or None)
         ),
         prompt_sha256=(
-            prompt_sha256
-            if prompt_sha256 is not None
-            else (plan.prompt_template_sha256 or None)
+            prompt_sha256 if prompt_sha256 is not None else (plan.prompt_template_sha256 or None)
         ),
         note=note,
         pre_cleanup_text=pre_cleanup_text,

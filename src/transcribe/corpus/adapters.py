@@ -87,9 +87,7 @@ def _items_from_folder(
     files = _list_importable(root)
     names = [f.name.lower() for f in files]
     if len(names) != len(set(names)):
-        raise ValidationError(
-            f"ordering ambiguity: duplicate filenames in folder {root.name}"
-        )
+        raise ValidationError(f"ordering ambiguity: duplicate filenames in folder {root.name}")
 
     items: list[ImportPlanItem] = []
     nb_id = notebook_id or ids.new_id()
@@ -198,15 +196,11 @@ def _lookup_existing(
     on_disk = corpus_paths.projects_dir / managed_relpath
     if on_disk.is_dir() and (on_disk / "project.json").is_file():
         try:
-            payload = require_format(
-                read_json(on_disk / "project.json"), "transcribe.project"
-            )
+            payload = require_format(read_json(on_disk / "project.json"), "transcribe.project")
             notebook_id = str(payload["id"])
             title = str(payload.get("title") or managed_relpath)
         except Exception as exc:  # noqa: BLE001
-            raise ValidationError(
-                f"unreadable existing notebook at {on_disk}: {exc}"
-            ) from exc
+            raise ValidationError(f"unreadable existing notebook at {on_disk}: {exc}") from exc
         return AlreadyImportedFolder(
             source_folder=Path(),
             managed_relpath=managed_relpath,
@@ -235,9 +229,7 @@ def scan_folder_notebooks(
             continue
         names = [f.name.lower() for f in files]
         if len(names) != len(set(names)):
-            raise ValidationError(
-                f"ordering ambiguity: duplicate filenames in folder {child.name}"
-            )
+            raise ValidationError(f"ordering ambiguity: duplicate filenames in folder {child.name}")
         existing = _lookup_existing(child.name, corpus_paths=corpus_paths)
         if existing is not None:
             existing.source_folder = child
@@ -279,9 +271,7 @@ def plan_from_folders(
                 "all importable child folders were already imported "
                 "(use on_existing=overwrite to replace them)"
             )
-        raise ValidationError(
-            f"no importable child folders under {scan.parent}"
-        )
+        raise ValidationError(f"no importable child folders under {scan.parent}")
 
     items: list[ImportPlanItem] = []
     for child in folders_to_import:

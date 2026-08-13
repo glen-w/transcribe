@@ -259,9 +259,7 @@ class CorpusDoctorService:
         source_id = resulting.get("source_id")
         if source_id is not None:
             sid = str(source_id)
-            known_sources = {
-                str(s.get("source_id") or "") for s in (payload.get("sources") or [])
-            }
+            known_sources = {str(s.get("source_id") or "") for s in (payload.get("sources") or [])}
             if sid not in known_sources:
                 report.add(
                     "error",
@@ -269,9 +267,7 @@ class CorpusDoctorService:
                     f"{prefix}: source_id {sid} not in notebook {notebook_id}",
                 )
 
-        known_pages = {
-            str(p.get("page_id") or "") for p in (payload.get("pages") or [])
-        }
+        known_pages = {str(p.get("page_id") or "") for p in (payload.get("pages") or [])}
         for page_id in resulting.get("page_ids") or []:
             pid = str(page_id)
             if pid not in known_pages:

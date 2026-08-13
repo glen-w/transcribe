@@ -171,10 +171,10 @@ def test_wave1d_batch_and_cache(tmp_path: Path):
 
 def test_cores_no_page_imports():
     from transcribe.analysis.document import (
-    AnalysisDocument,
-    AnalysisUnit,
-    concatenate_document_text,
-)
+        AnalysisDocument,
+        AnalysisUnit,
+        concatenate_document_text,
+    )
 
     units = [
         AnalysisUnit(

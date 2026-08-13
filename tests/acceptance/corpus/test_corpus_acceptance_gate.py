@@ -105,18 +105,14 @@ def test_crash_injection_resume_is_idempotent(tmp_path: Path, boundary: str) -> 
     assert completed.status == "complete"
     assert completed.items[0].state == "committed"
     root = corpus.projects_dir / f"nb-{boundary}"
-    project = ProjectService(
-        open_project_paths(root), clock=clock, ids=ids
-    ).load(reconcile=False)
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(reconcile=False)
     assert [source.source_id for source in project.sources] == [item.source_id]
     assert [page.page_id for page in project.pages] == item.page_ids
     assert set(project.renders) == set(item.render_ids)
 
     retried = orchestrator.commit_run(run.import_run_id)
     assert retried.status == "complete"
-    project = ProjectService(
-        open_project_paths(root), clock=clock, ids=ids
-    ).load(reconcile=False)
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(reconcile=False)
     assert len(project.sources) == 1
     assert CorpusDoctorService(corpus).run(deep=True).ok
     assert boundary in seen
@@ -148,9 +144,7 @@ def test_skip_existing_policy_skips_only_target_duplicate(tmp_path: Path) -> Non
         page_id="bulk-page",
         render_id="bulk-render",
     )
-    orchestrator = ImportOrchestrator(
-        corpus, clock=FakeClock(), ids=SequentialIds("skip")
-    )
+    orchestrator = ImportOrchestrator(corpus, clock=FakeClock(), ids=SequentialIds("skip"))
     run = orchestrator.create_run_from_plan(_plan(item, policy=POLICY_SKIP_EXISTING_V1))
 
     completed = orchestrator.commit_run(run.import_run_id)
@@ -178,9 +172,7 @@ def test_create_duplicate_policy_uses_preallocated_ids(tmp_path: Path) -> None:
         render_id="dup-render",
     )
     orchestrator = ImportOrchestrator(corpus, clock=FakeClock(), ids=SequentialIds("dup"))
-    run = orchestrator.create_run_from_plan(
-        _plan(item, policy=POLICY_CREATE_DUPLICATE_V1)
-    )
+    run = orchestrator.create_run_from_plan(_plan(item, policy=POLICY_CREATE_DUPLICATE_V1))
 
     completed = orchestrator.commit_run(run.import_run_id)
     assert completed.status == "complete"
@@ -200,9 +192,7 @@ def test_corrupt_index_quarantine_and_rebuild(tmp_path: Path) -> None:
     ids_seen: list[str] = []
     for name, prefix in (("a", "a"), ("b", "b")):
         paths = open_project_paths(corpus.projects_dir / name)
-        project = ProjectService(
-            paths, clock=FakeClock(), ids=SequentialIds(prefix)
-        ).create(name)
+        project = ProjectService(paths, clock=FakeClock(), ids=SequentialIds(prefix)).create(name)
         ids_seen.append(project.id)
     corpus.ensure_layout()
     corpus.index_path.write_text("{not-json", encoding="utf-8")
@@ -218,7 +208,5 @@ def test_corrupt_index_quarantine_and_rebuild(tmp_path: Path) -> None:
     assert doctor.ok
     assert any(f.code == "corpus_quarantine_present" for f in doctor.findings)
     assert all(
-        f.severity == "warning"
-        for f in doctor.findings
-        if f.code == "corpus_quarantine_present"
+        f.severity == "warning" for f in doctor.findings if f.code == "corpus_quarantine_present"
     )

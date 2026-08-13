@@ -11,7 +11,11 @@ from transcribe.analysis.cache_identity import (
     build_cache_identity_object,
     cache_identity_hex,
 )
-from transcribe.analysis.document import AnalysisDocument, AnalysisUnit, content_fingerprint
+from transcribe.analysis.document import (
+    AnalysisDocument,
+    AnalysisUnit,
+    content_fingerprint,
+)
 from transcribe.analysis.eligibility import evaluate_notebook_eligibility_v1
 from transcribe.analysis.modules import (
     THROUGH_FOUNDATIONS,
@@ -185,9 +189,7 @@ def test_runner_publishes_sentiment_and_wave12_non_regression(tmp_path: Path):
         "Neutral text about notebooks and ink.",
     ]
     projects, runner = _project_with_pages(tmp_path, texts)
-    batch = runner.run_batch(
-        ["stats", "wordclouds", "sentiment", "epistemic_markers", "ner"]
-    )
+    batch = runner.run_batch(["stats", "wordclouds", "sentiment", "epistemic_markers", "ner"])
     assert batch["stats"]["outcome"] == "success"
     assert batch["wordclouds"]["outcome"] == "success"
     assert batch["sentiment"]["outcome"] == "success"
@@ -255,9 +257,7 @@ def test_score_sentiment_deterministic():
 
 
 def test_runner_publishes_epistemic_evidence_on_envelope(tmp_path: Path):
-    projects, runner = _project_with_pages(
-        tmp_path, ["I think maybe this is sort of fine."]
-    )
+    projects, runner = _project_with_pages(tmp_path, ["I think maybe this is sort of fine."])
     env = runner.run_module("epistemic_markers")
     assert env["outcome"] == "success"
     assert env.get("published") is True or env.get("attempt_state") == "succeeded"

@@ -59,9 +59,7 @@ def test_plan_from_folders_creates_one_notebook_per_child(tmp_path: Path) -> Non
     notebook_ids = {item.notebook_id for item in plan.items}
     assert len(notebook_ids) == 2
     titles = {
-        (item.provenance or {}).get("title")
-        for item in plan.items
-        if item.op == "create_notebook"
+        (item.provenance or {}).get("title") for item in plan.items if item.op == "create_notebook"
     }
     assert titles == {"Alpha", "Beta"}
     assert sum(1 for i in plan.items if i.op == "create_notebook") == 2
@@ -133,9 +131,7 @@ def test_scan_detects_already_imported_and_skip_omits(tmp_path: Path) -> None:
     assert [p.name for p in scan2.new_folders] == ["NewOne"]
     assert {c.managed_relpath for c in scan2.already_imported} == {"Keep", "Fresh"}
     titles = {
-        (i.provenance or {}).get("title")
-        for i in plan_skip.items
-        if i.op == "create_notebook"
+        (i.provenance or {}).get("title") for i in plan_skip.items if i.op == "create_notebook"
     }
     assert titles == {"NewOne"}
     assert (corpus.projects_dir / "Keep" / "project.json").is_file()
@@ -149,9 +145,7 @@ def test_overwrite_with_confirm_replaces_notebook(tmp_path: Path) -> None:
     _child_with_pngs(parent, "Nb", colors=[(1, 1, 1)])
 
     orch = ImportOrchestrator(corpus, clock=FakeClock(), ids=SequentialIds("ow1"))
-    plan1, _ = plan_from_folders(
-        parent, ids=SequentialIds("c1"), corpus_paths=corpus
-    )
+    plan1, _ = plan_from_folders(parent, ids=SequentialIds("c1"), corpus_paths=corpus)
     run1 = orch.create_run_from_plan(plan1)
     assert orch.commit_run(run1.import_run_id).status == "complete"
     old_id = read_json(corpus.projects_dir / "Nb" / "project.json")["id"]
@@ -162,9 +156,7 @@ def test_overwrite_with_confirm_replaces_notebook(tmp_path: Path) -> None:
     assert len(scan.already_imported) == 1
 
     with pytest.raises(ValidationError, match="OVERWRITE ALL"):
-        prepare_folder_overwrite(
-            scan.already_imported, corpus, confirm="overwrite all"
-        )
+        prepare_folder_overwrite(scan.already_imported, corpus, confirm="overwrite all")
     assert (corpus.projects_dir / "Nb" / "project.json").is_file()
     assert read_json(corpus.projects_dir / "Nb" / "project.json")["id"] == old_id
 
@@ -199,9 +191,7 @@ def test_plan_from_folders_empty_parent_errors(tmp_path: Path) -> None:
     parent.mkdir()
     (parent / "nope").mkdir()
     with pytest.raises(ValidationError, match="no importable child"):
-        plan_from_folders(
-            parent, ids=SequentialIds("e"), corpus_paths=corpus
-        )
+        plan_from_folders(parent, ids=SequentialIds("e"), corpus_paths=corpus)
 
 
 def test_inbox_and_cli_wire_folders_surfaces() -> None:

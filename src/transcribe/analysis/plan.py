@@ -19,14 +19,10 @@ from transcribe.services.project import ProjectService
 
 ANALYSIS_RUN_FORMAT = "transcribe.analysis-run"
 ANALYSIS_RUN_SCHEMA_VERSION = 1
-RUN_TERMINAL_STATUSES = frozenset(
-    {"completed", "cancelled", "failed", "interrupted"}
-)
+RUN_TERMINAL_STATUSES = frozenset({"completed", "cancelled", "failed", "interrupted"})
 RUN_ACTIVE_STATUSES = frozenset({"running"})
 # Keep in sync with AnalysisRunner.LLM_MODULES (avoid importing runner here).
-_LLM_MODULES = frozenset(
-    {"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"}
-)
+_LLM_MODULES = frozenset({"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"})
 
 
 @dataclass(frozen=True)
@@ -132,33 +128,25 @@ class AnalysisRunPlan:
             project_id=str(data.get("project_id") or ""),
             module_ids=modules,
             question_text=(
-                str(data["question_text"])
-                if data.get("question_text") is not None
-                else None
+                str(data["question_text"]) if data.get("question_text") is not None else None
             ),
             effective_config=EffectiveConfig.from_dict(cfg_raw),
             config_fingerprint=str(data.get("config_fingerprint") or ""),
             text_model=FrozenTextModel.from_dict(
-                data.get("text_model")
-                if isinstance(data.get("text_model"), Mapping)
-                else None
+                data.get("text_model") if isinstance(data.get("text_model"), Mapping) else None
             ),
             plan_hash=str(data.get("plan_hash") or ""),
             preset_label=(
                 str(data["preset_label"]) if data.get("preset_label") is not None else None
             ),
-            preset_key=(
-                str(data["preset_key"]) if data.get("preset_key") is not None else None
-            ),
+            preset_key=(str(data["preset_key"]) if data.get("preset_key") is not None else None),
             preset_content_version=content_version,
             preset_policy_fingerprint=(
                 str(data["preset_policy_fingerprint"])
                 if data.get("preset_policy_fingerprint") is not None
                 else None
             ),
-            created_at=(
-                str(data["created_at"]) if data.get("created_at") is not None else None
-            ),
+            created_at=(str(data["created_at"]) if data.get("created_at") is not None else None),
         )
         return plan
 

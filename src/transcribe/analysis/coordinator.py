@@ -83,9 +83,7 @@ class AnalysisCoordinator:
         self.paths = project_service.paths
         self.clock = clock or SystemClock()
         self.ids = ids or UuidGenerator()
-        self.runner = AnalysisRunner(
-            project_service, clock=self.clock, ids=self.ids
-        )
+        self.runner = AnalysisRunner(project_service, clock=self.clock, ids=self.ids)
         self._lock = threading.Lock()
         self._analysis_file_lock = AnalysisLock(self.paths.analysis_lock)
         self._run: AnalysisRunState | None = None
@@ -130,18 +128,12 @@ class AnalysisCoordinator:
         on_progress: Callable[[AnalysisProgress], None] | None = None,
     ) -> str:
         if not verify_plan_hash(plan):
-            raise PlanHashMismatchError(
-                "analysis plan_hash does not match recomputed plan body"
-            )
+            raise PlanHashMismatchError("analysis plan_hash does not match recomputed plan body")
         with self._lock:
             if self._run is not None and self._run.thread and self._run.thread.is_alive():
-                raise JobConflictError(
-                    "an analysis run is already running in this process"
-                )
+                raise JobConflictError("an analysis run is already running in this process")
             if not self._analysis_file_lock.try_acquire():
-                raise JobConflictError(
-                    "another process holds the analysis lock for this project"
-                )
+                raise JobConflictError("another process holds the analysis lock for this project")
             progress = AnalysisProgress(
                 run_id=plan.run_id,
                 status="running",
@@ -175,13 +167,9 @@ class AnalysisCoordinator:
     ) -> AnalysisProgress:
         """CLI-friendly synchronous run (still uses analysis lock)."""
         if not verify_plan_hash(plan):
-            raise PlanHashMismatchError(
-                "analysis plan_hash does not match recomputed plan body"
-            )
+            raise PlanHashMismatchError("analysis plan_hash does not match recomputed plan body")
         if not self._analysis_file_lock.try_acquire():
-            raise JobConflictError(
-                "another process holds the analysis lock for this project"
-            )
+            raise JobConflictError("another process holds the analysis lock for this project")
         progress = AnalysisProgress(
             run_id=plan.run_id,
             status="running",

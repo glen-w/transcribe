@@ -98,9 +98,7 @@ def bundle_revision_hex(part_revisions: Sequence[tuple[str, str]]) -> str:
     """Hash ordered (project_id, content_revision) pairs into a bundle revision."""
     body = {
         "bundle_revision_version": 1,
-        "parts": [
-            {"project_id": pid, "content_revision": rev} for pid, rev in part_revisions
-        ],
+        "parts": [{"project_id": pid, "content_revision": rev} for pid, rev in part_revisions],
     }
     return hashlib.sha256(canonical_json_bytes(body)).hexdigest()
 

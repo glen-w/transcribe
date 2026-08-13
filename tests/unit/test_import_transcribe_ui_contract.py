@@ -14,10 +14,7 @@ INBOX = Path("src/transcribe/ui/import_inbox.py").read_text(encoding="utf-8")
 
 
 def test_inbox_is_not_a_sidebar_mode() -> None:
-    assert (
-        '_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")'
-        in SHELL
-    )
+    assert '_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")' in SHELL
     assert '"Inbox": "Import"' in SHELL
     assert 'elif mode == "Inbox"' not in APP
     assert "render_run_import" in APP

@@ -68,6 +68,16 @@ Offline multi-component detector tests belong under `tests/services/` (or `tests
 - New analysis modules: register in `transcribe.analysis.modules`, pin in [dev/analysis_port_pins.md](dev/analysis_port_pins.md), follow [ROADMAP.md](ROADMAP.md)
 - Do not put OCR, analysis, or persistence rules inside Streamlit widgets
 
+## Formatting / lint
+
+```bash
+black src tests          # line-length 100, target py310 ([tool.black] in pyproject.toml)
+ruff check src tests     # same line-length / py310
+ruff check --fix src tests
+```
+
+Do not run `black .` at repo root (can touch `.venv`). Prefer `.[dev]` extras for pytest; install `black` / `ruff` on the host or in the venv when formatting.
+
 ## Docs when you change behaviour
 
 Follow [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md): update the owning CONTRACT (or PRODUCT/ARCHITECTURE) rather than inventing rules in guides.

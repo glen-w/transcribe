@@ -50,13 +50,9 @@ class ExportService:
             snap_project = self.projects._load_unlocked(reconcile=False)
             results: dict[str, PageResult | None] = {}
             for page in snap_project.pages:
-                results[page.page_id] = self.projects._load_page_result_unlocked(
-                    page.page_id
-                )
+                results[page.page_id] = self.projects._load_page_result_unlocked(page.page_id)
             rev = content_revision_hex(snap_project, results)
-            return ExportSnapshot(
-                project=snap_project, results=results, content_revision=rev
-            )
+            return ExportSnapshot(project=snap_project, results=results, content_revision=rev)
 
     @staticmethod
     def capture_snapshot_at(paths: ProjectPaths, projects: ProjectService) -> ExportSnapshot:
@@ -172,9 +168,7 @@ class ExportService:
                 write_epub(staged["epub"], document, opts)
                 file_names["epub"] = "notebook.epub"
 
-            checksums = {
-                name: sha256_bytes(path.read_bytes()) for name, path in staged.items()
-            }
+            checksums = {name: sha256_bytes(path.read_bytes()) for name, path in staged.items()}
             primary_id = document.primary_project_id
             primary_updated = snapshots[0].project.updated_at if snapshots else None
             manifest = {
@@ -234,9 +228,9 @@ class ExportService:
                     "edited_text": result.edited_text if result else None,
                     "input_fingerprint": attempt.input_fingerprint if attempt else None,
                     "active_attempt_id": result.active_attempt_id if result else None,
-                    "provenance": attempt.provenance.as_dict()
-                    if attempt and attempt.provenance
-                    else None,
+                    "provenance": (
+                        attempt.provenance.as_dict() if attempt and attempt.provenance else None
+                    ),
                     "provider_metadata": attempt.provider_metadata if attempt else None,
                     "date": page.date.as_dict() if page.date else None,
                     "date_approved": page.date_approved,
@@ -271,7 +265,7 @@ class ExportService:
                 "updated_at": project.updated_at,
                 "tags": list(project.tags),
                 "cover_page_id": project.cover_page_id,
-                "date_start": project.date_start.as_dict() if project.date_start else None,
+                "date_start": (project.date_start.as_dict() if project.date_start else None),
                 "date_end": project.date_end.as_dict() if project.date_end else None,
             },
             "sources": [
@@ -314,9 +308,7 @@ class ExportService:
             if document.is_bundle:
                 parts.append(f"## {part.title}\n")
                 if options.include_dates and (part.date_start_label or part.date_end_label):
-                    span = " – ".join(
-                        x for x in (part.date_start_label, part.date_end_label) if x
-                    )
+                    span = " – ".join(x for x in (part.date_start_label, part.date_end_label) if x)
                     parts.append(f"*{span}*\n")
             for section in part.sections:
                 heading_level = "###" if document.is_bundle else "##"
@@ -348,7 +340,9 @@ class ExportService:
                 parts.append(f"----- {label} -----\n{text}")
         return "\n\n".join(parts).rstrip() + "\n"
 
-    def build_html(self, snapshot: ExportSnapshot | Project, options: ExportOptions | None = None) -> str:
+    def build_html(
+        self, snapshot: ExportSnapshot | Project, options: ExportOptions | None = None
+    ) -> str:
         opts = options or ExportOptions()
         if isinstance(snapshot, Project):
             snap = self.capture_snapshot(snapshot)

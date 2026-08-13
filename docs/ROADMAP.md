@@ -39,8 +39,8 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 
 | Track | Intent |
 |-------|--------|
-| **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths |
-| **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as **product** read-models (not module consoles) |
+| **Robustness** | Honest capability / cache / parent freshness; crash-reopen and stale-evidence behaviour; offline test coverage for shipped modules; clearer failure and empty-success paths. **Also landed (OCR deepen-in-place):** consecutive vision **timeout** circuit (skip remaining pages for that model after 3) and fatal **model-load** circuit (skip after the first unrecoverable Ollama loader error, e.g. unsupported architecture) — see [known_limitations.md](known_limitations.md) |
+| **Analyse UX** | One batch run action, one freshness model, Ask remains ad-hoc; deepen Overview / Themes / Mood / Moments / Summaries as **product** read-models (not module consoles). **Also landed:** Overview/Mood **corpus / period average** charts ([dev/analysis_visual_compare.md](dev/analysis_visual_compare.md)); Moments **Jump to page** into Review |
 | **Payload polish** | People & places map tab shipped (NER read-model + opt-in geocode). Patterns tab and deliberate keyphrase enrichment for wordclouds/topics remain optional polish — not a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 
@@ -61,6 +61,8 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 | **U3 Daily workbench** | [x] | Review as needs-attention queue, Reading mode, Search/Archive filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
 
 **Also landed with U3:** Archive activity-bin click filter; Archive notebook-strip paging (`ui.archive_notebooks_initial`, default show-all); page delete in the viewer; model-information expander wired to live picker selection on Transcribe panels.
+
+**Post-U3 deepen-in-place (shipped, not a new wave track):** OCR hang / model-load fail-fast circuits; Compare OCR attempt previews escape markdown so Prefer/Promote stays readable; Analyse Moments jump-to-page; Overview/Mood this-vs-corpus/period charts (PR #25).
 
 ### U4 — Corpus UX — [x] gate green (Inbox polish may continue)
 
@@ -122,6 +124,7 @@ Ambitious OCR features on the durable attempt model: multipass multi-model runs,
 | **W4** | [x] | Preference ledger + pre-run hints |
 | **W5** | [x] | Fine-tune export + docs |
 | **Batch multipass** | [x] | Compare models over OcrBatchRun (UI + `bulk-run` multi `--model`) |
+| **OCR fail-fast circuits** | [x] | Timeout circuit (3) + fatal model-load circuit (1) per frozen vision plan; multipass continues with remaining models |
 
 ---
 
@@ -131,7 +134,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 
 | Outcome | Intent | Wave |
 |---------|--------|------|
-| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; entity/saved searches still candidate |
+| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments → Review jump done; entity/saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Archive strip paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. | **U3** tag chips + sort polish done; collections/archive-state candidate |
 | **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
@@ -145,7 +148,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done) |
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
-| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. | **U1** (done) |
+| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. Corpus/period compare + Moments jump deepen-in-place landed. | **U1** (done) |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. | Places shipped; Patterns optional |
 
@@ -194,7 +197,7 @@ Worth recording without scheduling:
 
 | Capability | Shipped |
 |------------|---------|
-| **OCR lifecycle** | multipass compare, prefer/promote, composite, preference hints, fine-tune export |
+| **OCR lifecycle** | multipass compare, prefer/promote, composite, preference hints, fine-tune export; timeout + model-load fail-fast circuits |
 | **Notebook metrics** | stats, lexical diversity, understandability |
 | **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
 | **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
@@ -211,7 +214,7 @@ LLM modules are optional at runtime (local text Ollama); deterministic `highligh
 
 ## Deferred analysis candidates — not scheduled — [−]
 
-**Decision (2026-08-09):** Reinterpretation module work is **deferred**. Product focus is robustness and UX for the shipped core set (see **Now**). Need for these notebook reinterpretation outputs is unproven; do not schedule them until hardening closes and product revisits the disposition map.
+**Decision (2026-08-09):** Reinterpretation module work is **deferred**. Product focus is robustness and UX for the shipped core set (see **Now**). Need for these notebook reinterpretation outputs is unproven; do not schedule them while the usability wave’s open track (**U2**) is the priority — revisit only when product reopens the disposition map.
 
 **`ocr_quality` deferred specifically:** a dedicated OCR-quality analysis module is not scheduled. Prefer improving transcribed text via the existing **second-pass LLM OCR cleanup / verification** path (and human review edits). Revisit only if cleanup + review leave a clear, user-facing quality gap that analysis (not OCR) should own.
 
