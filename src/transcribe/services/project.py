@@ -12,7 +12,9 @@ from transcribe.domain.dates import (
     ApproximateDate,
     DATE_SOURCE_EXTRACTED,
     DATE_SOURCE_INHERITED,
+    DateRegression,
     extract_page_date,
+    find_date_regressions,
     looks_like_unparsed_date_stamp,
     normalize_tags,
 )
@@ -353,6 +355,61 @@ class ProjectService:
             validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current, old != page.date
+
+    def list_date_regressions(self, project: Project | None = None) -> list[DateRegression]:
+        """Notebook-order date regressions for bulk-approve honesty."""
+        current = project if project is not None else self.load(reconcile=False)
+        return find_date_regressions(
+            [(page.page_id, page.date) for page in current.pages]
+        )
+
+    def approve_all_suggested_dates(
+        self,
+        *,
+        confirm_regressions: bool = False,
+    ) -> tuple[Project, int, list[DateRegression]]:
+        """Approve every unapproved suggested date in notebook order.
+
+        Returns ``(project, approved_count, regressions)``. When regressions
+        exist and ``confirm_regressions`` is false, writes nothing and returns
+        count 0 so the UI can confirm.
+        """
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            regressions = find_date_regressions(
+                [(page.page_id, page.date) for page in current.pages]
+            )
+            if regressions and not confirm_regressions:
+                return current, 0, regressions
+            changed = 0
+            for page in current.pages:
+                if page.date is None or page.date_approved:
+                    continue
+                page.set_date_state(page.date, approved=True, source=None)
+                changed += 1
+            if changed:
+                current.updated_at = to_iso(self.clock.now())
+                validate_project(current)
+                write_json_atomic(self.paths.manifest, current.as_dict())
+            return current, changed, regressions
+
+    def ignore_all_suggested_dates(self) -> tuple[Project, int]:
+        """Clear every unapproved suggested date (human ignore)."""
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            changed = 0
+            for page in current.pages:
+                if page.date is None or page.date_approved:
+                    continue
+                page.set_date_state(None, approved=True, source=None)
+                changed += 1
+            if changed:
+                current.updated_at = to_iso(self.clock.now())
+                validate_project(current)
+                write_json_atomic(self.paths.manifest, current.as_dict())
+            return current, changed
 
     def suggest_page_date(self, page_id: str) -> bool:
         """Suggest date from effective_text or previous page. Returns True if date value changed.

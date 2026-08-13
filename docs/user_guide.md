@@ -50,9 +50,15 @@ In the UI: **Transcribe → Run OCR** → select vision model → optional **Cle
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Multipass skips when any succeeded vision attempt matches. Details: [contracts/page-result.md](contracts/page-result.md) · [contracts/ocr-multipass.md](contracts/ocr-multipass.md).
 
-## 4. Review and edit
+## 4. Review, Reading, and search
 
-Open Archive / View / Search / Review, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. The viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
+**Review** is a needs-attention queue for the open notebook. Filter to pages that need date approval, have no text, or failed OCR. Approve or ignore all suggested dates in one pass (suspicious date regressions ask for a second confirm). Unapproved suggested dates still appear in the Archive timeline; time-of-day stamps are ignored.
+
+Open Archive / View / Search / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
+
+**Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session.
+
+**Search** finds text across notebooks. Use Period / Year / Range (same idea as Archive), tags, and media filters. Open a hit to browse matching pages with Prev/Next.
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
@@ -122,7 +128,7 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 - **One folder → one notebook** — path to a flat folder of scans.
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
-After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared vision-model config and runs notebooks one after another (fingerprint skip unless Force).
+After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare.
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 
@@ -138,6 +144,7 @@ After a successful import, **Transcribe imported notebooks** opens **Workflow �
 ./transcribe.sh cli bulk-import resume <import_run_id>
 ./transcribe.sh cli bulk-run pending --model llama3.2-vision
 ./transcribe.sh cli bulk-run import-run <import_run_id> --model llama3.2-vision
+./transcribe.sh cli bulk-run pending --model vision-a --model vision-b --text-model qwen2.5
 ./transcribe.sh cli corpus-doctor --deep
 ```
 

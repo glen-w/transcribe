@@ -16,6 +16,7 @@ _WORKFLOW_MODES: tuple[str, ...] = (
     "Import",
     "Transcribe",
     "Review",
+    "Reading",
     "Analyse",
     "Export",
 )
@@ -453,6 +454,7 @@ def set_ui_mode(mode: str) -> None:
     st.session_state["ui_mode"] = mode
     # Clear full viewer nav — not just the overlay flag — so Review cannot
     # resurrect Prev/Next entries for a notebook opened earlier then deleted.
+    # Continue-reading map (reading_page_by_root) is preserved across mode changes.
     st.session_state["show_page_viewer"] = False
     st.session_state.pop("view_page_id", None)
     st.session_state.pop("view_page_ids", None)

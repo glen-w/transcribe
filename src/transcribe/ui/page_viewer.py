@@ -545,11 +545,14 @@ def render_page_viewer(
     back_label: str = "Back",
     show_back: bool = True,
     view_entries: list[dict[str, Any]] | None = None,
+    presentation: str = "edit",
 ) -> Project | None:
     """Render scan + OCR + metadata for one page.
 
     When ``view_entries`` spans multiple notebooks, Prev/Next switches project roots.
+    ``presentation="read"`` hides mutating controls (Reading mode).
     """
+    read_only = presentation == "read"
     active_root = (
         str(paths.root)
         if paths is not None
@@ -587,13 +590,15 @@ def render_page_viewer(
         st.error(f"Page {page_id[:8]}… not found in {project.title}")
         return project
 
-    # Refresh unapproved suggestions. Cover pages also re-try while undated so they
-    # can inherit the first dated page after later pages are filled.
+    # Refresh unapproved suggestions (edit presentation only). Cover pages also
+    # re-try while undated so they can inherit the first dated page after later
+    # pages are filled.
     effective_cover_id = project.cover_page_id or (
         project.pages[0].page_id if project.pages else None
     )
-    needs_date_suggest = (not page.date_approved) or (
-        page.date is None and page.page_id == effective_cover_id
+    needs_date_suggest = (not read_only) and (
+        (not page.date_approved)
+        or (page.date is None and page.page_id == effective_cover_id)
     )
     if needs_date_suggest:
         try:
@@ -657,28 +662,47 @@ def render_page_viewer(
     if page.tags:
         st.caption("Tags: " + ", ".join(page.tags))
 
-    try:
-        from transcribe.detection.api import DetectionService
+    if not read_only:
+        try:
+            from transcribe.detection.api import DetectionService
 
-        det_svc = DetectionService(projects)
-        page_findings = det_svc.findings_for_page(page.page_id)
-        if page_findings:
-            st.caption("Detections")
-            for f in page_findings[:8]:
-                fresh = det_svc.freshness(f.detector_id)
-                stale = "" if fresh == "ok" else f" · {fresh}"
-                cols = st.columns([6, 1, 1])
-                cols[0].write(
-                    f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}{stale}"
-                )
-                if cols[1].button("✓", key=f"pv_ap_{f.finding_id}", help="Approve"):
-                    det_svc.set_review_status(f.detector_id, f.finding_id, "approved")
-                    st.rerun()
-                if cols[2].button("✗", key=f"pv_rj_{f.finding_id}", help="Reject"):
-                    det_svc.set_review_status(f.detector_id, f.finding_id, "rejected")
-                    st.rerun()
-    except Exception:  # noqa: BLE001 — optional surface; never break viewer
-        pass
+            det_svc = DetectionService(projects)
+            page_findings = det_svc.findings_for_page(page.page_id)
+            if page_findings:
+                st.caption("Detections")
+                for f in page_findings[:8]:
+                    fresh = det_svc.freshness(f.detector_id)
+                    stale = "" if fresh == "ok" else f" · {fresh}"
+                    cols = st.columns([6, 1, 1])
+                    cols[0].write(
+                        f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}{stale}"
+                    )
+                    if cols[1].button("✓", key=f"pv_ap_{f.finding_id}", help="Approve"):
+                        det_svc.set_review_status(
+                            f.detector_id, f.finding_id, "approved"
+                        )
+                        st.rerun()
+                    if cols[2].button("✗", key=f"pv_rj_{f.finding_id}", help="Reject"):
+                        det_svc.set_review_status(
+                            f.detector_id, f.finding_id, "rejected"
+                        )
+                        st.rerun()
+        except Exception:  # noqa: BLE001 — optional surface; never break viewer
+            pass
+    else:
+        try:
+            from transcribe.detection.api import DetectionService
+
+            det_svc = DetectionService(projects)
+            page_findings = det_svc.findings_for_page(page.page_id)
+            if page_findings:
+                labels = [
+                    f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}"
+                    for f in page_findings[:8]
+                ]
+                st.caption("Detections: " + " · ".join(labels))
+        except Exception:  # noqa: BLE001
+            pass
 
     left, right = st.columns([3, 2])
     with left:
@@ -735,20 +759,26 @@ def render_page_viewer(
                     st.caption(body)
             elif cu.execution_status == "skipped_empty_source":
                 st.caption("Cleanup: skipped empty OCR source")
-            if cu.pre_cleanup_text is not None:
+            if cu.pre_cleanup_text is not None and not read_only:
                 with st.expander("Pre-cleanup OCR text", expanded=False):
                     st.text(cu.pre_cleanup_text)
 
-        _render_attempt_compare(
-            projects=projects,
-            project=project,
-            page_id=page.page_id,
-            result=result,
-        )
+        if not read_only:
+            _render_attempt_compare(
+                projects=projects,
+                project=project,
+                page_id=page.page_id,
+                result=result,
+            )
 
         raw = attempt.raw_text if attempt else ""
         edited = result.edited_text if result else None
-        if edited is not None and attempt and attempt.raw_text is not None:
+        if (
+            not read_only
+            and edited is not None
+            and attempt
+            and attempt.raw_text is not None
+        ):
             st.caption("An edit is active. New OCR raw text is preserved separately.")
             if st.button("Use new transcription"):
                 projects.adopt_raw_as_edit(page.page_id)
@@ -756,7 +786,8 @@ def render_page_viewer(
                 st.rerun()
         preferred = result.preferred_attempt() if result else None
         if (
-            preferred is not None
+            not read_only
+            and preferred is not None
             and attempt is not None
             and preferred.attempt_id != attempt.attempt_id
         ):
@@ -772,145 +803,167 @@ def render_page_viewer(
         if highlight_query.strip() and default_text:
             with st.expander("Highlighted transcription", expanded=True):
                 st.markdown(highlight_terms(default_text, highlight_query))
-        text = st.text_area("Transcription", value=default_text, height=320)
-        if st.button("Save edit"):
-            projects.save_user_edit(page.page_id, text)
-            bump_archive_generation(build_runtime_paths())
-            st.success("Saved")
+        if read_only:
+            if default_text.strip():
+                st.markdown(default_text)
+            else:
+                st.caption("No transcription text on this page.")
+            if page.date is not None and not page.date_approved:
+                st.caption(
+                    "Date is suggested, not approved — Archive timeline still indexes it."
+                )
+        else:
+            text = st.text_area("Transcription", value=default_text, height=320)
+            if st.button("Save edit"):
+                projects.save_user_edit(page.page_id, text)
+                bump_archive_generation(build_runtime_paths())
+                st.success("Saved")
 
-        with st.expander("Re-run this page", expanded=False):
-            st.caption("Force OCR on this page with the notebook’s current model settings.")
-            if st.button("Re-run OCR on this page", key=f"rerun_page_{page.page_id}"):
-                try:
-                    from transcribe.services.job import build_coordinator
+            with st.expander("Re-run this page", expanded=False):
+                st.caption(
+                    "Force OCR on this page with the notebook’s current model settings."
+                )
+                if st.button(
+                    "Re-run OCR on this page", key=f"rerun_page_{page.page_id}"
+                ):
+                    try:
+                        from transcribe.services.job import build_coordinator
 
-                    _paths, _projects, coord, _ingest = build_coordinator(
-                        paths.root, clock=SystemClock(), ids=UuidGenerator()
+                        _paths, _projects, coord, _ingest = build_coordinator(
+                            paths.root, clock=SystemClock(), ids=UuidGenerator()
+                        )
+                        coord.start(page_ids=[page.page_id], force=True)
+                        st.session_state["_job_was_running"] = True
+                        st.session_state["show_compare_after_job"] = page.page_id
+                        st.success("Page OCR started")
+                        st.rerun()
+                    except (JobConflictError, TranscribeError) as exc:
+                        st.error(str(exc))
+
+            st.divider()
+            st.caption("Page metadata")
+            date_default = page.date.format_display() if page.date else ""
+            date_in = st.text_input(
+                "Date (YYYY, YYYY-MM, YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, YYMMDD, "
+                "or Jan 2, 2018; ambiguous numerics are day/month; time ignored)",
+                value=date_default,
+                key=f"date_{page.page_id}",
+            )
+            if page.date is None:
+                page_text = result.effective_text() if result else None
+                if looks_like_unparsed_date_stamp(page_text):
+                    st.caption(
+                        "Possible date in text wasn't recognized — set manually"
                     )
-                    coord.start(page_ids=[page.page_id], force=True)
-                    st.session_state["_job_was_running"] = True
-                    st.session_state["show_compare_after_job"] = page.page_id
-                    st.success("Page OCR started")
+            if page.date is not None and not page.date_approved:
+                if page.date_source == DATE_SOURCE_EXTRACTED:
+                    suggest_label = "Suggested from transcription — not yet approved"
+                elif page.date_source == DATE_SOURCE_INHERITED:
+                    suggest_label = "Carried from previous page — not yet approved"
+                else:
+                    suggest_label = "Suggested — not yet approved"
+                st.caption(suggest_label)
+                ok_col, no_col = st.columns(2)
+                with ok_col:
+                    if st.button(
+                        "Approve date",
+                        key=f"date_approve_{page.page_id}",
+                        help="Approve suggested date",
+                        type="secondary",
+                        width="stretch",
+                    ):
+                        try:
+                            projects.approve_page_date(page.page_id, page.date)
+                            bump_archive_generation(build_runtime_paths())
+                            st.session_state.pop(f"date_{page.page_id}", None)
+                            st.rerun()
+                        except (ValueError, TranscribeError) as exc:
+                            st.error(str(exc))
+                with no_col:
+                    if st.button(
+                        "Ignore suggestion",
+                        key=f"date_ignore_{page.page_id}",
+                        help="Ignore suggestion (clear date)",
+                        type="secondary",
+                        width="stretch",
+                    ):
+                        try:
+                            projects.approve_page_date(page.page_id, None)
+                            bump_archive_generation(build_runtime_paths())
+                            st.session_state.pop(f"date_{page.page_id}", None)
+                            st.rerun()
+                        except (ValueError, TranscribeError) as exc:
+                            st.error(str(exc))
+            tags_in = st.text_input(
+                "Tags (comma-separated)",
+                value=", ".join(page.tags),
+                key=f"tags_{page.page_id}",
+            )
+            if st.button("Save metadata"):
+                try:
+                    new_date = parse_date_input(date_in)
+                    project, _date_changed = projects.approve_page_date(
+                        page.page_id, new_date
+                    )
+                    project = projects.update_page_metadata(
+                        page.page_id,
+                        tags=normalize_tags([t for t in tags_in.split(",")]),
+                    )
+                    bump_archive_generation(build_runtime_paths())
+                    st.success("Metadata saved")
                     st.rerun()
-                except (JobConflictError, TranscribeError) as exc:
+                except (ValueError, TranscribeError) as exc:
                     st.error(str(exc))
 
-        st.divider()
-        st.caption("Page metadata")
-        date_default = page.date.format_display() if page.date else ""
-        date_in = st.text_input(
-            "Date (YYYY, YYYY-MM, YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, YYMMDD, "
-            "or Jan 2, 2018; ambiguous numerics are day/month; time ignored)",
-            value=date_default,
-            key=f"date_{page.page_id}",
-        )
-        if page.date is None:
-            page_text = result.effective_text() if result else None
-            if looks_like_unparsed_date_stamp(page_text):
-                st.caption(
-                    "Possible date in text wasn't recognized — set manually"
-                )
-        if page.date is not None and not page.date_approved:
-            if page.date_source == DATE_SOURCE_EXTRACTED:
-                suggest_label = "Suggested from transcription — not yet approved"
-            elif page.date_source == DATE_SOURCE_INHERITED:
-                suggest_label = "Carried from previous page — not yet approved"
-            else:
-                suggest_label = "Suggested — not yet approved"
-            cap_col, ok_col, no_col = st.columns([8, 1, 1], vertical_alignment="center")
-            with cap_col:
-                st.caption(suggest_label)
-            with ok_col:
-                if st.button(
-                    "✓",
-                    key=f"date_approve_{page.page_id}",
-                    help="Approve suggested date",
-                    type="tertiary",
-                ):
-                    try:
-                        projects.approve_page_date(page.page_id, page.date)
-                        bump_archive_generation(build_runtime_paths())
-                        st.session_state.pop(f"date_{page.page_id}", None)
-                        st.rerun()
-                    except (ValueError, TranscribeError) as exc:
-                        st.error(str(exc))
-            with no_col:
-                if st.button(
-                    "✕",
-                    key=f"date_ignore_{page.page_id}",
-                    help="Ignore suggestion (clear date)",
-                    type="tertiary",
-                ):
-                    try:
-                        projects.approve_page_date(page.page_id, None)
-                        bump_archive_generation(build_runtime_paths())
-                        st.session_state.pop(f"date_{page.page_id}", None)
-                        st.rerun()
-                    except (ValueError, TranscribeError) as exc:
-                        st.error(str(exc))
-        tags_in = st.text_input(
-            "Tags (comma-separated)",
-            value=", ".join(page.tags),
-            key=f"tags_{page.page_id}",
-        )
-        if st.button("Save metadata"):
-            try:
-                new_date = parse_date_input(date_in)
-                project, date_changed = projects.approve_page_date(page.page_id, new_date)
-                project = projects.update_page_metadata(
-                    page.page_id,
-                    tags=normalize_tags([t for t in tags_in.split(",")]),
-                )
-                if date_changed:
+            thumbs = ThumbnailService(paths)
+            if st.button("Set as notebook cover"):
+                try:
+                    from transcribe.ui.action_menus.nav import viewer_page_ids
+
+                    project = projects.update_notebook_metadata(
+                        cover_page_id=page.page_id
+                    )
+                    thumbs.ensure_thumb(project, page.page_id)
                     bump_archive_generation(build_runtime_paths())
+                    ordered = viewer_page_ids(project)
+                    root = str(paths.root)
+                    entries = st.session_state.get("view_entries") or []
+                    same_notebook = bool(entries) and all(
+                        str(e.get("project_root") or "") == root for e in entries
+                    )
+                    if same_notebook or not entries:
+                        st.session_state["view_page_ids"] = ordered
+                        st.session_state["view_entries"] = [
+                            {"page_id": pid, "project_root": root} for pid in ordered
+                        ]
+                    st.success("Cover updated")
+                    st.rerun()
+                except TranscribeError as exc:
+                    st.error(str(exc))
+
+            pending_delete = f"pv_delete_pending__{page.page_id}"
+            if st.session_state.pop(pending_delete, False):
+                _delete_page_dialog(
+                    page_id=page.page_id,
+                    projects=projects,
+                    project_root=paths.root,
+                )
+            if st.button("Delete page"):
+                if len(project.pages) <= 1:
+                    st.error(
+                        "Cannot delete the last page; delete the notebook instead."
+                    )
                 else:
-                    # tags may have changed; bump so archive tag filters refresh
-                    bump_archive_generation(build_runtime_paths())
-                st.success("Metadata saved")
-                st.rerun()
-            except (ValueError, TranscribeError) as exc:
-                st.error(str(exc))
+                    st.session_state[pending_delete] = True
+                    st.rerun()
 
-        thumbs = ThumbnailService(paths)
-        if st.button("Set as notebook cover"):
-            try:
-                from transcribe.ui.action_menus.nav import viewer_page_ids
-
-                project = projects.update_notebook_metadata(cover_page_id=page.page_id)
-                thumbs.ensure_thumb(project, page.page_id)
-                bump_archive_generation(build_runtime_paths())
-                # Keep Prev/Next numbering cover-first for this notebook context.
-                ordered = viewer_page_ids(project)
-                root = str(paths.root)
-                entries = st.session_state.get("view_entries") or []
-                same_notebook = bool(entries) and all(
-                    str(e.get("project_root") or "") == root for e in entries
-                )
-                if same_notebook or not entries:
-                    st.session_state["view_page_ids"] = ordered
-                    st.session_state["view_entries"] = [
-                        {"page_id": pid, "project_root": root} for pid in ordered
-                    ]
-                st.success("Cover updated")
-                st.rerun()
-            except TranscribeError as exc:
-                st.error(str(exc))
-
-        pending_delete = f"pv_delete_pending__{page.page_id}"
-        if st.session_state.pop(pending_delete, False):
-            _delete_page_dialog(
-                page_id=page.page_id,
-                projects=projects,
-                project_root=paths.root,
-            )
-        if st.button("Delete page"):
-            if len(project.pages) <= 1:
-                st.error("Cannot delete the last page; delete the notebook instead.")
-            else:
-                st.session_state[pending_delete] = True
-                st.rerun()
+    if read_only:
+        by_root = dict(st.session_state.get("reading_page_by_root") or {})
+        by_root[str(paths.root)] = page.page_id
+        st.session_state["reading_page_by_root"] = by_root
 
     return project
+
 
 
 def open_page_context(

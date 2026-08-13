@@ -14,9 +14,9 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) are **done** (hardening exit gate); remaining focus is first-run operability and daily workbench (**U2–U3**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) and daily workbench (**U3**) are **done**; remaining focus is first-run operability (**U2**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
 
-The roadmap’s analysis surface is largely complete. **Remaining product gaps are usability and corpus-lifecycle concerns** (first-run operability, daily Review/reading/search, then living with many notebooks), not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
+The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
 ---
 
@@ -48,14 +48,17 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 **Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
-### U2–U3 — Operability & daily workbench — [ ] planned (not started)
-
-Committed usability-wave outcomes (detail and acceptance in [usability_wave_plan.md](usability_wave_plan.md)). No code landed yet; remaining definition of done for the usability wave.
+### U2 — Operability — [ ] planned (not started)
 
 | Track | Status | Intent |
 |-------|--------|--------|
 | **U2 First-run & operability** | [ ] | Setup checklist, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
-| **U3 Daily workbench** | [ ] | Review as needs-attention queue, reading mode, search/Archive filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
+
+### U3 — Daily workbench — [x] done
+
+| Track | Status | Intent |
+|-------|--------|--------|
+| **U3 Daily workbench** | [x] | Review as needs-attention queue, Reading mode, Search/Archive filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
 
 ### U4 — Corpus UX — [x] gate green (Inbox polish may continue)
 
@@ -86,7 +89,7 @@ Two separate lanes. Do not conflate human-facing scan cleanup with OCR input tra
 
 | Lane | Audience | Default | Intent |
 |------|----------|---------|--------|
-| **1. Visual declutter** | Human (reading / review of scans) | **On** for imports; global off-switch in settings | Clean up scanned page images for people. **Shipped (v1):** `remove_scan_borders` (Pillow, deterministic contract). Applies at import only; existing notebooks are not rewritten until explicit re-import/reprocess. Render provenance records state, geometry, and declutter identity. |
+| **1. Visual declutter** | Human (reading / review of scans) | **On** for imports; global off-switch in settings | Clean up scanned page images for people. **Shipped:** `remove_scan_borders` + `remove_uniform_overscan` + `remove_corner_wedges` (Pillow, deterministic; grey/light-grey scanner beds, stark-white gutters, residual rounded-corner bed wedges). Applies at import only; existing notebooks are not rewritten until explicit re-import/reprocess. Render provenance records state, geometry, and declutter identity. |
 | **2. OCR optimisation** | Vision model input | **Off** (`none`); opt-in | Transforms meant to help OCR. Shipped today: optional Pillow **`gentle_contrast`**. Further OCR preprocess profiles are **deferred**. |
 
 **Rules of thumb**
@@ -100,7 +103,7 @@ Two separate lanes. Do not conflate human-facing scan cleanup with OCR input tra
 
 Stay outside the page: high-confidence, edge-anchored artefacts only — never alter pixels inside the detected page area. That keeps declutter distinct from document restoration (no bleed-through, whitening, stains, ruled lines, hole punching, creases, page-wide shadow fix, or handwritten-margin cleanup).
 
-Suggested sequence after scanner-bed borders: **generic uniform overscan** → **binding gutter** → **edge shadows** → **obvious corner wedges**. Other safe candidates when detection is conservative: scanner lid/background slivers (uniform non-page edge bands), blank overscan margins (strong four-side page/background boundary), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
+Suggested sequence after scanner-bed borders + stark-white overscan + corner wedges: **binding gutter** → **edge shadows**. Other safe candidates when detection is conservative: scanner lid/background slivers (non-white/non-grey uniform edge bands), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
 
 ---
 
@@ -116,6 +119,7 @@ Ambitious OCR features on the durable attempt model: multipass multi-model runs,
 | **W3** | [x] | Compare/Prefer Review GUI + single-page re-run |
 | **W4** | [x] | Preference ledger + pre-run hints |
 | **W5** | [x] | Fine-tune export + docs |
+| **Batch multipass** | [x] | Compare models over OcrBatchRun (UI + `bulk-run` multi `--model`) |
 
 ---
 
@@ -125,19 +129,19 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 
 | Outcome | Intent | Wave |
 |---------|--------|------|
-| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump polish; entity/saved searches still candidate |
-| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. | **U3** polish on existing fields; collections/archive-state candidate |
+| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; entity/saved searches still candidate |
+| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. | **U3** tag chips + sort polish done; collections/archive-state candidate |
 | **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
-| **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** |
+| **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** (done) |
 | **Backup / restore / portability** | Product commitment that the whole corpus can be backed up, moved, restored, and verified without application-specific archaeology. | candidate |
 | **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | candidate |
-| **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. | **U3** |
+| **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. | **U3** (done) |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
 | **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
 | **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels` + declarative custom detectors; Analyse → Detect; findings under `detection/`. See [detection_wave2_plan.md](detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
-| **Review UX** | Faster correction and approval of OCR text and dates. | **U3** |
+| **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done) |
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. | **U1** (done) |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |

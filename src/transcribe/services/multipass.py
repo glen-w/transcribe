@@ -158,6 +158,7 @@ class MultiPassCoordinator:
         auto_activate_composite: bool | None = None,
         on_progress: Callable[[MultiPassProgress], None] | None = None,
         cleanup_enabled: bool = False,
+        pass_id: str | None = None,
     ) -> MultiPassProgress:
         models = [m.strip() for m in model_names if m and str(m).strip()]
         if len(models) < 2:
@@ -175,6 +176,7 @@ class MultiPassCoordinator:
                 auto_activate_composite=auto_activate_composite,
                 on_progress=on_progress,
                 cleanup_enabled=cleanup_enabled,
+                pass_id=pass_id,
             )
         finally:
             self._job_lock.release()

@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; open tracks are **U2–U3**; **U4** acceptance gate is **green** (Inbox polish may continue).
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2**; **U4** acceptance gate is **green** (Inbox polish may continue).
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
@@ -85,7 +85,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 | **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
-| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | Planned |
+| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | **[x] done** |
 | **U4** — Corpus UX | Inbox / import recovery / bulk import; acceptance gate green | — | **[x] gate green** (polish open) |
 
 ---
@@ -231,6 +231,8 @@ No telemetric onboarding — local checklist state only (workspace settings or s
 
 ## 7. U3 — Daily workbench
 
+**Status:** **[x] done** — Review queue, Reading mode, Search period parity, org tag chips, model product copy.
+
 **Outcome:** After first success, living with one or many notebooks feels deliberate: correct faster, read comfortably, find things, organise lightly — **without** activating bulk corpus contracts.
 
 ### U3.1 — Review as a work queue
@@ -283,11 +285,11 @@ Transcribe panel already lists/refreshes models. Deepen:
 
 ### Acceptance (U3)
 
-- [ ] Review offers at least one needs-attention filter and batch date approve/ignore.
-- [ ] Reading mode ships as a distinct presentation (documented in public surfaces).
-- [ ] Search gains date-range (or documented parity with Archive filters) and clearer empties.
-- [ ] Model panel explains verified identity and text-model needs in product language.
-- [ ] No dependency on corpus index / ImportRun activation.
+- [x] Review offers at least one needs-attention filter and batch date approve/ignore.
+- [x] Reading mode ships as a distinct presentation (documented in public surfaces).
+- [x] Search gains date-range (or documented parity with Archive filters) and clearer empties.
+- [x] Model panel explains verified identity and text-model needs in product language.
+- [x] No dependency on corpus index / ImportRun activation.
 
 ### Key files
 
@@ -336,7 +338,7 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 |-------|-------------------|
 | Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
 | Visual declutter expansion | Remains ROADMAP preprocessing candidate; not required for usability-wave exit |
-| Re-OCR compare/promote | **Shipped** (OCR lifecycle W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); U3 only needs Review-queue honesty, not a second compare stack |
+| Re-OCR compare/promote | **Shipped** (OCR lifecycle W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); Review queue only needs honesty around suggested dates / force re-OCR |
 | Quality thumbs / prompt management UI | Candidates; Detection Prompt Hub may absorb prompt browse — do not duplicate |
 
 ---
@@ -398,10 +400,10 @@ U4 Inbox polish may remain open after the usability wave is declared done for U0
 - [ ] First-run docs path from README
 
 ### U3
-- [ ] Review needs-attention + batch dates
-- [ ] Reading mode
-- [ ] Search/Archive filter parity + empties
-- [ ] Model management product copy
+- [x] Review needs-attention + batch dates
+- [x] Reading mode
+- [x] Search/Archive filter parity + empties
+- [x] Model management product copy
 
 ### U4
 - [x] Corpus acceptance gate green
