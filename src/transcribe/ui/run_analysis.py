@@ -41,7 +41,7 @@ from transcribe.ui.components.progress_panel import (
     render_progress_panel,
 )
 from transcribe.ui.module_ui_groups import group_modules_for_ui
-from transcribe.ui.shell import render_page_shell, set_ui_mode
+from transcribe.ui.shell import set_ui_mode
 
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
@@ -508,12 +508,6 @@ def render_run_analysis_form(
         coord = AnalysisCoordinator(
             projects, clock=SystemClock(), ids=UuidGenerator()
         )
-
-    render_page_shell(
-        "Run Analysis",
-        "Choose an analysis preset (or custom modules), optional Ask-notebook "
-        "question, then run.",
-    )
 
     running = analysis_run_in_progress(coord)
 

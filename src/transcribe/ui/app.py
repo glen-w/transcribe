@@ -45,6 +45,26 @@ from transcribe.ui.targets import PENDING_IMPORT_TARGET_KEY, TARGET_BATCH
 
 
 @st.cache_resource
+def get_batch_analysis_coordinator(data_dir: str, projects_dir: str):
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.runtime_paths import RuntimePaths
+    from transcribe.services.batch_analysis import build_batch_analysis_coordinator
+
+    live = build_runtime_paths()
+    runtime = RuntimePaths(
+        repo_root=live.repo_root,
+        data_dir=Path(data_dir),
+        projects_dir=Path(projects_dir),
+        inbox_dir=live.inbox_dir,
+        export_dir=live.export_dir,
+    )
+    corpus = CorpusPaths.from_runtime(runtime)
+    return build_batch_analysis_coordinator(
+        corpus, clock=SystemClock(), ids=UuidGenerator()
+    )
+
+
+@st.cache_resource
 def get_analysis_coordinator(project_root: str) -> AnalysisCoordinator:
     _paths, _projects, coord = build_analysis_coordinator(
         project_root,
@@ -126,28 +146,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         return
 
     if section == "Analyse":
-        st.caption(f"Project: `{paths.root}`")
-        from transcribe.ui.run_analysis import analysis_run_in_progress
-        from transcribe.ui.run_detection import render_detection_workspace
-
-        focus_detect = bool(st.session_state.pop("analyse_focus_detect", False))
-        analysis_coord = get_analysis_coordinator(str(paths.root))
-        analyse_tabs = st.tabs(["Run Analysis", "Published results", "Detect"])
-        with analyse_tabs[0]:
-            running = render_run_analysis_form(
-                projects=projects, project=project, coord=analysis_coord
-            )
-        with analyse_tabs[1]:
-            if running or analysis_run_in_progress(analysis_coord):
-                st.info("Published results available when the current run finishes.")
-            else:
-                _render_analysis_result_tabs(runtime, paths, projects, project)
-        with analyse_tabs[2]:
-            render_detection_workspace(
-                projects=projects, project_root=str(paths.root)
-            )
-        if focus_detect:
-            st.info("Opened Detect from notebook actions.")
+        _render_analyse_this_notebook(runtime, paths, projects, project)
         return
 
     st.caption(f"Project: `{paths.root}`")
@@ -163,6 +162,94 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     if section == "Reading":
         _render_reading_mode(paths, projects, project)
         return
+
+
+def _render_analyse_this_notebook(runtime, paths, projects, project) -> None:
+    from transcribe.ui.run_analysis import analysis_run_in_progress
+    from transcribe.ui.run_detection import render_detection_workspace
+
+    st.caption(f"Project: `{paths.root}`")
+    focus_detect = bool(st.session_state.pop("analyse_focus_detect", False))
+    analysis_coord = get_analysis_coordinator(str(paths.root))
+    analyse_tabs = st.tabs(["Run Analysis", "Published results", "Detect"])
+    with analyse_tabs[0]:
+        running = render_run_analysis_form(
+            projects=projects, project=project, coord=analysis_coord
+        )
+    with analyse_tabs[1]:
+        if running or analysis_run_in_progress(analysis_coord):
+            st.info("Published results available when the current run finishes.")
+        else:
+            _render_analysis_result_tabs(runtime, paths, projects, project)
+    with analyse_tabs[2]:
+        render_detection_workspace(
+            projects=projects, project_root=str(paths.root)
+        )
+    if focus_detect:
+        st.info("Opened Detect from notebook actions.")
+
+
+def render_analyse_workspace(
+    runtime,
+    *,
+    root: str | None,
+    projects,
+    project,
+) -> None:
+    """Analyse with This notebook | Batch target switcher."""
+    from transcribe.ui.run_analysis_batch import (
+        render_batch_analysis_launch,
+        render_batch_analysis_progress,
+    )
+    from transcribe.ui.targets import (
+        ANALYSE_TARGET_KEY,
+        PENDING_ANALYSE_TARGET_KEY,
+        TARGET_BATCH,
+        TARGET_OPTIONS,
+        TARGET_THIS,
+        apply_pending_target,
+        normalize_target,
+    )
+
+    batch_coord = get_batch_analysis_coordinator(
+        str(runtime.data_dir), str(runtime.projects_dir)
+    )
+    if render_batch_analysis_progress(batch_coord, runtime):
+        return
+
+    apply_pending_target(
+        st.session_state,
+        pending_key=PENDING_ANALYSE_TARGET_KEY,
+        target_key=ANALYSE_TARGET_KEY,
+    )
+    normalize_target(st.session_state, ANALYSE_TARGET_KEY)
+    target = st.segmented_control(
+        "Target",
+        options=list(TARGET_OPTIONS),
+        key=ANALYSE_TARGET_KEY,
+        help=(
+            "This notebook: Analyse the selected notebook. "
+            "Batch: same Analyse plan across many notebooks "
+            "(needing analysis, an import run, or a manual pick)."
+        ),
+    )
+    if target is None:
+        target = st.session_state.get(ANALYSE_TARGET_KEY) or TARGET_THIS
+
+    if target == TARGET_BATCH:
+        render_batch_analysis_launch(
+            runtime,
+            batch_coord,
+            projects=projects,
+            project=project,
+        )
+        return
+
+    if project is None or projects is None or not root:
+        st.info("Select a notebook above, or create one under Workflow → New notebook.")
+        return
+    paths = open_project_paths(Path(root))
+    _render_analyse_this_notebook(runtime, paths, projects, project)
 
 
 def _render_review_workbench(runtime, paths, projects, project) -> None:
@@ -547,7 +634,7 @@ _PAGE_SHELL: dict[str, tuple[str, str]] = {
     ),
     "Analyse": (
         "Analyse",
-        "Run notebook analysis from Quick / Balanced / Thorough presets.",
+        "This notebook or Batch: same Analyse plan across many notebooks.",
     ),
     "Export": (
         "Export",
@@ -652,9 +739,7 @@ def main() -> None:
             st.session_state["show_page_viewer"] = False
 
     title, desc = _PAGE_SHELL[mode]
-    # Analyse owns its own page shell inside Run Analysis.
-    if mode != "Analyse":
-        render_page_shell(title, desc)
+    render_page_shell(title, desc)
 
     if mode == "Archive":
         render_archive(runtime, archive)
@@ -670,13 +755,14 @@ def main() -> None:
         render_settings_page()
     elif mode == "New notebook":
         _render_new_notebook(runtime, archive)
-    elif mode in {"Import", "Transcribe"}:
+    elif mode in {"Import", "Transcribe", "Analyse"}:
         projects = ingest = project = None
         if root:
             try:
                 _paths, projects, ingest = _services(root)
                 project = projects.load(reconcile=True)
-                st.caption(f"Project: `{_paths.root}`")
+                if mode != "Analyse":
+                    st.caption(f"Project: `{_paths.root}`")
             except TranscribeError as exc:
                 st.caption(str(exc))
                 projects = ingest = project = None
@@ -688,8 +774,15 @@ def main() -> None:
                 ingest=ingest,
                 project=project,
             )
-        else:
+        elif mode == "Transcribe":
             render_run_transcribe(
+                runtime,
+                root=root or None,
+                projects=projects,
+                project=project,
+            )
+        else:
+            render_analyse_workspace(
                 runtime,
                 root=root or None,
                 projects=projects,

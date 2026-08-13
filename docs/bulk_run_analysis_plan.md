@@ -3,7 +3,7 @@ Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity wit
 
 # Bulk run analysis plan
 
-**Status:** [ ] planned — GUI + durable workspace run for “same Analyse plan × N notebooks”, with the **same notebook selection modes** as bulk OCR.
+**Status:** [x] shipped — GUI + durable workspace run for “same Analyse plan × N notebooks”, with the **same notebook selection modes** as bulk OCR.
 
 **Thesis:** Transcribe already has single-notebook Analyse (`AnalysisCoordinator` + frozen `AnalysisRunPlan`) and multi-notebook OCR (`OcrBatchRun` + `BatchOcrCoordinator`). Users who batch-import and batch-OCR still re-run Analyse one notebook at a time. This plan closes that gap **without** inventing corpus-level / cross-notebook analysis.
 

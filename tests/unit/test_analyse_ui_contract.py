@@ -117,3 +117,21 @@ def test_phase6_last_run_is_product_summary():
     assert "last_run_product_summary" in RUN
     assert "Advanced · per-module outcomes" in RUN
     assert "outcome=`" not in RUN
+
+
+def test_analyse_batch_target_and_progress_wiring():
+    batch = Path("src/transcribe/ui/run_analysis_batch.py").read_text(encoding="utf-8")
+    shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
+    assert "render_analyse_workspace" in APP
+    assert "get_batch_analysis_coordinator" in APP
+    assert "ANALYSE_TARGET_KEY" in APP
+    assert '"Analyse"' in shell or "'Analyse'" in shell
+    assert "Notebooks needing analysis" in batch
+    assert "From an import run" in batch
+    assert "Pick notebooks" in batch
+    assert 'unit_label="notebooks"' in batch
+    assert "modules in this notebook" in batch
+    assert "Stop after current notebook" in batch
+    assert "Start batch analysis" in batch
+    assert "render_progress_panel" in batch
+    assert "BatchAnalysisCoordinator" in batch

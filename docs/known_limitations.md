@@ -53,6 +53,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
 - LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
 - Batch Analyse runs from the preset form only; result tabs are read-models. Ask notebook remains an ad-hoc action
+- **Analyse → Batch** runs the same frozen plan template sequentially across notebooks (dual progress bars: notebooks + modules). Empty-text notebooks are skipped; there is no OCR-style Force flag. This is orchestration only — not cross-notebook / corpus-level Analyse
 - Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
 - Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume
 - Freshness is computed via `module_freshness` / planned cache identity — not hand-built identities in the UI

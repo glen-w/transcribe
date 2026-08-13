@@ -48,6 +48,7 @@ CLI ──────────────────┘              │
 - **IngestService** — stages, journals, promotes, then commits the manifest; recovers incomplete journals on open/load
 - **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings. Multipass reuses frozen single-model plans with `activate=false` / `pass_id`, then rank + composite ([contracts/ocr-multipass.md](contracts/ocr-multipass.md)).
 - **OcrBatchRun** — durable multi-notebook OCR batch ([contracts/ocr-batch-run.md](contracts/ocr-batch-run.md)); UI Workflow → Transcribe → Batch
+- **AnalysisBatchRun** — durable multi-notebook Analyse batch ([contracts/analysis-batch-run.md](contracts/analysis-batch-run.md)); UI Workflow → Analyse → Batch (orchestration only; publish stays per-notebook)
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors

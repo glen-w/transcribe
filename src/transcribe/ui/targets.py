@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+ANALYSE_TARGET_KEY = "analyse_target"
+PENDING_ANALYSE_TARGET_KEY = "pending_analyse_target"
+ANALYSE_BATCH_NOTEBOOK_IDS_KEY = "analyse_batch_notebook_ids"
+ANALYSE_BATCH_IMPORT_RUN_KEY = "analyse_batch_import_run_id"
+ANALYSE_BATCH_SOURCE_KEY = "analyse_batch_source"
+
 TARGET_THIS = "This notebook"
 TARGET_BATCH = "Batch"
 TARGET_OPTIONS = (TARGET_THIS, TARGET_BATCH)
