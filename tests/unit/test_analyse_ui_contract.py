@@ -96,7 +96,8 @@ def test_phase6_ocr_advanced_groups_power_controls():
 
 
 def test_ocr_model_information_expander_at_pickers():
-    assert 'st.expander("Model information"' in APP
+    info = Path("src/transcribe/ui/components/model_info.py").read_text(encoding="utf-8")
+    assert 'st.expander("Model information"' in info
     assert "render_model_information" in APP
     assert "warn_if_first_compare_model_is_general_vlm" in APP
     assert "Clean OCR during compare" in APP
