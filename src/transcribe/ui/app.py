@@ -389,8 +389,11 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         "llm_action_items",
         "narrative_summary",
     ]
+    places_extra_ids = ["entity_sentiment"]
     batch_ids = list(
-        dict.fromkeys(overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids)
+        dict.fromkeys(
+            overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids + places_extra_ids
+        )
     )
     analysis_coord = get_analysis_coordinator(str(paths.root))
     active_run_status = "running" if analysis_coord.is_running() else None
@@ -482,10 +485,12 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         from transcribe.ui.places_map import render_notebook_places_tab
 
         ner_mh = batch_health.modules.get("ner")
+        entity_mh = batch_health.modules.get("entity_sentiment")
         render_notebook_places_tab(
             project_root=paths.root,
             runtime=runtime,
             ner_health=ner_mh,
+            entity_sentiment_health=entity_mh,
         )
 
     with tab_summaries:

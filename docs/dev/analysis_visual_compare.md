@@ -23,13 +23,41 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 |-------|------|
 | `services/analysis_compare.py` | Extract comparable metrics; average published payloads across projects with period filter |
 | `ui/analysis_compare_view.py` | Period controls + grouped bar charts |
-| `ui/analysis_product_views.py` | Correct payload read-models; page series charts; summaries field fixes; wire compare |
+| `ui/analysis_display_helpers.py` | Pure payload → chart/table rows (all modules) |
+| `ui/analysis_product_views.py` | Per-module product visuals + summaries field fixes + compare wiring |
+| `ui/places_map.py` | Entity tone (entity_sentiment) on People & places |
+
+### Visual intent by module
+
+| Module | User visual | Corpus/period compare? |
+|--------|-------------|------------------------|
+| `stats` | chips + tokens/page bars | yes |
+| `lexical_diversity` | chips + TTR line | yes |
+| `understandability` | chips + Flesch line | yes |
+| `wordclouds` | weight bars + top counts | no |
+| `ner` | type mix + top surfaces; Places map | no |
+| `entity_sentiment` | entity mean-sentiment bars + table | no |
+| `sentiment` | compound line + tone mix | yes |
+| `epistemic_markers` | category bars + hedge/booster by page | yes |
+| `keyphrases` | phrase list + score bars | no |
+| `topic_modeling` / `bertopic` | topic weight bars + terms | no |
+| `semantic_similarity` | motif similarity bars + pairs | no |
+| `topic_shift` | adjacent-similarity line + boundaries | no |
+| `emotion` | label totals + intensity line | yes |
+| `contextual_emotion` | dominant-label counts + intensity | no |
+| `fine_grained_emotion` | same when payload exists | no |
+| `affect_tension` | tension line | yes |
+| `moments` / `highlights` | score bars + quote list | no |
+| `summary` / `insights` / LLM text | prose / grouped lists | no |
+| `llm_action_items` | grouped action / decision / question | no |
+| `llm_custom_qa` | Ask answer + evidence | no |
 
 Comparable modules: `stats`, `lexical_diversity`, `understandability`,
 `sentiment`, `emotion`, `affect_tension`, `epistemic_markers`.
 
-Within-notebook visuals (not corpus compare): token/TTR series, sentiment /
-emotion / tension lines, topic-shift similarity line, keyphrase / motif bars.
+Within-notebook visuals (not corpus compare): token/TTR/Flesch series, sentiment /
+emotion / tension lines, topic-shift similarity line, keyphrase / motif / topic bars,
+entity tone, action-item groups.
 
 ## Intentional divergences from TX
 

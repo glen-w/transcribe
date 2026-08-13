@@ -163,12 +163,14 @@ def render_notebook_places_tab(
     project_root: Path,
     runtime: RuntimePaths,
     ner_health: ModuleHealth | None = None,
+    entity_sentiment_health: ModuleHealth | None = None,
 ) -> None:
     st.subheader("People & places")
     st.caption(
         "Places and people from published NER (spaCy labels GPE / LOC / FAC / PERSON). "
         "The map geocodes place names with an optional OpenStreetMap lookup and a "
-        "local cache. Run analysis from the preset form above if NER is missing."
+        "local cache. Entity tone joins NER surfaces to page sentiment when that "
+        "module has been published. Run analysis from the preset form above if NER is missing."
     )
     snapshot = load_notebook_places(Path(project_root))
     render_places_panel(
@@ -179,6 +181,34 @@ def render_notebook_places_tab(
         ner_health=ner_health,
         project_root=Path(project_root),
     )
+    if entity_sentiment_health is not None:
+        from transcribe.ui.analysis_health_view import (
+            module_may_show_payload,
+            render_advanced_payload,
+            render_module_unavailable,
+        )
+        from transcribe.ui.analysis_product_views import render_entity_sentiment_section
+
+        if not module_may_show_payload(entity_sentiment_health):
+            # Soft: NER map still useful without entity tone.
+            if entity_sentiment_health.envelope is not None:
+                render_module_unavailable(
+                    entity_sentiment_health, product_title="Entity tone"
+                )
+            return
+        env = entity_sentiment_health.envelope or {}
+        payload = env.get("payload") if isinstance(env, dict) else {}
+        if not isinstance(payload, dict):
+            payload = {}
+        outcome = env.get("outcome") if isinstance(env, dict) else None
+        if outcome in {"failed", "insufficient_data", "skipped_not_applicable"}:
+            render_module_unavailable(
+                entity_sentiment_health, product_title="Entity tone"
+            )
+            return
+        st.divider()
+        render_entity_sentiment_section(payload)
+        render_advanced_payload("entity_sentiment", payload)
 
 
 def render_corpus_places_page(runtime: RuntimePaths) -> None:

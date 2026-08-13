@@ -89,6 +89,12 @@ def test_product_views_read_real_payload_shapes():
     assert '"type_token_ratio"' not in PRODUCT
     assert "render_module_compare_charts" in PRODUCT
     assert "projects_dir" in PRODUCT
+    # Module-appropriate visuals beyond lexical diversity.
+    assert "emotion_label_totals" in PRODUCT or "render_entity_sentiment_section" in PRODUCT
+    assert "group_action_items" in PRODUCT
+    assert "topic_weight_rows" in PRODUCT
+    assert "contextual_label_counts" in PRODUCT
+    assert "render_entity_sentiment_section" in PRODUCT
 
 
 def test_analyse_wires_corpus_compare_into_overview_and_mood():
@@ -102,6 +108,19 @@ def test_analyse_wires_corpus_compare_into_overview_and_mood():
     assert "render_module_compare_charts" in Path(
         "src/transcribe/ui/analysis_compare_view.py"
     ).read_text(encoding="utf-8")
+
+
+def test_entity_sentiment_is_on_people_places_batch():
+    assert "entity_sentiment" in APP
+    assert "entity_sentiment_health" in APP
+    places = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
+    assert "entity_sentiment_health" in places
+    assert "render_entity_sentiment_section" in places
+    assert "Entity tone" in places or "entity tone" in places.lower()
+    helpers = Path("src/transcribe/ui/analysis_display_helpers.py").read_text(
+        encoding="utf-8"
+    )
+    assert "aggregate_entity_sentiment" in helpers
 
 
 def test_phase6_ocr_advanced_groups_power_controls():
