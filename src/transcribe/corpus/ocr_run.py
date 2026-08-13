@@ -16,6 +16,7 @@ ITEM_STATES = frozenset(
     {"pending", "running", "completed", "skipped", "failed", "cancelled"}
 )
 LIVE_STATUSES = frozenset({"pending", "running"})
+OCR_BATCH_MODES = frozenset({"single", "multipass"})
 
 
 @dataclass
@@ -29,6 +30,7 @@ class OcrBatchItem:
     pages_failed: int = 0
     pages_skipped: int = 0
     error_message: str | None = None
+    pass_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -43,10 +45,13 @@ class OcrBatchItem:
         }
         if self.error_message is not None:
             payload["error_message"] = self.error_message
+        if self.pass_id is not None:
+            payload["pass_id"] = self.pass_id
         return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OcrBatchItem:
+        pass_raw = data.get("pass_id")
         return cls(
             notebook_id=str(data["notebook_id"]),
             title=str(data.get("title") or ""),
@@ -57,6 +62,7 @@ class OcrBatchItem:
             pages_failed=int(data.get("pages_failed") or 0),
             pages_skipped=int(data.get("pages_skipped") or 0),
             error_message=data.get("error_message"),
+            pass_id=str(pass_raw) if pass_raw else None,
         )
 
 
@@ -71,6 +77,9 @@ class OcrBatchRun:
     settings_fingerprint: str = ""
     import_run_id: str | None = None
     items: list[OcrBatchItem] = field(default_factory=list)
+    mode: str = "single"
+    vision_model_names: list[str] = field(default_factory=list)
+    multipass_cleanup_enabled: bool = False
     format: str = "transcribe.ocr-batch-run"
     schema_version: int = 1
 
@@ -83,10 +92,15 @@ class OcrBatchRun:
             "updated_at": self.updated_at,
             "status": self.status,
             "force": self.force,
+            "mode": self.mode,
             "settings": dict(self.settings),
             "settings_fingerprint": self.settings_fingerprint,
             "items": [i.as_dict() for i in self.items],
         }
+        if self.vision_model_names:
+            payload["vision_model_names"] = list(self.vision_model_names)
+        if self.multipass_cleanup_enabled:
+            payload["multipass_cleanup_enabled"] = True
         if self.import_run_id is not None:
             payload["import_run_id"] = self.import_run_id
         return payload
@@ -94,6 +108,9 @@ class OcrBatchRun:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OcrBatchRun:
         require_format(data, "transcribe.ocr-batch-run")
+        mode = str(data.get("mode") or "single").strip() or "single"
+        models_raw = data.get("vision_model_names") or []
+        models = [str(m).strip() for m in models_raw if str(m).strip()]
         return cls(
             ocr_run_id=str(data["ocr_run_id"]),
             created_at=str(data.get("created_at") or ""),
@@ -104,6 +121,9 @@ class OcrBatchRun:
             settings_fingerprint=str(data.get("settings_fingerprint") or ""),
             import_run_id=data.get("import_run_id"),
             items=[OcrBatchItem.from_dict(i) for i in data.get("items") or []],
+            mode=mode,
+            vision_model_names=models,
+            multipass_cleanup_enabled=bool(data.get("multipass_cleanup_enabled", False)),
             format=str(data.get("format", "transcribe.ocr-batch-run")),
             schema_version=int(data.get("schema_version", 1)),
         )
@@ -114,6 +134,12 @@ def validate_ocr_batch_run(run: OcrBatchRun) -> None:
         raise ValidationError(f"invalid ocr-batch-run status: {run.status!r}")
     if not run.ocr_run_id.strip():
         raise ValidationError("ocr_run_id must be non-empty")
+    if run.mode not in OCR_BATCH_MODES:
+        raise ValidationError(f"invalid ocr-batch-run mode: {run.mode!r}")
+    if run.mode == "multipass" and len(run.vision_model_names) < 2:
+        raise ValidationError(
+            "multipass ocr-batch-run requires at least two vision_model_names"
+        )
     seen: set[str] = set()
     for item in run.items:
         if item.state not in ITEM_STATES:

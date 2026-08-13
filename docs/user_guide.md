@@ -128,7 +128,7 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 - **One folder → one notebook** — path to a flat folder of scans.
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
-After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared vision-model config and runs notebooks one after another (fingerprint skip unless Force).
+After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare.
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 
@@ -144,6 +144,7 @@ After a successful import, **Transcribe imported notebooks** opens **Workflow �
 ./transcribe.sh cli bulk-import resume <import_run_id>
 ./transcribe.sh cli bulk-run pending --model llama3.2-vision
 ./transcribe.sh cli bulk-run import-run <import_run_id> --model llama3.2-vision
+./transcribe.sh cli bulk-run pending --model vision-a --model vision-b --text-model qwen2.5
 ./transcribe.sh cli corpus-doctor --deep
 ```
 

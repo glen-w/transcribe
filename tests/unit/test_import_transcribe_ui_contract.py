@@ -30,6 +30,9 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "This notebook" in IMPORT and "Batch" in IMPORT
     assert "This notebook" in TRANSCRIBE and "Batch" in TRANSCRIBE
     assert "Start batch transcription" in TRANSCRIBE
+    assert "Start batch multipass compare" in TRANSCRIBE
+    assert "tx_batch_start_multipass" in TRANSCRIBE
+    assert "_multipass_default_selection" in TRANSCRIBE
     assert 'unit_label="notebooks"' in TRANSCRIBE
     assert "pages in this notebook" in TRANSCRIBE
     assert "_job_progress_to_snapshot" in TRANSCRIBE
@@ -50,3 +53,7 @@ def test_ocr_batch_run_format_registered() -> None:
     contract = Path("docs/contracts/ocr-batch-run.md").read_text(encoding="utf-8")
     assert "transcribe.ocr-batch-run" in contract
     assert "JobCoordinator" in contract
+    assert "MultiPassCoordinator" in contract
+    assert "mode" in contract
+    assert "vision_model_names" in contract
+    assert "Multipass / compare-models over a batch" not in contract
