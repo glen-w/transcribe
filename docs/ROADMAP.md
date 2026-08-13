@@ -172,10 +172,10 @@ Delivery plan: [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md). Pattern a
 
 | Slice | Status | Outcome |
 |-------|--------|---------|
-| **A0** Plan + pointers | [x] | This roadmap row + delivery plan |
-| **A1** Persistence + coordinator | [ ] | `AnalysisBatchRun` + sequential `BatchAnalysisCoordinator` |
-| **A2** GUI Target + selection | [ ] | Analyse This notebook \| Batch; same three notebook sources |
-| **A3** Handoffs + CLI + docs | [ ] | Optional CTAs; `bulk-analyse`; public surfaces |
+| **A0** Plan + pointers | [x] | Delivery plan (selection, dual-bar progress, test matrix, docs checklist) |
+| **A1** Persistence + coordinator | [ ] | `AnalysisBatchRun` + sequential coordinator + offline unit/selection/progress-mapper tests |
+| **A2** GUI Target + live progress | [ ] | Analyse This notebook \| Batch; same three sources; dual progress bars + stop + post-run summary |
+| **A3** Handoffs + CLI + docs | [ ] | Optional CTAs; `bulk-analyse`; public surfaces / user guide / limitations |
 
 ---
 

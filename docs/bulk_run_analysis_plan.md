@@ -22,8 +22,10 @@ Import → Batch OCR → Bulk Analyse → per-notebook Published results
 2. **Same selection modes as bulk OCR** — radio: `pending` | `import_run` | `pick` (labels adapted for Analyse; see §3).
 3. **One shared Analyse plan** — preset / custom modules / optional Ask question / text-model freeze, applied sequentially to each selected notebook.
 4. **Durable workspace run** — resume / status / cancel-after-current-notebook, mirroring `OcrBatchRun`.
-5. **Honest progress** — shared progress panel with notebook as outer unit and module as nested detail.
-6. **CLI parity (same PR or immediate follow-up)** — `bulk-analyse` mirrors `bulk-run` sources.
+5. **Honest live progress** — shared progress panel with dual bars (notebooks + modules), current notebook/module labels, captions, recent logs, and post-run per-item summary — parity with batch OCR (§5.1).
+6. **Robust offline tests** — coordinator, selection, progress snapshot mapping, UI contract, CLI, and acceptance coverage before claiming done (§11).
+7. **Docs as ship criteria** — CONTRACT + public surfaces + user guide + known limitations + indexes updated in the same delivery that enables the GUI (§12).
+8. **CLI parity (same PR or immediate follow-up)** — `bulk-analyse` mirrors `bulk-run` sources.
 
 ### Non-goals (explicit)
 
@@ -83,7 +85,7 @@ Keep the existing preset form (Quick / Balanced / Thorough / Custom, optional As
 2. Caption with selection counts.
 3. Recent `AnalysisBatchRun` expander + Resume.
 4. Primary **Start batch analysis**.
-5. Progress / Stop / Retry failed / Change settings — mirror batch OCR.
+5. Live progress / Stop / Retry failed / Change settings — **must** follow §5.1 (not a caption-only stub).
 
 No confirmation modal beyond existing remote-host ack and validation (≥1 notebook; plan hash bind; text model when LLM modules selected).
 
@@ -185,13 +187,59 @@ Per-item fields mirror OCR items (`state`, `error_message`, plus module counters
 | Persistence | `corpus/analysis_run.py` + `CorpusPaths.analysis_runs_dir` | Store + finalize status helper |
 | UI | `ui/run_analysis.py` (+ small `targets.py` keys) | Target switcher, batch launch/progress |
 | App shell | `ui/app.py`, `ui/shell.py` | Analyse without forced notebook when Batch |
-| Progress | `ui/components/progress_panel.py` | `unit_label="notebooks"`; nest current module |
+| Progress | `ui/components/progress_panel.py` | Reuse as-is; dual bars via snapshot detail_* fields (§5.1) |
 | CLI | `__main__.py` | `bulk-analyse pending\|import-run\|notebooks\|status\|resume` |
 | Factory | `build_batch_analysis_coordinator` | Streamlit `@st.cache_resource` |
 
-### Progress mapping
+### 5.1 GUI progress (hard requirement — parity with batch OCR)
 
-Outer `BatchAnalysisProgress`: notebook totals + `current_item` + nested module fields from inner `AnalysisProgress` (analogous to OCR’s nested page fields).
+Batch Analyse **must not** ship with spinner-only or caption-only feedback. Mirror Transcribe Batch (`_render_batch_progress` + `_batch_progress_to_snapshot`):
+
+#### While running
+
+| UI element | Behavior |
+|------------|----------|
+| Live fragment poll | `@st.fragment(run_every≈2s)` while status is `running` (same cadence as batch OCR) |
+| Phase banner | `st.info` / success / error via `render_progress_panel` (`running_pipeline`, `completed`, `partial`, `failed`, `cancelled`) |
+| Current notebook | `current_item` = title or `notebook_id` (readable, not only UUID) |
+| Current module | `current_module` = inner `AnalysisProgress.current_module_id`; `current_label="Current notebook"` for outer, module shown via existing `current_module` / detail line |
+| Outer progress bar | `unit_label="notebooks"` — `completed+skipped+failed / total` with skipped/failed suffixes |
+| Inner progress bar | `detail_unit="modules"` — map inner completed/failed/skipped/total; `detail_current` = current module id (panel already supports nested bar; generalize “Current page” copy to honor `detail_unit` if needed) |
+| Latest event caption | Forward inner `message` (e.g. “Running ner (3/12)…”) |
+| Recent logs expander | Append notebook-start / module-finish / skip / fail lines (cap like OCR panel) |
+| Stop control | **Stop after current notebook** → `request_cancel()`; caption explains remaining notebooks will not start |
+
+Hide the preset/selection form while a batch is live or a post-run summary is showing (same early-return pattern as Transcribe Batch).
+
+#### Progress snapshot contract
+
+`BatchAnalysisProgress` → `ProgressSnapshot` mapper (pure function, unit-tested):
+
+```text
+status, phase
+current_item          ← notebook title / id
+completed, skipped, failed, total, pct   ← notebook counters
+current_module        ← optional mirror of detail_current for panel chrome
+detail_unit="modules"
+detail_completed / detail_failed / detail_skipped / detail_total
+detail_current        ← current_module_id
+latest_event, recent_logs, error
+```
+
+Coordinator must refresh nested module counters on every inner progress tick (not only when a notebook finishes).
+
+#### Post-run summary
+
+When status enters `{completed, partial, failed, cancelled}`:
+
+- Keep final dual-bar snapshot visible (not cleared on first idle poll).
+- **Next** actions: View · Retry failed · Change settings (Retry rebuilds a run from failed item ids).
+- Per-item list: `title · state · modules_completed/total · failed/skipped · error_message`.
+- Optional: open last completed notebook in This notebook Target.
+
+#### Non-negotiable UX gate
+
+A2 is **not** mergeable if Batch Analyse lacks: outer notebook bar, inner module bar (when `detail_total > 0`), current notebook label, stop control, and post-run item summary. Caption-only “Running…” is a defect.
 
 ### Conflict rules
 
@@ -203,40 +251,43 @@ Outer `BatchAnalysisProgress`: notebook totals + `current_item` + nested module 
 
 ## 6. Delivery slices
 
-Implement in small PRs; each must stay rebase-clean vs `main` and keep the default offline suite green.
+Implement in small PRs; each must stay rebase-clean vs `main` and keep the default offline suite green. **No slice is done without its test + docs bullets.**
 
-### A0 — Plan + contract skeleton — [ ] (this doc)
+### A0 — Plan + pointers — [x] (this doc)
 
-- This PRODUCT plan
+- This PRODUCT plan (including §5.1 / §11 / §12)
 - ROADMAP / index pointers
-- CONTRACT draft may land with A1 if preferred
 
 ### A1 — Persistence + coordinator (headless)
 
-- `AnalysisBatchRun` contract + store
-- `BatchAnalysisCoordinator` sequential execution
+- `AnalysisBatchRun` contract + store + schema registration
+- `BatchAnalysisCoordinator` sequential execution + nested progress ticks
 - Extract shared notebook candidate helpers
-- Offline unit tests: create / skip empty / fail one continue / cancel remaining / resume / status finalize (`completed` vs `partial`)
+- Offline tests from §11.1–§11.2 (coordinator + selection + progress mapper)
+- CONTRACT linked from `CONTRACT_INDEX.md` / `TERMS.md`
 
-### A2 — GUI Target + selection parity
+### A2 — GUI Target + selection + **live progress**
 
-- Analyse Target switcher
+- Analyse Target switcher; Batch without sidebar notebook
 - Same three selection modes + seed keys
-- Shared progress panel wiring
-- Shell: Batch without sidebar notebook
-- UI contract / smoke extensions as needed
+- Full §5.1 progress panel wiring (fragment poll, dual bars, stop, post-run)
+- UI contract tests from §11.3
+- Smoke on port 8510 when practical (not a substitute for offline contract tests)
 
 ### A3 — Handoffs + CLI + docs
 
 - Optional post-import / post–batch-OCR CTAs
-- CLI `bulk-analyse …`
-- `public_surfaces.md`, `user_guide.md`, `known_limitations.md`, `TERMS.md`, `ARCHITECTURE.md`, `CONTRACT_INDEX.md`
+- CLI `bulk-analyse …` + §11.4 tests
+- Full §12 documentation checklist
+- ROADMAP A1–A3 rows marked done
 
-**Suggested merge order:** A1 → A2 → A3. A2 must not invent a second runner.
+**Suggested merge order:** A1 → A2 → A3. A2 must not invent a second runner. **A2 blocked on §5.1 UX gate.**
 
 ---
 
 ## 7. Acceptance criteria
+
+### Behavior
 
 - [ ] Analyse → Batch can run the same preset plan across ≥2 notebooks without opening each manually.
 - [ ] Selection modes are the same three as Transcribe Batch (`pending` / `import_run` / `pick`); Analyse `pending` uses analysis-need semantics (§3.2).
@@ -244,8 +295,18 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 - [ ] Cancel stops after the current notebook’s cancel semantics; remaining items `cancelled`.
 - [ ] Resume continues non-terminal items; published modules survive crash/reopen (existing analysis rules).
 - [ ] Published results / health / plan_hash semantics unchanged for each notebook.
-- [ ] Offline tests cover coordinator + selection filters; no live Ollama required in default suite.
-- [ ] Docs list the surface; ROADMAP marks the slice done when A1–A3 land.
+
+### Progress GUI (§5.1)
+
+- [ ] Live dual progress bars (notebooks + modules) with current notebook and current module labels.
+- [ ] Phase banner + latest-event caption + recent-logs expander update while running.
+- [ ] Stop control cancels remaining notebooks after the current one.
+- [ ] Post-run summary lists each notebook’s outcome; Retry failed / Change settings work.
+
+### Tests & docs
+
+- [ ] Offline suite covers §11 matrix; no live Ollama required in default CI.
+- [ ] §12 docs checklist complete; ROADMAP marks A1–A3 done.
 
 ---
 
@@ -258,6 +319,7 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 | Force re-run | No OCR-style `force` flag. Users rely on stale health + cache identity; optional later “recompute even if fresh” is out of scope. |
 | Multipass analogue | None — Analyse has presets, not vision multipass. |
 | Relationship to ROADMAP “Corpus-level Analyse” | This feature is **not** that candidate. Corpus-level means cross-notebook products; Bulk Analyse is orchestration only. |
+| Progress panel copy | Prefer generalizing `detail_current` label (“Current module” when `detail_unit=modules`) over hard-coding “Current page” for Analyse Batch. |
 
 ---
 
@@ -268,12 +330,93 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) | Pattern to clone for workspace batch runs |
 | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) | Inner plan / publish / lock authority |
 | `src/transcribe/services/batch_ocr.py` | Coordinator + selection template |
-| `src/transcribe/ui/run_transcribe.py` | Target + batch launch UI template |
+| `src/transcribe/ui/run_transcribe.py` | Target + `_render_batch_progress` template |
+| `src/transcribe/ui/components/progress_panel.py` | Shared dual-bar panel |
 | `src/transcribe/ui/run_analysis.py` | Preset form + single-notebook launch |
 | `src/transcribe/analysis/coordinator.py` | Inner engine to call per notebook |
+| `tests/unit/test_batch_ocr.py` · `tests/acceptance/corpus/test_bulk_ocr.py` · `tests/unit/test_progress_reporting.py` | Test patterns to mirror |
 
 ---
 
 ## 10. Exit gate
 
-Bulk run analysis is **done** when A1–A3 acceptance boxes are checked, the CONTRACT is linked from `CONTRACT_INDEX.md`, GUI Batch selection matches Transcribe’s three modes, and ordinary users can Analyse a freshly imported/OCR’d set without per-notebook babysitting — without claiming cross-notebook Analyse.
+Bulk run analysis is **done** when:
+
+1. A1–A3 acceptance boxes (§7) are checked.
+2. §5.1 progress UX gate and §11 test matrix are green offline.
+3. §12 docs checklist is complete and `CONTRACT_INDEX` points at `analysis-batch-run`.
+4. GUI Batch selection matches Transcribe’s three modes.
+5. Ordinary users can Analyse a freshly imported/OCR’d set **while watching notebook + module progress**, without per-notebook babysitting — and without claiming cross-notebook Analyse.
+
+---
+
+## 11. Test matrix (offline-first)
+
+Mirror OCR bulk coverage. Default suite stays offline (fake / no Ollama). Live probes remain optional and environmental.
+
+### 11.1 Unit — coordinator & store (`tests/unit/test_batch_analysis.py`)
+
+| Case | Assert |
+|------|--------|
+| Two notebooks complete | Both items `completed`; workspace status `completed`; each has `inner_run_id` / published modules as expected for preset |
+| Empty-text skip | Item `skipped`; siblings still run; status not `failed` solely due to skips |
+| One notebook fails | That item `failed` + message; next notebook still runs; finalize `partial` |
+| Cancel mid-batch | Current notebook respects inner cancel; remaining items `cancelled`; no new notebooks started |
+| Resume | Non-terminal items continue; completed items not re-executed from scratch (cache hits OK) |
+| Job conflict | Second `start` while running raises `JobConflictError` |
+| Round-trip persist | Store load/save preserves template hash, preset fields, item counters |
+| `finalize_*_status` | `completed` / `partial` / `failed` / `cancelled` matrix |
+
+### 11.2 Unit — selection & progress mapping
+
+| Case | Assert |
+|------|--------|
+| `select_needing_analysis` | Includes missing/stale/failed/interrupted/degraded with text; excludes healthy-with-text and empty-text |
+| `select_from_import_run` / `select_by_ids` | Same ordering/missing-id errors as OCR helpers |
+| OCR `select_pending` untouched | Regression: still page-pending semantics after shared extract |
+| `_batch_analysis_progress_to_snapshot` | Notebook totals → outer bar; module totals → `detail_*`; titles in `current_item`; pct sane |
+
+Extend `tests/unit/test_progress_reporting.py` (or sibling) the way `test_batch_ocr_progress_names_notebook_and_page` covers OCR.
+
+### 11.3 UI contract (`tests/unit/test_analyse_ui_contract.py` + import/transcribe contract style)
+
+| Case | Assert |
+|------|--------|
+| Target keys / modes | Analyse exposes This notebook \| Batch; Batch does not require open notebook in shell helper |
+| Selection source labels | Radio options include needing-analysis / import run / pick |
+| Progress wiring present | Source references `render_progress_panel`, `unit_label="notebooks"`, detail modules, stop key |
+| Schema registered | `SUPPORTED["transcribe.analysis-batch-run"] == 1` and CONTRACT file exists |
+| No second runner | Batch path calls batch coordinator; does not add per-tab module runners |
+
+### 11.4 Acceptance / CLI (`tests/acceptance/…` or corpus-adjacent)
+
+| Case | Assert |
+|------|--------|
+| Three-notebook offline bulk | Preset plan across 3 projects completes/partial correctly |
+| CLI `bulk-analyse pending\|notebooks\|status\|resume` | Wired in `__main__`; offline happy path like `test_bulk_ocr.py` |
+| Import-run seed | Batch from ImportRun committed ids |
+
+### 11.5 CI gate
+
+- A1 merge: §11.1–§11.2 green.
+- A2 merge: §11.3 green + §5.1 checklist manually verified in smoke when feasible.
+- A3 merge: §11.4 + §12 green.
+- Do not mark ROADMAP done if only happy-path coordinator tests exist.
+
+---
+
+## 12. Documentation checklist (ship with A1–A3)
+
+| Doc | Update |
+|-----|--------|
+| `docs/contracts/analysis-batch-run.md` | New CONTRACT (A1) — lifecycle, fields, cancel/resume, non-goals |
+| `docs/CONTRACT_INDEX.md` | Point at live CONTRACT (replace plan pointer) |
+| `docs/TERMS.md` | `AnalysisBatchRun` → CONTRACT link |
+| `docs/ARCHITECTURE.md` | Workspace bulk Analyse alongside OcrBatchRun |
+| `docs/public_surfaces.md` | Analyse → Batch Target; CLI `bulk-analyse`; progress note |
+| `docs/user_guide.md` | How to bulk Analyse after import/OCR; what the bars mean |
+| `docs/known_limitations.md` | Sequential notebooks; empty-text skip; no force; Ask on batch; not corpus-level Analyse |
+| `docs/ROADMAP.md` | Tick A1–A3 when landed |
+| `README.md` (if entry surfaces listed) | One-line link if CLI/UI tables mention bulk OCR today |
+
+**Copy rule:** Describe **notebook bar** + **module bar** in user-facing docs the same way batch OCR describes notebooks + pages. Do not document a progress-less “fire and forget” Batch.
