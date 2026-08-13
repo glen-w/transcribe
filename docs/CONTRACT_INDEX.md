@@ -11,6 +11,7 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Corpus hierarchy, `notebook_id`, ordering, corpus index, workspace locks | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
 | Managed originals, fingerprints, duplicates, source/render invariants | [contracts/source-asset.md](contracts/source-asset.md) |
 | ImportRun / ImportPlan lifecycle, idempotency, crash/resume | [contracts/import-run.md](contracts/import-run.md) |
+| Multi-notebook OCR batch (OcrBatchRun) | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) |
 | Corpus/notebook doctor invariants, repair boundaries, bulk-import acceptance gate | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 | Project directory layout, `project.json`, ingest journal, locks, optional `analysis/` | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | Page results, attempts, edits, fingerprints, prefer/compare (persisted) | [contracts/page-result.md](contracts/page-result.md) |
@@ -32,5 +33,5 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Workspace settings, profiles, knob precedence, analysis config versions | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
 | Future TranscriptX handoff (non-shipped) | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) |
 
-Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, `transcribe.prompt-definition`, `transcribe.page-metrics`, plus `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Corpus formats are **runtime-normative** for bulk import ([activation gate](contracts/notebook-corpus.md#activation-gate) satisfied) but are **not** required for `transcribe.project` v1 notebooks that lack corpus registration.
+Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, `transcribe.prompt-definition`, `transcribe.page-metrics`, plus `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ocr-batch-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Corpus formats are **runtime-normative** for bulk import ([activation gate](contracts/notebook-corpus.md#activation-gate) satisfied) but are **not** required for `transcribe.project` v1 notebooks that lack corpus registration.
 

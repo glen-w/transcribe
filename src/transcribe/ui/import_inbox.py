@@ -15,7 +15,12 @@ from transcribe.corpus.adapters import (
     scan_folder_notebooks,
 )
 from transcribe.corpus.folder_overwrite import prepare_folder_overwrite
-from transcribe.corpus.import_run import ImportRun, ImportRunStore, TERMINAL_STATUSES
+from transcribe.corpus.import_run import (
+    ImportRun,
+    ImportRunStore,
+    TERMINAL_STATUSES,
+    committed_notebook_ids,
+)
 from transcribe.corpus.orchestrator import ImportOrchestrator
 from transcribe.corpus.paths import CorpusPaths
 from transcribe.corpus.plan import POLICY_CREATE_DUPLICATE_V1, POLICY_SKIP_EXISTING_V1
@@ -23,6 +28,24 @@ from transcribe.errors import TranscribeError, ValidationError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import bump_archive_generation
+from transcribe.ui.components.action_links import render_action_link
+from transcribe.ui.shell import set_ui_mode
+from transcribe.ui.targets import (
+    PENDING_TRANSCRIBE_TARGET_KEY,
+    TARGET_BATCH,
+    TRANSCRIBE_BATCH_IMPORT_RUN_KEY,
+    TRANSCRIBE_BATCH_NOTEBOOK_IDS_KEY,
+    TRANSCRIBE_BATCH_SOURCE_KEY,
+)
+
+
+def queue_transcribe_imported(run: ImportRun) -> None:
+    """Open Transcribe → Batch seeded from this ImportRun's committed notebooks."""
+    st.session_state[PENDING_TRANSCRIBE_TARGET_KEY] = TARGET_BATCH
+    st.session_state[TRANSCRIBE_BATCH_IMPORT_RUN_KEY] = run.import_run_id
+    st.session_state[TRANSCRIBE_BATCH_NOTEBOOK_IDS_KEY] = committed_notebook_ids(run)
+    st.session_state[TRANSCRIBE_BATCH_SOURCE_KEY] = "import_run"
+    set_ui_mode("Transcribe")
 
 
 def _list_runs(corpus: CorpusPaths) -> list[ImportRun]:
@@ -105,6 +128,7 @@ def _render_single_folder(
                         f"Import run `{completed.import_run_id}` → **{completed.status}**"
                     )
                     st.session_state["import_inbox_flash_run"] = completed.import_run_id
+                    st.session_state["import_inbox_flash_transcribe"] = completed.import_run_id
                     st.rerun()
             except (TranscribeError, ValidationError, OSError) as exc:
                 st.error(str(exc))
@@ -269,16 +293,18 @@ def _render_parent_folders(
                 f"Import run `{completed.import_run_id}` → **{completed.status}**"
             )
             st.session_state["import_inbox_flash_run"] = completed.import_run_id
+            st.session_state["import_inbox_flash_transcribe"] = completed.import_run_id
             st.rerun()
         except (TranscribeError, ValidationError, OSError) as exc:
             st.error(str(exc))
 
 
 def render_import_inbox(runtime: RuntimePaths) -> None:
-    """Corpus import recovery: plan folder(s), list runs, resume failures."""
+    """Batch import: plan folder(s), list runs, resume failures."""
     st.caption(
-        "Bulk import scans into new notebooks, then review what committed, "
-        "skipped, or failed. Single-file import remains under Workflow → Import."
+        "Import a folder of scans into new notebooks, then review what committed, "
+        "skipped, or failed. Use Target → This notebook to add files to the "
+        "selected notebook."
     )
     corpus = CorpusPaths.from_runtime(runtime)
     clock, ids = SystemClock(), UuidGenerator()
@@ -305,6 +331,7 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
     st.divider()
     st.markdown("#### Recent import runs")
     flash = st.session_state.pop("import_inbox_flash_run", None)
+    flash_tx = st.session_state.pop("import_inbox_flash_transcribe", None)
     if flash:
         st.info(f"Updated run `{flash}`")
 
@@ -312,6 +339,19 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
     if not runs:
         st.caption("No ImportRun records yet.")
         return
+
+    if flash_tx:
+        flashed = next((r for r in runs if r.import_run_id == flash_tx), None)
+        nids = committed_notebook_ids(flashed) if flashed is not None else []
+        if nids:
+            st.markdown("#### Next")
+            if render_action_link(
+                "Transcribe imported notebooks",
+                key="import_done_transcribe",
+                icon=":material/document_scanner:",
+                help="Open Transcribe → Batch with notebooks from this import.",
+            ):
+                queue_transcribe_imported(flashed)
 
     for run in runs[:20]:
         committed = sum(1 for i in run.items if i.state == "committed")
@@ -334,6 +374,13 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
                 if item.error_message:
                     bits.append(item.error_message)
                 st.write(f"- `{item.item_id}` · " + " · ".join(bits))
+            nids = committed_notebook_ids(run)
+            if nids:
+                if st.button(
+                    "Transcribe imported notebooks",
+                    key=f"tx_imported_{run.import_run_id}",
+                ):
+                    queue_transcribe_imported(run)
             if run.status not in TERMINAL_STATUSES or pending:
                 if st.button("Resume", key=f"resume_{run.import_run_id}"):
                     try:

@@ -42,7 +42,7 @@ Open http://127.0.0.1:8510 (Transcribe uses **8510**, not 8501).
 | `HOST_INBOX_DIR` | `/mnt/inbox` | `TRANSCRIBE_INBOX_DIR` |
 | `HOST_EXPORT_DIR` | `/mnt/exports` | `TRANSCRIBE_EXPORT_DIR` |
 | `HOST_DATA_DIR` (default `./data`) | `/data` | `TRANSCRIBE_DATA_DIR` |
-| `HOST_BULK_IMPORT_DIR` (optional, via override) | `/mnt/notebooks` | — (paste path in Inbox UI) |
+| `HOST_BULK_IMPORT_DIR` (optional, via override) | `/mnt/notebooks` | — (paste path in Import → Batch) |
 
 Separate `HOST_*` vs `TRANSCRIBE_*` names avoid Compose `.env` vs `environment:` precedence surprises.
 
@@ -50,9 +50,9 @@ Prefer absolute host paths **outside the git clone** for projects, inbox, and ex
 
 Project folder internals: [../contracts/project-on-disk.md](../contracts/project-on-disk.md).
 
-### Bulk import paths (Inbox UI / CLI in Docker)
+### Bulk import paths (Import → Batch / CLI in Docker)
 
-The Streamlit process only sees **container** paths. In **Notebooks → Inbox**, enter:
+The Streamlit process only sees **container** paths. In **Workflow → Import → Batch**, enter:
 
 | Goal | Path to paste |
 |------|----------------|
@@ -88,7 +88,7 @@ Ensure a vision-capable model is already pulled on the host Ollama instance. Pri
 
 - Mount `./src/transcribe` into site-packages for live code edits
 - Drop `:ro` on the inbox mount
-- Mount `HOST_BULK_IMPORT_DIR` → `/mnt/notebooks` for Inbox bulk import of a folder tree outside the default inbox
+- Mount `HOST_BULK_IMPORT_DIR` → `/mnt/notebooks` for Import → Batch of a folder tree outside the default inbox
 
 The override file is gitignored; keep machine-specific paths there or in `.env`.
 

@@ -18,6 +18,7 @@ SUPPORTED: dict[str, int] = {
     # Bulk-import generation (runtime-normative; workspace may omit index)
     "transcribe.corpus-index": 1,
     "transcribe.import-run": 1,
+    "transcribe.ocr-batch-run": 1,
     "transcribe.ingest-journal": 1,
     "transcribe.ocr-preference-ledger": 1,
     "transcribe.ocr-multipass-job": 1,

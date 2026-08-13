@@ -128,9 +128,11 @@ def test_inbox_and_cli_wire_bulk_import_surfaces() -> None:
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
     app = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
     main = Path("src/transcribe/__main__.py").read_text(encoding="utf-8")
-    assert '"Inbox"' in shell
-    assert "render_import_inbox" in app
-    assert 'mode == "Inbox"' in app
+    assert '"Inbox": "Import"' in shell
+    assert "render_run_import" in app
+    assert "render_import_inbox" in Path("src/transcribe/ui/run_import.py").read_text(
+        encoding="utf-8"
+    )
     assert "bulk-import" in main
     assert "corpus-doctor" in main
     assert "plan_from_folder" in main

@@ -79,35 +79,38 @@ def test_phase6_product_views_demote_json_and_enums():
 
 
 def test_phase6_ocr_advanced_groups_power_controls():
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.
-    assert "Vision model" in APP
-    assert "Start transcription" in APP
-    assert "Clean OCR with text model" in APP
+    assert "Vision model" in tx
+    assert "Start transcription" in tx
+    assert "Clean OCR with text model" in tx
     # Power controls live under Advanced expander.
-    assert 'st.expander("Advanced"' in APP
+    assert 'st.expander("Advanced"' in tx
     # Workers / force / cleanup detail appear only after Advanced marker in source.
-    adv_idx = APP.index('st.expander("Advanced"')
-    assert APP.index("Workers", adv_idx) > adv_idx
-    assert APP.index("Force re-run", adv_idx) > adv_idx
-    assert APP.index("Cleanup mode", adv_idx) > adv_idx
+    adv_idx = tx.index('st.expander("Advanced"')
+    assert tx.index("Workers", adv_idx) > adv_idx
+    assert tx.index("Force re-run", adv_idx) > adv_idx
+    assert tx.index("Cleanup mode", adv_idx) > adv_idx
     # Privacy acknowledgement stays on the primary path (before Advanced).
-    remote_idx = APP.index("I understand and want to use this remote host")
+    remote_idx = tx.index("I understand and want to use this remote host")
     assert remote_idx < adv_idx
 
 
 def test_ocr_model_information_expander_at_pickers():
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     info = Path("src/transcribe/ui/components/model_info.py").read_text(encoding="utf-8")
     assert 'st.expander("Model information"' in info
-    assert "render_model_information" in APP
-    assert "warn_if_first_compare_model_is_general_vlm" in APP
-    assert "Clean OCR during compare" in APP
+    assert "render_model_information" in tx
+    assert "warn_if_first_compare_model_is_general_vlm" in tx
+    assert "Clean OCR during compare" in tx
     assert "render_model_information" in RUN
 
 
 def test_compare_starts_in_background_not_spinner():
-    assert 'st.spinner("Running multipass' not in APP
-    assert "multi.start(" in APP
-    assert "coord.start" in APP
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
+    assert 'st.spinner("Running multipass' not in tx
+    assert "multi.start(" in tx
+    assert "coord.start" in tx
 
 
 def test_phase6_last_run_is_product_summary():
