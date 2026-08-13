@@ -18,6 +18,7 @@ Authority: curated maintainer navigation only — does not own contracts
 | [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core delivery history / internal slices (PRODUCT; shipped) |
 | [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Post-ship hardening checklist for analysis infra |
 | [detection_wave2_plan.md](detection_wave2_plan.md) | Prompt Hub + Detection wave 2 delivery / hardening checklist |
+| [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md) | Multi-notebook Analyse → Batch (selection parity with bulk OCR) |
 | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
 | [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX (patterns only) |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |

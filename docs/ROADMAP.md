@@ -164,12 +164,27 @@ Upgrades / data longevity remain paired with the lifecycle candidates below.
 
 ---
 
+## Next — Bulk run analysis (GUI) — [ ] planned
+
+Multi-notebook **Analyse → Batch**: same Target / selection modes as Transcribe Batch (`pending` | `import_run` | `pick`), one frozen Analyse plan applied sequentially per notebook. Orchestration only — not cross-notebook synthesis.
+
+Delivery plan: [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md). Pattern authority to clone: [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md). Distinct from ROADMAP “Corpus-level Analyse” below.
+
+| Slice | Status | Outcome |
+|-------|--------|---------|
+| **A0** Plan + pointers | [x] | This roadmap row + delivery plan |
+| **A1** Persistence + coordinator | [ ] | `AnalysisBatchRun` + sequential `BatchAnalysisCoordinator` |
+| **A2** GUI Target + selection | [ ] | Analyse This notebook \| Batch; same three notebook sources |
+| **A3** Handoffs + CLI + docs | [ ] | Optional CTAs; `bulk-analyse`; public surfaces |
+
+---
+
 ## Later candidates — uncommitted — [?]
 
 Worth recording without scheduling:
 
 - Cross-notebook links / related pages
-- Corpus-level Analyse / search
+- Corpus-level Analyse / search (cross-notebook products — **not** Bulk Analyse orchestration above)
 - Bookmarks / favourites
 - Annotations distinct from OCR corrections
 - Batch metadata editing
