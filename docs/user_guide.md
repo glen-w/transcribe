@@ -90,7 +90,7 @@ Edit what each preset includes under **App → Settings → Analysis**. Manage p
 
 Use a **text** Ollama model for LLM modules. Deterministic synthesis works without it. When a model or optional component is missing, Analyse says so in plain language (for example “Needs a text model”) rather than raw capability enums. Roadmap: [ROADMAP.md](ROADMAP.md).
 
-**Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**. Batch OCR and Import → Batch share the same live progress panel style.
+**Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**. Batch OCR, Batch Analyse, and Import → Batch share the same live progress panel style.
 
 CLI detection:
 
@@ -123,7 +123,7 @@ Settings → Profiles (target **export**). Contract:
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --deep
 ```
 
-## 8. Bulk import and batch OCR
+## 8. Bulk import, batch OCR, and bulk Analyse
 
 Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path for one notebook at a time.
 
@@ -133,6 +133,8 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
 After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare. Import, Transcribe, and batch OCR jobs show live progress (per-item / per-page status with readable filenames).
+
+**Workflow → Analyse → Batch** uses the same three notebook sources (needing analysis / import run / pick). Choose a preset, then **Start batch analysis**. Progress shows an outer notebook bar and an inner module bar for the current notebook; **Stop after current notebook** cancels the rest. Empty-text notebooks are skipped. Published results stay per-notebook under This notebook → Published results.
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 

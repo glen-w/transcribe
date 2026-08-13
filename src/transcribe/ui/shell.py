@@ -725,12 +725,13 @@ def is_workflow_mode(mode: str) -> bool:
 def is_open_notebook_workflow(mode: str) -> bool:
     """Workflow modes that always require an existing notebook selection.
 
-    Import and Transcribe host This notebook | Batch targets; Batch does not
-    need a sidebar notebook, so those pages gate selection themselves.
+    Import, Transcribe, and Analyse host This notebook | Batch targets; Batch does
+    not need a sidebar notebook, so those pages gate selection themselves.
     """
     mode = normalize_ui_mode(mode)
     return is_workflow_mode(mode) and mode not in {
         "New notebook",
         "Import",
         "Transcribe",
+        "Analyse",
     }

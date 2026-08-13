@@ -325,6 +325,61 @@ def main(argv: list[str] | None = None) -> int:
     p_br_resume = bulk_run_sub.add_parser("resume", help="Resume a non-terminal OcrBatchRun")
     p_br_resume.add_argument("ocr_run_id")
 
+    p_bulk_ax = sub.add_parser(
+        "bulk-analyse",
+        help="Run Analyse across many notebooks (AnalysisBatchRun)",
+    )
+    bulk_ax_sub = p_bulk_ax.add_subparsers(dest="bulk_analyse_cmd", required=True)
+
+    def _add_bulk_analyse_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "--preset",
+            choices=["quick", "balanced", "thorough", "custom"],
+            default="balanced",
+            help="Analysis preset (default: balanced)",
+        )
+        parser.add_argument(
+            "--module",
+            action="append",
+            default=[],
+            help="Module id (repeatable; required when --preset custom)",
+        )
+        parser.add_argument(
+            "--question",
+            default=None,
+            help="Optional Ask-notebook question (adds llm_custom_qa)",
+        )
+
+    p_ba_pending = bulk_ax_sub.add_parser(
+        "pending",
+        help="Analyse notebooks that need analysis (text + non-healthy)",
+    )
+    _add_bulk_analyse_flags(p_ba_pending)
+    p_ba_import = bulk_ax_sub.add_parser(
+        "import-run",
+        help="Analyse notebooks committed by an ImportRun",
+    )
+    p_ba_import.add_argument("import_run_id")
+    _add_bulk_analyse_flags(p_ba_import)
+    p_ba_nbs = bulk_ax_sub.add_parser(
+        "notebooks",
+        help="Analyse explicit notebook ids or project paths",
+    )
+    p_ba_nbs.add_argument(
+        "notebooks",
+        nargs="+",
+        help="Notebook id or project root (repeatable)",
+    )
+    _add_bulk_analyse_flags(p_ba_nbs)
+    p_ba_status = bulk_ax_sub.add_parser(
+        "status", help="Show AnalysisBatchRun outcomes"
+    )
+    p_ba_status.add_argument("analysis_batch_id")
+    p_ba_resume = bulk_ax_sub.add_parser(
+        "resume", help="Resume a non-terminal AnalysisBatchRun"
+    )
+    p_ba_resume.add_argument("analysis_batch_id")
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
@@ -334,6 +389,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_bulk_import(args, clock=clock, ids=ids)
         if args.cmd == "bulk-run":
             return _cmd_bulk_run(args, clock=clock, ids=ids)
+        if args.cmd == "bulk-analyse":
+            return _cmd_bulk_analyse(args, clock=clock, ids=ids)
         if args.cmd == "corpus-doctor":
             return _cmd_corpus_doctor(args)
 
@@ -878,6 +935,109 @@ def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
     )
     progress = coord.run_blocking(run.ocr_run_id)
     finished = store.load(progress.ocr_run_id)
+    print(f"status={finished.status}")
+    for item in finished.items:
+        err = f" error={item.error_message}" if item.error_message else ""
+        print(f"  {item.notebook_id} {item.state}{err}")
+    return 0 if finished.status in {"completed", "partial"} else 1
+
+
+def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
+    from transcribe.analysis.presets import resolve_analysis_preset
+    from transcribe.corpus.analysis_batch_run import AnalysisBatchRunStore
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.services.batch_analysis import (
+        BatchAnalysisCoordinator,
+        list_analysis_candidates,
+        select_by_ids,
+        select_from_import_run,
+        select_needing_analysis,
+    )
+    from transcribe.services.batch_notebooks import resolve_notebook_ref
+
+    corpus = CorpusPaths.from_runtime(PATHS)
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    store = AnalysisBatchRunStore(corpus)
+
+    if args.bulk_analyse_cmd == "status":
+        run = store.load(args.analysis_batch_id)
+        print(
+            f"analysis_batch_id={run.analysis_batch_id} status={run.status} "
+            f"preset={run.preset_key or '-'} modules={len(run.module_ids)} "
+            f"items={len(run.items)}"
+        )
+        if run.import_run_id:
+            print(f"import_run_id={run.import_run_id}")
+        for item in run.items:
+            err = f" error={item.error_message}" if item.error_message else ""
+            print(
+                f"  {item.notebook_id} {item.state} "
+                f"modules={item.modules_completed}/{item.modules_total} "
+                f"failed={item.modules_failed} skipped={item.modules_skipped}{err}"
+            )
+        return 0
+
+    if args.bulk_analyse_cmd == "resume":
+        progress = coord.resume(args.analysis_batch_id, blocking=True)
+        run = store.load(progress.analysis_batch_id)
+        print(f"analysis_batch_id={run.analysis_batch_id} status={run.status}")
+        for item in run.items:
+            print(f"  {item.notebook_id} {item.state}")
+        return 0 if run.status in {"completed", "partial"} else 1
+
+    preset = str(args.preset or "balanced")
+    custom = [m.strip() for m in (args.module or []) if m and str(m).strip()]
+    if preset == "custom" and not custom:
+        print("error: --preset custom requires at least one --module", file=sys.stderr)
+        return 2
+    resolved = resolve_analysis_preset(preset, custom_modules=custom)
+    question = (args.question or "").strip() or None
+    module_ids = list(resolved.module_ids)
+    if question and "llm_custom_qa" not in module_ids:
+        module_ids.append("llm_custom_qa")
+
+    candidates = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    import_run_id = None
+    if args.bulk_analyse_cmd == "pending":
+        selected = select_needing_analysis(candidates)
+    elif args.bulk_analyse_cmd == "import-run":
+        import_run_id = args.import_run_id
+        selected = select_from_import_run(
+            corpus, import_run_id, candidates, purpose="analyse"
+        )
+    elif args.bulk_analyse_cmd == "notebooks":
+        nids: list[str] = []
+        for ref in args.notebooks:
+            nid, _root = resolve_notebook_ref(corpus, ref)
+            nids.append(nid)
+        selected = select_by_ids(candidates, nids)
+    else:
+        print(
+            f"error: unknown bulk-analyse subcommand {args.bulk_analyse_cmd}",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not selected:
+        print("error: no notebooks selected", file=sys.stderr)
+        return 2
+
+    run = coord.create_run(
+        selected,
+        module_ids=module_ids,
+        question_text=question,
+        preset_label=preset.title(),
+        preset_key=resolved.preset,
+        preset_content_version=resolved.content_version,
+        preset_policy_fingerprint=resolved.policy_fingerprint,
+        import_run_id=import_run_id,
+    )
+    print(
+        f"analysis_batch_id={run.analysis_batch_id} notebooks={len(run.items)} "
+        f"preset={run.preset_key} modules={len(run.module_ids)}"
+    )
+    progress = coord.run_blocking(run.analysis_batch_id)
+    finished = store.load(progress.analysis_batch_id)
     print(f"status={finished.status}")
     for item in finished.items:
         err = f" error={item.error_message}" if item.error_message else ""

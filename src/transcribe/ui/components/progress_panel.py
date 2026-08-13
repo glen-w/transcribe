@@ -97,8 +97,10 @@ def render_progress_panel(
         st.markdown(f"Current: `{current_item}`")
 
     detail_current = str(snapshot.get("detail_current") or "")
+    detail_unit = str(snapshot.get("detail_unit") or "pages")
     if detail_current:
-        st.markdown(f"Current page: `{detail_current}`")
+        detail_noun = "module" if "module" in detail_unit else "page"
+        st.markdown(f"Current {detail_noun}: `{detail_current}`")
 
     if current_module:
         prefix = (
@@ -123,7 +125,6 @@ def render_progress_panel(
         detail_completed = int(snapshot.get("detail_completed", 0) or 0)
         detail_failed = int(snapshot.get("detail_failed", 0) or 0)
         detail_skipped = int(snapshot.get("detail_skipped", 0) or 0)
-        detail_unit = str(snapshot.get("detail_unit") or "pages")
         detail_done = detail_completed + detail_failed
         detail_label = f"{detail_done} / {detail_total} {detail_unit}"
         if detail_skipped:

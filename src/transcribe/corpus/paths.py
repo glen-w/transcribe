@@ -40,6 +40,11 @@ class CorpusPaths:
         return self.root / "ocr-runs"
 
     @property
+    def analysis_batch_runs_dir(self) -> Path:
+        """Workspace multi-notebook Analyse batch runs (not per-project analysis/runs)."""
+        return self.root / "analysis-runs"
+
+    @property
     def quarantine_dir(self) -> Path:
         return self.root / "quarantine"
 
@@ -49,10 +54,14 @@ class CorpusPaths:
     def ocr_run_path(self, ocr_run_id: str) -> Path:
         return self.ocr_runs_dir / f"{ocr_run_id}.json"
 
+    def analysis_batch_run_path(self, analysis_batch_id: str) -> Path:
+        return self.analysis_batch_runs_dir / f"{analysis_batch_id}.json"
+
     def ensure_layout(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
         self.import_runs_dir.mkdir(parents=True, exist_ok=True)
         self.ocr_runs_dir.mkdir(parents=True, exist_ok=True)
+        self.analysis_batch_runs_dir.mkdir(parents=True, exist_ok=True)
         self.quarantine_dir.mkdir(parents=True, exist_ok=True)
 
     def resolve_managed(self, managed_relpath: str) -> Path:

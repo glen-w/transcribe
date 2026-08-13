@@ -9,8 +9,6 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable
 
-from transcribe.corpus.index import CorpusIndexStore
-from transcribe.corpus.import_run import ImportRunStore, committed_notebook_ids
 from transcribe.corpus.ocr_run import (
     OcrBatchItem,
     OcrBatchRun,
@@ -21,7 +19,6 @@ from transcribe.corpus.paths import CorpusPaths
 from transcribe.domain.fingerprint import canonical_json_bytes, sha256_bytes
 from transcribe.domain.models import OCRSettings
 from transcribe.errors import (
-    CorpusError,
     JobConflictError,
     TranscribeError,
     ValidationError,
@@ -29,7 +26,16 @@ from transcribe.errors import (
 from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator, to_iso
 from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
-from transcribe.services.archive import discover_project_roots
+from transcribe.services.batch_notebooks import (
+    BatchCandidate,
+    list_candidates,
+    page_counts,
+    resolve_notebook_ref,
+    resolve_notebook_root,
+    select_by_ids,
+    select_from_import_run,
+    select_pending,
+)
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
 from transcribe.services.project import ProjectService, open_project_paths
@@ -38,16 +44,20 @@ _log = logging.getLogger(__name__)
 
 ProviderFactory = Callable[[str], VisionOCRProvider]
 
-
-@dataclass
-class BatchCandidate:
-    notebook_id: str
-    title: str
-    root: Path
-    managed_relpath: str
-    pages_total: int
-    pages_pending: int
-    pages_failed: int
+__all__ = [
+    "BatchCandidate",
+    "BatchOcrCoordinator",
+    "BatchOcrProgress",
+    "build_batch_ocr_coordinator",
+    "list_candidates",
+    "page_counts",
+    "resolve_notebook_ref",
+    "resolve_notebook_root",
+    "select_by_ids",
+    "select_from_import_run",
+    "select_pending",
+    "settings_fingerprint",
+]
 
 
 @dataclass
@@ -120,140 +130,6 @@ def settings_fingerprint(
         "multipass_cleanup_enabled": bool(multipass_cleanup_enabled),
     }
     return sha256_bytes(canonical_json_bytes(body))
-
-
-def page_counts(projects: ProjectService, project) -> tuple[int, int, int]:
-    """Return (total, pending_or_failed, failed) page counts."""
-    total = len(project.pages)
-    pending = 0
-    failed = 0
-    for page in project.pages:
-        result = projects.load_page_result(page.page_id)
-        if result is None or result.status != "succeeded":
-            pending += 1
-        if result is not None and result.status == "failed":
-            failed += 1
-    return total, pending, failed
-
-
-def _managed_relpath(corpus: CorpusPaths, root: Path) -> str:
-    try:
-        return root.resolve().relative_to(corpus.projects_dir.resolve()).as_posix()
-    except ValueError:
-        return root.name
-
-
-def resolve_notebook_root(corpus: CorpusPaths, notebook_id: str) -> Path:
-    """Resolve a notebook id via corpus index, then project-folder scan."""
-    nid = notebook_id.strip()
-    if not nid:
-        raise ValidationError("notebook_id must be non-empty")
-    store = CorpusIndexStore(corpus)
-    try:
-        index = store.load()
-    except CorpusError:
-        index = None
-    if index is not None:
-        for entry in index.entries:
-            if entry.notebook_id == nid:
-                return corpus.resolve_managed(entry.managed_relpath)
-    for root in discover_project_roots(corpus.projects_dir):
-        try:
-            payload_id = (
-                ProjectService(
-                    open_project_paths(root),
-                    clock=SystemClock(),
-                    ids=UuidGenerator(),
-                )
-                .load(reconcile=False)
-                .id
-            )
-        except (TranscribeError, OSError, ValueError, KeyError):
-            continue
-        if payload_id == nid:
-            return root
-    raise CorpusError(f"notebook not found: {nid}")
-
-
-def resolve_notebook_ref(corpus: CorpusPaths, ref: str | Path) -> tuple[str, Path]:
-    """Accept a notebook id or project root path; return (notebook_id, root)."""
-    text = str(ref).strip()
-    if not text:
-        raise ValidationError("notebook reference must be non-empty")
-    path = Path(text).expanduser()
-    if path.exists() and (path / "project.json").exists():
-        project = ProjectService(
-            open_project_paths(path),
-            clock=SystemClock(),
-            ids=UuidGenerator(),
-        ).load(reconcile=False)
-        return project.id, path.resolve()
-    root = resolve_notebook_root(corpus, text)
-    project = ProjectService(
-        open_project_paths(root),
-        clock=SystemClock(),
-        ids=UuidGenerator(),
-    ).load(reconcile=False)
-    return project.id, root
-
-
-def list_candidates(
-    corpus: CorpusPaths,
-    *,
-    clock: Clock | None = None,
-    ids: IdGenerator | None = None,
-) -> list[BatchCandidate]:
-    clock = clock or SystemClock()
-    ids = ids or UuidGenerator()
-    out: list[BatchCandidate] = []
-    for root in discover_project_roots(corpus.projects_dir):
-        try:
-            projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
-            project = projects.load(reconcile=False)
-        except (TranscribeError, OSError, ValueError, KeyError):
-            continue
-        total, pending, failed = page_counts(projects, project)
-        out.append(
-            BatchCandidate(
-                notebook_id=project.id,
-                title=(project.title or root.name).strip() or root.name,
-                root=root,
-                managed_relpath=_managed_relpath(corpus, root),
-                pages_total=total,
-                pages_pending=pending,
-                pages_failed=failed,
-            )
-        )
-    return out
-
-
-def select_pending(candidates: list[BatchCandidate]) -> list[BatchCandidate]:
-    return [c for c in candidates if c.pages_pending > 0]
-
-
-def select_by_ids(
-    candidates: list[BatchCandidate], notebook_ids: list[str]
-) -> list[BatchCandidate]:
-    wanted = [n.strip() for n in notebook_ids if n.strip()]
-    by_id = {c.notebook_id: c for c in candidates}
-    missing = [nid for nid in wanted if nid not in by_id]
-    if missing:
-        raise CorpusError(f"notebook(s) not found: {', '.join(missing)}")
-    return [by_id[nid] for nid in wanted]
-
-
-def select_from_import_run(
-    corpus: CorpusPaths,
-    import_run_id: str,
-    candidates: list[BatchCandidate],
-) -> list[BatchCandidate]:
-    run = ImportRunStore(corpus).load(import_run_id)
-    nids = committed_notebook_ids(run)
-    if not nids:
-        raise ValidationError(
-            f"import run {import_run_id} has no committed notebooks to transcribe"
-        )
-    return select_by_ids(candidates, nids)
 
 
 class BatchOcrCoordinator:
