@@ -90,4 +90,34 @@ def test_cli_bulk_run_pending_offline(tmp_path: Path, monkeypatch) -> None:
 
     rc = main(["bulk-run", "pending", "--model", "fake-vision"])
     assert rc == 0
-    assert list(corpus.ocr_runs_dir.glob("*.json"))
+    runs = list(corpus.ocr_runs_dir.glob("*.json"))
+    assert runs
+    ocr_id = runs[0].stem
+    assert main(["bulk-run", "status", ocr_id]) == 0
+    assert main(["bulk-run", "resume", ocr_id]) == 0
+
+
+def test_cli_bulk_run_notebooks_path(tmp_path: Path, monkeypatch) -> None:
+    from transcribe.__main__ import main
+    from transcribe.runtime_paths import RuntimePaths
+
+    corpus = _workspace(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("nbcli")
+    _notebook(corpus, "path-nb", clock, ids)
+    root = corpus.projects_dir / "path-nb"
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=corpus.data_dir,
+        projects_dir=corpus.projects_dir,
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    monkeypatch.setattr("transcribe.__main__.PATHS", runtime)
+
+    class _FakeOllama(FakeVisionOCRProvider):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+
+    monkeypatch.setattr("transcribe.providers.ollama.OllamaVisionProvider", _FakeOllama)
+    rc = main(["bulk-run", "notebooks", str(root), "--model", "fake-vision"])
+    assert rc == 0

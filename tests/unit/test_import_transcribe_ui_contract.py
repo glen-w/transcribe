@@ -28,6 +28,9 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "This notebook" in IMPORT and "Batch" in IMPORT
     assert "This notebook" in TRANSCRIBE and "Batch" in TRANSCRIBE
     assert "Start batch transcription" in TRANSCRIBE
+    assert TRANSCRIBE.count('_render_ocr_settings_form(') == 2
+    assert 'key_prefix="tx"' in TRANSCRIBE
+    assert 'key_prefix="tx_batch"' not in TRANSCRIBE
     assert "queue_transcribe_imported" in INBOX
     assert "Transcribe imported notebooks" in INBOX
 

@@ -375,8 +375,21 @@ def render_run_transcribe(
     if target is None:
         target = st.session_state.get(TRANSCRIBE_TARGET_KEY) or TARGET_THIS
 
+    if target == TARGET_THIS and root and projects is not None and project is not None:
+        if _render_this_notebook_live(runtime, root=root, projects=projects, project=project):
+            return
+
+    seed = (
+        project.settings
+        if project is not None
+        else OCRSettings(base_url=default_ollama_base_url())
+    )
+    form = _render_ocr_settings_form(seed, key_prefix="tx")
+    if form is None:
+        return
+
     if target == TARGET_BATCH:
-        _render_batch_transcribe(runtime, batch_coord, project=project)
+        _render_batch_launch(runtime, batch_coord, form=form, seed=seed)
         return
 
     if project is None or projects is None or not root:
@@ -384,18 +397,19 @@ def render_run_transcribe(
             "Select a notebook above, or create one under Workflow → New notebook."
         )
         return
-    _render_this_notebook_transcribe(
-        runtime, root=root, projects=projects, project=project
+    _render_this_notebook_launch(
+        runtime, root=root, projects=projects, project=project, form=form
     )
 
 
-def _render_this_notebook_transcribe(
+def _render_this_notebook_live(
     runtime: RuntimePaths,
     *,
     root: str,
     projects: ProjectService,
     project: Project,
-) -> None:
+) -> bool:
+    """Return True when a live/post job owns the page (hide shared settings)."""
     coord = get_coordinator(str(root))
     live = coord.get_progress()
     was_running = st.session_state.get("_job_was_running", False)
@@ -428,7 +442,7 @@ def _render_this_notebook_transcribe(
         if st.button("Stop after current page", key="transcribe_stop_running"):
             coord.request_cancel()
             st.info("Stopping after current page…")
-        return
+        return True
 
     if show_post:
         _render_job_progress(live)
@@ -438,12 +452,19 @@ def _render_this_notebook_transcribe(
             coord=coord,
             progress=live,
         )
-        return
+        return True
+    return False
 
-    form = _render_ocr_settings_form(project, key_prefix="tx")
-    if form is None:
-        return
 
+def _render_this_notebook_launch(
+    runtime: RuntimePaths,
+    *,
+    root: str,
+    projects: ProjectService,
+    project: Project,
+    form: dict[str, Any],
+) -> None:
+    coord = get_coordinator(str(root))
     if st.button("Save settings"):
         project = _apply_form_settings(projects, project, form)
         coord.provider = OllamaVisionProvider(form["normalized"])
@@ -511,19 +532,13 @@ def _render_this_notebook_transcribe(
                 st.error(str(exc))
 
 
-def _render_batch_transcribe(
+def _render_batch_launch(
     runtime: RuntimePaths,
     batch_coord: BatchOcrCoordinator,
     *,
-    project: Project | None,
+    form: dict[str, Any],
+    seed: OCRSettings,
 ) -> None:
-    seed = project.settings if project is not None else OCRSettings(
-        base_url=default_ollama_base_url()
-    )
-    form = _render_ocr_settings_form(seed, key_prefix="tx_batch")
-    if form is None:
-        return
-
     corpus = CorpusPaths.from_runtime(runtime)
     candidates = list_candidates(corpus)
     source_options = ["pending", "import_run", "pick"]
@@ -626,7 +641,7 @@ def _render_batch_transcribe(
             st.error("Select at least one notebook.")
         else:
             try:
-                settings = _form_to_settings(seed if isinstance(seed, OCRSettings) else OCRSettings(), form)
+                settings = _form_to_settings(seed, form)
                 new_run = batch_coord.create_run(
                     selected,
                     settings=settings,

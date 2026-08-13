@@ -15,6 +15,7 @@ from transcribe.services.batch_ocr import (
     BatchOcrCoordinator,
     list_candidates,
     select_by_ids,
+    select_from_import_run,
     select_pending,
 )
 from transcribe.services.project import ProjectService, open_project_paths
@@ -67,6 +68,42 @@ def test_select_pending_skips_fully_transcribed(tmp_path: Path) -> None:
     assert {c.title for c in pending} == {"pending-nb"}
     by_id = select_by_ids(candidates, [c.notebook_id for c in candidates])
     assert len(by_id) == 2
+
+
+def test_select_from_import_run_uses_committed_notebooks_only(tmp_path: Path) -> None:
+    from transcribe.corpus.import_run import ImportRun, ImportRunItemOutcome, ImportRunStore
+    from transcribe.corpus.plan import POLICY_SKIP_EXISTING_V1
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("imp")
+    _make_notebook(corpus, "kept", clock=clock, ids=ids)
+    _make_notebook(corpus, "skipped-nb", clock=clock, ids=ids)
+    candidates = list_candidates(corpus, clock=clock, ids=ids)
+    by_title = {c.title: c for c in candidates}
+    run = ImportRun(
+        import_run_id="imprun1",
+        plan_id="plan1",
+        plan_fingerprint="a" * 64,
+        import_policy_id=POLICY_SKIP_EXISTING_V1,
+        created_at="2026-01-01T00:00:00+00:00",
+        updated_at="2026-01-01T00:00:00+00:00",
+        status="complete",
+        items=[
+            ImportRunItemOutcome(
+                item_id="i1",
+                state="committed",
+                resulting_ids={"notebook_id": by_title["kept"].notebook_id},
+            ),
+            ImportRunItemOutcome(
+                item_id="i2",
+                state="skipped",
+                resulting_ids={"notebook_id": by_title["skipped-nb"].notebook_id},
+            ),
+        ],
+    )
+    ImportRunStore(corpus).save(run)
+    selected = select_from_import_run(corpus, "imprun1", candidates)
+    assert [c.title for c in selected] == ["kept"]
 
 
 def test_batch_ocr_runs_two_notebooks_and_skips_on_resume(tmp_path: Path) -> None:
