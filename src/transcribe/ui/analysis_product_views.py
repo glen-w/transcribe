@@ -39,6 +39,11 @@ from transcribe.ui.analysis_health_view import (
     render_advanced_payload,
     render_module_unavailable,
 )
+from transcribe.ui.wordcloud_render import (
+    render_wordcloud_from_payload,
+    wordcloud_available,
+    wordcloud_unavailable_reason,
+)
 
 
 def _env_payload(mh: ModuleHealth) -> tuple[dict[str, Any], dict[str, Any], str | None]:
@@ -222,22 +227,31 @@ def render_overview_product(
                 rows = wordcloud_rows(payload, limit=40)
                 st.markdown("**Word themes**")
                 if rows:
-                    st.bar_chart(
-                        {
-                            "token": [r["token"] for r in rows],
-                            "weight": [r["weight"] for r in rows],
-                        },
-                        x="token",
-                        y="weight",
-                    )
-                    top = rows[:12]
-                    st.caption(
-                        "Top · "
-                        + " · ".join(
-                            f"{r['token']}×{r['count']}" if r["count"] else r["token"]
-                            for r in top
+                    # TX-style raster cloud from published frequencies (UI-only).
+                    image = render_wordcloud_from_payload(payload)
+                    if image is not None:
+                        st.image(image, width="stretch")
+                    elif not wordcloud_available():
+                        st.caption(wordcloud_unavailable_reason() or "")
+                    with st.expander("Token weights", expanded=image is None):
+                        st.bar_chart(
+                            {
+                                "token": [r["token"] for r in rows],
+                                "weight": [r["weight"] for r in rows],
+                            },
+                            x="token",
+                            y="weight",
                         )
-                    )
+                        top = rows[:12]
+                        st.caption(
+                            "Top · "
+                            + " · ".join(
+                                f"{r['token']}×{r['count']}"
+                                if r["count"]
+                                else r["token"]
+                                for r in top
+                            )
+                        )
                 else:
                     st.info("Word themes: no tokens yet.")
                 render_advanced_payload("wordclouds", payload)

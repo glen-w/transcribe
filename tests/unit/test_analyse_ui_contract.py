@@ -97,6 +97,16 @@ def test_product_views_read_real_payload_shapes():
     assert "render_entity_sentiment_section" in PRODUCT
 
 
+def test_overview_renders_real_wordcloud_when_available():
+    assert "render_wordcloud_from_payload" in PRODUCT
+    path = Path("src/transcribe/ui/wordcloud_render.py")
+    assert path.is_file()
+    text = path.read_text(encoding="utf-8")
+    assert "generate_from_frequencies" in text
+    assert "to_image" in text
+    assert "wordcloud>=" in Path("pyproject.toml").read_text(encoding="utf-8")
+
+
 def test_analyse_wires_corpus_compare_into_overview_and_mood():
     assert "projects_dir=runtime.projects_dir" in APP
     assert "project_id=project.id" in APP
