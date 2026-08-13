@@ -16,6 +16,8 @@ class FakeVisionOCRProvider:
     verified: bool = True
     fail_times: int = 0
     calls: int = 0
+    last_options: dict[str, Any] = field(default_factory=dict)
+    fail_codes: list[str] = field(default_factory=list)
     models: list[ModelInfo] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -59,6 +61,15 @@ class FakeVisionOCRProvider:
         options: dict[str, Any],
     ) -> ProviderResult:
         self.calls += 1
+        self.last_options = dict(options or {})
+        if self.fail_codes:
+            code = self.fail_codes.pop(0)
+            if code:
+                raise ProviderError(
+                    code,
+                    retriable=code not in {"timeout", "model_missing"},
+                    code=code,
+                )
         if self.fail_times > 0:
             self.fail_times -= 1
             raise ProviderError("transient", retriable=True, code="timeout")

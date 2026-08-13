@@ -31,6 +31,7 @@ from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import ArchiveService, bump_archive_generation
 from transcribe.services.export import ExportService
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
+from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
 from transcribe.services.project import (
     ProjectService,
     allocate_notebook_root,
@@ -63,6 +64,17 @@ def get_coordinator(project_root: str) -> JobCoordinator:
         archive_runtime=build_runtime_paths(),
     )
     return coord
+
+
+@st.cache_resource
+def get_multipass_coordinator(project_root: str) -> MultiPassCoordinator:
+    coord = get_coordinator(project_root)
+    return MultiPassCoordinator(
+        jobs=coord,
+        projects=coord.projects,
+        clock=coord.clock,
+        ids=coord.ids,
+    )
 
 
 @st.cache_resource
@@ -120,6 +132,11 @@ def _render_job_progress(progress: JobProgress) -> None:
         st.caption("Current page(s): " + ", ".join(p[:8] for p in progress.current_page_ids))
     if progress.message:
         st.caption(progress.message)
+    if progress.circuit_open:
+        st.warning(
+            "This model hit repeated Ollama timeouts; remaining pages for this "
+            "model were skipped."
+        )
     done = progress.completed + progress.failed
     if progress.total > 0 and progress.status in {
         "running",
@@ -133,6 +150,37 @@ def _render_job_progress(progress: JobProgress) -> None:
             "OCR is running in the background. Progress also prints in the "
             "Streamlit terminal as `[transcribe] …` lines. The first page can "
             "take several minutes while Ollama loads the vision model."
+        )
+
+
+def _render_multipass_progress(
+    multi: MultiPassProgress, job: JobProgress
+) -> None:
+    st.write(
+        f"Compare: **{multi.status}** — {multi.phase or 'starting'}"
+        + (
+            f" · model {multi.model_index}/{multi.model_total}"
+            if multi.model_total
+            else ""
+        )
+    )
+    if multi.message:
+        st.caption(multi.message)
+    if multi.phase == "vision" and job.status in {
+        "running",
+        "completed",
+        "cancelled",
+        "failed",
+    }:
+        _render_job_progress(job)
+    elif multi.phase == "rank_composite":
+        st.caption(
+            f"Ranked {multi.pages_ranked} · composite {multi.pages_composite}"
+        )
+    if multi.status == "running":
+        st.info(
+            "Compare is running in the background. Stop after current page "
+            "cancels remaining pages of this model and remaining models."
         )
 
 
@@ -192,6 +240,7 @@ def _render_transcribe_complete_actions(
             try:
                 coord.start(page_ids=failed_ids, force=False)
                 st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "job"
                 st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
@@ -207,6 +256,7 @@ def _render_transcribe_complete_actions(
         help="Return to model and OCR settings for another run.",
     ):
         st.session_state.pop("_transcribe_post_job_id", None)
+        st.session_state.pop("_transcribe_post_kind", None)
         st.rerun()
 
 
@@ -381,16 +431,27 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
 
     # Transcribe: configure Ollama and run OCR
     coord = get_coordinator(str(paths.root))
+    multi = get_multipass_coordinator(str(paths.root))
     live = coord.get_progress()
+    multi_live = multi.get_progress()
+    is_running = live.status == "running" or multi_live.status == "running"
     was_running = st.session_state.get("_job_was_running", False)
-    st.session_state["_job_was_running"] = live.status == "running"
-    is_running = live.status == "running"
+    st.session_state["_job_was_running"] = is_running
     post_job_id = st.session_state.get("_transcribe_post_job_id")
-    show_post = (
-        bool(post_job_id)
-        and live.job_id == post_job_id
-        and live.status in {"completed", "cancelled", "failed"}
-    )
+    post_kind = st.session_state.get("_transcribe_post_kind", "job")
+    show_post = False
+    if post_kind == "multipass":
+        show_post = (
+            bool(post_job_id)
+            and multi_live.pass_id == post_job_id
+            and multi_live.status in {"completed", "cancelled", "failed"}
+        )
+    else:
+        show_post = (
+            bool(post_job_id)
+            and live.job_id == post_job_id
+            and live.status in {"completed", "cancelled", "failed"}
+        )
 
     if is_running:
         poll = timedelta(seconds=2) if is_running or was_running else None
@@ -398,24 +459,37 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         @st.fragment(run_every=poll)
         def job_status_panel() -> None:
             progress = coord.get_progress()
-            _render_job_progress(progress)
-            if (
-                st.session_state.get("_job_was_running")
-                and progress.status != "running"
-            ):
+            mp = multi.get_progress()
+            if mp.status == "running":
+                _render_multipass_progress(mp, progress)
+            else:
+                _render_job_progress(progress)
+            still_running = (
+                progress.status == "running" or mp.status == "running"
+            )
+            if st.session_state.get("_job_was_running") and not still_running:
                 st.session_state["_job_was_running"] = False
-                st.session_state["_transcribe_post_job_id"] = progress.job_id
+                if mp.status in {"completed", "cancelled", "failed"} and mp.pass_id:
+                    st.session_state["_transcribe_post_job_id"] = mp.pass_id
+                    st.session_state["_transcribe_post_kind"] = "multipass"
+                else:
+                    st.session_state["_transcribe_post_job_id"] = progress.job_id
+                    st.session_state["_transcribe_post_kind"] = "job"
                 bump_archive_generation(runtime)
                 st.rerun()
 
         job_status_panel()
         if st.button("Stop after current page", key="transcribe_stop_running"):
+            multi.request_cancel()
             coord.request_cancel()
             st.info("Stopping after current page…")
         return
 
     if show_post:
-        _render_job_progress(live)
+        if post_kind == "multipass":
+            _render_multipass_progress(multi_live, live)
+        else:
+            _render_job_progress(live)
         _render_transcribe_complete_actions(
             projects=projects,
             project=project,
@@ -469,6 +543,17 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         index=0 if names else 0,
         format_func=_model_label,
     )
+    from transcribe.ui.components.model_info import (
+        render_model_information,
+        warn_if_first_compare_model_is_general_vlm,
+    )
+
+    render_model_information(
+        discovery.models,
+        selected=model,
+        role="vision",
+        key="tx_vision_model_info",
+    )
     text_model_options = suitable_text_model_names(all_discovery.models)
     if (
         project.settings.text_model_name
@@ -490,6 +575,12 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             else 0
         ),
         help="Required for LLM analysis modules. Vision/embedding models are filtered out.",
+    )
+    render_model_information(
+        all_discovery.models,
+        selected=text_model,
+        role="text",
+        key="tx_text_model_info",
     )
 
     # Primary path: optional one-line cleanup toggle (#9).
@@ -560,6 +651,13 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
                 "Falls back to the text analysis model if unset."
             ),
         )
+        if cleanup_enabled and cleanup_model:
+            render_model_information(
+                all_discovery.models,
+                selected=cleanup_model,
+                role="text",
+                key="tx_cleanup_model_info",
+            )
         from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES
 
         prefer_labels = {
@@ -631,6 +729,7 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
                 coord.provider = OllamaVisionProvider(normalized)
                 coord.start(force=force)
                 st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "job"
                 st.session_state.pop("_transcribe_post_job_id", None)
                 st.rerun()
             except (JobConflictError, TranscribeError) as exc:
@@ -640,14 +739,31 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     st.subheader("Compare models")
     st.caption(
         "Run two or more vision models on this notebook, then rank and "
-        "optionally produce a composite candidate with the text model."
+        "optionally produce a composite candidate with the text model. "
+        "Vision phases skip post-OCR cleanup unless you opt in below."
     )
     multi_models = st.multiselect(
         "Vision models for multipass",
         options=names,
         default=[],
         format_func=_model_label,
-        help="Select at least two models.",
+        help="Select at least two models. Order matters: first model runs fully.",
+    )
+    if multi_models:
+        render_model_information(
+            discovery.models,
+            selected=multi_models,
+            role="vision",
+            key="tx_compare_model_info",
+        )
+        warn_if_first_compare_model_is_general_vlm(multi_models)
+    compare_cleanup = st.checkbox(
+        "Clean OCR during compare",
+        value=False,
+        help=(
+            "Off by default so compare is a raw-model comparison. "
+            "Cleanup still uses the cleanup/text model when enabled."
+        ),
     )
     no_auto_comp = st.checkbox(
         "Do not auto-activate composite",
@@ -660,35 +776,26 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             st.error("Select at least two vision models.")
         else:
             try:
-                from transcribe.services.multipass import MultiPassCoordinator
-                from transcribe.ports import SystemClock, UuidGenerator
-
                 settings = project.settings
                 settings.base_url = normalized
                 settings.text_model_name = text_model
                 settings.allow_non_loopback = allow_remote
-                if cleanup_enabled:
-                    settings.cleanup_model_name = cleanup_model
+                if compare_cleanup:
+                    settings.cleanup_model_name = cleanup_model or text_model
                 elif text_model and not settings.cleanup_model_name:
                     settings.cleanup_model_name = text_model
                 project = projects.save_settings(project, settings)
                 coord.provider = OllamaVisionProvider(normalized)
-                multi = MultiPassCoordinator(
-                    jobs=coord,
-                    projects=projects,
-                    clock=SystemClock(),
-                    ids=UuidGenerator(),
+                multi.start(
+                    model_names=list(multi_models),
+                    force=force,
+                    auto_activate_composite=not no_auto_comp,
+                    cleanup_enabled=bool(compare_cleanup),
                 )
-                with st.spinner("Running multipass (this may take a while)…"):
-                    progress = multi.run_blocking(
-                        model_names=list(multi_models),
-                        force=force,
-                        auto_activate_composite=not no_auto_comp,
-                    )
-                if progress.status == "completed":
-                    st.success(progress.message or "Multipass complete")
-                else:
-                    st.error(progress.message or progress.status)
+                st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "multipass"
+                st.session_state.pop("_transcribe_post_job_id", None)
+                st.rerun()
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
 

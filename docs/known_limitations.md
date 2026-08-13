@@ -14,7 +14,10 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - **Page ink / blankness metrics** (Review strip + Analyse Overview rollup) are approximate Pillow heuristics over the active render. Ruled lines, shadows, stains, and colour casts can inflate “ink”; hue labels (`black` / `blue` / …) are coarse peaks, not calibrated colour science. Metrics invalidate when active render bytes change; they are not Analyse text modules and do not affect OCR.
 - Optional **OCR cleanup** (Run tab / `--cleanup`) adds a **second text-model Ollama call per page** after vision OCR. This can materially increase latency, memory use, and Ollama contention. Cleanup runs sequentially on the page worker after OCR (no extra parallelism). Failures and validator rejections keep raw OCR and never fail the page; rejected model output is discarded
 - Cleanup sends OCR text (not page images) to the configured Ollama host; remote hosts still exfiltrate that text by design of that configuration
-- **Multipass compare** runs each selected vision model across the notebook, then a text-model **rank** (text-only v1) and optional **composite** merge. Cost scales with model count × pages plus rank/composite calls; composite is assistive, not ground truth. Rank failure falls back to chronological attempt order in Review.
+- Vision OCR always sends a `num_predict` cap (default **4096**). That stops a looping generate from running until the HTTP timeout. Hitting the cap records `truncated` in allowlisted provider metadata and does **not** fail the page. Default `num_predict` is omitted from skip fingerprints so existing attempts still match
+- Ollama **generate timeouts are not retried**. Connection errors and 5xx responses still retry (3 attempts). A hang therefore fails in one HTTP timeout (default 300s), not ~15 minutes
+- **General vision-language models** (for example `llava`) can hang or time out on dense notebook scans even when listed as vision-capable. Prefer OCR-oriented tags for handwriting. After **3 consecutive timeouts** on one frozen vision plan, remaining pages for **that model** are skipped (progress `circuit_open`); a multipass compare continues with the next model
+- **Multipass compare** runs each selected vision model across the notebook, then a text-model **rank** (text-only v1) and optional **composite** merge. Cost scales with model count × pages plus rank/composite calls; composite is assistive, not ground truth. Rank failure falls back to chronological attempt order in Review. Vision phases **default cleanup off** (CLI `--cleanup` / UI “Clean OCR during compare” to opt in). The UI starts compare in a background thread like single-model Start; Stop cancels remaining pages of the current model and remaining models. Rank/composite still run for pages that already have ≥2 succeeded vision attempts
 
 ## Import / PDF
 
@@ -26,7 +29,7 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 ## Jobs and identity
 
 - Fingerprint skip requires **verified** model identity (digest from Ollama discovery). Unverified tags are always re-run
-- Cancelling stops scheduling after the current page; in-flight pages still finish
+- Cancelling stops scheduling after the current page; in-flight pages still finish. During compare, remaining vision models are not started; rank/composite still run for pages that already have ≥2 succeeded vision attempts
 - Mid-job settings changes apply to the next job only
 
 ## Archive / cache

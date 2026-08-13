@@ -105,7 +105,7 @@ def test_call_with_retries_succeeds_after_retriable_failures():
     def op():
         attempts["n"] += 1
         if attempts["n"] < 3:
-            raise ProviderError("timeout", retriable=True, code="timeout")
+            raise ProviderError("connection", retriable=True, code="connection")
         return "ok"
 
     from transcribe.providers.ollama import call_with_retries
@@ -138,15 +138,30 @@ def test_call_with_retries_exhausts_attempts():
 
     def op():
         calls["n"] += 1
-        raise ProviderError("timeout", retriable=True, code="timeout")
+        raise ProviderError("connection", retriable=True, code="connection")
+
+    with pytest.raises(ProviderError) as exc:
+        call_with_retries(op, max_retries=3, sleep=lambda _s: None)
+    assert exc.value.code == "connection"
+    assert calls["n"] == 3
+
+
+def test_call_with_retries_does_not_retry_timeout():
+    from transcribe.providers.ollama import call_with_retries
+
+    calls = {"n": 0}
+
+    def op():
+        calls["n"] += 1
+        raise ProviderError("Ollama request timed out", retriable=False, code="timeout")
 
     with pytest.raises(ProviderError) as exc:
         call_with_retries(op, max_retries=3, sleep=lambda _s: None)
     assert exc.value.code == "timeout"
-    assert calls["n"] == 3
+    assert calls["n"] == 1
 
 
-def test_text_client_retries_timeouts():
+def test_text_client_does_not_retry_timeouts():
     from transcribe.analysis.llm_runtime import OllamaTextClient
 
     client = OllamaTextClient(base_url="http://localhost:11434", max_retries=3)
@@ -154,19 +169,98 @@ def test_text_client_retries_timeouts():
 
     def fake_post(path, body, *, timeout):
         calls["n"] += 1
-        if calls["n"] < 2:
-            raise ProviderError("Ollama request timed out", retriable=True, code="timeout")
-        return {"response": "hello", "eval_count": 4}
+        raise ProviderError("Ollama request timed out", retriable=False, code="timeout")
 
     with (
         patch.object(client._provider, "_http_post", side_effect=fake_post),
         patch("transcribe.providers.ollama.time.sleep", lambda _s: None),
     ):
-        text, meta = client.generate_with_meta(model="m", prompt="p")
-    assert text == "hello"
-    assert meta["retry_count"] == 1
-    assert meta["eval_count"] == 4
-    assert calls["n"] == 2
+        with pytest.raises(ProviderError) as exc:
+            client.generate_with_meta(model="m", prompt="p")
+    assert exc.value.code == "timeout"
+    assert calls["n"] == 1
+
+
+def test_transcribe_image_fills_default_num_predict_and_truncated():
+    invalidate_discovery_cache()
+    captured: dict = {}
+
+    def fake_urlopen(req, timeout=None):
+        url = req.full_url
+        if url.endswith("/api/tags"):
+            return _Resp({"models": [{"name": "m", "digest": "d"}]})
+        if url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        if url.endswith("/api/generate"):
+            captured["body"] = json.loads(req.data.decode())
+            return _Resp({"response": "hello", "eval_count": 4096})
+        raise AssertionError(url)
+
+    provider = OllamaVisionProvider("http://localhost:11434")
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        result = provider.transcribe_image(
+            model="m",
+            prompt="p",
+            image_bytes=b"abc",
+            options={"temperature": 0.0},
+        )
+    assert captured["body"]["options"]["num_predict"] == 4096
+    assert result.provider_metadata.get("truncated") is True
+    assert result.provider_metadata.get("eval_count") == 4096
+
+
+def test_http_timeout_is_not_retriable():
+    invalidate_discovery_cache()
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        raise TimeoutError("timed out")
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="m",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "timeout"
+        assert exc.value.retriable is False
+    assert calls["n"] == 1
+
+
+def test_urlerror_timeout_reason_is_not_retriable():
+    invalidate_discovery_cache()
+    import urllib.error
+
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="m",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "timeout"
+        assert exc.value.retriable is False
+    assert calls["n"] == 1
 
 
 def test_generate_maps_model_missing_404():

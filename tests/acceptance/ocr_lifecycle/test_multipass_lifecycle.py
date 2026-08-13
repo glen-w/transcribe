@@ -246,3 +246,219 @@ def test_multipass_resume_after_partial_vision(tmp_path: Path, monkeypatch):
     resumed = multi.resume_blocking(pass_id)
     assert resumed.status == "completed"
     assert resumed.pass_id == pass_id
+
+
+def test_multipass_vision_phases_skip_cleanup_by_default(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(tmp_path / "data"))
+    projects, coord, page_ids = _setup_project(tmp_path)
+    project = projects.load()
+    settings = project.settings
+    settings.cleanup_enabled = True
+    settings.cleanup_mode = "strip_leak"
+    settings.cleanup_model_name = "text-rank"
+    projects.save_settings(project, settings)
+
+    class CountingCleanupClient(RankCompositeClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.generate_calls = 0
+
+        def generate_with_meta(self, *, model, prompt, system=None, options=None):
+            self.generate_calls += 1
+            return super().generate_with_meta(
+                model=model, prompt=prompt, system=system, options=options
+            )
+
+    cleanup = CountingCleanupClient(responses={"default": "should-not-run"})
+    coord.cleanup_client = cleanup
+    text_client = RankCompositeClient(responses={"default": "fallback"})
+    multi = MultiPassCoordinator(
+        jobs=coord,
+        projects=projects,
+        clock=projects.clock,
+        ids=projects.ids,
+        text_client=text_client,
+    )
+    progress = multi.run_blocking(
+        model_names=["vision-a", "vision-b"],
+        force=True,
+        cleanup_enabled=False,
+    )
+    assert progress.status == "completed"
+    assert cleanup.generate_calls == 0
+    for page_id in page_ids:
+        result = projects.load_page_result(page_id)
+        assert result is not None
+        for attempt in result.attempts:
+            if (attempt.attempt_kind or "vision") != "vision":
+                continue
+            if attempt.status != "succeeded":
+                continue
+            status = attempt.cleanup.execution_status if attempt.cleanup else "disabled"
+            assert status == "disabled"
+
+
+def test_multipass_cancel_skips_remaining_models(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(tmp_path / "data"))
+    projects, coord, _page_ids = _setup_project(tmp_path)
+    holder: dict = {}
+
+    class CancelAfterFirst(FakeVisionOCRProvider):
+        def transcribe_image(self, *, model, prompt, image_bytes, options):
+            if model == "vision-b":
+                raise AssertionError("second vision model should not run after cancel")
+            result = super().transcribe_image(
+                model=model,
+                prompt=prompt,
+                image_bytes=image_bytes,
+                options=options,
+            )
+            holder["multi"].request_cancel()
+            return result
+
+    models = list(coord.provider.models)
+    coord.provider = CancelAfterFirst(
+        text_by_call=[
+            "alpha notebook weather metro",
+            "alpha notebook weather metro",
+        ],
+        models=models,
+        digest="digest-a",
+        verified=True,
+    )
+    text_client = RankCompositeClient(responses={"default": "fallback"})
+    multi = MultiPassCoordinator(
+        jobs=coord,
+        projects=projects,
+        clock=projects.clock,
+        ids=projects.ids,
+        text_client=text_client,
+    )
+    holder["multi"] = multi
+    progress = multi.run_blocking(
+        model_names=["vision-a", "vision-b"],
+        force=True,
+    )
+    assert progress.status == "cancelled"
+    assert coord.provider.calls >= 1
+    vision_b = 0
+    for page in projects.load().pages:
+        result = projects.load_page_result(page.page_id)
+        if result is None:
+            continue
+        vision_b += sum(
+            1
+            for a in result.attempts
+            if a.provenance and a.provenance.model_name == "vision-b"
+        )
+    assert vision_b == 0
+
+
+def test_multipass_cancel_still_ranks_pages_with_two_successes(
+    tmp_path: Path, monkeypatch
+):
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(tmp_path / "data"))
+    projects, coord, page_ids = _setup_project(tmp_path)
+    holder: dict = {}
+
+    class CancelAfterSecondModelFirstPage(FakeVisionOCRProvider):
+        def transcribe_image(self, *, model, prompt, image_bytes, options):
+            result = super().transcribe_image(
+                model=model,
+                prompt=prompt,
+                image_bytes=image_bytes,
+                options=options,
+            )
+            if model == "vision-b":
+                holder["multi"].request_cancel()
+            return result
+
+    models = list(coord.provider.models)
+    coord.provider = CancelAfterSecondModelFirstPage(
+        text_by_call=[
+            "alpha notebook weather metro",
+            "alpha notebook weather metro",
+            "beta notebook metro notes weather day",
+            "beta notebook metro notes weather day",
+        ],
+        models=models,
+        digest="digest-a",
+        verified=True,
+    )
+    text_client = RankCompositeClient(responses={"default": "fallback"})
+    multi = MultiPassCoordinator(
+        jobs=coord,
+        projects=projects,
+        clock=projects.clock,
+        ids=projects.ids,
+        text_client=text_client,
+    )
+    holder["multi"] = multi
+    progress = multi.run_blocking(
+        model_names=["vision-a", "vision-b"],
+        force=True,
+    )
+    assert progress.status == "cancelled"
+    assert progress.pages_ranked >= 1
+    ranked_page = None
+    for page_id in page_ids:
+        result = projects.load_page_result(page_id)
+        assert result is not None
+        if result.comparison and result.comparison.pass_id == progress.pass_id:
+            ranked_page = page_id
+            break
+    assert ranked_page is not None
+
+
+def test_multipass_start_runs_in_background(tmp_path: Path, monkeypatch):
+    import threading
+    import time
+
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(tmp_path / "data"))
+    projects, coord, _page_ids = _setup_project(tmp_path)
+    started = threading.Event()
+    release = threading.Event()
+
+    class BlockingOnce(FakeVisionOCRProvider):
+        def transcribe_image(self, *, model, prompt, image_bytes, options):
+            started.set()
+            assert release.wait(timeout=2.0)
+            return super().transcribe_image(
+                model=model,
+                prompt=prompt,
+                image_bytes=image_bytes,
+                options=options,
+            )
+
+    models = list(coord.provider.models)
+    coord.provider = BlockingOnce(
+        text_by_call=[
+            "alpha notebook weather metro",
+            "alpha notebook weather metro",
+            "beta notebook metro notes weather day",
+            "beta notebook metro notes weather day",
+        ],
+        models=models,
+        digest="digest-a",
+        verified=True,
+    )
+    text_client = RankCompositeClient(responses={"default": "fallback"})
+    multi = MultiPassCoordinator(
+        jobs=coord,
+        projects=projects,
+        clock=projects.clock,
+        ids=projects.ids,
+        text_client=text_client,
+    )
+    pass_id = multi.start(
+        model_names=["vision-a", "vision-b"],
+        force=True,
+    )
+    assert pass_id
+    assert started.wait(timeout=2.0)
+    assert multi.is_running()
+    release.set()
+    deadline = time.monotonic() + 3.0
+    while multi.is_running() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert multi.get_progress().status == "completed"

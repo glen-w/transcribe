@@ -57,6 +57,8 @@ Optional `comparison` on the page (last successful multipass rank):
 
 Successful attempts store `input_fingerprint` and a canonical `fingerprint_payload` including provider, model name, model digest, **model identity verification flag**, input image hash (after preprocess), prompt hash, preprocess profile/version, and generation options.
 
+Vision generate always sends a `num_predict` cap (default 4096). The **default** cap is omitted from hashed `generation_options` so skip/resume stays compatible with attempts that only stored `temperature`. A non-default `num_predict` is included and changes the fingerprint.
+
 When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
 
 Skip/resume policy for *single-model jobs* (runtime): a page may be skipped only when the frozen job plan has **verified** model identity and the recomputed fingerprint matches a succeeded **active** attempt. Unverified model identity is non-cacheable for skip.

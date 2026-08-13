@@ -70,3 +70,63 @@ def test_fingerprint_golden_stable():
     )
     assert payload["model_name"] == "fake-vision"
     assert len(digest) == 64
+
+
+def test_fingerprint_omits_default_num_predict():
+    from transcribe.domain.models import DEFAULT_VISION_NUM_PREDICT
+
+    a, pa = compute_input_fingerprint(
+        provider="ollama",
+        model_name="m",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0},
+    )
+    b, pb = compute_input_fingerprint(
+        provider="ollama",
+        model_name="m",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={
+            "temperature": 0.0,
+            "num_predict": DEFAULT_VISION_NUM_PREDICT,
+        },
+    )
+    assert a == b
+    assert "num_predict" not in pa["generation_options"]
+    assert "num_predict" not in pb["generation_options"]
+
+
+def test_fingerprint_changes_with_custom_num_predict():
+    a, _ = compute_input_fingerprint(
+        provider="ollama",
+        model_name="m",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0, "num_predict": 512},
+    )
+    b, pb = compute_input_fingerprint(
+        provider="ollama",
+        model_name="m",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0, "num_predict": 4096},
+    )
+    assert a != b
+    assert pb["generation_options"].get("num_predict") is None

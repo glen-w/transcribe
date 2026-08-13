@@ -19,7 +19,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `import <project> <source>` | Import JPEG/PNG/PDF (`--dpi` for PDFs) |
 | `models` | List vision-capable Ollama models (`--base-url`, `--all`, `--refresh`, `--prefs`) |
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
-| `multipass <project> --model A --model B …` | Multi-model OCR then rank/composite (`--force`, `--no-auto-composite`, `--text-model`) |
+| `multipass <project> --model A --model B …` | Multi-model OCR then rank/composite (`--force`, `--no-auto-composite`, `--text-model`, `--cleanup` to opt in vision-phase cleanup) |
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `export-finetune <project> [dest]` | Export images + preferred/active text for external fine-tuning |
 | `status <project>` | Print per-page status |
@@ -34,7 +34,7 @@ Authority: self — supported public entrypoints and support policy for how user
 
 **Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus product read-model tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. A shared status strip above the tabs answers notebook revision and batch health. Module ids, capability enums, and raw JSON live under **Advanced** expanders — ordinary use does not require module/cache literacy. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
 
-**Transcribe (OCR)** primary chrome is vision model + Start transcription (+ optional cleanup toggle). **Compare models** runs multipass (multi-select vision models → rank + composite). Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
+**Transcribe (OCR)** primary chrome is vision model + Start transcription (+ optional cleanup toggle). A **Model information** expander on each live picker shows discovery metadata and caveats (general VLMs vs OCR-oriented tags). **Compare models** runs multipass in the background (multi-select vision models → rank + composite); vision-phase cleanup is off unless **Clean OCR during compare** is checked. Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
 
 ### Helper script
 

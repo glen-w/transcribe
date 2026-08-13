@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 
+from transcribe.domain.models import DEFAULT_VISION_NUM_PREDICT
 from transcribe.errors import ProviderError
 from transcribe.providers.base import DiscoveryResult, ModelInfo, ProviderResult
 
@@ -155,7 +156,12 @@ def is_local_machine_host(url: str) -> bool:
     return host in {"host.docker.internal"}
 
 
-def _allowlisted_metadata(payload: dict[str, Any], *, retry_count: int) -> dict[str, Any]:
+def _allowlisted_metadata(
+    payload: dict[str, Any],
+    *,
+    retry_count: int,
+    options: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     meta: dict[str, Any] = {"retry_count": retry_count}
     for key in (
         "total_duration",
@@ -167,6 +173,15 @@ def _allowlisted_metadata(payload: dict[str, Any], *, retry_count: int) -> dict[
     ):
         if key in payload and isinstance(payload[key], (int, float)):
             meta[key] = payload[key]
+    eval_count = meta.get("eval_count")
+    num_predict = (options or {}).get("num_predict")
+    if (
+        isinstance(eval_count, (int, float))
+        and isinstance(num_predict, (int, float))
+        and int(num_predict) > 0
+        and int(eval_count) >= int(num_predict)
+    ):
+        meta["truncated"] = True
     return meta
 
 
@@ -220,12 +235,15 @@ class OllamaVisionProvider:
         options: dict[str, Any],
     ) -> ProviderResult:
         image_b64 = base64.b64encode(image_bytes).decode("ascii")
+        gen_options = dict(options or {})
+        if "num_predict" not in gen_options:
+            gen_options["num_predict"] = DEFAULT_VISION_NUM_PREDICT
         body = {
             "model": model,
             "prompt": prompt,
             "stream": False,
             "images": [image_b64],
-            "options": options,
+            "options": gen_options,
         }
         digest, verified = self.resolve_model_identity(model)
 
@@ -252,7 +270,9 @@ class OllamaVisionProvider:
             model=model,
             model_digest=digest,
             model_identity_verified=verified,
-            provider_metadata=_allowlisted_metadata(payload, retry_count=attempt),
+            provider_metadata=_allowlisted_metadata(
+                payload, retry_count=attempt, options=gen_options
+            ),
         )
 
     def _discover(self, *, refresh: bool) -> tuple[list[ModelInfo], str | None]:
@@ -361,6 +381,13 @@ class OllamaVisionProvider:
                     code = "method_not_allowed"
             raise ProviderError(message, retriable=retriable, code=code) from exc
         except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, TimeoutError):
+                raise ProviderError(
+                    "Ollama request timed out",
+                    retriable=False,
+                    code="timeout",
+                ) from exc
             raise ProviderError(
                 f"Cannot reach Ollama at {self.base_url}: {exc.reason}",
                 retriable=True,
@@ -369,7 +396,7 @@ class OllamaVisionProvider:
         except TimeoutError as exc:
             raise ProviderError(
                 "Ollama request timed out",
-                retriable=True,
+                retriable=False,
                 code="timeout",
             ) from exc
         try:
