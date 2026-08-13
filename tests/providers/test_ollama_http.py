@@ -235,6 +235,34 @@ def test_http_timeout_is_not_retriable():
     assert calls["n"] == 1
 
 
+def test_urlerror_timeout_reason_is_not_retriable():
+    invalidate_discovery_cache()
+    import urllib.error
+
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="m",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "timeout"
+        assert exc.value.retriable is False
+    assert calls["n"] == 1
+
+
 def test_generate_maps_model_missing_404():
     invalidate_discovery_cache()
     import urllib.error

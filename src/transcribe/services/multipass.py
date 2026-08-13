@@ -360,11 +360,10 @@ class MultiPassCoordinator:
                     cancelled = True
                     break
 
-            # Rank + composite per page (skip pages already compared for this pass)
+            # Rank + composite per page (skip pages already compared for this pass).
+            # Cancel does not skip rank: pages that already have ≥2 vision successes
+            # still get rank/composite.
             for page_id in targets:
-                if self._cancel.is_set():
-                    cancelled = True
-                    break
                 existing = self.projects.load_page_result(page_id)
                 has_comparison = bool(
                     existing

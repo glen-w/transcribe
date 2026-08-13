@@ -70,3 +70,35 @@ def test_non_timeout_failure_resets_streak(tmp_path: Path):
     assert progress.circuit_open is False
     assert progress.failed == 4
     assert provider.calls == 4
+
+
+def test_circuit_breaker_with_two_workers(tmp_path: Path):
+    paths, projects, clock, ids = _project_with_pages(tmp_path, 6)
+    project = projects.load()
+    settings = project.settings
+    settings.max_workers = 2
+    projects.save_settings(project, settings)
+    provider = FakeVisionOCRProvider(
+        fail_codes=["timeout"] * 6,
+        digest="digest-aaa",
+        verified=True,
+    )
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    progress = coord.run_blocking(force=True)
+    assert progress.circuit_open
+    assert progress.failed >= TIMEOUT_CIRCUIT_THRESHOLD
+    # In-flight workers may still call Ollama after the trip; remaining queued
+    # pages skip without a generate.
+    assert provider.calls < 6
+    assert progress.skipped >= 1
+
+
+def test_job_sends_default_num_predict(tmp_path: Path):
+    from transcribe.domain.models import DEFAULT_VISION_NUM_PREDICT
+
+    paths, projects, clock, ids = _project_with_pages(tmp_path, 1)
+    provider = FakeVisionOCRProvider(digest="digest-aaa", verified=True)
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    progress = coord.run_blocking(force=True)
+    assert progress.status == "completed"
+    assert provider.last_options.get("num_predict") == DEFAULT_VISION_NUM_PREDICT
