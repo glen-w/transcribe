@@ -12,7 +12,7 @@ On your machine you can:
 1. Import JPEG/PNG/PDF pages into a durable managed notebook directory
 2. Run local vision OCR via Ollama
 3. Review and correct text page by page
-4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Moments, People & places, Summaries, Ask notebook; corpus Places map under Notebooks)
+4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Moments, People & places, Summaries, Ask notebook, Detect; corpus Places map under Notebooks)
 5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
 
 without requiring a cloud OCR provider or a TranscriptX dependency.
@@ -41,7 +41,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Page-first domain (ordered pages, not timed speaker segments)
 - Human edits preserved separately from raw OCR attempts
 - Portable export without required absolute paths
-- Core notebook analysis modules and Analyse → Run Analysis (optional local text Ollama for LLM modules)
+- Core notebook analysis modules and Analyse (optional local text Ollama for LLM modules)
 - Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability, daily workbench ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
 
 **Out of scope for current core**
@@ -49,7 +49,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Cloud OCR / hosted inference as a first-class provider
 - Audio transcription or speaker diarization
 - Shipping TranscriptX integration (future seam only — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md))
-- OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none). Visual declutter is a separate import-time Pillow lane (scanner-bed, stark-white overscan, corner-wedge crop), not OCR preprocess.
+- OpenCV-based preprocessing pipelines (optional Pillow profiles only; default is none). Visual declutter is a separate Pillow lane (scanner-bed, stark-white overscan, corner-wedge crop on import + explicit re-apply), not OCR preprocess.
 - Deferred analysis reinterpretations and `ocr_quality` — **deferred** on [ROADMAP.md](ROADMAP.md); prefer second-pass LLM OCR cleanup/verification for text quality
 
 ## Honesty

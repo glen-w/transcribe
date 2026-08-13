@@ -7,6 +7,8 @@ from typing import Any
 
 import streamlit as st
 
+from transcribe.ui.components.info_tooltip import widget_help
+
 ACTION_LINK_KEY_PREFIX = "tr_al_"
 
 
@@ -39,6 +41,6 @@ def render_action_link(
             args=tuple(args) if args is not None else (),
             kwargs=kwargs or {},
             disabled=disabled,
-            help=help,
+            help=widget_help(help),
         )
     )

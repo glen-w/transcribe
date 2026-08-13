@@ -751,6 +751,11 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "st-key-tx_cover_" in shell
     # Cover hover/hit-target must require a direct-child cover key (not any ancestor).
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
+    # Action-strip flex overrides must exclude ancestor Archive notebook grids.
+    assert (
+        ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])'
+        in shell
+    )
     assert "Settings" in shell
 
 

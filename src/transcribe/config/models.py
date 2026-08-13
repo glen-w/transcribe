@@ -374,6 +374,28 @@ class OcrWorkspaceConfig:
 
 
 @dataclass(frozen=True)
+class UiConfig:
+    """Workspace UI defaults (archive browsing, etc.)."""
+
+    archive_notebooks_initial: int = 0
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"archive_notebooks_initial": self.archive_notebooks_initial}
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> UiConfig:
+        data = data or {}
+        raw = data.get("archive_notebooks_initial", 0)
+        try:
+            initial = int(raw)
+        except (TypeError, ValueError):
+            initial = 0
+        if initial < 0:
+            initial = 0
+        return cls(archive_notebooks_initial=initial)
+
+
+@dataclass(frozen=True)
 class IngestConfig:
     """Workspace ingest defaults (PDF rasterisation, visual declutter, etc.)."""
 
@@ -402,7 +424,7 @@ class IngestConfig:
         )
 
 KNOWN_CONFIG_SUBTREES: frozenset[str] = frozenset(
-    {"analysis", "llm", "ocr", "ingest", "export"}
+    {"analysis", "llm", "ocr", "ingest", "export", "ui"}
 )
 
 
@@ -447,6 +469,7 @@ class EffectiveConfig:
     ocr: OcrWorkspaceConfig = field(default_factory=OcrWorkspaceConfig)
     ingest: IngestConfig = field(default_factory=IngestConfig)
     export: Any = field(default_factory=_default_export_config)
+    ui: UiConfig = field(default_factory=UiConfig)
     activations: ProfileActivations = field(default_factory=ProfileActivations)
 
     def as_dict(self) -> dict[str, Any]:
@@ -456,6 +479,7 @@ class EffectiveConfig:
             "ocr": self.ocr.as_dict(),
             "ingest": self.ingest.as_dict(),
             "export": self.export.as_dict(),
+            "ui": self.ui.as_dict(),
             **self.activations.as_dict(),
         }
 
@@ -470,6 +494,7 @@ class EffectiveConfig:
             ocr=OcrWorkspaceConfig.from_dict(data.get("ocr")),
             ingest=IngestConfig.from_dict(data.get("ingest")),
             export=ExportConfig.from_dict(data.get("export")),
+            ui=UiConfig.from_dict(data.get("ui")),
             activations=ProfileActivations.from_dict(data),
         )
 
@@ -509,6 +534,7 @@ def workspace_document(
             "ocr": body.get("ocr", {}),
             "ingest": body.get("ingest", {}),
             "export": body.get("export", {}),
+            "ui": body.get("ui", {}),
         },
         "active_workflow_profile": activations.workflow,
         "active_ocr_profile": activations.ocr,
@@ -525,6 +551,7 @@ def strip_unknown_config_keys(data: Mapping[str, Any]) -> dict[str, Any]:
         "ocr": dict(data.get("ocr") or {}),
         "ingest": dict(data.get("ingest") or {}),
         "export": dict(data.get("export") or {}),
+        "ui": dict(data.get("ui") or {}),
     }
 
 

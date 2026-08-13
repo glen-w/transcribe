@@ -30,7 +30,7 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Page ink / blankness / hue metrics (Pillow; active renders) | [contracts/page-metrics.md](contracts/page-metrics.md) |
 | Sole notebook eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
 | Durable UI action-menu prefs (`interface_menus.json` schema v1) | [contracts/interface-menus.md](contracts/interface-menus.md) |
-| Workspace settings, profiles, knob precedence, analysis config versions | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
+| Workspace settings (`analysis` / `llm` / `ocr` / `ingest` / `export` / `ui`), profiles, knob precedence, analysis config versions | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
 | Future TranscriptX handoff (non-shipped) | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) |
 
 Schema identity and version gates in code: `transcribe.persistence.schema.SUPPORTED` (`transcribe.project`, `transcribe.page-result`, `transcribe.notebook`, `transcribe.analysis-document`, `transcribe.analysis-result`, `transcribe.detection-result`, `transcribe.prompt-definition`, `transcribe.page-metrics`, plus `transcribe.corpus-index`, `transcribe.import-run`, `transcribe.ocr-batch-run`, `transcribe.ingest-journal` — all version **1** today). Interface menus use a separate envelope (`schema_version` 1) under `data/config/interface_menus.json` — see the interface-menus contract. Corpus formats are **runtime-normative** for bulk import ([activation gate](contracts/notebook-corpus.md#activation-gate) satisfied) but are **not** required for `transcribe.project` v1 notebooks that lack corpus registration.

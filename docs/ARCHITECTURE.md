@@ -47,6 +47,7 @@ CLI ──────────────────┘              │
 - **ProjectService** — load/save settings and metadata with load→modify→validate→write under the mutation lock; reconciles interrupted attempts when the job lock is free
 - **IngestService** — stages, journals, promotes, then commits the manifest; recovers incomplete journals on open/load
 - **JobCoordinator / JobPlan** — freezes model identity, prompt, preprocess, options, targets, provider binding, and optional OCR cleanup identity (mode/model/digest/validator policy) at job start; workers consume the plan, not live UI settings. Multipass reuses frozen single-model plans with `activate=false` / `pass_id`, then rank + composite ([contracts/ocr-multipass.md](contracts/ocr-multipass.md)).
+- **OcrBatchRun** — durable multi-notebook OCR batch ([contracts/ocr-batch-run.md](contracts/ocr-batch-run.md)); UI Workflow → Transcribe → Batch
 - **ExportService** — one coherent snapshot, then multi-format promote
 - **ArchiveService** — disposable FTS cache with WAL/busy timeout and delete-and-rebuild on corruption; cheap TTL short-circuit uses a workspace mutation-generation token (callers bump after project mutations)
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
@@ -54,6 +55,7 @@ CLI ──────────────────┘              │
 - **AnalysisCoordinator / AnalysisRunPlan / AnalysisRunner / AnalysisStorage** — project-scoped async batch runs freeze an `AnalysisRunPlan` (modules, EffectiveConfig, text-model identity) and execute under `.transcribe.analysis.lock`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities). Mid-run settings apply to the next run only; crash/reopen marks orphaned attempts/runs `interrupted` without clobbering published results
 - **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides; freshness via `detector_freshness` / planned cache identity
 - **PageMetricsService** — Pillow ink coverage / blankness / dominant hue over active renders; publish under `page_metrics/`; cache identity = algorithm version + ordered `(page_id, render_sha256)` (not text Analyse)
+- **Visual declutter** — Pillow scanner-border crop at import and via `ProjectService.reapply_visual_declutter` (Settings → Configuration); provenance on renders ([contracts/source-asset.md](contracts/source-asset.md))
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients
 
 ## Explicit non-goals for the core architecture

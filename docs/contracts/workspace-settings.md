@@ -28,6 +28,23 @@ OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
 Workspace `export.*` controls default export formats, structure, and typography
 (see [notebook-export.md](notebook-export.md)).
 
+Workspace `ingest.*` seeds PDF rasterisation and visual declutter defaults for
+**Workflow → Import** (and Settings → Configuration → Import). Declutter may
+also be **re-applied** to an existing notebook from that panel (creates a new
+`render_id` when pixels change; does not re-run OCR) — see
+[source-asset.md](source-asset.md).
+
+Workspace `ui.*` holds UI presentation defaults that do not affect OCR or
+analysis fingerprints.
+
+## UI knobs (`ui.*`)
+
+| Key | Default | Role |
+|-----|---------|------|
+| `archive_notebooks_initial` | `0` | Notebooks → Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
+
+Edited under **App → Settings → Configuration → Archive**.
+
 ## OCR lifecycle knobs (`ocr.*`)
 
 Workspace OCR seeds **new notebooks** and Apply-to-project (allowlisted). Live
@@ -69,7 +86,7 @@ Each named preset policy (`quick` / `balanced` / `thorough`) carries:
 
 `PRESET_POLICY_VERSION` is schema/shape only. **Content identity** is `content_version` plus the policy body fingerprint (SHA-256 of knobs **excluding** `content_version`).
 
-Settings writes that change a named preset’s policy body **must** bump that preset’s `content_version`. Unchanged saves must not bump. Custom selections on Run Analysis are not workspace presets: they use `preset_key=custom`, `content_version=0`, and a fingerprint of the selected module list.
+Settings writes that change a named preset’s policy body **must** bump that preset’s `content_version`. Unchanged saves must not bump. Custom selections on Analyse are not workspace presets: they use `preset_key=custom`, `content_version=0`, and a fingerprint of the selected module list.
 
 Frozen `AnalysisRunPlan` records `preset_key`, `preset_content_version`, and `preset_policy_fingerprint` so a run identifies exactly which preset generation produced it (see [analysis-run-storage.md](analysis-run-storage.md)).
 

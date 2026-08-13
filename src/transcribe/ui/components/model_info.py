@@ -102,7 +102,6 @@ def render_model_information(
                     "It can hang on dense scans; prefer an OCR-oriented model, "
                     "especially as the first compare model."
                 )
-    _ = key
 
 
 def warn_if_first_compare_model_is_general_vlm(model_names: Sequence[str]) -> None:

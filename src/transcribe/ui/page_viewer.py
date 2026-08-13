@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import html
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +23,7 @@ from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
 from transcribe.ui.action_menus.nav import clear_page_viewer_state
+from transcribe.ui.components.info_tooltip import render_caption_with_info
 
 # User-facing implications for each cleanup mode (matches cleanup prompts + validator).
 _CLEANUP_MODE_HELP: dict[str, str] = {
@@ -101,19 +101,6 @@ def _cleanup_mode_help(cleanup: CleanupRecord) -> str:
     if model:
         return f"{base} Cleanup model: {model}."
     return base
-
-
-def _caption_with_info(body: str, help_text: str) -> None:
-    """Caption line with a hover ⓘ tooltip (no click / no rerun)."""
-    tip = html.escape(help_text, quote=True)
-    body_esc = html.escape(body)
-    st.markdown(
-        f'<p style="font-size:0.875rem;color:var(--text-color);opacity:0.6;'
-        f'margin:0 0 0.35rem 0;">{body_esc} '
-        f'<span title="{tip}" style="cursor:help;opacity:0.9;user-select:none;" '
-        f'aria-label="More info">ⓘ</span></p>',
-        unsafe_allow_html=True,
-    )
 
 
 def _render_attempt_compare(
@@ -724,7 +711,7 @@ def render_page_viewer(
         attempt = result.active_attempt() if result else None
         model_label = _transcription_model_label(attempt)
         if model_label:
-            _caption_with_info(
+            render_caption_with_info(
                 f"Transcription model: {model_label}",
                 _transcription_model_help(attempt, model_label),
             )
@@ -733,7 +720,7 @@ def render_page_viewer(
             if cu.execution_status == "disabled":
                 pass
             elif cu.acceptance_status == "applied":
-                _caption_with_info(
+                render_caption_with_info(
                     f"Cleanup: applied ({cu.mode}) via {cu.model_name or 'text model'}",
                     _cleanup_mode_help(cu),
                 )
@@ -742,19 +729,19 @@ def render_page_viewer(
                     f"Cleanup: unchanged ({cu.note or 'identical'}) — kept OCR text"
                 )
                 if cu.mode:
-                    _caption_with_info(body, _cleanup_mode_help(cu))
+                    render_caption_with_info(body, _cleanup_mode_help(cu))
                 else:
                     st.caption(body)
             elif cu.acceptance_status == "validator_rejected":
                 body = f"Cleanup: validator rejected — {cu.note} (kept raw OCR)"
                 if cu.mode:
-                    _caption_with_info(body, _cleanup_mode_help(cu))
+                    render_caption_with_info(body, _cleanup_mode_help(cu))
                 else:
                     st.caption(body)
             elif cu.execution_status == "provider_failed":
                 body = f"Cleanup: provider failed — {cu.note} (kept raw OCR)"
                 if cu.mode:
-                    _caption_with_info(body, _cleanup_mode_help(cu))
+                    render_caption_with_info(body, _cleanup_mode_help(cu))
                 else:
                     st.caption(body)
             elif cu.execution_status == "skipped_empty_source":

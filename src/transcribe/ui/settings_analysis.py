@@ -20,6 +20,7 @@ from transcribe.config.models import (
     deep_merge_dict,
 )
 from transcribe.config.persistence import load_workspace_settings, save_workspace_settings
+from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.config.reset import reset_subtree
 
 _PRESET_KEYS = ("quick", "balanced", "thorough")
@@ -85,7 +86,7 @@ def _render_preset_editor(
         "Allow heavy modules",
         value=bool(draft.get("allow_heavy")),
         key=f"{prefix}_allow_heavy",
-        help="Heavy = registry cost_tier or category marked heavy.",
+        help=widget_help("Heavy = registry cost_tier or category marked heavy."),
     )
     if draft["allow_heavy"]:
         draft["heavy_module_ids"] = st.multiselect(
@@ -110,7 +111,9 @@ def _render_preset_editor(
         "Override with explicit module list",
         value=draft.get("module_ids") is not None,
         key=f"{prefix}_use_override",
-        help="When enabled, policy filters are ignored and only this list runs.",
+        help=widget_help(
+            "When enabled, policy filters are ignored and only this list runs."
+        ),
     )
     if use_override:
         current = list(draft.get("module_ids") or [])

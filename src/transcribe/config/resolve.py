@@ -113,6 +113,7 @@ def resolve_effective_config(
             "ocr": merged["ocr"],
             "ingest": merged["ingest"],
             "export": merged.get("export") or {},
+            "ui": merged.get("ui") or {},
         },
         "default",
         into=provenance,
@@ -124,6 +125,7 @@ def resolve_effective_config(
         "ocr": dict(workspace_config.get("ocr") or {}),
         "ingest": dict(workspace_config.get("ingest") or {}),
         "export": dict(workspace_config.get("export") or {}),
+        "ui": dict(workspace_config.get("ui") or {}),
     }
     if any(ws.values()):
         merged = deep_merge_dict(merged, ws)

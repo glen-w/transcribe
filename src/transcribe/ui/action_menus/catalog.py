@@ -30,9 +30,9 @@ ACTIONS: tuple[ActionDef, ...] = (
     ),
     ActionDef(
         ActionId.ANALYSE,
-        "Run Analysis",
+        "Analyse",
         ":material/analytics:",
-        "Open Run Analysis for this notebook.",
+        "Open Analyse for this notebook.",
     ),
     ActionDef(
         ActionId.DETECT,

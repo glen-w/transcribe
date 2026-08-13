@@ -13,6 +13,11 @@ class CommonSettingField:
 
 
 COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
+    CommonSettingField(
+        "ui.archive_notebooks_initial",
+        "Archive",
+        "Notebooks shown initially (0 = all)",
+    ),
     CommonSettingField("ingest.render_dpi", "Import", "PDF render DPI"),
     CommonSettingField(
         "ingest.visual_declutter_enabled",

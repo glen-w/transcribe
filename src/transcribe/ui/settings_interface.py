@@ -32,6 +32,7 @@ from transcribe.ui.action_menus.prefs import (
     save_interface_prefs,
     validate_draft_for_save,
 )
+from transcribe.ui.components.info_tooltip import widget_help
 
 _MODE_LABELS = {
     "use_standard": "Use standard menu",
@@ -45,6 +46,7 @@ _PENDING_WIDGET_SYNC_KEY = "iface_pending_widget_sync"
 def _sync_widgets_from_draft() -> None:
     draft = st.session_state[DRAFT_SESSION_KEY]
     prefs = draft.prefs
+    st.session_state["iface_show_info_tooltips"] = bool(prefs.show_info_tooltips)
     st.session_state["iface_std_mode"] = (
         "Built-in" if prefs.standard_menu_mode == "built_in" else "Custom"
     )
@@ -70,6 +72,9 @@ def _request_widget_sync() -> None:
 def _pull_widgets_into_draft() -> None:
     draft = st.session_state[DRAFT_SESSION_KEY]
     prefs = draft.prefs
+    prefs.show_info_tooltips = bool(
+        st.session_state.get("iface_show_info_tooltips", True)
+    )
     std_mode = st.session_state.get("iface_std_mode", "Built-in")
     prefs.standard_menu_mode = "built_in" if std_mode == "Built-in" else "custom"
     selected_std: list[ActionId] = []
@@ -117,13 +122,23 @@ def render_interface_panel() -> None:
     if draft_is_dirty(draft):
         st.caption("Unsaved changes")
 
+    st.markdown("##### Instructional tips")
+    st.caption(
+        "Show or hide instructional ⓘ tips on widgets and page-viewer notes."
+    )
+    st.checkbox(
+        "Show info tooltips",
+        key="iface_show_info_tooltips",
+        disabled=draft.recovery,
+    )
+
     st.markdown("##### Standard menu")
     st.radio(
         "Standard menu source",
         options=["Built-in", "Custom"],
         key="iface_std_mode",
         horizontal=True,
-        help="Built-in is Open · Transcribe · Analyse · Export.",
+        help=widget_help("Built-in is Open · Transcribe · Analyse · Export."),
         disabled=draft.recovery,
     )
     if st.session_state.get("iface_std_mode") == "Custom":
@@ -131,7 +146,7 @@ def render_interface_panel() -> None:
             st.checkbox(
                 action.label,
                 key=f"iface_std_{action.id.value}",
-                help=action.help,
+                help=widget_help(action.help),
                 disabled=draft.recovery,
             )
 
@@ -141,7 +156,10 @@ def render_interface_panel() -> None:
             show = st.checkbox(
                 "Show menu",
                 key=f"iface_show_{sid.value}",
-                help="When off, this section renders no action links. Mode and selections are kept.",
+                help=widget_help(
+                    "When off, this section renders no action links. "
+                    "Mode and selections are kept."
+                ),
                 disabled=draft.recovery,
             )
             default_preview = " · ".join(
@@ -163,7 +181,7 @@ def render_interface_panel() -> None:
                     st.checkbox(
                         action.label,
                         key=f"iface_sel_{sid.value}_{action_id.value}",
-                        help=action.help,
+                        help=widget_help(action.help),
                     )
             elif not show:
                 st.caption(
@@ -187,7 +205,9 @@ def render_interface_panel() -> None:
         restore_clicked = st.button(
             "Restore built-in defaults",
             key="iface_restore",
-            help="Persist built-in defaults to disk (same conflict protection as Save).",
+            help=widget_help(
+                "Persist built-in defaults to disk (same conflict protection as Save)."
+            ),
         )
     with c3:
         reload_clicked = st.button("Reload saved settings", key="iface_reload")

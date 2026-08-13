@@ -28,7 +28,7 @@ from transcribe.config.facade import (
     snapshot_for_operation,
 )
 from transcribe.config.knobs import module_knob_dict
-from transcribe.config.models import EffectiveConfig, IngestConfig, ProfileActivations
+from transcribe.config.models import EffectiveConfig, IngestConfig, ProfileActivations, UiConfig
 from transcribe.config.persistence import (
     load_workspace_settings,
     save_workspace_settings,
@@ -139,6 +139,32 @@ def test_visual_declutter_missing_defaults_true() -> None:
         IngestConfig.from_dict({"visual_declutter_enabled": False}).visual_declutter_enabled
         is False
     )
+
+
+def test_ui_config_archive_notebooks_initial_defaults_all() -> None:
+    assert UiConfig.from_dict(None).archive_notebooks_initial == 0
+    assert UiConfig.from_dict({}).archive_notebooks_initial == 0
+    assert UiConfig.from_dict({"archive_notebooks_initial": -3}).archive_notebooks_initial == 0
+    assert UiConfig.from_dict({"archive_notebooks_initial": 12}).archive_notebooks_initial == 12
+    assert UiConfig.from_dict({"archive_notebooks_initial": "bad"}).archive_notebooks_initial == 0
+
+
+def test_archive_notebooks_initial_workspace_round_trip(runtime: RuntimePaths) -> None:
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {},
+            "ui": {"archive_notebooks_initial": 18},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.archive_notebooks_initial == 18
+    assert view.provenance["ui.archive_notebooks_initial"] == "workspace"
 
 
 def test_visual_declutter_workspace_round_trip(runtime: RuntimePaths) -> None:

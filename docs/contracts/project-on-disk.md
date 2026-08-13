@@ -71,6 +71,10 @@ Other contracts (including analysis-run-storage, detection-run-storage, and page
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
 
+### Page delete
+
+`ProjectService.delete_page` removes one page (manifest entry, result JSON, thumb, and page directory artifacts). Later pages in the same source are reindexed so `page_index` stays contiguous; a source with no remaining pages is removed. Clearing `cover_page_id` when the cover is deleted is required. Refuses when the notebook would become empty (delete the notebook instead) or while an OCR job lock is held. UI: page viewer → Delete page.
+
 ## `content_revision` (notebook content identity)
 
 `content_revision` is the hex SHA-256 of a canonical JSON object describing **exportable notebook content** (all pages in project order). It is distinct from analysis `content_fingerprint` ([analysis-document.md](analysis-document.md)), which may omit blank/excluded pages and use analysis split profiles.

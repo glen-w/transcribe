@@ -18,6 +18,7 @@ from transcribe.config.profiles import (
     save_user_profile,
     validate_profile_name,
 )
+from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.config.reset import (
     reset_profile_activation,
     reset_whole_workspace,
@@ -58,7 +59,7 @@ def render_configuration_panel() -> None:
         "Visual declutter (remove scanner borders / white gutters on import)",
         value=bool(view.effective.ingest.visual_declutter_enabled),
         key="settings_ingest_visual_declutter",
-        help=(
+        help=widget_help(
             "On by default for new imports. Use Re-apply below to crop scanner "
             "beds, stark white gutters, and residual corner wedges on an existing "
             "notebook."
@@ -131,6 +132,33 @@ def render_configuration_panel() -> None:
                 st.error(f"{type(exc).__name__}: {exc}")
 
     st.divider()
+    st.markdown("#### Archive")
+    st.caption("Notebooks → Archive notebook strip.")
+    archive_initial = st.number_input(
+        "Notebooks shown initially",
+        min_value=0,
+        value=int(view.effective.ui.archive_notebooks_initial),
+        key="settings_archive_notebooks_initial",
+        help=widget_help(
+            "How many notebook cards load before “Show more”. 0 shows all notebooks."
+        ),
+    )
+    if st.button("Save archive defaults", type="primary", key="settings_archive_save"):
+        try:
+            loaded = load_workspace_settings()
+            cfg = deep_merge_dict({}, loaded.config)
+            ui_cfg = cfg.setdefault("ui", {})
+            ui_cfg["archive_notebooks_initial"] = int(archive_initial)
+            save_workspace_settings(config=cfg, activations=loaded.activations)
+            clear_config_cache()
+            reload_config()
+            st.session_state.pop("archive_strip_n", None)
+            st.success("Saved.")
+            st.rerun()
+        except ConfigError as exc:
+            st.error(f"{exc.code}: {exc}")
+
+    st.divider()
     st.caption("Curated knobs (effective values). Edit via Analysis / Models / Profiles.")
     for field in COMMON_SETTINGS_SCHEMA:
         parts = field.key.split(".")
@@ -142,6 +170,8 @@ def render_configuration_panel() -> None:
                 cur = getattr(view.effective.llm, parts[1])
             elif parts[0] == "ingest":
                 cur = getattr(view.effective.ingest, parts[1])
+            elif parts[0] == "ui":
+                cur = getattr(view.effective.ui, parts[1])
             elif parts[0] == "analysis":
                 sub = getattr(view.effective.analysis, parts[1])
                 cur = getattr(sub, parts[2]) if len(parts) > 2 else sub

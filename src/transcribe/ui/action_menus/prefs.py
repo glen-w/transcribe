@@ -50,6 +50,8 @@ class InterfaceMenuPrefs(BaseModel):
     standard_menu_mode: Literal["built_in", "custom"] = "built_in"
     standard_menu: list[ActionId] = Field(default_factory=list)
     sections: dict[SectionId, SectionMenuPrefs] = Field(default_factory=dict)
+    # Instructional ⓘ / Streamlit help= tips. Run-id identity ⓘ stays always on.
+    show_info_tooltips: bool = True
 
 
 @dataclass
@@ -120,6 +122,7 @@ def built_in_prefs() -> InterfaceMenuPrefs:
         standard_menu_mode=StandardMenuMode.BUILT_IN.value,
         standard_menu=[],
         sections=sections,
+        show_info_tooltips=True,
     )
 
 
@@ -181,10 +184,15 @@ def merge_prefs(partial: dict[str, Any] | None) -> InterfaceMenuPrefs:
             show = True
         sections[sid] = SectionMenuPrefs(show_menu=show, mode=smode, selected=selected)
 
+    show_tips = partial.get("show_info_tooltips", True)
+    if not isinstance(show_tips, bool):
+        show_tips = True
+
     merged = InterfaceMenuPrefs(
         standard_menu_mode=mode,  # type: ignore[arg-type]
         standard_menu=standard,
         sections=sections,
+        show_info_tooltips=show_tips,
     )
     return _restore_unusable_menus(merged)
 

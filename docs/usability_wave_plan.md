@@ -85,7 +85,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 | **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
-| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation) | — | **[x] done** |
+| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation); Archive activity bins + strip paging + page delete + model-info picker wiring | — | **[x] done** |
 | **U4** — Corpus UX | Inbox / import recovery / bulk import; acceptance gate green | — | **[x] gate green** (polish open) |
 
 ---
@@ -208,7 +208,7 @@ No telemetric onboarding — local checklist state only (workspace settings or s
 |------------|-------|--------|
 | `doctor` | CLI only | **App → Diagnostics** (or Settings section): run project or workspace doctor; show human-readable pass/warn/fail with suggested next steps |
 | Recovery | Contracts / terminal | Short copy for cache rebuild, interrupted analysis re-run, import failure (single-file path) |
-| Runtime paths | Settings captions | Explain inbox/export mounts; do not imply inbox imports until U4 |
+| Runtime paths | Settings captions | Explain inbox/export mounts; bulk Import → Batch is supported (container paths in Docker) |
 
 ### U2.4 — Docs & install path
 
@@ -263,6 +263,8 @@ Stay on rebuildable archive SQLite ([known_limitations.md](known_limitations.md)
 | Date range on Search | Archive already has period/range; bring coherent filters to Search |
 | Clearer empty states | Distinguish “no notebooks” vs “no hits” vs “cache rebuilding” |
 | Jump richness | Preserve highlight + open-in-viewer; raise discoverability of jump-to-page |
+| Activity-bin filter | **Landed** on Archive: click a timeline bar to filter to that date bin |
+| Strip paging | **Landed:** `ui.archive_notebooks_initial` (Settings → Configuration → Archive); `0` = show all |
 | Not yet | Entity filters, saved searches — design stubs OK; implement only if cheap on current FTS |
 
 Do **not** treat `archive.sqlite` as backup authority (unchanged support policy).
@@ -272,6 +274,7 @@ Do **not** treat `archive.sqlite` as backup authority (unchanged support policy)
 On existing `title` / `tags` / `cover_page_id` (no schema expansion required for MVP):
 
 - View: cover thumbnails, tag chips, sort clarity, rename/delete discoverability (menus already exist — tighten empty/error copy).
+- **Page delete** in the page viewer **landed** (refuses last page / OCR job lock).
 - Optional soft fields only if contract bump is justified: short description — otherwise skip.
 - Collections / archive-state / user sort order → defer to post-U4 or later candidates unless a tiny settings-only sort lands without corpus index.
 
@@ -279,6 +282,7 @@ On existing `title` / `tags` / `cover_page_id` (no schema expansion required for
 
 Transcribe panel already lists/refreshes models. Deepen:
 
+- **Model information** expander follows the **live picker selection** on This-notebook / Compare forms (**landed**).
 - Show availability, approximate size when known, last-used, verified vs unverified identity.
 - Short recommendations for “first OCR” vs “quality” without hard-coding a single vendor promise.
 - Text-model requirements for Analyse LLM modules explained in the same vocabulary as U1 product copy.
@@ -337,8 +341,8 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 | Track | Coordination rule |
 |-------|-------------------|
 | Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
-| Visual declutter expansion | Remains ROADMAP preprocessing candidate; not required for usability-wave exit |
-| Re-OCR compare/promote | **Shipped** (OCR lifecycle W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); Review queue only needs honesty around suggested dates / force re-OCR |
+| Visual declutter expansion | Remains ROADMAP preprocessing candidate; explicit re-apply is **shipped**; further ops not required for usability-wave exit |
+| OCR lifecycle (multipass / prefer / promote / composite / fine-tune) | **Shipped** (W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); Review queue only needs honesty around suggested dates / force re-OCR |
 | Quality thumbs / prompt management UI | Candidates; Detection Prompt Hub may absorb prompt browse — do not duplicate |
 
 ---
@@ -402,8 +406,9 @@ U4 Inbox polish may remain open after the usability wave is declared done for U0
 ### U3
 - [x] Review needs-attention + batch dates
 - [x] Reading mode
-- [x] Search/Archive filter parity + empties
-- [x] Model management product copy
+- [x] Search/Archive filter parity + empties (Archive activity-bin filter included)
+- [x] Archive strip paging (`ui.archive_notebooks_initial`) + page delete
+- [x] Model management product copy (picker-wired Model information)
 
 ### U4
 - [x] Corpus acceptance gate green
@@ -421,4 +426,4 @@ This product does not ship analytics telemetry. Use local evidence:
 2. Fresh install checklist catches missing Ollama / vision model before a mysterious OCR hang.
 3. Review batch-approves a notebook of suggested dates in one pass.
 4. Export artifacts share one `content_revision` a user can cite.
-5. Settings inbox path is either clearly “not yet importing” or a real recovery home (never a dead caption).
+5. Settings inbox / Import → Batch is a real recovery home (never a dead caption).

@@ -19,5 +19,8 @@ Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODU
 | `transcribe.notebook` | Portable export JSON | [contracts/notebook-export.md](contracts/notebook-export.md) |
 | Doctor | Integrity check CLI | [public_surfaces.md](public_surfaces.md) |
 | Prompt Hub | Settings catalogue for OCR, cleanup, and detection prompts | [contracts/prompt-definition.md](contracts/prompt-definition.md) |
+| Visual declutter | Import-time (and Settings re-apply) scanner-border crop; not OCR preprocess | [contracts/source-asset.md](contracts/source-asset.md) |
+| Archive strip paging | `ui.archive_notebooks_initial` — cards before Show more (`0` = all) | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
+| OcrBatchRun | Durable batch OCR across notebooks | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) |
 | Detector | Prompt-backed scan for notebook phenomena (not a saved prompt alone) | [contracts/detection-definition.md](contracts/detection-definition.md) |
 | DetectionFinding | Derived span finding with provenance and review status | [contracts/detection-finding.md](contracts/detection-finding.md) |

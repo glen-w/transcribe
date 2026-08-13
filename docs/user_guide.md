@@ -25,7 +25,9 @@ Supported inputs: JPEG, PNG, PDF (unencrypted). PDFs are rendered to per-page PN
 ./transcribe.sh cli import "$TRANSCRIBE_PROJECTS_DIR/my-notebook" ./scan.pdf --dpi 200
 ```
 
-In the UI: select a notebook → **Workflow → Import** → set **Notebook name** if needed → upload → Import files.
+In the UI: select a notebook → **Workflow → Import** → Target **This notebook** → set **Notebook name** if needed → upload → Import files. A live progress panel shows per-file status.
+
+**Visual declutter** (scanner-border crop) defaults **on** for imports (`ingest.visual_declutter_enabled`). Toggle and **re-apply to an existing notebook** under **App → Settings → Configuration → Import** (does not re-run OCR).
 
 ## 3. Choose a vision model and run
 
@@ -46,7 +48,7 @@ Run:
   --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
 ```
 
-In the UI: **Transcribe → Run OCR** → select vision model → optional **Clean OCR with text model** → Start transcription. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats. Or **Compare models** (multi-select) → Start multipass compare (runs in the background; vision cleanup off unless you opt in). Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
+In the UI: **Workflow → Transcribe** → Target **This notebook** → select vision model → optional **Clean OCR with text model** → Start transcription. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats (follows the live picker selection). Or **Compare models** (multi-select) → Start multipass compare (runs in the background; vision cleanup off unless you opt in). Jobs show a live progress panel (per-page status and readable filenames). Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Multipass skips when any succeeded vision attempt matches. Details: [contracts/page-result.md](contracts/page-result.md) · [contracts/ocr-multipass.md](contracts/ocr-multipass.md).
 
@@ -54,9 +56,11 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
 
 **Review** is a needs-attention queue for the open notebook. Filter to pages that need date approval, have no text, or failed OCR. Approve or ignore all suggested dates in one pass (suspicious date regressions ask for a second confirm). Unapproved suggested dates still appear in the Archive timeline; time-of-day stamps are ignored.
 
-Open Archive / View / Search / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
+Open Archive / View / Search / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs. **Delete page** removes one page from the notebook (refuses the last page and while OCR is running).
 
 **Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session.
+
+**Archive:** click an activity bar to filter notebooks/pages to that date bin. The notebook strip loads `ui.archive_notebooks_initial` cards first (default **all**; change under **Settings → Configuration → Archive**), then **Show more** / **Show fewer**.
 
 **Search** finds text across notebooks. Use Period / Year / Range (same idea as Archive), tags, and media filters. Open a hit to browse matching pages with Prev/Next.
 
@@ -75,7 +79,7 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. A shared status strip shows whether results are current. Technical module details live under **Advanced**. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
 4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
-Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles tabs hold LLM budgets and named profile activations.
+Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles / Configuration tabs hold LLM budgets, named profile activations, import/declutter defaults, and Archive strip paging.
 
 | Preset | Modules |
 |--------|---------|
@@ -86,7 +90,7 @@ Edit what each preset includes under **App → Settings → Analysis**. Manage p
 
 Use a **text** Ollama model for LLM modules. Deterministic synthesis works without it. When a model or optional component is missing, Analyse says so in plain language (for example “Needs a text model”) rather than raw capability enums. Roadmap: [ROADMAP.md](ROADMAP.md).
 
-**Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**.
+**Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**. Batch OCR and Import → Batch share the same live progress panel style.
 
 CLI detection:
 
@@ -128,7 +132,7 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 - **One folder → one notebook** — path to a flat folder of scans.
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
-After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare.
+After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare. Import, Transcribe, and batch OCR jobs show live progress (per-item / per-page status with readable filenames).
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 

@@ -68,12 +68,14 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 ## What it does today
 
 - Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
-- Local Ollama vision OCR with content fingerprints for skip/resume
-- Immutable OCR attempts; human edits live in `edited_text`
-- Workspace Archive / View / Search over your projects directory
-- Run Analysis presets (Quick / Balanced / Thorough / Custom)
-- Portable export (`transcribe.notebook` JSON + Markdown + plain text)
-- **Core notebook analysis** on transcribed text (Overview, Themes, Mood & tone, Moments, Summaries, Ask notebook) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
+- Local Ollama vision OCR with content fingerprints for skip/resume; multipass compare / prefer / promote / composite / fine-tune export
+- Immutable OCR attempts; human edits live in `edited_text`; page delete from the viewer
+- Workspace Archive / View / Search (activity-bin filter, strip paging) over your projects directory
+- Unified Import / Transcribe targets (this notebook vs batch) with live job progress; corpus bulk import supported
+- Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
+- Analyse presets (Quick / Balanced / Thorough / Custom) with product read-models
+- Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
+- **Core notebook analysis** on transcribed text (Overview, Themes, Mood, Moments, Places, Summaries, Ask) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
 
@@ -83,7 +85,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** (trust / Analyse product UX → first-run operability → daily workbench; corpus inbox gated) — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** (trust / Analyse product UX → first-run operability → daily workbench; corpus bulk import supported) — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

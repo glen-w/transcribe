@@ -28,15 +28,45 @@ from transcribe.ui.action_menus.catalog import help_for
 from transcribe.ui.action_menus.context import ActionContext
 from transcribe.ui.action_menus.ids import ActionId, NavStyle, ReturnMode, SectionId
 from transcribe.ui.action_menus.nav import load_live_notebook_context, navigate_open
+from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.ui.action_menus.render import render_configured_actions
 from transcribe.ui.activity_selection import BIN_SELECT, selected_bin_label
 from transcribe.ui.page_viewer import open_page_context
+
+ARCHIVE_STRIP_SESSION_KEY = "archive_strip_n"
 
 # Layout slots (no crop): View pins cover width; chart is full-bleed under the header.
 # Archive pins cover height in the strip.
 VIEW_COVER_WIDTH_PX = 112
 VIEW_ROW_CHART_HEIGHT = 120
 ARCHIVE_COVER_HEIGHT_PX = 160
+
+
+def _archive_notebook_page_size(*, configured_initial: int, total: int) -> int:
+    """Return batch size for the archive notebook strip (0 = show all)."""
+    if configured_initial <= 0:
+        return total
+    return configured_initial
+
+
+def _archive_notebook_show_count(
+    *,
+    configured_initial: int,
+    total: int,
+    session_show_n: object,
+) -> int:
+    page_size = _archive_notebook_page_size(
+        configured_initial=configured_initial,
+        total=total,
+    )
+    default_show_n = min(page_size, total)
+    if session_show_n is None:
+        return default_show_n
+    try:
+        show_n = int(session_show_n)
+    except (TypeError, ValueError):
+        return default_show_n
+    return min(max(show_n, 0), total)
 
 
 def _cover_open_key(instance_prefix: str, project_id: str) -> str:
@@ -67,7 +97,7 @@ def _render_clickable_cover(
             type="tertiary",
             width="stretch",
             disabled=not can_open,
-            help=help_for(ActionId.OPEN) if can_open else "No pages to open.",
+            help=widget_help(help_for(ActionId.OPEN) if can_open else "No pages to open."),
         ):
             if navigate_open(ctx, rerun=False):
                 st.rerun()
@@ -281,6 +311,7 @@ def _open_notebook_at_bin(
 
 
 def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
+    from transcribe.config.facade import get_config
     from transcribe.domain.dates import parse_date_input
 
     archive.ensure_index()
@@ -431,7 +462,17 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         st.caption("No notebooks match the current filters.")
         return
 
-    show_n = int(st.session_state.get("archive_strip_n", 12))
+    configured_initial = int(get_config().effective.ui.archive_notebooks_initial)
+    total = len(notebooks)
+    page_size = _archive_notebook_page_size(
+        configured_initial=configured_initial,
+        total=total,
+    )
+    show_n = _archive_notebook_show_count(
+        configured_initial=configured_initial,
+        total=total,
+        session_show_n=st.session_state.get(ARCHIVE_STRIP_SESSION_KEY),
+    )
     strip = notebooks[:show_n]
     cols = st.columns(min(6, max(1, len(strip))))
     for i, nb in enumerate(strip):
@@ -441,13 +482,13 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 projects_dir=runtime.projects_dir,
                 return_mode=ReturnMode.ARCHIVE,
             )
-    if show_n < len(notebooks):
-        if st.button(f"Show more notebooks ({len(notebooks) - show_n} remaining)"):
-            st.session_state["archive_strip_n"] = show_n + 12
+    if show_n < total:
+        if st.button(f"Show more notebooks ({total - show_n} remaining)"):
+            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = show_n + page_size
             st.rerun()
-    elif show_n > 12:
+    elif page_size < total and show_n > page_size:
         if st.button("Show fewer"):
-            st.session_state["archive_strip_n"] = 12
+            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = page_size
             st.rerun()
 
 

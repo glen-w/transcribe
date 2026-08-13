@@ -306,14 +306,21 @@ def inject_global_styles() -> None:
         text-decoration: underline;
         background: transparent !important;
     }
-    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]) {
+    /* Scope to the action-strip row only. :has(tr_al_) alone also matches
+       ancestor grids (Archive notebook columns) and collapses them to
+       content-width + wrap. Exclude rows that nest another HorizontalBlock. */
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]):not(
+            :has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])
+        ) {
         gap: 0 !important;
         justify-content: flex-start !important;
         flex-wrap: wrap;
         align-items: center;
         margin: 0.15rem 0 0.55rem 0;
     }
-    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"])
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]):not(
+            :has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])
+        )
         [data-testid="stColumn"] {
         flex: 0 0 auto !important;
         width: auto !important;
@@ -321,7 +328,9 @@ def inject_global_styles() -> None:
         display: flex !important;
         align-items: center;
     }
-    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"])
+    div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]):not(
+            :has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])
+        )
         [data-testid="stColumn"]:not(:last-child)::after {
         content: "|";
         color: rgba(90, 107, 125, 0.45);
@@ -403,6 +412,101 @@ def inject_global_styles() -> None:
         height: 160px !important;
         max-height: 160px !important;
         object-fit: contain !important;
+    }
+    /* Run ID info control — custom hover + focus tooltips */
+    .tx-run-id-info {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+    }
+    .tx-run-id-info-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.15rem;
+        height: 1.15rem;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: #8a9ab0;
+        font-size: 0.78rem;
+        line-height: 1;
+        cursor: help;
+    }
+    .tx-run-id-info-btn:hover,
+    .tx-run-id-info-btn:focus {
+        color: #1f77b4;
+    }
+    .tx-run-id-info-btn:focus-visible {
+        outline: 2px solid #1f77b4;
+        outline-offset: 2px;
+    }
+    .tx-run-id-info-tip {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 0.35rem);
+        transform: translateX(-50%);
+        min-width: 10rem;
+        max-width: 22rem;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        background: #2c3e50;
+        color: #f8fafc;
+        font-size: 0.72rem;
+        line-height: 1.35;
+        word-break: break-all;
+        white-space: normal;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        z-index: 80;
+        transition: opacity 0.12s ease;
+    }
+    .tx-run-id-info:hover .tx-run-id-info-tip,
+    .tx-run-id-info:focus-within .tx-run-id-info-tip,
+    .tx-run-id-info-btn:focus + .tx-run-id-info-tip,
+    .tx-run-id-info-btn:focus-visible + .tx-run-id-info-tip {
+        opacity: 1;
+        visibility: visible;
+    }
+    /* Multi-line methodology / help tips (reuse run-id info control) */
+    .tx-methodology-info {
+        margin-left: 0.35rem;
+    }
+    .tx-methodology-info-tip {
+        left: 0;
+        transform: none;
+        bottom: auto;
+        top: calc(100% + 0.35rem);
+        min-width: 16rem;
+        max-width: 28rem;
+        padding: 0.5rem 0.65rem;
+        word-break: normal;
+        overflow-wrap: anywhere;
+        text-align: left;
+    }
+    .tx-trends-heading,
+    .tx-section-info-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin: 0.75rem 0 0.35rem;
+    }
+    .tx-trends-heading h4,
+    .tx-section-info-heading h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    .tx-caption-with-info {
+        font-size: 0.875rem;
+        color: var(--text-color);
+        opacity: 0.6;
+        margin: 0 0 0.35rem 0;
     }
 </style>
 """,
