@@ -19,6 +19,8 @@ Authority: self — supported public entrypoints and support policy for how user
 | `import <project> <source>` | Import JPEG/PNG/PDF (`--dpi` for PDFs) |
 | `models` | List vision-capable Ollama models (`--base-url`, `--all`, `--refresh`, `--prefs`) |
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
+| `bulk-run pending\|import-run\|notebooks` | Batch OCR across notebooks (`--model`, `--force`, `--workers`) |
+| `bulk-run status\|resume <ocr_run_id>` | Inspect or resume an OcrBatchRun |
 | `multipass <project> --model A --model B …` | Multi-model OCR then rank/composite (`--force`, `--no-auto-composite`, `--text-model`) |
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `export-finetune <project> [dest]` | Export images + preferred/active text for external fine-tuning |
@@ -28,13 +30,15 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places · Inbox (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow. **Inbox** is the ImportRun recovery / bulk-import surface — see **Corpus surfaces** below.
+**Notebooks:** View · Search · Archive · Places (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow.
 
 **Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
 
-**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus product read-model tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. A shared status strip above the tabs answers notebook revision and batch health. Module ids, capability enums, and raw JSON live under **Advanced** expanders — ordinary use does not require module/cache literacy. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
+**Import** uses a Target switcher (TranscriptX-style): **This notebook** (file uploader into the selected notebook) or **Batch** (folder / parent-of-folders ImportRun, recent runs, resume). Legacy **Notebooks → Inbox** aliases to Import → Batch.
 
-**Transcribe (OCR)** primary chrome is vision model + Start transcription (+ optional cleanup toggle). **Compare models** runs multipass (multi-select vision models → rank + composite). Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
+**Transcribe (OCR)** uses the same Target switcher: **This notebook** (vision model + Start transcription, optional cleanup, Compare models under this target only) or **Batch** (same OCR settings × many notebooks — pending pages, an ImportRun, or a manual pick). Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
+
+**Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus product read-model tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. A shared status strip above the tabs answers notebook revision and batch health. Module ids, capability enums, and raw JSON live under **Advanced** expanders — ordinary use does not require module/cache literacy. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
 
 ### Helper script
 
@@ -50,7 +54,12 @@ Bulk-import generation is **runtime-normative**; the [acceptance gate](contracts
 | CLI `bulk-import folders <parent>` | `transcribe bulk-import folders …` (`--on-existing skip\|overwrite`, `--confirm-overwrite 'OVERWRITE ALL'`, `--policy`, `--dry-run`) | Each child folder → one notebook named after it; overwrite requires exact confirmation |
 | CLI `bulk-import status\|resume <id>` | `transcribe bulk-import status\|resume …` | Inspect or resume an ImportRun |
 | CLI `corpus-doctor` | `transcribe corpus-doctor` (`--deep`) | Workspace corpus index integrity |
-| UI **Notebooks → Inbox** | Streamlit Inbox mode | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes |
+| CLI `bulk-run pending` | `transcribe bulk-run pending --model …` | OCR notebooks with untranscribed/failed pages |
+| CLI `bulk-run import-run <id>` | `transcribe bulk-run import-run … --model …` | OCR notebooks committed by an ImportRun |
+| CLI `bulk-run notebooks …` | `transcribe bulk-run notebooks <id-or-path> … --model …` | Explicit notebook list |
+| CLI `bulk-run status\|resume <id>` | `transcribe bulk-run status\|resume …` | Inspect or resume an OcrBatchRun |
+| UI **Workflow → Import → Batch** | Streamlit Import Target=Batch | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes. Legacy Inbox aliases here. |
+| UI **Workflow → Transcribe → Batch** | Streamlit Transcribe Target=Batch | Same OCR settings × N notebooks; pending / import-run / pick; resume |
 
 ## Explicitly unsupported
 

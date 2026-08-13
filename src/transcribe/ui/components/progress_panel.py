@@ -19,6 +19,7 @@ class ProgressSnapshot(TypedDict, total=False):
     status: str  # running | completed | failed
     phase: str
     current_module: str
+    current_item: str
     completed: int
     skipped: int
     failed: int
@@ -54,6 +55,7 @@ def render_progress_panel(
     phase = snapshot.get("phase", "running")
     status = snapshot.get("status", "running")
     current_module = snapshot.get("current_module", "")
+    current_item = snapshot.get("current_item", "")
     completed = int(snapshot.get("completed", 0) or 0)
     skipped = int(snapshot.get("skipped", 0) or 0)
     failed = int(snapshot.get("failed", 0) or 0)
@@ -80,6 +82,9 @@ def render_progress_panel(
             st.error(error)
     else:
         st.info(f"**{phase_label}**")
+
+    if current_item:
+        st.markdown(f"Current: `{current_item}`")
 
     if current_module:
         prefix = (

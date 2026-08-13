@@ -36,15 +36,23 @@ class CorpusPaths:
         return self.root / "import-runs"
 
     @property
+    def ocr_runs_dir(self) -> Path:
+        return self.root / "ocr-runs"
+
+    @property
     def quarantine_dir(self) -> Path:
         return self.root / "quarantine"
 
     def import_run_path(self, import_run_id: str) -> Path:
         return self.import_runs_dir / f"{import_run_id}.json"
 
+    def ocr_run_path(self, ocr_run_id: str) -> Path:
+        return self.ocr_runs_dir / f"{ocr_run_id}.json"
+
     def ensure_layout(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
         self.import_runs_dir.mkdir(parents=True, exist_ok=True)
+        self.ocr_runs_dir.mkdir(parents=True, exist_ok=True)
         self.quarantine_dir.mkdir(parents=True, exist_ok=True)
 
     def resolve_managed(self, managed_relpath: str) -> Path:

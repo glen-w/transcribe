@@ -247,6 +247,56 @@ def main(argv: list[str] | None = None) -> int:
         help="Also deep-doctor each registered notebook",
     )
 
+    p_bulk_run = sub.add_parser(
+        "bulk-run",
+        help="Run OCR across many notebooks (OcrBatchRun)",
+    )
+    bulk_run_sub = p_bulk_run.add_subparsers(dest="bulk_run_cmd", required=True)
+
+    def _add_bulk_run_ocr_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--model", required=True)
+        parser.add_argument("--base-url", default=None)
+        parser.add_argument("--force", action="store_true")
+        parser.add_argument("--workers", type=int, default=1)
+        parser.add_argument("--allow-remote-ollama", action="store_true")
+        parser.add_argument(
+            "--cleanup",
+            action="store_true",
+            help="Enable optional post-OCR text-model cleanup",
+        )
+        parser.add_argument(
+            "--cleanup-mode",
+            choices=["strip_leak", "sanitize_light", "rewrite"],
+            default=None,
+        )
+        parser.add_argument("--cleanup-model", default=None)
+
+    p_br_pending = bulk_run_sub.add_parser(
+        "pending",
+        help="OCR corpus notebooks that still have untranscribed or failed pages",
+    )
+    _add_bulk_run_ocr_flags(p_br_pending)
+    p_br_import = bulk_run_sub.add_parser(
+        "import-run",
+        help="OCR notebooks committed by an ImportRun",
+    )
+    p_br_import.add_argument("import_run_id")
+    _add_bulk_run_ocr_flags(p_br_import)
+    p_br_nbs = bulk_run_sub.add_parser(
+        "notebooks",
+        help="OCR explicit notebook ids or project paths",
+    )
+    p_br_nbs.add_argument(
+        "notebooks",
+        nargs="+",
+        help="Notebook id or project root (repeatable)",
+    )
+    _add_bulk_run_ocr_flags(p_br_nbs)
+    p_br_status = bulk_run_sub.add_parser("status", help="Show OcrBatchRun outcomes")
+    p_br_status.add_argument("ocr_run_id")
+    p_br_resume = bulk_run_sub.add_parser("resume", help="Resume a non-terminal OcrBatchRun")
+    p_br_resume.add_argument("ocr_run_id")
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
@@ -254,6 +304,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "bulk-import":
             return _cmd_bulk_import(args, clock=clock, ids=ids)
+        if args.cmd == "bulk-run":
+            return _cmd_bulk_run(args, clock=clock, ids=ids)
         if args.cmd == "corpus-doctor":
             return _cmd_corpus_doctor(args)
 
@@ -668,6 +720,120 @@ def _cmd_bulk_import(args: argparse.Namespace, *, clock, ids) -> int:
 
     print(f"error: unknown bulk-import subcommand {args.bulk_cmd}", file=sys.stderr)
     return 2
+
+
+def _cmd_bulk_run(args: argparse.Namespace, *, clock, ids) -> int:
+    from transcribe.corpus.ocr_run import OcrBatchRunStore
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.domain.models import OCRSettings
+    from transcribe.providers.ollama import (
+        OllamaVisionProvider,
+        is_local_machine_host,
+        normalize_base_url,
+    )
+    from transcribe.services.batch_ocr import (
+        BatchOcrCoordinator,
+        list_candidates,
+        resolve_notebook_ref,
+        select_by_ids,
+        select_from_import_run,
+        select_pending,
+    )
+
+    corpus = CorpusPaths.from_runtime(PATHS)
+    coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids)
+    store = OcrBatchRunStore(corpus)
+
+    if args.bulk_run_cmd == "status":
+        run = store.load(args.ocr_run_id)
+        print(
+            f"ocr_run_id={run.ocr_run_id} status={run.status} "
+            f"force={run.force} items={len(run.items)}"
+        )
+        if run.import_run_id:
+            print(f"import_run_id={run.import_run_id}")
+        for item in run.items:
+            err = f" error={item.error_message}" if item.error_message else ""
+            print(
+                f"  {item.notebook_id} {item.state} "
+                f"pages={item.pages_completed}/{item.pages_total} "
+                f"failed={item.pages_failed} skipped={item.pages_skipped}{err}"
+            )
+        return 0
+
+    if args.bulk_run_cmd == "resume":
+        progress = coord.resume(args.ocr_run_id, blocking=True)
+        run = store.load(progress.ocr_run_id)
+        print(f"ocr_run_id={run.ocr_run_id} status={run.status}")
+        for item in run.items:
+            print(f"  {item.notebook_id} {item.state}")
+        return 0 if run.status in {"completed", "partial"} else 1
+
+    url = normalize_base_url(args.base_url or default_ollama_base_url())
+    if not is_local_machine_host(url) and not args.allow_remote_ollama:
+        print(
+            "Refusing non-local Ollama host without --allow-remote-ollama "
+            "(page images would leave this machine).",
+            file=sys.stderr,
+        )
+        return 2
+    if (args.cleanup_mode or args.cleanup_model) and not args.cleanup:
+        print(
+            "error: --cleanup-mode / --cleanup-model require --cleanup",
+            file=sys.stderr,
+        )
+        return 2
+
+    settings = OCRSettings(
+        model_name=args.model,
+        base_url=url,
+        max_workers=max(1, min(2, args.workers)),
+        allow_non_loopback=bool(args.allow_remote_ollama),
+        cleanup_enabled=bool(args.cleanup),
+        cleanup_mode=args.cleanup_mode or "strip_leak",
+        cleanup_model_name=(args.cleanup_model or "").strip(),
+    )
+    coord.provider = OllamaVisionProvider(url)
+    candidates = list_candidates(corpus, clock=clock, ids=ids)
+    import_run_id = None
+    if args.bulk_run_cmd == "pending":
+        selected = select_pending(candidates)
+    elif args.bulk_run_cmd == "import-run":
+        import_run_id = args.import_run_id
+        selected = select_from_import_run(corpus, import_run_id, candidates)
+    elif args.bulk_run_cmd == "notebooks":
+        nids: list[str] = []
+        for ref in args.notebooks:
+            nid, _root = resolve_notebook_ref(corpus, ref)
+            nids.append(nid)
+        selected = select_by_ids(candidates, nids)
+    else:
+        print(
+            f"error: unknown bulk-run subcommand {args.bulk_run_cmd}",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not selected:
+        print("No notebooks selected.")
+        return 1
+    run = coord.create_run(
+        selected,
+        settings=settings,
+        force=bool(args.force),
+        import_run_id=import_run_id,
+    )
+    print(
+        f"ocr_run_id={run.ocr_run_id} notebooks={len(run.items)} "
+        f"model={settings.model_name} force={run.force}"
+    )
+    progress = coord.run_blocking(run.ocr_run_id)
+    finished = store.load(progress.ocr_run_id)
+    print(f"status={finished.status}")
+    for item in finished.items:
+        err = f" error={item.error_message}" if item.error_message else ""
+        print(f"  {item.notebook_id} {item.state}{err}")
+    return 0 if finished.status in {"completed", "partial"} else 1
 
 
 def _cmd_corpus_doctor(args: argparse.Namespace) -> int:

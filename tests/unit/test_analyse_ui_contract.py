@@ -79,19 +79,20 @@ def test_phase6_product_views_demote_json_and_enums():
 
 
 def test_phase6_ocr_advanced_groups_power_controls():
+    tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.
-    assert "Vision model" in APP
-    assert "Start transcription" in APP
-    assert "Clean OCR with text model" in APP
+    assert "Vision model" in tx
+    assert "Start transcription" in tx
+    assert "Clean OCR with text model" in tx
     # Power controls live under Advanced expander.
-    assert 'st.expander("Advanced"' in APP
+    assert 'st.expander("Advanced"' in tx
     # Workers / force / cleanup detail appear only after Advanced marker in source.
-    adv_idx = APP.index('st.expander("Advanced"')
-    assert APP.index("Workers", adv_idx) > adv_idx
-    assert APP.index("Force re-run", adv_idx) > adv_idx
-    assert APP.index("Cleanup mode", adv_idx) > adv_idx
+    adv_idx = tx.index('st.expander("Advanced"')
+    assert tx.index("Workers", adv_idx) > adv_idx
+    assert tx.index("Force re-run", adv_idx) > adv_idx
+    assert tx.index("Cleanup mode", adv_idx) > adv_idx
     # Privacy acknowledgement stays on the primary path (before Advanced).
-    remote_idx = APP.index("I understand and want to use this remote host")
+    remote_idx = tx.index("I understand and want to use this remote host")
     assert remote_idx < adv_idx
 
 

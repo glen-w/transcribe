@@ -9,7 +9,7 @@ import streamlit as st
 
 
 # Notebooks section
-_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places", "Inbox")
+_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")
 # Workflow section (create → import → OCR → review, then analyse / export)
 _WORKFLOW_MODES: tuple[str, ...] = (
     "New notebook",
@@ -34,6 +34,8 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     # Older Analyse spelling / synonyms
     "Analyze": "Analyse",
     "Run Analysis": "Analyse",
+    # Bulk import lived on Notebooks → Inbox; now Workflow → Import → Batch
+    "Inbox": "Import",
 }
 
 NOTEBOOK_SELECTOR_KEY = "notebook_selector"
@@ -442,7 +444,12 @@ def render_page_shell(title: str, description: str | None = None) -> None:
 
 def set_ui_mode(mode: str) -> None:
     """Switch top-level UI mode and rerun (clears page-viewer overlay)."""
+    raw = mode
     mode = normalize_ui_mode(mode)
+    if raw == "Inbox":
+        from transcribe.ui.targets import PENDING_IMPORT_TARGET_KEY, TARGET_BATCH
+
+        st.session_state[PENDING_IMPORT_TARGET_KEY] = TARGET_BATCH
     st.session_state["ui_mode"] = mode
     # Clear full viewer nav — not just the overlay flag — so Review cannot
     # resurrect Prev/Next entries for a notebook opened earlier then deleted.
@@ -616,5 +623,14 @@ def is_workflow_mode(mode: str) -> bool:
 
 
 def is_open_notebook_workflow(mode: str) -> bool:
-    """Workflow modes that require an existing notebook selection."""
-    return is_workflow_mode(mode) and normalize_ui_mode(mode) != "New notebook"
+    """Workflow modes that always require an existing notebook selection.
+
+    Import and Transcribe host This notebook | Batch targets; Batch does not
+    need a sidebar notebook, so those pages gate selection themselves.
+    """
+    mode = normalize_ui_mode(mode)
+    return is_workflow_mode(mode) and mode not in {
+        "New notebook",
+        "Import",
+        "Transcribe",
+    }

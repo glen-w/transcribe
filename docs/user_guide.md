@@ -113,14 +113,16 @@ Settings → Profiles (target **export**). Contract:
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --deep
 ```
 
-## 8. Bulk import / Inbox
+## 8. Bulk import and batch OCR
 
 Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path for one notebook at a time.
 
-**UI:** **Notebooks → Inbox**
+**UI:** **Workflow → Import** → Target **Batch** (legacy **Notebooks → Inbox** opens this).
 
 - **One folder → one notebook** — path to a flat folder of scans.
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
+
+After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared vision-model config and runs notebooks one after another (fingerprint skip unless Force).
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 
@@ -134,6 +136,8 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 ./transcribe.sh cli bulk-import folders ./scan-batches --on-existing overwrite --confirm-overwrite 'OVERWRITE ALL'
 ./transcribe.sh cli bulk-import status <import_run_id>
 ./transcribe.sh cli bulk-import resume <import_run_id>
+./transcribe.sh cli bulk-run pending --model llama3.2-vision
+./transcribe.sh cli bulk-run import-run <import_run_id> --model llama3.2-vision
 ./transcribe.sh cli corpus-doctor --deep
 ```
 

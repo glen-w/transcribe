@@ -14,8 +14,14 @@ def test_new_notebook_is_first_workflow_mode() -> None:
     assert normalize_ui_mode("Create") == "New notebook"
     assert is_workflow_mode("New notebook")
     assert not is_open_notebook_workflow("New notebook")
-    assert is_open_notebook_workflow("Import")
+    assert not is_open_notebook_workflow("Import")
+    assert not is_open_notebook_workflow("Transcribe")
+    assert is_open_notebook_workflow("Review")
 
 
 def test_legacy_workflow_alias() -> None:
     assert normalize_ui_mode("Workflow") == "Import"
+
+
+def test_inbox_aliases_to_import() -> None:
+    assert normalize_ui_mode("Inbox") == "Import"

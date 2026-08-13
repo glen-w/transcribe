@@ -180,6 +180,25 @@ class ImportRun:
         )
 
 
+def committed_notebook_ids(run: ImportRun) -> list[str]:
+    """Unique notebook ids from committed ImportRun items, plan order."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in run.items:
+        if item.state != "committed":
+            continue
+        nid = str(item.resulting_ids.get("notebook_id") or "").strip()
+        if not nid and run.plan_body:
+            for planned in run.plan_body.get("items") or []:
+                if str(planned.get("item_id") or "") == item.item_id:
+                    nid = str(planned.get("notebook_id") or "").strip()
+                    break
+        if nid and nid not in seen:
+            seen.add(nid)
+            out.append(nid)
+    return out
+
+
 def validate_import_run(run: ImportRun) -> None:
     if run.status not in TERMINAL_STATUSES and run.status not in {
         "running",
@@ -212,3 +231,14 @@ class ImportRunStore:
         path = self.paths.import_run_path(run.import_run_id)
         with mutation_lock(self.paths.lock_path):
             write_json_atomic(path, run.as_dict())
+
+    def list_runs(self) -> list[ImportRun]:
+        if not self.paths.import_runs_dir.is_dir():
+            return []
+        runs: list[ImportRun] = []
+        for path in sorted(self.paths.import_runs_dir.glob("*.json"), reverse=True):
+            try:
+                runs.append(self.load(path.stem))
+            except CorpusError:
+                continue
+        return runs

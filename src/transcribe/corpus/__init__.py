@@ -17,6 +17,7 @@ from transcribe.corpus.index import (
 from transcribe.corpus.import_run import (
     ImportRun,
     ImportRunStore,
+    committed_notebook_ids,
     compute_plan_fingerprint,
     plans_are_idempotent_retries,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "CorpusPaths",
     "ImportRun",
     "ImportRunStore",
+    "committed_notebook_ids",
     "ImportPlan",
     "ImportPlanItem",
     "POLICY_CREATE_DUPLICATE_V1",
