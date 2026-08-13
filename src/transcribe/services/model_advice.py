@@ -30,6 +30,7 @@ class ModelAdvice:
     kind: str  # general_vlm | ocr_oriented | text | unknown
     title: str
     warnings: tuple[str, ...]
+    use_case: str = ""  # first_ocr | quality | text | ""
 
 
 def is_general_vlm_name(name: str) -> bool:
@@ -48,8 +49,9 @@ def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
         return ModelAdvice(
             kind="text",
             title="Text model",
+            use_case="text",
             warnings=(
-                "Used for analysis, rank/composite, and optional OCR cleanup.",
+                "Needs a text model for Analyse LLM modules, rank/composite, and optional OCR cleanup.",
                 "Cleanup adds a second Ollama call per succeeded page.",
             ),
         )
@@ -57,8 +59,9 @@ def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
         return ModelAdvice(
             kind="ocr_oriented",
             title="OCR-oriented vision model",
+            use_case="first_ocr",
             warnings=(
-                "Better fit for page transcription than a general vision-language model.",
+                "Good first OCR choice for handwriting and dense scans.",
                 "Looping or very long output is capped by num_predict; dense pages can still take minutes.",
             ),
         )
@@ -66,16 +69,30 @@ def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
         return ModelAdvice(
             kind="general_vlm",
             title="General vision-language model",
+            use_case="quality",
             warnings=(
                 "Vision-capable does not mean good handwriting OCR.",
+                "Better as a later compare/quality pass than a first OCR model.",
                 "General VLMs can hang or time out on dense notebook scans.",
-                "Do not put this model first when comparing — prefer an OCR-oriented model.",
             ),
         )
     return ModelAdvice(
         kind="unknown",
         title="Vision model",
+        use_case="quality",
         warnings=(
             "A listed vision capability does not guarantee OCR quality on handwriting.",
+            "Prefer an OCR-oriented tag for a first transcription run when available.",
         ),
     )
+
+
+def use_case_label(advice: ModelAdvice) -> str | None:
+    """Short product framing for first OCR vs quality vs text needs."""
+    if advice.use_case == "first_ocr":
+        return "Suggested for first OCR"
+    if advice.use_case == "quality":
+        return "Better as a quality / compare pass"
+    if advice.use_case == "text":
+        return "Needs a text model for Analyse LLM modules"
+    return None

@@ -17,6 +17,12 @@ def test_new_notebook_is_first_workflow_mode() -> None:
     assert not is_open_notebook_workflow("Import")
     assert not is_open_notebook_workflow("Transcribe")
     assert is_open_notebook_workflow("Review")
+    assert is_open_notebook_workflow("Reading")
+
+
+def test_reading_is_workflow_mode() -> None:
+    assert normalize_ui_mode("Reading") == "Reading"
+    assert is_workflow_mode("Reading")
 
 
 def test_legacy_workflow_alias() -> None:

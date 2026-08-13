@@ -50,9 +50,15 @@ In the UI: **Transcribe → Run OCR** → select vision model → optional **Cle
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Multipass skips when any succeeded vision attempt matches. Details: [contracts/page-result.md](contracts/page-result.md) · [contracts/ocr-multipass.md](contracts/ocr-multipass.md).
 
-## 4. Review and edit
+## 4. Review, Reading, and search
 
-Open Archive / View / Search / Review, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. The viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
+**Review** is a needs-attention queue for the open notebook. Filter to pages that need date approval, have no text, or failed OCR. Approve or ignore all suggested dates in one pass (suspicious date regressions ask for a second confirm). Unapproved suggested dates still appear in the Archive timeline; time-of-day stamps are ignored.
+
+Open Archive / View / Search / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate). Edits are stored as `edited_text` and survive re-runs.
+
+**Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session.
+
+**Search** finds text across notebooks. Use Period / Year / Range (same idea as Archive), tags, and media filters. Open a hit to browse matching pages with Prev/Next.
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"

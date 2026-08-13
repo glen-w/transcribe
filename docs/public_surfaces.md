@@ -30,13 +30,17 @@ Authority: self — supported public entrypoints and support policy for how user
 
 ### UI modes
 
-**Notebooks:** View · Search · Archive · Places (shared page viewer for review/edit). Sidebar dropdown selects the active notebook for Workflow.
+**Notebooks:** View · Search · Archive · Places (shared page viewer). Sidebar dropdown selects the active notebook for Workflow. View shows cover thumbnails and notebook tag chips; Search supports Period/Year/Range filters with clear empty states.
 
-**Workflow:** New notebook · Import · Transcribe (OCR) · Review · Analyse · Export.
+**Workflow:** New notebook · Import · Transcribe (OCR) · Review · Reading · Analyse · Export.
+
+**Review** is a needs-attention queue: filter to unapproved dates, empty text, or failed OCR; batch approve/ignore suggested dates; edit transcription and metadata in the shared page viewer.
+
+**Reading** is a distinct chronological presentation (image + read-only text, jump-by-date, session continue-reading) without edit/re-run/delete controls.
 
 **Import** uses a Target switcher (TranscriptX-style): **This notebook** (file uploader into the selected notebook) or **Batch** (folder / parent-of-folders ImportRun, recent runs, resume). Legacy **Notebooks → Inbox** aliases to Import → Batch.
 
-**Transcribe (OCR)** uses the same Target switcher: **This notebook** (vision model + Start transcription, optional cleanup, Compare models under this target only) or **Batch** (same OCR settings × many notebooks — pending pages, an ImportRun, or a manual pick). A **Model information** expander on each live picker shows discovery metadata and caveats (general VLMs vs OCR-oriented tags). **Compare models** runs multipass in the background (multi-select vision models → rank + composite); vision-phase cleanup is off unless **Clean OCR during compare** is checked. Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
+**Transcribe (OCR)** uses the same Target switcher: **This notebook** (vision model + Start transcription, optional cleanup, Compare models under this target only) or **Batch** (same OCR settings × many notebooks — pending pages, an ImportRun, or a manual pick). A **Model information** expander on each live picker shows discovery metadata, verified/unverified identity, size, preference last-used, and first-OCR vs quality guidance. **Compare models** runs multipass in the background (multi-select vision models → rank + composite); vision-phase cleanup is off unless **Clean OCR during compare** is checked. Workers, force re-OCR, cleanup mode/model, prefer mode, and capability dumps sit under **Advanced**. Review shows Compare OCR attempts when multiple succeeded outputs exist. Non-local Ollama hosts still require an explicit acknowledgement checkbox because page images leave the machine.
 
 **Analyse** opens Run Analysis (Quick / Balanced / Thorough / Custom presets) plus product read-model tabs: Overview · Themes · Mood & tone · Moments · People & places · Summaries · Ask notebook. A shared status strip above the tabs answers notebook revision and batch health. Module ids, capability enums, and raw JSON live under **Advanced** expanders — ordinary use does not require module/cache literacy. **People & places** maps GPE/LOC/FAC entities from published NER (optional OpenStreetMap Nominatim geocoding with a local cache; opt-in because place names leave the machine). **Notebooks → Places** aggregates the same map across all notebooks. Analysis is project-local under `analysis/` ([contracts/analysis-run-storage.md](contracts/analysis-run-storage.md)); LLM modules need a text-capable Ollama model. Preset policies and module knobs live under **App → Settings** ([contracts/workspace-settings.md](contracts/workspace-settings.md)).
 
