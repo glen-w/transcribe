@@ -107,7 +107,9 @@ def test_overview_renders_real_wordcloud_when_available():
     assert "build_wordcloud_explorer_html" in text
     assert '"Basic"' in text and '"Advanced"' in text
     assert Path("src/transcribe/ui/assets/wordcloud2.js").is_file()
-    assert "wordcloud>=" in Path("pyproject.toml").read_text(encoding="utf-8")
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    core = pyproject.split("[project.optional-dependencies]", 1)[0]
+    assert "wordcloud>=" in core
 
 
 def test_analyse_wires_corpus_compare_into_overview_and_mood():
