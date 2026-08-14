@@ -127,10 +127,10 @@ def test_skip_existing_does_not_skip_other_notebook_bytes(tmp_path: Path) -> Non
 
 
 def test_inbox_and_cli_wire_bulk_import_surfaces() -> None:
-    shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
+    nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
     app = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
     main = Path("src/transcribe/__main__.py").read_text(encoding="utf-8")
-    assert '"Inbox": "Import"' in shell
+    assert '"Inbox": "Import"' in nav
     assert "render_run_import" in app
     assert "render_import_inbox" in Path("src/transcribe/ui/run_import.py").read_text(
         encoding="utf-8"

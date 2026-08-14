@@ -759,7 +759,9 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
     # Action-strip flex overrides must exclude ancestor Archive notebook grids.
     assert ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])' in shell
-    assert "Settings" in shell
+    nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
+    assert 'id="Settings"' in nav
+    assert 'section="system"' in nav
 
 
 def test_multi_notebook_resolve_smoke(tmp_path: Path) -> None:
