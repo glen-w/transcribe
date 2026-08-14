@@ -34,7 +34,7 @@ def test_view_pages_go_through_wrapper_with_analyse_cta() -> None:
     assert "render_notebook_view_page" in views
     assert "show_analyse_cta" in views
     assert "Analyse this notebook" in wrap
-    assert "set_ui_mode(\"Analyse\")" in wrap
+    assert 'set_ui_mode("Analyse")' in wrap
 
 
 def test_widget_keys_include_project_id() -> None:
@@ -99,6 +99,29 @@ def test_settings_interface_lists_additive_sections() -> None:
     assert "Save overview cards" in hub
 
 
+def test_settings_hub_tab_labels_and_order() -> None:
+    from transcribe.ui.settings_interface import SETTINGS_TABS
+
+    assert SETTINGS_TABS == (
+        "Configuration",
+        "Analysis",
+        "Detection",
+        "Prompts",
+        "Interface",
+        "Models",
+        "Profiles",
+        "Export",
+    )
+    iface = (UI_ROOT / "settings_interface.py").read_text(encoding="utf-8")
+    assert "st.tabs(list(SETTINGS_TABS))" in iface
+    hub = (UI_ROOT / "settings_hub.py").read_text(encoding="utf-8")
+    assert "ollama_health_line" in hub
+    assert "settings_ocr_preprocess_profile" in hub
+    assert "Select a notebook to apply." in hub
+    assert "model_info" not in hub
+    assert "render_model_information" not in hub
+
+
 def test_detect_viewer_returns_to_detect() -> None:
     detect = (UI_ROOT / "run_detection.py").read_text(encoding="utf-8")
     views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")
@@ -124,9 +147,7 @@ def test_this_notebook_analyse_goes_overview_batch_stays() -> None:
     assert 'set_ui_mode("Library")' in batch
     assert 'set_ui_mode("Overview")' not in batch
     assert "IMPORT_SUCCESS" in (UI_ROOT / "run_import.py").read_text(encoding="utf-8")
-    assert "TRANSCRIBE_COMPLETE" in (UI_ROOT / "run_transcribe.py").read_text(
-        encoding="utf-8"
-    )
+    assert "TRANSCRIBE_COMPLETE" in (UI_ROOT / "run_transcribe.py").read_text(encoding="utf-8")
 
 
 def test_empty_state_taxonomy() -> None:
@@ -197,6 +218,6 @@ def test_docs_have_no_stale_ia_copy() -> None:
             assert phrase not in text, f"{path}: found {phrase!r}"
         for i, line in enumerate(text.splitlines(), 1):
             if "Jump to page" in line and "Review" in line:
-                assert "Reading" in line or "not Review" in line, (
-                    f"{path}:{i} still sends Jump to page to Review"
-                )
+                assert (
+                    "Reading" in line or "not Review" in line
+                ), f"{path}:{i} still sends Jump to page to Review"

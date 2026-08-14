@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from transcribe.config.apply_ocr import apply_ocr_patch, preview_apply_ocr
+from transcribe.config.apply_ocr import (
+    APPLY_OCR_FIELD_ALLOWLIST,
+    apply_ocr_patch,
+    preview_apply_ocr,
+)
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
 from transcribe.config.models import OcrWorkspaceConfig, ProfileActivations
@@ -18,9 +22,9 @@ from transcribe.config.persistence import (
 )
 from transcribe.config.reset import reset_field, reset_subtree, reset_whole_workspace
 from transcribe.domain.models import OCRSettings
+from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths, default_ollama_base_url
 from transcribe.services.project import ProjectService, open_project_paths
-from transcribe.ports import SystemClock, UuidGenerator
 
 
 @pytest.fixture()
@@ -59,6 +63,45 @@ def test_apply_ocr_allowlisted_patch_not_wholesale(runtime: RuntimePaths) -> Non
     assert patched.base_url == "http://workspace:11434"
     assert patched.max_workers == 2
     assert patched.cleanup_enabled is True
+
+
+def test_ocr_preprocess_profile_seed_does_not_fingerprint_ui(
+    runtime: RuntimePaths,
+) -> None:
+    from transcribe.analysis.cache_identity import config_fingerprint
+    from transcribe.config.knobs import analysis_fingerprint_base, module_knob_dict
+    from transcribe.config.models import EffectiveConfig
+
+    assert "preprocess_profile" in APPLY_OCR_FIELD_ALLOWLIST
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {"preprocess_profile": "gentle_contrast"},
+            "ui": {"overview_cards": ["ner"]},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ocr.preprocess_profile == "gentle_contrast"
+
+    seeded = EffectiveConfig(
+        ocr=OcrWorkspaceConfig(preprocess_profile="gentle_contrast"),
+    )
+    baseline = EffectiveConfig()
+    assert config_fingerprint(module_knob_dict(seeded, "stats")) == config_fingerprint(
+        module_knob_dict(baseline, "stats")
+    )
+    base = analysis_fingerprint_base(seeded)
+    assert "ui" not in base
+    assert "overview_cards" not in base
+    assert "preprocess_profile" not in base
+
+    project = OCRSettings(preprocess_profile="none")
+    plan = preview_apply_ocr(project, view.effective.ocr)
+    assert plan.changed["preprocess_profile"] == ("none", "gentle_contrast")
 
 
 def test_reset_scopes_do_not_touch_project_json(runtime: RuntimePaths, tmp_path: Path) -> None:

@@ -239,8 +239,24 @@ def render_interface_panel() -> None:
         st.rerun()
 
 
+# Chrome order: Configuration + Analysis first (TX), then Transcribe-native
+# Detection/Prompts, Interface before Models (TX), Profiles as a tab (not a
+# System page), Export last.
+SETTINGS_TABS: tuple[str, ...] = (
+    "Configuration",
+    "Analysis",
+    "Detection",
+    "Prompts",
+    "Interface",
+    "Models",
+    "Profiles",
+    "Export",
+)
+
+
 def render_settings_page() -> None:
     """Top-level Settings hub (TX-shaped tabs, Transcribe-scoped)."""
+    from transcribe.ui.export_panel import render_export_settings_panel
     from transcribe.ui.settings_analysis import render_analysis_presets_panel
     from transcribe.ui.settings_detection import render_detection_settings_panel
     from transcribe.ui.settings_hub import (
@@ -248,35 +264,25 @@ def render_settings_page() -> None:
         render_models_panel,
         render_profiles_panel,
     )
-    from transcribe.ui.export_panel import render_export_settings_panel
     from transcribe.ui.settings_prompts import render_prompts_panel
 
-    tabs = st.tabs(
-        [
-            "Configuration",
-            "Analysis",
-            "Detection",
-            "Prompts",
-            "Models",
-            "Profiles",
-            "Export",
-            "Interface",
-        ]
-    )
-    with tabs[0]:
-        render_configuration_panel()
-    with tabs[1]:
-        render_analysis_presets_panel()
-    with tabs[2]:
-        render_detection_settings_panel()
-    with tabs[3]:
-        render_prompts_panel()
-    with tabs[4]:
-        render_models_panel()
-    with tabs[5]:
-        render_profiles_panel()
-    with tabs[6]:
-        render_export_settings_panel()
-    with tabs[7]:
-        st.markdown("### Interface")
-        render_interface_panel()
+    tabs = st.tabs(list(SETTINGS_TABS))
+    for tab, label in zip(tabs, SETTINGS_TABS):
+        with tab:
+            if label == "Configuration":
+                render_configuration_panel()
+            elif label == "Analysis":
+                render_analysis_presets_panel()
+            elif label == "Detection":
+                render_detection_settings_panel()
+            elif label == "Prompts":
+                render_prompts_panel()
+            elif label == "Interface":
+                st.markdown("### Interface")
+                render_interface_panel()
+            elif label == "Models":
+                render_models_panel()
+            elif label == "Profiles":
+                render_profiles_panel()
+            else:
+                render_export_settings_panel()

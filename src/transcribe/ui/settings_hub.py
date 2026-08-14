@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
-from transcribe.config.apply_ocr import preview_apply_ocr, apply_ocr_patch
+from transcribe.config.apply_ocr import apply_ocr_patch, preview_apply_ocr
 from transcribe.config.defaults import builtin_names_for
 from transcribe.config.errors import ConfigError
 from transcribe.config.facade import clear_config_cache, get_config, reload_config
@@ -25,7 +26,6 @@ from transcribe.config.profiles import (
     save_user_profile,
     validate_profile_name,
 )
-from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.config.reset import (
     reset_profile_activation,
     reset_whole_workspace,
@@ -33,7 +33,7 @@ from transcribe.config.reset import (
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.project import ProjectService, open_project_paths
-from pathlib import Path
+from transcribe.ui.components.info_tooltip import widget_help
 
 
 def render_configuration_panel() -> None:
@@ -201,7 +201,11 @@ def render_configuration_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
     st.divider()
-    st.caption("Curated knobs (effective values). Edit via Analysis / Models / Profiles.")
+    st.caption(
+        "Curated knobs (effective values). Edit under Analysis (presets), "
+        "Models (OCR/LLM seeds), or Profiles (named overlays). Analysis module "
+        "thresholds here are display-only."
+    )
     for field in COMMON_SETTINGS_SCHEMA:
         parts = field.key.split(".")
         cur: Any = view.effective
@@ -237,16 +241,37 @@ def render_configuration_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
 
+_PREPROCESS_PROFILES = ("none", "gentle_contrast")
+
+
 def render_models_panel() -> None:
     st.subheader("Models & LLM budgets")
     view = get_config()
     ocr = view.effective.ocr
     llm = view.effective.llm
+    from transcribe.ui.home import ollama_health_line
+
+    st.caption(ollama_health_line())
     st.caption(
-        "Workspace OCR URL seeds new notebooks only. Open-notebook URL is independent "
-        "until you Apply or save on Workflow → Transcribe."
+        "Workspace OCR URL and preprocess seed new notebooks only. "
+        "Open-notebook URL is independent until you Apply or save on "
+        "Workflow → Transcribe. Live model pickers stay on Transcribe / Analyse."
     )
     base_url = st.text_input("Workspace Ollama base URL", value=ocr.base_url or "")
+    current_preprocess = (
+        ocr.preprocess_profile if ocr.preprocess_profile in _PREPROCESS_PROFILES else "none"
+    )
+    preprocess = st.selectbox(
+        "Preprocess profile (new notebooks)",
+        list(_PREPROCESS_PROFILES),
+        index=list(_PREPROCESS_PROFILES).index(current_preprocess),
+        key="settings_ocr_preprocess_profile",
+        help=widget_help(
+            "Image preprocess for new notebooks (`none` or `gentle_contrast`). "
+            "Does not rewrite an open notebook until Apply OCR below or a "
+            "Transcribe save."
+        ),
+    )
     text_pref = st.text_input(
         "Preferred text model (workspace hint)",
         value=llm.text_model_preference or "",
@@ -267,7 +292,9 @@ def render_models_panel() -> None:
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
-            cfg.setdefault("ocr", {})["base_url"] = base_url.strip()
+            ocr_cfg = cfg.setdefault("ocr", {})
+            ocr_cfg["base_url"] = base_url.strip()
+            ocr_cfg["preprocess_profile"] = str(preprocess)
             cfg.setdefault("llm", {}).update(
                 {
                     "text_model_preference": text_pref.strip(),
@@ -325,8 +352,9 @@ def render_models_panel() -> None:
 def render_profiles_panel() -> None:
     st.subheader("Profiles")
     st.caption(
-        "Activation pointer + resolve-time overlay. Editing profile-supplied values "
-        "in other tabs detaches to default and writes workspace overrides."
+        "Activation pointer + resolve-time overlay (not copied into workspace). "
+        "Editing a profile-supplied value in other tabs detaches that target to "
+        "`default` and writes workspace overrides. Builtins are immutable."
     )
     target = st.selectbox("Target", list(PROFILE_TARGETS), key="settings_profile_target")
     builtins = list(builtin_names_for(target))  # type: ignore[arg-type]
