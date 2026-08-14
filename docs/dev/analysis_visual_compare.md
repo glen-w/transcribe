@@ -52,6 +52,11 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 | `llm_action_items` | grouped action / decision / question | no |
 | `llm_custom_qa` | Ask answer + evidence | no |
 
+**Click-to-page:** within-notebook page-order series (tokens, TTR, Flesch, sentiment,
+emotion / tension / intensity, hedges vs boosters, topic-shift similarity, ink
+coverage) use Altair + Streamlit `on_select` and jump to Review via the same
+`open_page_context` path as Moments. Categorical charts stay non-clickable.
+
 Comparable modules: `stats`, `lexical_diversity`, `understandability`,
 `sentiment`, `emotion`, `affect_tension`, `epistemic_markers`.
 

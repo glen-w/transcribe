@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import streamlit as st
 
@@ -65,6 +65,8 @@ def render_page_metrics_strip(row: PageMetricsRow | None) -> None:
 def render_overview_page_metrics(
     projects: ProjectService,
     project: Project,
+    *,
+    on_jump: Callable[[str], None] | None = None,
 ) -> None:
     """Notebook rollup block for Analyse → Overview."""
     st.markdown("#### Page ink & blankness")
@@ -108,12 +110,27 @@ def render_overview_page_metrics(
         (f"{rollup.mean_blankness_pct:.1f}%" if rollup.mean_blankness_pct is not None else "—"),
     )
 
-    chart_rows: dict[str, Any] = {
-        "page": [f"{i + 1}" for i in range(len(published.pages))],
-        "ink_coverage_pct": [p.ink_coverage_pct for p in published.pages],
-    }
-    st.caption("Ink coverage by page order")
-    st.bar_chart(chart_rows, x="page", y="ink_coverage_pct")
+    from transcribe.ui.page_series_charts import maybe_jump, render_clickable_page_series
+
+    ink_rows = [
+        {
+            "order": i + 1,
+            "page_id": p.page_id,
+            "ink_coverage_pct": p.ink_coverage_pct,
+        }
+        for i, p in enumerate(published.pages)
+        if p.page_id and p.ink_coverage_pct is not None
+    ]
+    st.caption("Ink coverage by page order — click a bar to open that page")
+    maybe_jump(
+        render_clickable_page_series(
+            ink_rows,
+            y="ink_coverage_pct",
+            key=f"overview_ink_{project.id}",
+            chart_type="bar",
+        ),
+        on_jump,
+    )
 
     if rollup.hue_counts:
         labels = list(rollup.hue_counts.keys())
