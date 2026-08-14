@@ -205,12 +205,13 @@ def test_load_notebook_and_corpus_places(tmp_path: Path) -> None:
 
 
 def test_shell_and_app_wire_places_surfaces() -> None:
-    shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
-    assert '"Places"' in shell
+    nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
+    assert 'id="Places"' in nav
     app = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
-    assert "People & places" in app
+    views = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
+    assert "People & places" in nav
     assert "render_corpus_places_page" in app
-    assert "render_notebook_places_tab" in app
+    assert "render_notebook_places_tab" in views
 
 
 def test_places_service_has_no_streamlit_import() -> None:

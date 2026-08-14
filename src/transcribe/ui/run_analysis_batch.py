@@ -165,12 +165,12 @@ def _render_batch_complete_actions(
     cols = st.columns(3, gap="small")
     with cols[0]:
         if render_action_link(
-            "View",
+            "Library",
             key="ax_batch_done_view",
             icon=":material/menu_book:",
             help="Open the notebook list.",
         ):
-            set_ui_mode("View")
+            set_ui_mode("Library")
     with cols[1]:
         if render_action_link(
             "Retry failed",
@@ -222,6 +222,29 @@ def _render_batch_complete_actions(
             if item.error_message:
                 bits.append(item.error_message)
             st.write(f"- **{item.title or item.notebook_id}** · " + " · ".join(bits))
+            if st.button(
+                "Open",
+                key=f"ax_batch_open_{item.notebook_id}",
+            ):
+                from transcribe.ui.navigation import (
+                    notebook_has_published_analysis,
+                    normalize_ui_mode,
+                )
+                from transcribe.ui.shell import sync_notebook_selector
+                from transcribe.services.batch_notebooks import resolve_notebook_root
+
+                try:
+                    item_root = resolve_notebook_root(coord.corpus, item.notebook_id)
+                except Exception as exc:  # noqa: BLE001
+                    st.error(str(exc))
+                    continue
+                st.session_state["root"] = str(item_root)
+                sync_notebook_selector(str(item_root))
+                if notebook_has_published_analysis(item_root):
+                    st.session_state["ui_mode"] = normalize_ui_mode("Overview")
+                else:
+                    st.session_state["ui_mode"] = normalize_ui_mode("Reading")
+                st.rerun()
 
 
 def render_batch_analysis_launch(

@@ -7,6 +7,7 @@ from pathlib import Path
 from transcribe.persistence.schema import SUPPORTED
 
 APP = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
+NAV = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
 SHELL = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
 IMPORT = Path("src/transcribe/ui/run_import.py").read_text(encoding="utf-8")
 TRANSCRIBE = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
@@ -14,11 +15,14 @@ INBOX = Path("src/transcribe/ui/import_inbox.py").read_text(encoding="utf-8")
 
 
 def test_inbox_is_not_a_sidebar_mode() -> None:
-    assert '_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")' in SHELL
-    assert '"Inbox": "Import"' in SHELL
+    assert 'PRIMARY_MODES: tuple[str, ...] = tuple(s.id for s in PAGE_SPECS if s.section == "primary")' in NAV
+    assert '"Library"' in NAV and '"Search"' in NAV and '"Archive"' in NAV and '"Places"' in NAV
+    assert '"Inbox": "Import"' in NAV
     assert 'elif mode == "Inbox"' not in APP
     assert "render_run_import" in APP
     assert "render_run_transcribe" in APP
+    assert "_NOTEBOOK_MODES" not in SHELL
+
 
 
 def test_import_and_transcribe_use_target_switcher() -> None:

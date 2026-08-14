@@ -21,7 +21,8 @@ Authority: curated maintainer navigation only — does not own contracts
 | [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md) | Multi-notebook Analyse → Batch (selection parity with bulk OCR) |
 | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
 | [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX (patterns only) |
-| [dev/analysis_visual_compare.md](dev/analysis_visual_compare.md) | Analyse charts: this notebook vs corpus/period (TX speaker-bar analogue) |
+| [dev/analysis_visual_compare.md](dev/analysis_visual_compare.md) | View charts: this notebook vs corpus/period (TX speaker-bar analogue); page-series jump → Reading |
+| [public_surfaces.md](public_surfaces.md) | GUI IA (Library, Analyse launcher, View consume, stay-don’t-bounce) |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
 
 Default suite stays offline (fake Ollama provider). Live OCR probes are optional and environmental.

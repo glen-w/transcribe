@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from transcribe.ui.analysis_display_helpers import (
@@ -77,3 +78,15 @@ def test_topic_shift_and_epistemic_rows() -> None:
         ]
     )
     assert ep == [{"order": 1, "page_id": "p1", "hedges": 3, "boosters": 4}]
+
+
+def test_shared_jump_helper_targets_reading_not_review() -> None:
+    jumps = Path("src/transcribe/ui/view_jumps.py").read_text(encoding="utf-8")
+    views = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
+    detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
+    assert 'st.session_state["ui_mode"] = "Reading"' in jumps
+    assert "Review" not in jumps
+    assert "jump_to_reading" in views
+    assert 'return_mode="Review"' not in views
+    assert 'return_mode="Detect"' in detect
+    assert 'st.session_state["ui_mode"] = "Detect"' in detect

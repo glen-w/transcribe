@@ -7,6 +7,7 @@ from transcribe.config.gui_support import COMMON_SETTINGS_SCHEMA, CommonSettingF
 
 def test_common_settings_schema_includes_ingest_dpi_and_unique_keys() -> None:
     keys = [field.key for field in COMMON_SETTINGS_SCHEMA]
+    assert "ui.overview_cards" in keys
     assert "ingest.render_dpi" in keys
     assert "ingest.visual_declutter_enabled" in keys
     assert len(keys) == len(set(keys))

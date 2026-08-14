@@ -3,7 +3,7 @@ Authority: self — normative `interface_menus` envelope, schema versioning, fai
 
 # Interface menus
 
-Durable user configuration for configurable action-link strips in the Streamlit UI (Archive / View notebook cards; Settings → Interface).
+Durable user configuration for configurable action-link strips in the Streamlit UI (Archive / Library notebook cards; Import / Transcribe / Analyse next-step strips; Settings → Interface).
 
 **Format identity:** `transcribe.interface-menus` schema version **1**.
 
@@ -72,6 +72,15 @@ Atomic rename alone is insufficient. **Restore built-ins** is a persisted CAS wr
 | Sections | `archive_notebook`, `view_notebook` |
 
 Do not rename or remove these IDs after release without migration logic and a schema bump. Additive action IDs are allowed within schema v1 when catalogue, allowlists, and handlers stay closed.
+
+## Additive identifiers (schema v1)
+
+| Kind | IDs |
+|------|-----|
+| Actions | `overview`, `review` (`detect` was already a v1 action) |
+| Sections | `import_success`, `transcribe_complete`, `analyse_complete` |
+
+`view_notebook` remains the frozen Library row section (label: “Library — notebook row”). Built-in next steps: Import → Transcribe; Transcribe → Review; this-notebook Analyse → Overview (+ Export / Open).
 
 ## Capability freshness
 

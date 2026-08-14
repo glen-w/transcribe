@@ -68,7 +68,7 @@ def render_overview_page_metrics(
     *,
     on_jump: Callable[[str], None] | None = None,
 ) -> None:
-    """Notebook rollup block for Analyse → Overview."""
+    """Notebook rollup block for Overview."""
     st.markdown("#### Page ink & blankness")
     st.caption(
         "Visual metrics from active page renders (Pillow). "
@@ -76,7 +76,7 @@ def render_overview_page_metrics(
     )
     published = ensure_page_metrics(projects, project)
     cols = st.columns([1, 1, 1, 1.2])
-    if cols[3].button("Refresh page metrics", key="page_metrics_refresh"):
+    if cols[3].button("Refresh page metrics", key=f"page_metrics_refresh_{project.id}"):
         published = ensure_page_metrics(projects, project, force=True)
         st.rerun()
 

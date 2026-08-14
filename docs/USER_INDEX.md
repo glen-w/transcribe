@@ -10,7 +10,7 @@ Authority: curated navigation only — does not own product rules or contracts
 | [runtime/installation.md](runtime/installation.md) | Local install and helper script |
 | [runtime/docker.md](runtime/docker.md) | Compose mounts and Ollama from Docker |
 | [known_limitations.md](known_limitations.md) | Public honesty page |
-| [public_surfaces.md](public_surfaces.md) | Supported CLI / UI / scripts |
+| [public_surfaces.md](public_surfaces.md) | Supported CLI / UI / scripts (sidebar IA, Library vs View, Analyse launcher) |
 | [CONTRACT_INDEX.md](CONTRACT_INDEX.md) | Where invariants live |
 | [TERMS.md](TERMS.md) | Glossary pointing at contracts |
 | [ROADMAP.md](ROADMAP.md) | Product priorities: usability wave now; deferred analysis unscheduled |

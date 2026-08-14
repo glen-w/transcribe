@@ -138,7 +138,7 @@ def render_configuration_panel() -> None:
 
     st.divider()
     st.markdown("#### Archive")
-    st.caption("Notebooks → Archive notebook strip.")
+    st.caption("Archive notebook strip paging.")
     archive_initial = st.number_input(
         "Notebooks shown initially",
         min_value=0,
@@ -156,6 +156,45 @@ def render_configuration_panel() -> None:
             clear_config_cache()
             reload_config()
             st.session_state.pop("archive_strip_n", None)
+            st.success("Saved.")
+            st.rerun()
+        except ConfigError as exc:
+            st.error(f"{exc.code}: {exc}")
+
+    st.divider()
+    st.markdown("#### Overview")
+    st.caption("View → Overview cards. Status strip is always shown.")
+    from transcribe.config.models import OVERVIEW_CARD_IDS
+
+    _CARD_LABELS = {
+        "page_metrics": "Page ink & blankness",
+        "stats": "Counts",
+        "lexical_diversity": "Lexical diversity",
+        "understandability": "Understandability",
+        "wordclouds": "Word themes",
+        "ner": "People & entities",
+        "sentiment": "Sentiment",
+        "epistemic_markers": "Hedging & certainty",
+    }
+    current_cards = set(view.effective.ui.overview_cards)
+    chosen: list[str] = []
+    for cid in OVERVIEW_CARD_IDS:
+        on = st.checkbox(
+            _CARD_LABELS.get(cid, cid.replace("_", " ").title()),
+            value=cid in current_cards,
+            key=f"settings_overview_card_{cid}",
+        )
+        if on:
+            chosen.append(cid)
+    if st.button("Save overview cards", type="primary", key="settings_overview_cards_save"):
+        try:
+            loaded = load_workspace_settings()
+            cfg = deep_merge_dict({}, loaded.config)
+            ui_cfg = cfg.setdefault("ui", {})
+            ui_cfg["overview_cards"] = list(chosen)
+            save_workspace_settings(config=cfg, activations=loaded.activations)
+            clear_config_cache()
+            reload_config()
             st.success("Saved.")
             st.rerun()
         except ConfigError as exc:

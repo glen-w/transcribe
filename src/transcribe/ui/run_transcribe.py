@@ -201,49 +201,34 @@ def _render_transcribe_complete_actions(
     coord: JobCoordinator,
     progress: JobProgress,
 ) -> None:
-    st.markdown("#### Next")
+    from transcribe.ui.action_menus.ids import SectionId
+    from transcribe.ui.post_job import render_post_job_strip
+    from transcribe.runtime_paths import build_runtime_paths
+
+    runtime = build_runtime_paths()
+    render_post_job_strip(
+        SectionId.TRANSCRIBE_COMPLETE,
+        project=project,
+        root=projects.paths.root,
+        projects_dir=runtime.projects_dir,
+        instance_prefix="tx_done",
+    )
     failed_ids = _failed_page_ids(projects, project)
-    cols = st.columns(4, gap="small")
-    with cols[0]:
-        if render_action_link(
-            "View",
-            key="tx_done_view",
-            icon=":material/menu_book:",
-            help="Open this notebook on the View page.",
-        ):
-            set_ui_mode("View")
-    with cols[1]:
-        if render_action_link(
-            "Review",
-            key="tx_done_review",
-            icon=":material/rate_review:",
-            help="Browse and edit transcribed pages.",
-        ):
-            set_ui_mode("Review")
-    with cols[2]:
-        if render_action_link(
-            "Analyse",
-            key="tx_done_analyse",
-            icon=":material/analytics:",
-            help="Open Analyse for this notebook.",
-        ):
-            set_ui_mode("Analyse")
-    with cols[3]:
-        if render_action_link(
-            "Retry failed",
-            key="tx_done_retry",
-            icon=":material/replay:",
-            help="Re-run OCR on pages whose last attempt failed.",
-            disabled=not failed_ids,
-        ):
-            try:
-                coord.start(page_ids=failed_ids, force=False)
-                st.session_state["_job_was_running"] = True
-                st.session_state["_transcribe_post_kind"] = "job"
-                st.session_state.pop("_transcribe_post_job_id", None)
-                st.rerun()
-            except (JobConflictError, TranscribeError) as exc:
-                st.error(str(exc))
+    if render_action_link(
+        "Retry failed",
+        key="tx_done_retry",
+        icon=":material/replay:",
+        help="Re-run OCR on pages whose last attempt failed.",
+        disabled=not failed_ids,
+    ):
+        try:
+            coord.start(page_ids=failed_ids, force=False)
+            st.session_state["_job_was_running"] = True
+            st.session_state["_transcribe_post_kind"] = "job"
+            st.session_state.pop("_transcribe_post_job_id", None)
+            st.rerun()
+        except (JobConflictError, TranscribeError) as exc:
+            st.error(str(exc))
     if failed_ids:
         st.caption(f"{len(failed_ids)} failed page(s) can be retried.")
     elif progress.failed:
@@ -371,12 +356,12 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
     cols = st.columns(3, gap="small")
     with cols[0]:
         if render_action_link(
-            "View",
+            "Library",
             key="tx_batch_done_view",
             icon=":material/menu_book:",
             help="Open the notebook list.",
         ):
-            set_ui_mode("View")
+            set_ui_mode("Library")
     with cols[1]:
         if render_action_link(
             "Retry failed",
@@ -472,7 +457,7 @@ def render_run_transcribe(
         return
 
     if project is None or projects is None or not root:
-        st.info("Select a notebook above, or create one under Workflow → New notebook.")
+        st.info("Select a notebook in the View block, or create one under Workflow → New notebook.")
         return
     _render_this_notebook_launch(runtime, root=root, projects=projects, project=project, form=form)
 

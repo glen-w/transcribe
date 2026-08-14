@@ -34,11 +34,13 @@ from transcribe.ui.action_menus.handlers import (
     is_action_available,
 )
 from transcribe.ui.action_menus.ids import (
+    SECTION_LABELS,
     ActionId,
     NavStyle,
     ReturnMode,
     SectionId,
     WorkflowMode,
+    listing_return_mode,
     parse_return_mode,
 )
 from transcribe.ui.action_menus.nav import (
@@ -153,6 +155,15 @@ def test_section_defaults() -> None:
         ActionId.RENAME,
         ActionId.DELETE,
     ]
+    assert list(section_default_actions(SectionId.IMPORT_SUCCESS)) == [ActionId.TRANSCRIBE]
+    assert list(section_default_actions(SectionId.TRANSCRIBE_COMPLETE)) == [ActionId.REVIEW]
+    assert list(section_default_actions(SectionId.ANALYSE_COMPLETE)) == [
+        ActionId.OVERVIEW,
+        ActionId.EXPORT,
+        ActionId.OPEN,
+    ]
+    assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — notebook row"
+    assert "Reading" in help_for(ActionId.OPEN)
 
 
 def test_sanitise_drops_unknown_and_duplicates() -> None:
@@ -178,6 +189,9 @@ def test_merge_partial_preserves_custom_and_fills_missing_sections() -> None:
     merged = merge_prefs(partial)
     assert merged.standard_menu == [ActionId.OPEN, ActionId.ANALYSE]
     assert SectionId.VIEW_NOTEBOOK in merged.sections
+    assert SectionId.IMPORT_SUCCESS in merged.sections
+    assert SectionId.TRANSCRIBE_COMPLETE in merged.sections
+    assert SectionId.ANALYSE_COMPLETE in merged.sections
     assert merged.sections[SectionId.VIEW_NOTEBOOK].mode == "section_default"
     assert merged.sections[SectionId.ARCHIVE_NOTEBOOK].selected == [
         ActionId.OPEN,
@@ -504,7 +518,7 @@ def test_open_return_modes_independent(tmp_path: Path) -> None:
     projects = tmp_path / "projects"
     projects.mkdir()
     project, root = _make_project(projects, "openme", with_page=True)
-    for mode in (ReturnMode.ARCHIVE, ReturnMode.VIEW):
+    for mode in (ReturnMode.ARCHIVE, ReturnMode.VIEW, ReturnMode.LIBRARY):
         ctx = load_live_notebook_context(
             project_id=project.id,
             project_root=root,
@@ -514,9 +528,16 @@ def test_open_return_modes_independent(tmp_path: Path) -> None:
         assert ctx.has_pages
         session: dict = {}
         assert navigate_open(ctx, session=session, rerun=False) is True
-        assert session["page_return_mode"] == mode.value
-        assert session["ui_mode"] == mode.value
+        assert session["page_return_mode"] == listing_return_mode(mode)
+        assert session["ui_mode"] == "Reading"
         assert session["view_page_id"] in session["view_page_ids"]
+    assert listing_return_mode(ReturnMode.VIEW) == "Library"
+    assert listing_return_mode(ReturnMode.LIBRARY) == "Library"
+    assert parse_return_mode("View") == ReturnMode.VIEW
+    assert parse_return_mode("Library") == ReturnMode.LIBRARY
+    assert parse_return_mode("Search") == ReturnMode.SEARCH
+    assert parse_return_mode("Detect") == ReturnMode.DETECT
+    assert parse_return_mode("Reading") == ReturnMode.READING
 
 
 def test_first_valid_open_page_skips_stale_cover(tmp_path: Path) -> None:
@@ -727,7 +748,7 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "SectionId.ARCHIVE_NOTEBOOK" in source
     assert "SectionId.VIEW_NOTEBOOK" in source
     assert "ReturnMode.ARCHIVE" in source
-    assert "ReturnMode.VIEW" in source
+    assert "ReturnMode.LIBRARY" in source
     assert "navigate_open" in source
     assert "_render_clickable_cover" in source
     assert "with st.container()" in source
@@ -738,7 +759,9 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
     # Action-strip flex overrides must exclude ancestor Archive notebook grids.
     assert ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])' in shell
-    assert "Settings" in shell
+    nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
+    assert 'id="Settings"' in nav
+    assert 'section="system"' in nav
 
 
 def test_multi_notebook_resolve_smoke(tmp_path: Path) -> None:

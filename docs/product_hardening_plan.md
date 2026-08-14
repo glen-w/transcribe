@@ -43,7 +43,7 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 
 ## Phase 6 notes
 
-- **#8** One status strip above Analyse result tabs answers revision · aggregate · active/interrupted. Per-tab aggregate captions and default capability banners are removed.
+- **#8** One status strip on View consume pages answers revision · aggregate · active/interrupted. Per-tab aggregate captions and default capability banners are removed. (Originally above Analyse result tabs; product views now live under View.)
 - **#7** Overview / Themes / Mood / Moments / Summaries / Ask / Last run are product read-models; module ids, capability enums, and `st.json` live under **Advanced**.
 - **#9** Transcribe primary chrome is vision model + Start (+ optional cleanup toggle). Workers, force re-OCR, cleanup detail, and capability dumps sit under **Advanced**. Remote-host privacy acknowledgement stays visible/confirm-gated.
 

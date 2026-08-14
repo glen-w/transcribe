@@ -101,8 +101,9 @@ def render_interface_panel() -> None:
 
     st.subheader("Action menus")
     st.caption(
-        "Customise the icon-link strips on Archive notebook cards and View "
-        "notebook rows. Changes apply after Save. "
+        "Customise the icon-link strips on Archive notebook cards and Library "
+        "notebook rows, plus Import / Transcribe / Analyse next-step strips. "
+        "Changes apply after Save. "
         f"Stored at `{interface_menus_path()}`."
     )
 

@@ -160,13 +160,16 @@ def render_notebook_places_tab(
     runtime: RuntimePaths,
     ner_health: ModuleHealth | None = None,
     entity_sentiment_health: ModuleHealth | None = None,
+    heading: bool = True,
 ) -> None:
-    st.subheader("People & places")
+    if heading:
+        st.subheader("People & places")
     st.caption(
         "Places and people from published NER (spaCy labels GPE / LOC / FAC / PERSON). "
         "The map geocodes place names with an optional OpenStreetMap lookup and a "
         "local cache. Entity tone joins NER surfaces to page sentiment when that "
-        "module has been published. Run analysis from the preset form above if NER is missing."
+        "module has been published. Run Analyse from Workflow → Analyse if NER is missing. "
+        "All-notebook map: Places in the primary nav."
     )
     snapshot = load_notebook_places(Path(project_root))
     render_places_panel(
@@ -204,10 +207,11 @@ def render_notebook_places_tab(
 
 
 def render_corpus_places_page(runtime: RuntimePaths) -> None:
-    """Notebooks → Places: map of places mentioned across all notebooks."""
+    """Places: map of places mentioned across all notebooks."""
     st.caption(
         "Aggregates GPE / LOC / FAC entities from every notebook with a published "
-        "NER result. Geocoding is optional and cached under the workspace data dir."
+        "NER result. Geocoding is optional and cached under the workspace data dir. "
+        "This-notebook map: View → People."
     )
     snapshot = load_corpus_places(runtime.projects_dir)
     if snapshot.notebooks_scanned == 0:

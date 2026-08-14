@@ -14,7 +14,7 @@ from transcribe.detection.registry import list_all_detectors
 
 def render_detection_settings_panel() -> None:
     st.subheader("Detection")
-    st.caption("Built-in and custom detectors. Run from Analyse → Detect.")
+    st.caption("Built-in and custom detectors. Run from View → Detect after selecting a notebook.")
 
     dets = list_all_detectors()
     for d in dets:

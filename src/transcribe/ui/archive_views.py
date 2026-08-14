@@ -302,9 +302,9 @@ def _open_notebook_at_bin(
         page_id=page_id,
         page_ids=page_ids,
         project_root=nb.root,
-        return_mode=ReturnMode.VIEW.value,
+        return_mode="Library",
     )
-    st.session_state["ui_mode"] = ReturnMode.VIEW.value
+    st.session_state["ui_mode"] = "Reading"
     return True
 
 
@@ -577,7 +577,7 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 project_id=nb.project_id,
                 project_root=nb.root,
                 projects_dir=runtime.projects_dir,
-                return_mode=ReturnMode.VIEW,
+                return_mode=ReturnMode.LIBRARY,
                 nav_style=NavStyle.CLICK_RERUN,
                 instance_prefix="view",
             )
@@ -803,6 +803,7 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 return_mode="Search",
                 view_entries=nav,
             )
+            st.session_state["ui_mode"] = "Reading"
             st.rerun()
 
     c1, c2 = st.columns(2)
