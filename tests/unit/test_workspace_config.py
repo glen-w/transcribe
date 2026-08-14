@@ -176,6 +176,47 @@ def test_archive_notebooks_initial_workspace_round_trip(runtime: RuntimePaths) -
     assert view.provenance["ui.archive_notebooks_initial"] == "workspace"
 
 
+def test_overview_cards_sanitise_default_and_round_trip(runtime: RuntimePaths) -> None:
+    from transcribe.config.knobs import analysis_fingerprint_base, module_knob_dict
+    from transcribe.config.models import (
+        OVERVIEW_CARD_IDS,
+        EffectiveConfig,
+        UiConfig,
+        sanitise_overview_cards,
+    )
+
+    assert sanitise_overview_cards(None) == OVERVIEW_CARD_IDS
+    assert sanitise_overview_cards([]) == OVERVIEW_CARD_IDS
+    assert sanitise_overview_cards(["bogus"]) == OVERVIEW_CARD_IDS
+    assert sanitise_overview_cards(["ner", "stats", "ner", "nope"]) == ("stats", "ner")
+    assert sanitise_overview_cards("wordclouds") == ("wordclouds",)
+
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {},
+            "ui": {"overview_cards": ["ner", "stats"]},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.overview_cards == ("stats", "ner")
+    assert view.provenance["ui.overview_cards"] == "workspace"
+
+    slim = EffectiveConfig(ui=UiConfig(overview_cards=("ner",)))
+    full = EffectiveConfig()
+    assert config_fingerprint(module_knob_dict(slim, "stats")) == config_fingerprint(
+        module_knob_dict(full, "stats")
+    )
+    base = analysis_fingerprint_base(slim)
+    assert "overview_cards" not in base
+    assert "ui" not in base
+
+
 def test_visual_declutter_workspace_round_trip(runtime: RuntimePaths) -> None:
     save_workspace_settings(
         config={

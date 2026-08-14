@@ -1,7 +1,6 @@
 """Lightweight Analyse UI contract checks (no Streamlit runtime).
 
-Phase 1–2: one launcher, coordinator, plan-hash.
-Phase 6: product views, shared status strip, OCR Advanced.
+Launcher is Workflow → Analyse. Product views live on View pages.
 """
 
 from __future__ import annotations
@@ -12,6 +11,9 @@ APP = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
 RUN = Path("src/transcribe/ui/run_analysis.py").read_text(encoding="utf-8")
 HEALTH = Path("src/transcribe/ui/analysis_health_view.py").read_text(encoding="utf-8")
 PRODUCT = Path("src/transcribe/ui/analysis_product_views.py").read_text(encoding="utf-8")
+VIEWS = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
+WRAP = Path("src/transcribe/ui/notebook_view_page.py").read_text(encoding="utf-8")
+JUMPS = Path("src/transcribe/ui/view_jumps.py").read_text(encoding="utf-8")
 
 
 def test_analyse_ui_has_no_per_tab_batch_runners():
@@ -24,11 +26,15 @@ def test_analyse_ui_has_no_per_tab_batch_runners():
         "build_cache_identity_object",
     ):
         assert forbidden not in APP
-    assert "module_freshness" in APP
-    assert "derive_analysis_health" in APP
-    assert "scope_analysis_health" in APP
+        assert forbidden not in VIEWS
+    assert "module_freshness" in VIEWS
+    assert "derive_analysis_health" in VIEWS
+    assert "scope_analysis_health" in VIEWS
     assert "render_run_analysis_form" in APP
     assert "get_analysis_coordinator" in APP
+    assert 'st.tabs([' not in RUN
+    assert "Published results" not in RUN
+    assert "_render_analysis_result_tabs" not in APP
 
 
 def test_run_analysis_uses_coordinator_not_blocking_runner_loop():
@@ -40,7 +46,7 @@ def test_run_analysis_uses_coordinator_not_blocking_runner_loop():
     assert "runner.run_module" not in RUN
     assert "_execute_pending_launch" not in RUN
     assert "Include Ask notebook question" in RUN
-    assert 'pending.get("plan")' in RUN or 'pending.get("plan")' in RUN
+    assert 'pending.get("plan")' in RUN
 
 
 def test_run_analysis_freezes_plan_before_start():
@@ -49,29 +55,28 @@ def test_run_analysis_freezes_plan_before_start():
 
 
 def test_phase6_shared_status_strip_is_sole_default_health_chrome():
-    assert "render_status_strip" in APP
+    assert "render_status_strip" in WRAP
     assert "render_status_strip" in HEALTH
-    # Per-tab aggregate captions must not remain the default path.
     assert "render_aggregate_caption(" not in APP
-    # Module capability banners are not the default Analyse chrome.
+    assert "render_aggregate_caption(" not in VIEWS
     assert "render_module_health_banner(" not in APP
+    assert "render_module_health_banner(" not in VIEWS
 
 
-def test_phase6_product_views_demote_json_and_enums():
-    assert "render_overview_product" in APP
-    assert "render_themes_product" in APP
-    assert "render_mood_product" in APP
-    assert "render_moments_product" in APP
-    assert "render_summaries_product" in APP
-    assert "render_ask_product" in APP
-    assert "analysis_product_views" in APP
-    # Default path uses Advanced expanders, not bare payload dumps as section titles.
+def test_phase6_product_views_live_on_view_pages():
+    assert "render_overview_product" in VIEWS
+    assert "render_themes_product" in VIEWS
+    assert "render_mood_product" in VIEWS
+    assert "render_moments_product" in VIEWS
+    assert "render_summaries_product" in VIEWS
+    assert "render_ask_product" in VIEWS
+    assert "analysis_product_views" in VIEWS
+    assert "render_notebook_view_page" in VIEWS
     assert 'f"{mid} payload"' not in APP
     assert "moments payload" not in APP
     assert "Raw payload" not in APP
     assert "capability=`" not in APP
     assert "outcome=`" not in APP
-    # Product language helpers exist.
     assert "Needs a text model" in HEALTH
     assert "product_capability_label" in HEALTH
     assert "render_advanced_payload" in PRODUCT
@@ -85,11 +90,9 @@ def test_product_views_read_real_payload_shapes():
     assert 'payload.get("overview")' in PRODUCT
     assert 'payload.get("themes")' in PRODUCT
     assert 'payload.get("notable_quotes")' in PRODUCT
-    # Do not prefer wrong top-level diversity keys as the only path.
     assert '"type_token_ratio"' not in PRODUCT
     assert "render_module_compare_charts" in PRODUCT
     assert "projects_dir" in PRODUCT
-    # Module-appropriate visuals beyond lexical diversity.
     assert "emotion_label_totals" in PRODUCT or "render_entity_sentiment_section" in PRODUCT
     assert "group_action_items" in PRODUCT
     assert "topic_weight_rows" in PRODUCT
@@ -113,8 +116,8 @@ def test_overview_renders_real_wordcloud_when_available():
 
 
 def test_analyse_wires_corpus_compare_into_overview_and_mood():
-    assert "projects_dir=runtime.projects_dir" in APP
-    assert "project_id=project.id" in APP
+    assert "projects_dir=runtime.projects_dir" in VIEWS
+    assert "project_id=project.id" in VIEWS
     assert Path("src/transcribe/services/analysis_compare.py").is_file()
     assert Path("src/transcribe/ui/analysis_compare_view.py").is_file()
     assert "load_module_baseline" in Path("src/transcribe/services/analysis_compare.py").read_text(
@@ -126,8 +129,8 @@ def test_analyse_wires_corpus_compare_into_overview_and_mood():
 
 
 def test_entity_sentiment_is_on_people_places_batch():
-    assert "entity_sentiment" in APP
-    assert "entity_sentiment_health" in APP
+    assert "entity_sentiment" in VIEWS
+    assert "entity_sentiment_health" in VIEWS
     places = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
     assert "entity_sentiment_health" in places
     assert "render_entity_sentiment_section" in places
@@ -136,17 +139,20 @@ def test_entity_sentiment_is_on_people_places_batch():
     assert "aggregate_entity_sentiment" in helpers
 
 
-def test_moments_jump_opens_review_via_page_viewer():
-    """Jump to page must set real viewer/nav keys, not dead session aliases."""
-    assert "open_page_context" in APP
-    assert 'st.session_state["ui_mode"] = "Review"' in APP
+def test_moments_jump_opens_reading_via_page_viewer():
+    """Jump to page must set Reading, not Review, via the shared helper."""
+    assert "jump_to_reading" in VIEWS
+    assert "open_page_context" in JUMPS
+    assert 'st.session_state["ui_mode"] = "Reading"' in JUMPS
+    assert 'st.session_state["ui_mode"] = "Review"' not in VIEWS
+    assert 'st.session_state["ui_mode"] = "Review"' not in APP
     assert '["review_page_id"]' not in APP
     assert '["nav_section"]' not in APP
     assert "_page_id_for_moment" in PRODUCT
 
 
 def test_page_series_charts_are_clickable_and_wired_to_jump():
-    """Within-notebook page-order charts jump via the same Review open path."""
+    """Within-notebook page-order charts jump via Reading, not Review."""
     charts = Path("src/transcribe/ui/page_series_charts.py").read_text(encoding="utf-8")
     selection = Path("src/transcribe/ui/page_series_selection.py").read_text(encoding="utf-8")
     metrics = Path("src/transcribe/ui/page_metrics_view.py").read_text(encoding="utf-8")
@@ -160,27 +166,31 @@ def test_page_series_charts_are_clickable_and_wired_to_jump():
     assert "unit_series_rows" in PRODUCT
     assert "topic_shift_series_rows" in PRODUCT
     assert "epistemic_page_series_rows" in PRODUCT
-    # App shares one jump helper across Overview / Themes / Mood / Moments.
-    assert "on_jump=_jump_to_page" in APP
-    assert APP.count("on_jump=_jump_to_page") >= 4
+    assert "_on_jump" in VIEWS
+    assert VIEWS.count("return_mode=") >= 4
+    assert 'return_mode="Overview"' in VIEWS
+    assert 'return_mode="Themes"' in VIEWS
+    assert 'return_mode="Mood"' in VIEWS
+    assert 'return_mode="Moments"' in VIEWS
     assert "on_jump" in metrics
     assert "render_clickable_page_series" in metrics
 
 
+def test_this_notebook_complete_navigates_to_overview():
+    assert 'normalize_ui_mode("Overview")' in RUN
+    assert 'progress.status == "completed"' in RUN
+
+
 def test_phase6_ocr_advanced_groups_power_controls():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
-    # Primary controls remain outside Advanced.
     assert "Vision model" in tx
     assert "Start transcription" in tx
     assert "Clean OCR with text model" in tx
-    # Power controls live under Advanced expander.
     assert 'st.expander("Advanced"' in tx
-    # Workers / force / cleanup detail appear only after Advanced marker in source.
     adv_idx = tx.index('st.expander("Advanced"')
     assert tx.index("Workers", adv_idx) > adv_idx
     assert tx.index("Force re-run", adv_idx) > adv_idx
     assert tx.index("Cleanup mode", adv_idx) > adv_idx
-    # Privacy acknowledgement stays on the primary path (before Advanced).
     remote_idx = tx.index("I understand and want to use this remote host")
     assert remote_idx < adv_idx
 
@@ -213,7 +223,7 @@ def test_analyse_batch_target_and_progress_wiring():
     from transcribe.ui.shell import is_open_notebook_workflow
 
     batch = Path("src/transcribe/ui/run_analysis_batch.py").read_text(encoding="utf-8")
-    shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
+    nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
     targets = Path("src/transcribe/ui/targets.py").read_text(encoding="utf-8")
     panel = Path("src/transcribe/ui/components/progress_panel.py").read_text(
         encoding="utf-8"
@@ -225,7 +235,7 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "ANALYSE_BATCH_SOURCE_KEY" in targets
     assert not is_open_notebook_workflow("Analyse")
     assert is_open_notebook_workflow("Review")
-    assert '"Analyse"' in shell or "'Analyse'" in shell
+    assert 'id="Analyse"' in nav
     assert "Notebooks needing analysis" in batch
     assert "From an import run" in batch
     assert "Pick notebooks" in batch
@@ -238,6 +248,15 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "BatchAnalysisCoordinator" in batch
     assert "runner.run_module" not in batch
     assert SUPPORTED.get("transcribe.analysis-batch-run") == 1
-    # Dual-bar panel generalizes detail label (module vs page).
     assert "Current {detail_noun}" in panel or "Current module" in panel
     assert "detail_unit" in panel
+    assert 'set_ui_mode("Library")' in batch
+    overview_assigns = [
+        line
+        for line in batch.splitlines()
+        if "Overview" in line and "ui_mode" in line
+    ]
+    assert overview_assigns
+    assert "notebook_has_published_analysis" in batch
+    assert 'set_ui_mode("Overview")' not in batch
+    assert 'set_ui_mode("Library")' in batch
