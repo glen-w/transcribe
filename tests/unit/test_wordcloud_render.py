@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from transcribe.ui.wordcloud_render import (
     build_wordcloud_explorer_html,
     filter_terms,
@@ -49,7 +47,12 @@ def test_terms_and_filter_mirror_tx_explorer():
     assert [t["term"] for t in by_term] == ["railway", "rain", "zebra"]
 
 
-@pytest.mark.skipif(not wordcloud_available(), reason="wordcloud optional extra missing")
+def test_wordcloud_is_a_default_dependency():
+    assert wordcloud_available(), (
+        "wordcloud is a core dependency and must import in the default install"
+    )
+
+
 def test_render_wordcloud_image_returns_pil():
     from PIL import Image
 
@@ -59,7 +62,6 @@ def test_render_wordcloud_image_returns_pil():
     assert img.size[1] >= 120
 
 
-@pytest.mark.skipif(not wordcloud_available(), reason="wordcloud optional extra missing")
 def test_render_from_payload_and_determinism():
     payload = {
         "tokens": [

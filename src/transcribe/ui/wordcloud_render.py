@@ -17,11 +17,12 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-# Soft optional — UI extras include ``wordcloud``; analysis still works without it.
+# Default install includes ``wordcloud``; keep a defensive import so a broken
+# environment still falls back to token-weight bars instead of crashing Analyse.
 _WORDCLOUD_IMPORT_ERROR: str | None = None
 try:
     from wordcloud import WordCloud as _WordCloud
-except Exception as exc:  # noqa: BLE001 — optional dep
+except Exception as exc:  # noqa: BLE001 — defensive; default dep
     _WordCloud = None  # type: ignore[misc, assignment]
     _WORDCLOUD_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
@@ -39,8 +40,8 @@ def wordcloud_unavailable_reason() -> str | None:
     if _WordCloud is not None:
         return None
     return (
-        "Optional package `wordcloud` is not installed. "
-        "Install UI extras (``pip install -e '.[ui]'``) for real word clouds; "
+        "Package `wordcloud` is not importable. "
+        "It is a default Transcribe dependency (`pip install -e .`); "
         "token bars still work without it."
         + (f" ({_WORDCLOUD_IMPORT_ERROR})" if _WORDCLOUD_IMPORT_ERROR else "")
     )

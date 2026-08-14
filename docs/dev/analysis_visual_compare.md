@@ -66,11 +66,10 @@ entity tone, action-item groups.
 3. **Read-model only** — never re-runs modules; averages published envelopes.
 4. **Exclude current notebook** from the average so deltas are vs peers.
 5. **Undated notebooks** included for “Entire corpus”, excluded for year/range.
-6. **Word clouds in the UI** — TX renders a static PNG via `wordcloud` and an interactive explorer HTML (`wordcloud2.js` + search / top N / min value / sort / CSV). Transcribe Overview offers the same **Basic / Advanced** choice: Basic uses `WordCloud.to_image()` (Pillow); Advanced embeds a TX-shaped explorer with **vendored** `wordcloud2.js` (offline; TX uses a CDN). Analysis module still emits only `tokens[]`. Soft-falls back to token-weight bars when the Python package is missing.
+6. **Word clouds in the UI** — TX renders a static PNG via `wordcloud` and an interactive explorer HTML (`wordcloud2.js` + search / top N / min value / sort / CSV). Transcribe Overview offers the same **Basic / Advanced** choice: Basic uses `WordCloud.to_image()` (Pillow); Advanced embeds a TX-shaped explorer with **vendored** `wordcloud2.js` (offline; TX uses a CDN). Analysis module still emits only `tokens[]`. `wordcloud` is a default package dependency so Basic clouds work on a plain `pip install -e .`; Analyse still falls back to token-weight bars if import fails.
 
 ## Do not
 
 - Import TranscriptX at runtime.
 - Port the TX chart registry / Folium / speaker timelines.
 - Treat Advanced JSON as the primary product path.
-- Pull `wordcloud` into the analysis core / CLI-only install — keep it in ``.[ui]``.

@@ -9,9 +9,9 @@ Authority: local install and environment operations only — does not define pro
 cd /path/to/transcribe
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[ui]'     # Streamlit UI (+ wordcloud for Analyse word themes)
+pip install -e '.[ui]'     # Streamlit UI (wordcloud is a default dependency)
 # or
-pip install -e '.[dev]'    # pytest (+ UI extras including wordcloud)
+pip install -e '.[dev]'    # pytest + UI extras
 ```
 
 Helper (creates `.venv` and installs `.[ui]`):
