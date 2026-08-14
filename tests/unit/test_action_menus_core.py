@@ -748,7 +748,7 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "SectionId.ARCHIVE_NOTEBOOK" in source
     assert "SectionId.VIEW_NOTEBOOK" in source
     assert "ReturnMode.ARCHIVE" in source
-    assert "ReturnMode.VIEW" in source
+    assert "ReturnMode.LIBRARY" in source
     assert "navigate_open" in source
     assert "_render_clickable_cover" in source
     assert "with st.container()" in source
