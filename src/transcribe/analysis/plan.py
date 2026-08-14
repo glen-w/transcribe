@@ -10,6 +10,7 @@ from transcribe.analysis.llm_runtime import (
     TextLLMContext,
     bind_text_llm_context,
     get_text_llm_client,
+    ollama_base_url_for_binding,
 )
 from transcribe.config.facade import snapshot_for_operation
 from transcribe.config.models import EffectiveConfig
@@ -239,7 +240,9 @@ def build_analysis_run_plan(
     if any(mid in _LLM_MODULES for mid in ordered):
         ctx = bind_text_llm_context(
             text_model_name=getattr(project.settings, "text_model_name", None),
-            base_url=getattr(project.settings, "base_url", None),
+            base_url=ollama_base_url_for_binding(
+                getattr(project.settings, "base_url", None),
+            ),
         )
         if ctx is not None:
             text_model = FrozenTextModel(

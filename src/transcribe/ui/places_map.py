@@ -8,6 +8,7 @@ from typing import Any
 import streamlit as st
 
 from transcribe.analysis.health import ModuleHealth
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.places import (
     GeocodeCache,
@@ -68,7 +69,7 @@ def _render_people(snapshot: PlacesSnapshot) -> None:
         return
     st.markdown("#### People")
     top = snapshot.people[:30]
-    lines = [f"- **{p.surface}** ×{p.count}" for p in top]
+    lines = [f"- **{escape_markdown_plain(p.surface)}** ×{p.count}" for p in top]
     st.markdown("\n".join(lines))
 
 

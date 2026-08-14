@@ -10,6 +10,7 @@ from PIL import Image
 
 from transcribe.analysis.llm_runtime import RecordedDoubleClient, TextLLMContext
 from transcribe.detection.api import DetectionService
+from transcribe.detection.runner import DetectionRunner
 from transcribe.detection.custom import CustomDetectorDefinition, save_custom_detector
 from transcribe.detection.envelope import build_detection_envelope
 from transcribe.detection.registry import resolve_detector
@@ -262,3 +263,62 @@ def test_freshness_binds_project_vision_model_not_workspace_ocr(tmp_path: Path):
     assert fresh in {"missing", "stale", "fresh", "unknown"}
     planned, _scope, _meta = svc.runner.planned_cache_identity(resolve_detector("poetry"))
     assert isinstance(planned, str) and planned
+
+
+def test_detection_bind_contexts_falls_back_to_reachable_ollama_url(
+    tmp_path: Path, monkeypatch
+) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds("url")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    project = projects.create("url-nb")
+    settings = project.settings
+    settings.base_url = "http://127.0.0.1:11434"
+    settings.text_model_name = "mistral-small:latest"
+    settings.model_name = "qwen2.5vl:3b"
+    projects.save_settings(project, settings)
+
+    rt = _rt(tmp_path)
+    monkeypatch.setattr("transcribe.runtime_paths.build_runtime_paths", lambda: rt)
+
+    class _Ocr:
+        base_url = "http://host.docker.internal:11434"
+        text_model_name = ""
+
+    class _Llm:
+        text_model_preference = ""
+
+    class _Cfg:
+        ocr = _Ocr()
+        llm = _Llm()
+
+    monkeypatch.setattr("transcribe.config.facade.get_config", lambda **kwargs: _Cfg())
+    monkeypatch.setattr(
+        "transcribe.providers.ollama.ollama_healthcheck",
+        lambda url: url == "http://host.docker.internal:11434",
+    )
+
+    captured: dict[str, str] = {}
+
+    def _capture_text_bind(**kwargs):
+        captured["text_base_url"] = kwargs.get("base_url") or ""
+        return None
+
+    def _capture_vision_bind(**kwargs):
+        captured["vision_base_url"] = kwargs.get("base_url") or ""
+        return None
+
+    monkeypatch.setattr(
+        "transcribe.detection.runner.bind_text_llm_context",
+        _capture_text_bind,
+    )
+    monkeypatch.setattr(
+        "transcribe.detection.runner.bind_vision_llm_context",
+        _capture_vision_bind,
+    )
+
+    runner = DetectionRunner(projects)
+    runner._bind_contexts()
+
+    assert captured["text_base_url"] == "http://host.docker.internal:11434"
+    assert captured["vision_base_url"] == "http://host.docker.internal:11434"

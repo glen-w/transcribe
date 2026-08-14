@@ -13,6 +13,7 @@ from transcribe.domain.dates import (
     bin_key_to_range,
     format_date_filter_input,
 )
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import (
@@ -511,7 +512,7 @@ def _notebook_card(
         projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
         project = projects.load(reconcile=False)
     except Exception as exc:  # noqa: BLE001
-        st.caption(f"{nb.title}: {exc}")
+        st.caption(f"{escape_markdown_plain(nb.title)}: {exc}")
         if ctx is not None:
             try:
                 render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
@@ -538,7 +539,7 @@ def _notebook_card(
         a = nb.date_start.format_display() if nb.date_start else "?"
         b = nb.date_end.format_display() if nb.date_end else "?"
         date_label = f"{a} → {b}"
-    st.caption(nb.title)
+    st.caption(escape_markdown_plain(nb.title))
     if nb.tags:
         st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
     st.caption(date_label)
@@ -606,7 +607,7 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
                             width=VIEW_COVER_WIDTH_PX,
                         )
         with right:
-            st.markdown(f"**{nb.title}**")
+            st.markdown(f"**{escape_markdown_plain(nb.title)}**")
             if nb.tags:
                 st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
             if nb.date_start or nb.date_end:
@@ -766,13 +767,15 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
         cols = st.columns([3, 1])
         date_s = hit.date.format_display() if hit.date else "Undated"
         cols[0].markdown(
-            f"**{hit.project_title}** · p.{hit.page_index_in_notebook}/"
+            f"**{escape_markdown_plain(hit.project_title)}** · p.{hit.page_index_in_notebook}/"
             f"{hit.notebook_page_count} · {date_s}"
         )
         if hit.snippet:
-            cols[0].caption(hit.snippet)
+            cols[0].caption(escape_markdown_plain(hit.snippet))
         if hit.tags:
-            cols[0].caption("Tags: " + ", ".join(hit.tags))
+            cols[0].caption(
+                "Tags: " + ", ".join(escape_markdown_plain(tag) for tag in hit.tags)
+            )
         if cols[1].button(
             "Open page",
             key=f"search_open_{hit.page_id}",

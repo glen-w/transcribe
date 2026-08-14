@@ -264,6 +264,18 @@ def set_text_llm_client(client: TextLLMClient | None) -> None:
     _DEFAULT_CLIENT = client
 
 
+def ollama_base_url_for_binding(project_base_url: str | None) -> str:
+    """Reachability-aware Ollama URL for LLM bind (project setting → workspace → default)."""
+    from transcribe.config.facade import get_config
+    from transcribe.providers.ollama import resolve_reachable_ollama_base_url
+
+    cfg = get_config()
+    return resolve_reachable_ollama_base_url(
+        project_base_url,
+        fallback=cfg.ocr.base_url or None,
+    )
+
+
 def bind_text_llm_context(
     *,
     text_model_name: str | None,

@@ -270,7 +270,7 @@ def render_batch_analysis_launch(
         "Preset",
         options=[PRESET_LABELS[p] for p in VALID_PRESETS],
         key=_PRESET_KEY,
-        help=PRESET_HELP.get(label_to_preset(st.session_state.get(_PRESET_KEY, "Balanced")), ""),
+        help=PRESET_HELP,
     )
     preset = label_to_preset(str(preset_label))
     custom_modules: list[str] = []

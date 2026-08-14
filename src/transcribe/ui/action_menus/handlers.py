@@ -9,6 +9,7 @@ from pathlib import Path
 import streamlit as st
 
 from transcribe.errors import JobConflictError, ProjectError, TranscribeError
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation
@@ -230,7 +231,7 @@ def _delete_notebook_dialog(
     projects_dir_key: str,
     title: str,
 ) -> None:
-    st.markdown(f"Delete **{title}** from Transcribe?")
+    st.markdown(f"Delete **{escape_markdown_plain(title)}** from Transcribe?")
     st.caption(
         "Removes this notebook's managed directory (imported files, OCR results, "
         "and analysis). External originals outside Transcribe are not deleted."

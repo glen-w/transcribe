@@ -506,6 +506,24 @@ def inject_global_styles() -> None:
         opacity: 0.6;
         margin: 0 0 0.35rem 0;
     }
+    /* OCR faithful_markdown in captions must not become page-title headings */
+    [data-testid="stCaptionContainer"] h1,
+    [data-testid="stCaptionContainer"] h2,
+    [data-testid="stCaptionContainer"] h3,
+    [data-testid="stCaptionContainer"] h4,
+    [data-testid="stCaptionContainer"] h5,
+    [data-testid="stCaptionContainer"] h6,
+    [data-testid="stCaption"] h1,
+    [data-testid="stCaption"] h2,
+    [data-testid="stCaption"] h3,
+    [data-testid="stCaption"] h4,
+    [data-testid="stCaption"] h5,
+    [data-testid="stCaption"] h6 {
+        font-size: inherit !important;
+        font-weight: inherit !important;
+        margin: 0 !important;
+        line-height: inherit !important;
+    }
 </style>
 """,
         unsafe_allow_html=True,

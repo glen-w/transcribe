@@ -187,6 +187,47 @@ def is_local_machine_host(url: str) -> bool:
     return host in {"host.docker.internal"}
 
 
+def ollama_healthcheck(base_url: str, *, timeout: float = 10.0) -> bool:
+    """Return True when Ollama responds at ``base_url``."""
+    try:
+        OllamaVisionProvider(base_url, request_timeout=timeout).healthcheck()
+        return True
+    except (ProviderError, OSError, urllib.error.URLError):
+        return False
+
+
+def resolve_reachable_ollama_base_url(
+    configured: str | None,
+    *,
+    fallback: str | None = None,
+) -> str:
+    """Pick an Ollama base URL that responds to healthcheck.
+
+    Prefer ``configured`` when healthy, else workspace/env fallback (e.g. Docker
+  → ``host.docker.internal``). Falls back to the first valid candidate when none
+    respond so callers still surface connection errors.
+    """
+    from transcribe.runtime_paths import default_ollama_base_url
+
+    candidates: list[str] = []
+    for raw in (configured, fallback, default_ollama_base_url()):
+        text = (raw or "").strip()
+        if not text:
+            continue
+        try:
+            url = normalize_base_url(text)
+        except ProviderError:
+            continue
+        if url not in candidates:
+            candidates.append(url)
+    for url in candidates:
+        if ollama_healthcheck(url):
+            return url
+    if candidates:
+        return candidates[0]
+    return default_ollama_base_url()
+
+
 def _allowlisted_metadata(
     payload: dict[str, Any],
     *,

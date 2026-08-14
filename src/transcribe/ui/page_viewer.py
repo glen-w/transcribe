@@ -17,6 +17,7 @@ from transcribe.domain.dates import (
 )
 from transcribe.domain.models import CleanupRecord, OCRAttempt, Project
 from transcribe.errors import JobConflictError, ProjectError, TranscribeError
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.paths import ProjectPaths
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
@@ -104,28 +105,7 @@ def _cleanup_mode_help(cleanup: CleanupRecord) -> str:
 
 def _escape_markdown_plain(text: str) -> str:
     """Escape markdown so st.caption/st.markdown never promote OCR into headings."""
-    # Backslash first so later escapes are not re-escaped.
-    out = text.replace("\\", "\\\\")
-    for ch in (
-        "`",
-        "*",
-        "_",
-        "{",
-        "}",
-        "[",
-        "]",
-        "(",
-        ")",
-        "#",
-        "+",
-        "-",
-        ".",
-        "!",
-        "|",
-        "~",
-    ):
-        out = out.replace(ch, "\\" + ch)
-    return out
+    return escape_markdown_plain(text)
 
 
 def _ocr_compare_preview(raw_text: str | None, *, limit: int = 120) -> str:
@@ -679,7 +659,7 @@ def render_page_viewer(
     top[5].caption(f"`{page.page_id[:8]}…`")
 
     if page.tags:
-        st.caption("Tags: " + ", ".join(page.tags))
+        st.caption("Tags: " + ", ".join(escape_markdown_plain(tag) for tag in page.tags))
 
     if not read_only:
         try:

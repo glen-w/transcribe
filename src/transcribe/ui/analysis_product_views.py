@@ -15,6 +15,7 @@ import streamlit as st
 
 from transcribe.analysis.health import AnalysisHealth, ModuleHealth
 from transcribe.config.models import OVERVIEW_CARD_IDS
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.analysis_compare import COMPARABLE_SPECS, extract_foundations_display
 from transcribe.ui.analysis_compare_view import (
     render_compare_period_controls,
@@ -409,7 +410,13 @@ def render_themes_product(
         if mid == "keyphrases" and payload.get("phrases"):
             st.markdown("**Keyphrases**")
             phrases = [p for p in payload["phrases"] if isinstance(p, dict)][:16]
-            st.write(", ".join(p.get("phrase", "") for p in phrases if p.get("phrase")))
+            st.write(
+                ", ".join(
+                    escape_markdown_plain(str(p.get("phrase", "")))
+                    for p in phrases
+                    if p.get("phrase")
+                )
+            )
             scored = [p for p in phrases if p.get("phrase") and p.get("score") is not None]
             if scored:
                 st.bar_chart(
@@ -740,7 +747,7 @@ def render_moments_product(
         if isinstance(cite, dict) and cite.get("unit_id"):
             evidence_by_unit[str(cite["unit_id"])] = cite
     for row in rows:
-        quote = (row.get("quote") or "")[:240]
+        quote = escape_markdown_plain((row.get("quote") or "")[:240])
         st.markdown(f"- _{row['score']:.3g}_ · {quote}")
         page_id = _page_id_for_moment(row, evidence_by_unit=evidence_by_unit)
         if (
@@ -804,10 +811,10 @@ def render_summaries_product(
                     )
                 for q in quotes[:12]:
                     if isinstance(q, dict):
-                        text = q.get("text") or ""
+                        text = escape_markdown_plain((q.get("text") or "")[:300])
                         score = q.get("score")
                         prefix = f"_{score}_ · " if score is not None else ""
-                        st.write(f"- {prefix}{text[:300]}")
+                        st.write(f"- {prefix}{text}")
             else:
                 st.caption("No highlight quotes yet.")
         elif mid == "summary":
@@ -833,7 +840,7 @@ def render_summaries_product(
                 st.markdown("Notable quotes")
                 for q in notable[:6]:
                     if isinstance(q, dict):
-                        st.write(f"- {q.get('text') or ''}")
+                        st.write(f"- {escape_markdown_plain(str(q.get('text') or ''))}")
             if not themes and not notable:
                 st.caption("Ready — open Advanced for details.")
         elif mid == "topic_modeling":
@@ -857,7 +864,7 @@ def render_summaries_product(
                 for rtype, texts in groups.items():
                     st.markdown(f"**{ACTION_TYPE_LABELS.get(rtype, rtype)}**")
                     for text in texts[:12]:
-                        st.write(f"- {text}")
+                        st.write(f"- {escape_markdown_plain(str(text))}")
             else:
                 st.caption("No action items extracted.")
         elif mid == "llm_summary":
@@ -889,9 +896,11 @@ def render_summaries_product(
             elif isinstance(items, list) and items:
                 for it in items[:12]:
                     if isinstance(it, dict):
-                        st.write(f"- {it.get('text') or it.get('highlight') or it}")
+                        st.write(
+                            f"- {escape_markdown_plain(str(it.get('text') or it.get('highlight') or it))}"
+                        )
                     else:
-                        st.write(f"- {it}")
+                        st.write(f"- {escape_markdown_plain(str(it))}")
             else:
                 st.caption("Ready — open Advanced for details.")
         if mh.live_evidence:

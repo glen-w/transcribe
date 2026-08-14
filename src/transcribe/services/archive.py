@@ -27,6 +27,7 @@ from transcribe.domain.dates import (
 )
 from transcribe.domain.models import Project
 from transcribe.errors import ProjectError
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.persistence.locks import FileLock
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
@@ -1022,7 +1023,17 @@ def _snippet(text: str, query: str, radius: int = 80) -> str:
 
 
 def highlight_terms(text: str, query: str) -> str:
-    if not query.strip() or not text:
+    """Return markdown-safe text with query matches wrapped in ``**bold**``."""
+    if not text:
         return text
+    if not query.strip():
+        return escape_markdown_plain(text)
     pattern = re.compile(re.escape(query.strip()), re.IGNORECASE)
-    return pattern.sub(lambda m: f"**{m.group(0)}**", text)
+    parts: list[str] = []
+    last = 0
+    for match in pattern.finditer(text):
+        parts.append(escape_markdown_plain(text[last : match.start()]))
+        parts.append(f"**{escape_markdown_plain(match.group(0))}**")
+        last = match.end()
+    parts.append(escape_markdown_plain(text[last:]))
+    return "".join(parts)

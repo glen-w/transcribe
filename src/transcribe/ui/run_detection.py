@@ -7,6 +7,7 @@ import streamlit as st
 
 from transcribe.detection.api import DetectionService
 from transcribe.detection.registry import list_all_detectors
+from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.project import ProjectService
 from transcribe.ui.page_viewer import open_page_context
 from transcribe.ui.shell import render_page_shell
@@ -132,7 +133,7 @@ def _render_findings(
                 else f"{f.start_page_id}…{f.end_page_id}"
             )
             with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
-                st.write(f.evidence.get("reason") or "")
+                st.write(escape_markdown_plain(str(f.evidence.get("reason") or "")))
                 if f.detector_data:
                     st.json(f.detector_data)
                 st.caption(

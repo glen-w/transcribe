@@ -133,7 +133,7 @@ def render_module_compare_charts(
         return
 
     st.caption(f"Compared with {baseline.baseline_label} · peers exclude this notebook.")
-    # One grouped chart: categories = metric labels; two series.
+    # Grouped (side-by-side) bars: this notebook vs baseline per metric.
     st.bar_chart(
         {
             "metric": [r["label"] for r in rows],
@@ -142,6 +142,7 @@ def render_module_compare_charts(
         },
         x="metric",
         y=["This notebook", baseline.baseline_label],
+        stack=False,
     )
     # Compact delta strip
     deltas = []
