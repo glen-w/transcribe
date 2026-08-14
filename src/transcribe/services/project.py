@@ -327,18 +327,32 @@ class ProjectService:
     ) -> tuple[Project, bool]:
         """Atomically set human-approved date (approved=True, source=None).
 
-        Returns (project, date_value_changed).
+        When the date **value** changes, re-infers unapproved downstream pages
+        (and the cover page when applicable) so inherited suggestions stay aligned
+        with the new upstream date.
+
+        Returns (project, date_value_changed) for the approved page only.
         """
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
             page = self._require_page(current, page_id)
+            idx = next(i for i, p in enumerate(current.pages) if p.page_id == page_id)
             old = page.date
             page.set_date_state(date, approved=True, source=None)
+            date_value_changed = old != page.date
+            if date_value_changed:
+                self._reinfer_unapproved_page_dates(
+                    current.pages,
+                    cover_page_id=current.cover_page_id,
+                    start_idx=idx + 1,
+                    cover_look_ahead=False,
+                    skip_cover_post_pass_for_idx=idx,
+                )
             current.updated_at = to_iso(self.clock.now())
             validate_project(current)
             write_json_atomic(self.paths.manifest, current.as_dict())
-            return current, old != page.date
+            return current, date_value_changed
 
     def list_date_regressions(self, project: Project | None = None) -> list[DateRegression]:
         """Notebook-order date regressions for bulk-approve honesty."""
@@ -437,58 +451,87 @@ class ProjectService:
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
-            value_changed = 0
-            any_change = False
-
-            def _note(page: PageIndex, old_date, old_approved, old_source) -> None:
-                nonlocal value_changed, any_change
-                if old_date != page.date:
-                    value_changed += 1
-                if (
-                    old_date != page.date
-                    or old_approved != page.date_approved
-                    or old_source != page.date_source
-                ):
-                    any_change = True
-
-            for idx, page in enumerate(current.pages):
-                if page.date is not None and page.date_approved:
-                    continue
-                old_date = page.date
-                old_approved = page.date_approved
-                old_source = page.date_source
-                result = self._load_page_result_unlocked(page.page_id)
-                text = result.effective_text() if result else None
-                self._apply_suggestion(
-                    current.pages,
-                    idx,
-                    text,
-                    cover_page_id=current.cover_page_id,
-                )
-                _note(current.pages[idx], old_date, old_approved, old_source)
-
-            cover_idx = self._cover_page_index(current.pages, current.cover_page_id)
-            if cover_idx is not None:
-                cover = current.pages[cover_idx]
-                if cover.date is None or not cover.date_approved:
-                    old_date = cover.date
-                    old_approved = cover.date_approved
-                    old_source = cover.date_source
-                    result = self._load_page_result_unlocked(cover.page_id)
-                    text = result.effective_text() if result else None
-                    self._apply_suggestion(
-                        current.pages,
-                        cover_idx,
-                        text,
-                        cover_page_id=current.cover_page_id,
-                    )
-                    _note(current.pages[cover_idx], old_date, old_approved, old_source)
-
+            value_changed, any_change = self._reinfer_unapproved_page_dates(
+                current.pages,
+                cover_page_id=current.cover_page_id,
+                start_idx=0,
+            )
             if any_change:
                 current.updated_at = to_iso(self.clock.now())
                 validate_project(current)
                 write_json_atomic(self.paths.manifest, current.as_dict())
             return value_changed
+
+    def _reinfer_unapproved_page_dates(
+        self,
+        pages: list[PageIndex],
+        *,
+        cover_page_id: str | None,
+        start_idx: int = 0,
+        cover_look_ahead: bool = True,
+        skip_cover_post_pass_for_idx: int | None = None,
+    ) -> tuple[int, bool]:
+        """Re-run extract→inherit for unapproved pages from ``start_idx`` (+ cover post-pass).
+
+        ``cover_look_ahead`` (default true) lets undated approved cover pages inherit
+        from the first dated page during a full ordered fill. Partial cascades after
+        human date edits disable this so explicitly undated covers stay undated.
+
+        Returns (date_value_changed_count, any_state_changed).
+        """
+        value_changed = 0
+        any_change = False
+        cascade_mode = not cover_look_ahead
+
+        def _note(page: PageIndex, old_date, old_approved, old_source) -> None:
+            nonlocal value_changed, any_change
+            if old_date != page.date:
+                value_changed += 1
+            if (
+                old_date != page.date
+                or old_approved != page.date_approved
+                or old_source != page.date_source
+            ):
+                any_change = True
+
+        for idx in range(start_idx, len(pages)):
+            page = pages[idx]
+            if page.date_approved and (cascade_mode or page.date is not None):
+                continue
+            old_date = page.date
+            old_approved = page.date_approved
+            old_source = page.date_source
+            result = self._load_page_result_unlocked(page.page_id)
+            text = result.effective_text() if result else None
+            self._apply_suggestion(
+                pages,
+                idx,
+                text,
+                cover_page_id=cover_page_id,
+            )
+            _note(pages[idx], old_date, old_approved, old_source)
+
+        cover_idx = self._cover_page_index(pages, cover_page_id)
+        if cover_idx is not None and cover_idx != skip_cover_post_pass_for_idx:
+            cover = pages[cover_idx]
+            should_refresh = not cover.date_approved
+            if cover_look_ahead and cover.date is None and cover.date_approved:
+                should_refresh = True
+            if should_refresh:
+                old_date = cover.date
+                old_approved = cover.date_approved
+                old_source = cover.date_source
+                result = self._load_page_result_unlocked(cover.page_id)
+                text = result.effective_text() if result else None
+                self._apply_suggestion(
+                    pages,
+                    cover_idx,
+                    text,
+                    cover_page_id=cover_page_id,
+                )
+                _note(pages[cover_idx], old_date, old_approved, old_source)
+
+        return value_changed, any_change
 
     @staticmethod
     def _require_page(project: Project, page_id: str) -> PageIndex:

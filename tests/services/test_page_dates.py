@@ -225,6 +225,129 @@ def test_cover_suggest_looks_ahead_when_later_page_already_dated(tmp_path: Path)
     assert cover.date_source == "inherited"
 
 
+def test_approve_upstream_updates_downstream_inherited(tmp_path: Path):
+    """Changing an upstream approved date re-infers unapproved inherited downstream pages."""
+    paths = open_project_paths(tmp_path / "cascade")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("C")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    for i in range(3):
+        ingest.import_bytes(f"{i}.png", _png_bytes(color=(i, i, i)))
+    project = projects.load(reconcile=False)
+    ids_pages = [p.page_id for p in project.pages]
+    _seed_page_text(projects, ids_pages[0], "260523 note", clock)
+    _seed_page_text(projects, ids_pages[1], "plain", clock)
+    _seed_page_text(projects, ids_pages[2], "plain", clock)
+    projects.fill_page_dates_ordered()
+    pages = projects.load(reconcile=False).pages
+    assert pages[1].date == ApproximateDate(2026, 5, 23)
+    assert pages[1].date_source == "inherited"
+    assert pages[2].date_source == "inherited"
+
+    projects.approve_page_date(ids_pages[0], ApproximateDate(2026, 6, 1))
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date == ApproximateDate(2026, 6, 1)
+    assert pages[0].date_approved is True
+    assert pages[1].date == ApproximateDate(2026, 6, 1)
+    assert pages[1].date_source == "inherited"
+    assert pages[1].date_approved is False
+    assert pages[2].date == ApproximateDate(2026, 6, 1)
+    assert pages[2].date_source == "inherited"
+
+
+def test_clear_upstream_clears_downstream_inherited(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "cascade_clear")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("CC")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    for i in range(3):
+        ingest.import_bytes(f"{i}.png", _png_bytes(color=(i, i, i)))
+    project = projects.load(reconcile=False)
+    ids_pages = [p.page_id for p in project.pages]
+    _seed_page_text(projects, ids_pages[0], "260523 note", clock)
+    _seed_page_text(projects, ids_pages[1], "plain", clock)
+    _seed_page_text(projects, ids_pages[2], "plain", clock)
+    projects.fill_page_dates_ordered()
+
+    projects.approve_page_date(ids_pages[0], None)
+    pages = projects.load(reconcile=False).pages
+    assert pages[0].date is None
+    assert pages[1].date is None
+    assert pages[1].date_approved is True
+    assert pages[2].date is None
+    assert pages[2].date_approved is True
+
+
+def test_approve_same_value_does_not_cascade(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "no_cascade")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("NC")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("a.png", _png_bytes())
+    project = ingest.import_bytes("b.png", _png_bytes(color=(1, 2, 3)))
+    p0, p1 = project.pages[0].page_id, project.pages[1].page_id
+    _seed_page_text(projects, p0, "260523 note", clock)
+    _seed_page_text(projects, p1, "plain", clock)
+    projects.fill_page_dates_ordered()
+    inherited_before = projects.load(reconcile=False).pages[1]
+
+    projects.approve_page_date(p0, ApproximateDate(2026, 5, 23))
+    inherited_after = projects.load(reconcile=False).pages[1]
+    assert inherited_after.date == inherited_before.date
+    assert inherited_after.date_source == "inherited"
+    assert inherited_after.date_approved is False
+
+
+def test_upstream_change_updates_cover_inherited(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "cascade_cover")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("CV")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    project = ingest.import_bytes("cover.png", _png_bytes())
+    project = ingest.import_bytes("p1.png", _png_bytes(color=(1, 2, 3)))
+    assert project.cover_page_id == project.pages[0].page_id
+    cover_id, p1 = project.pages[0].page_id, project.pages[1].page_id
+    _seed_page_text(projects, cover_id, "Notebook title only", clock)
+    _seed_page_text(projects, p1, "260523 first entry", clock)
+    projects.fill_page_dates_ordered()
+    assert projects.load(reconcile=False).pages[0].date == ApproximateDate(2026, 5, 23)
+
+    projects.approve_page_date(p1, ApproximateDate(2026, 7, 15))
+    pages = projects.load(reconcile=False).pages
+    assert pages[1].date == ApproximateDate(2026, 7, 15)
+    assert pages[0].date == ApproximateDate(2026, 7, 15)
+    assert pages[0].date_source == "inherited"
+    assert pages[0].date_approved is False
+
+
+def test_approved_downstream_not_changed_by_upstream_update(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "sticky_downstream")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("SD")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    for i in range(3):
+        ingest.import_bytes(f"{i}.png", _png_bytes(color=(i, i, i)))
+    project = projects.load(reconcile=False)
+    ids_pages = [p.page_id for p in project.pages]
+    _seed_page_text(projects, ids_pages[0], "260523 note", clock)
+    _seed_page_text(projects, ids_pages[1], "plain", clock)
+    _seed_page_text(projects, ids_pages[2], "plain", clock)
+    projects.fill_page_dates_ordered()
+    projects.approve_page_date(ids_pages[1], ApproximateDate(2026, 5, 23))
+
+    projects.approve_page_date(ids_pages[0], ApproximateDate(2026, 8, 1))
+    pages = projects.load(reconcile=False).pages
+    assert pages[1].date == ApproximateDate(2026, 5, 23)
+    assert pages[1].date_approved is True
+    assert pages[2].date == ApproximateDate(2026, 5, 23)
+    assert pages[2].date_source == "inherited"
+
+
 def test_approved_date_not_overwritten_by_suggest(tmp_path: Path):
     paths = open_project_paths(tmp_path / "appr")
     clock, ids = FakeClock(), SequentialIds()
