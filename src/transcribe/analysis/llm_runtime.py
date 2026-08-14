@@ -276,6 +276,30 @@ def ollama_base_url_for_binding(project_base_url: str | None) -> str:
     )
 
 
+def resolve_text_model_name(
+    project_text_model_name: str | None = None,
+    *,
+    override: str | None = None,
+) -> str:
+    """Resolve text model: batch/UI override → notebook → workspace OCR → LLM preference."""
+    for candidate in (
+        (override or "").strip(),
+        (project_text_model_name or "").strip(),
+    ):
+        if candidate:
+            return candidate
+    from transcribe.config.facade import get_config
+
+    cfg = get_config()
+    for candidate in (
+        (getattr(cfg.ocr, "text_model_name", None) or "").strip(),
+        (getattr(cfg.llm, "text_model_preference", None) or "").strip(),
+    ):
+        if candidate:
+            return candidate
+    return ""
+
+
 def bind_text_llm_context(
     *,
     text_model_name: str | None,

@@ -349,6 +349,14 @@ def main(argv: list[str] | None = None) -> int:
             default=None,
             help="Optional Ask-notebook question (adds llm_custom_qa)",
         )
+        parser.add_argument(
+            "--text-model",
+            default=None,
+            help=(
+                "Text Ollama model for LLM modules (frozen for the whole batch; "
+                "defaults to notebook/workspace preference)"
+            ),
+        )
 
     p_ba_pending = bulk_ax_sub.add_parser(
         "pending",
@@ -1031,6 +1039,7 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
         preset_content_version=resolved.content_version,
         preset_policy_fingerprint=resolved.policy_fingerprint,
         import_run_id=import_run_id,
+        text_model_name=(args.text_model or "").strip() or None,
     )
     print(
         f"analysis_batch_id={run.analysis_batch_id} notebooks={len(run.items)} "

@@ -11,6 +11,7 @@ from transcribe.analysis.llm_runtime import (
     bind_text_llm_context,
     get_text_llm_client,
     ollama_base_url_for_binding,
+    resolve_text_model_name,
 )
 from transcribe.config.facade import snapshot_for_operation
 from transcribe.config.models import EffectiveConfig
@@ -221,8 +222,15 @@ def build_analysis_run_plan(
     clock: Clock,
     ids: IdGenerator,
     project: Any | None = None,
+    text_model: FrozenTextModel | None = None,
+    text_model_name: str | None = None,
 ) -> AnalysisRunPlan:
-    """Freeze launch inputs once. Call before AnalysisCoordinator.start."""
+    """Freeze launch inputs once. Call before AnalysisCoordinator.start.
+
+    When LLM modules are included:
+    - ``text_model`` (already frozen) wins when provided (batch shared freeze).
+    - else bind via ``text_model_name`` override → notebook → workspace defaults.
+    """
     from transcribe.analysis.parents import batch_module_order
     from transcribe.analysis.presets import expand_with_hard_parents
 
@@ -236,26 +244,33 @@ def build_analysis_run_plan(
         project_id=project.id,
     )
     q = (question_text or "").strip() or None
-    text_model: FrozenTextModel | None = None
+    frozen_model: FrozenTextModel | None = None
     if any(mid in _LLM_MODULES for mid in ordered):
-        ctx = bind_text_llm_context(
-            text_model_name=getattr(project.settings, "text_model_name", None),
-            base_url=ollama_base_url_for_binding(
-                getattr(project.settings, "base_url", None),
-            ),
-        )
-        if ctx is not None:
-            text_model = FrozenTextModel(
-                model_name=ctx.model_name,
-                resolved_model_digest=ctx.resolved_model_digest,
-                base_url=ctx.base_url,
-                identity_verified=True,
+        if text_model is not None:
+            frozen_model = text_model
+        else:
+            resolved_name = resolve_text_model_name(
+                getattr(project.settings, "text_model_name", None),
+                override=text_model_name,
             )
+            ctx = bind_text_llm_context(
+                text_model_name=resolved_name or None,
+                base_url=ollama_base_url_for_binding(
+                    getattr(project.settings, "base_url", None),
+                ),
+            )
+            if ctx is not None:
+                frozen_model = FrozenTextModel(
+                    model_name=ctx.model_name,
+                    resolved_model_digest=ctx.resolved_model_digest,
+                    base_url=ctx.base_url,
+                    identity_verified=True,
+                )
 
     run_id = ids.new_id()
     fp = config_fingerprint_for_plan(
         effective,
-        text_model=text_model,
+        text_model=frozen_model,
         module_ids=ordered,
         question_text=q,
     )
@@ -266,7 +281,7 @@ def build_analysis_run_plan(
         question_text=q,
         effective_config=effective,
         config_fingerprint=fp,
-        text_model=text_model,
+        text_model=frozen_model,
         plan_hash="",  # filled below
         preset_label=preset_label,
         preset_key=preset_key,

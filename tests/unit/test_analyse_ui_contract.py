@@ -239,10 +239,18 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "Notebooks needing analysis" in batch
     assert "From an import run" in batch
     assert "Pick notebooks" in batch
+    assert "list_candidates_light" in batch
+    assert 'st.session_state["ax_batch_source"] = "pick"' in batch
+    assert "Select notebooks" in batch
+    assert "_render_batch_notebook_source" in batch
     assert 'unit_label="notebooks"' in batch
     assert "modules in this notebook" in batch
     assert "Stop after current notebook" in batch
     assert "Start batch analysis" in batch
+    assert "Text model for this batch" in batch
+    assert "text_model_name=" in batch
+    assert "configured on each notebook" not in batch
+    assert "unavailable_model" not in batch
     assert "Retry failed" in batch
     assert "render_progress_panel" in batch
     assert "BatchAnalysisCoordinator" in batch

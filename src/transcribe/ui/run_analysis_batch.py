@@ -28,6 +28,7 @@ from transcribe.services.batch_analysis import (
     BatchAnalysisCoordinator,
     BatchAnalysisProgress,
     list_analysis_candidates,
+    list_candidates_light,
     select_by_ids,
     select_from_import_run,
     select_needing_analysis,
@@ -180,7 +181,7 @@ def _render_batch_complete_actions(
             disabled=not retry_ids,
         ):
             try:
-                candidates = list_analysis_candidates(coord.corpus)
+                candidates = list_candidates_light(coord.corpus)
                 selected = select_by_ids(candidates, retry_ids)
                 new_run = coord.create_run(
                     selected,
@@ -247,6 +248,131 @@ def _render_batch_complete_actions(
                 st.rerun()
 
 
+def _render_batch_notebook_source(
+    corpus: CorpusPaths,
+    *,
+    project: Any | None = None,
+) -> tuple[list, str | None]:
+    """Notebook picker first; expensive health scan only for 'needing analysis'."""
+    picker = list_candidates_light(corpus)
+    source_options = ["pick", "pending", "import_run"]
+    queued_source = st.session_state.pop(ANALYSE_BATCH_SOURCE_KEY, None)
+    if queued_source in source_options:
+        st.session_state["ax_batch_source"] = queued_source
+    elif "ax_batch_source" not in st.session_state:
+        st.session_state["ax_batch_source"] = "pick"
+    source = st.radio(
+        "Notebooks",
+        options=source_options,
+        format_func=lambda s: {
+            "pick": "Pick notebooks",
+            "pending": "Notebooks needing analysis",
+            "import_run": "From an import run",
+        }[s],
+        key="ax_batch_source",
+        horizontal=True,
+        help=(
+            "Pick notebooks to choose a list. "
+            "Needing analysis scans for missing or stale results."
+        ),
+    )
+    selected: list = []
+    import_run_id: str | None = None
+    if source == "pending":
+        with st.spinner("Finding notebooks that need analysis…"):
+            selected = select_needing_analysis(list_analysis_candidates(corpus))
+        st.caption(
+            f"{len(selected)} notebook(s) needing analysis "
+            f"({sum(c.pages_with_text for c in selected)} page(s) with text)."
+        )
+        if selected:
+            with st.expander(
+                f"Included notebooks ({len(selected)})",
+                expanded=len(selected) <= 12,
+            ):
+                for cand in selected:
+                    st.caption(
+                        f"- {cand.title} ({cand.pages_with_text} with text · "
+                        f"{cand.analysis_aggregate})"
+                    )
+        else:
+            st.info(
+                "Nothing currently needs analysis. "
+                "Use Pick notebooks to choose notebooks anyway."
+            )
+    elif source == "import_run":
+        runs = ImportRunStore(corpus).list_runs()
+        queued_run = st.session_state.pop(ANALYSE_BATCH_IMPORT_RUN_KEY, None)
+        labels = {r.import_run_id: f"{r.import_run_id} · {r.status}" for r in runs}
+        run_ids = [r.import_run_id for r in runs]
+        if queued_run in run_ids:
+            st.session_state["ax_batch_import_run"] = queued_run
+        if not run_ids:
+            st.info("No import runs yet. Batch-import folders under Import → Batch.")
+        else:
+            chosen_run = st.selectbox(
+                "Import run",
+                options=run_ids,
+                format_func=lambda rid: labels.get(rid, rid),
+                key="ax_batch_import_run",
+            )
+            import_run_id = str(chosen_run) if chosen_run else None
+            if import_run_id:
+                try:
+                    selected = select_from_import_run(
+                        corpus,
+                        import_run_id,
+                        picker,
+                        purpose="analyse",
+                    )
+                    st.caption(f"{len(selected)} committed notebook(s) from this import.")
+                    if selected:
+                        with st.expander(
+                            f"Included notebooks ({len(selected)})",
+                            expanded=len(selected) <= 12,
+                        ):
+                            for cand in selected:
+                                st.caption(f"- {cand.title} ({cand.pages_total} pages)")
+                except (TranscribeError, ValidationError) as exc:
+                    st.error(str(exc))
+    else:
+        queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
+        options = [c.notebook_id for c in picker]
+        labels = {
+            c.notebook_id: f"{c.title} ({c.pages_total} pages)" for c in picker
+        }
+        default = [nid for nid in (queued_ids or []) if nid in options]
+        if default and "ax_batch_pick" not in st.session_state:
+            st.session_state["ax_batch_pick"] = default
+        elif (
+            "ax_batch_pick" not in st.session_state
+            and project is not None
+            and getattr(project, "id", None) in options
+        ):
+            st.session_state["ax_batch_pick"] = [project.id]
+        if not options:
+            st.info(
+                "No notebooks yet. Create one under Workflow → New notebook, "
+                "or batch-import folders."
+            )
+        else:
+            picked = st.multiselect(
+                "Select notebooks",
+                options=options,
+                format_func=lambda nid: labels.get(nid, nid),
+                placeholder="Choose notebooks to analyse",
+                key="ax_batch_pick",
+            )
+            if picked:
+                try:
+                    selected = select_by_ids(picker, list(picked))
+                except TranscribeError as exc:
+                    st.error(str(exc))
+            else:
+                st.caption("Select at least one notebook.")
+    return selected, import_run_id
+
+
 def render_batch_analysis_launch(
     runtime: RuntimePaths,
     batch_coord: BatchAnalysisCoordinator,
@@ -258,10 +384,16 @@ def render_batch_analysis_launch(
     from transcribe.analysis.module_catalog import format_module_label
     from transcribe.analysis.llm_runtime import (
         is_unsuitable_text_model_name,
+        resolve_text_model_name,
         suitable_text_model_names,
     )
     from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
     from transcribe.ui.module_ui_groups import group_modules_for_ui
+
+    corpus = CorpusPaths.from_runtime(runtime)
+    batch_selected, import_run_id = _render_batch_notebook_source(
+        corpus, project=project
+    )
 
     if _PRESET_KEY not in st.session_state:
         st.session_state[_PRESET_KEY] = PRESET_LABELS["balanced"]
@@ -318,124 +450,61 @@ def render_batch_analysis_launch(
             st.write(", ".join(format_module_label(m) for m in mids))
 
     needs_llm = plan.llm_count > 0
-    text_model = ""
-    if project is not None:
-        text_model = project.settings.text_model_name or ""
+    batch_text_model = ""
     if needs_llm:
-        st.info(
-            "LLM modules need a text Ollama model configured on each notebook "
-            "(Settings / This notebook Analyse). Missing models report unavailable_model."
-        )
-        if project is not None and projects is not None:
-            with st.expander("LLM setup (open notebook)", expanded=not bool(text_model)):
-                provider = OllamaVisionProvider(project.settings.base_url)
-                refresh_models = st.button(
-                    "Refresh models", key="batch_analysis_refresh_models"
-                )
-                if refresh_models:
-                    invalidate_discovery_cache(project.settings.base_url)
-                discovery = provider.list_models(refresh=refresh_models)
-                names = suitable_text_model_names(discovery.models)
-                if text_model and is_unsuitable_text_model_name(text_model):
-                    st.warning(
-                        f"Saved model `{text_model}` is vision/embedding — "
-                        "choose a text model below."
-                    )
-                if names:
-                    idx = names.index(text_model) if text_model in names else 0
-                    chosen = st.selectbox(
-                        "Text model", options=names, index=idx, key="batch_ax_text_model"
-                    )
-                else:
-                    chosen = st.text_input(
-                        "Text model name", value="", key="batch_ax_text_model_manual"
-                    )
-                if st.button("Save text model", key="batch_analysis_save_text_model"):
-                    settings = project.settings
-                    settings.text_model_name = chosen
-                    projects.save_settings(project, settings)
-                    st.success(f"Text model set to `{chosen}`")
-                    st.rerun()
+        from transcribe.config.facade import get_config
+        from transcribe.runtime_paths import default_ollama_base_url
+        from transcribe.ui.components.model_info import render_model_information
 
-    corpus = CorpusPaths.from_runtime(runtime)
-    candidates = list_analysis_candidates(corpus)
-    source_options = ["pending", "import_run", "pick"]
-    queued_source = st.session_state.pop(ANALYSE_BATCH_SOURCE_KEY, None)
-    if queued_source in source_options and "ax_batch_source" not in st.session_state:
-        st.session_state["ax_batch_source"] = queued_source
-    source = st.radio(
-        "Notebooks",
-        options=source_options,
-        format_func=lambda s: {
-            "pending": "Notebooks needing analysis",
-            "import_run": "From an import run",
-            "pick": "Pick notebooks",
-        }[s],
-        key="ax_batch_source",
-        horizontal=True,
-    )
-    selected = []
-    import_run_id: str | None = None
-    if source == "pending":
-        selected = select_needing_analysis(candidates)
+        cfg = get_config()
+        base_url = (
+            (project.settings.base_url if project is not None else "") or ""
+        ).strip() or (cfg.ocr.base_url or "").strip() or default_ollama_base_url()
+        default_name = resolve_text_model_name(
+            getattr(project.settings, "text_model_name", None) if project else None
+        )
         st.caption(
-            f"{len(selected)} notebook(s) needing analysis "
-            f"({sum(c.pages_with_text for c in selected)} page(s) with text)."
+            "LLM modules need a **text** Ollama model for this batch. "
+            "Pick one below (applied to every selected notebook), or set a "
+            "workspace default under Settings → Models."
         )
-    elif source == "import_run":
-        runs = ImportRunStore(corpus).list_runs()
-        queued_run = st.session_state.pop(ANALYSE_BATCH_IMPORT_RUN_KEY, None)
-        labels = {r.import_run_id: f"{r.import_run_id} · {r.status}" for r in runs}
-        run_ids = [r.import_run_id for r in runs]
-        if queued_run in run_ids:
-            st.session_state["ax_batch_import_run"] = queued_run
-        if not run_ids:
-            st.info("No import runs yet. Batch-import folders under Import → Batch.")
+        provider = OllamaVisionProvider(base_url)
+        refresh_models = st.button(
+            "Refresh models", key="batch_analysis_refresh_models"
+        )
+        if refresh_models:
+            invalidate_discovery_cache(base_url)
+        discovery = provider.list_models(refresh=refresh_models)
+        names = suitable_text_model_names(discovery.models)
+        if default_name and is_unsuitable_text_model_name(default_name):
+            st.warning(
+                f"Saved/default model `{default_name}` is vision/embedding — "
+                "choose a text model below."
+            )
+            default_name = ""
+        if names:
+            idx = names.index(default_name) if default_name in names else 0
+            batch_text_model = st.selectbox(
+                "Text model for this batch",
+                options=names,
+                index=idx,
+                key="batch_ax_text_model",
+            )
         else:
-            chosen_run = st.selectbox(
-                "Import run",
-                options=run_ids,
-                format_func=lambda rid: labels.get(rid, rid),
-                key="ax_batch_import_run",
+            st.caption("No suitable text models discovered from Ollama.")
+            batch_text_model = st.text_input(
+                "Text model name",
+                value=default_name,
+                key="batch_ax_text_model_manual",
             )
-            import_run_id = str(chosen_run) if chosen_run else None
-            if import_run_id:
-                try:
-                    selected = select_from_import_run(
-                        corpus,
-                        import_run_id,
-                        candidates,
-                        purpose="analyse",
-                    )
-                    st.caption(
-                        f"{len(selected)} committed notebook(s) · "
-                        f"{sum(c.pages_with_text for c in selected)} with text."
-                    )
-                except (TranscribeError, ValidationError) as exc:
-                    st.error(str(exc))
-    else:
-        queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
-        options = [c.notebook_id for c in candidates]
-        labels = {
-            c.notebook_id: (
-                f"{c.title} ({c.pages_with_text} with text · {c.analysis_aggregate})"
-            )
-            for c in candidates
-        }
-        default = [nid for nid in (queued_ids or []) if nid in options]
-        if default and "ax_batch_pick" not in st.session_state:
-            st.session_state["ax_batch_pick"] = default
-        picked = st.multiselect(
-            "Notebooks",
-            options=options,
-            format_func=lambda nid: labels.get(nid, nid),
-            key="ax_batch_pick",
+        render_model_information(
+            discovery.models,
+            selected=batch_text_model or default_name,
+            role="text",
+            key="batch_ax_text_model_info",
         )
-        if picked:
-            try:
-                selected = select_by_ids(candidates, list(picked))
-            except TranscribeError as exc:
-                st.error(str(exc))
+        if not (batch_text_model or "").strip():
+            st.warning("Select a text model before running LLM modules.")
 
     recent = AnalysisBatchRunStore(corpus).list_runs()[:8]
     if recent:
@@ -461,19 +530,26 @@ def render_batch_analysis_launch(
                             st.error(str(exc))
 
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
+    start_disabled = (
+        not launch_ids
+        or not batch_selected
+        or (needs_llm and not (batch_text_model or "").strip())
+    )
     if st.button(
         "Start batch analysis",
         type="primary",
         key="ax_batch_start",
-        disabled=not launch_ids,
+        disabled=start_disabled,
     ):
-        if not selected:
+        if not batch_selected:
             st.error("Select at least one notebook.")
+        elif needs_llm and not (batch_text_model or "").strip():
+            st.error("Select a text model for LLM modules.")
         else:
             try:
                 q = (question_text or "").strip() or None
                 new_run = batch_coord.create_run(
-                    selected,
+                    batch_selected,
                     module_ids=launch_ids,
                     question_text=q,
                     preset_label=format_preset_label(preset),
@@ -482,6 +558,9 @@ def render_batch_analysis_launch(
                     preset_policy_fingerprint=resolved.policy_fingerprint,
                     import_run_id=import_run_id,
                     seed_project=projects,
+                    text_model_name=(
+                        (batch_text_model or "").strip() if needs_llm else None
+                    ),
                 )
                 batch_coord.start(new_run.analysis_batch_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True

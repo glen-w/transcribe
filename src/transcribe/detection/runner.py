@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from transcribe.analysis.cache_identity import config_fingerprint
-from transcribe.analysis.llm_runtime import TextLLMContext, bind_text_llm_context, ollama_base_url_for_binding
+from transcribe.analysis.llm_runtime import (
+    TextLLMContext,
+    bind_text_llm_context,
+    ollama_base_url_for_binding,
+    resolve_text_model_name,
+)
 from transcribe.config.facade import bind_operation_config, snapshot_for_operation
 from transcribe.config.knobs import llm_generation_options
 from transcribe.detection.aggregate import (
@@ -95,18 +100,11 @@ class DetectionRunner:
     def _bind_contexts(self) -> tuple[TextLLMContext | None, VisionLLMContext | None]:
         if self._text_ctx is not None or self._vision_ctx is not None:
             return self._text_ctx, self._vision_ctx
-        from transcribe.config.facade import get_config
-
-        cfg = get_config()
-        # Vision/text model authority is project OCR settings; workspace ocr.* only
-        # supplies defaults for new projects (no vision model_name field).
+        # Vision model authority is project OCR settings; text model falls back
+        # through notebook → workspace OCR → LLM preference (same as Analyse).
         project = self.project_service.load(reconcile=False)
         base_url = ollama_base_url_for_binding(project.settings.base_url)
-        text_name = (
-            (project.settings.text_model_name or "").strip()
-            or (cfg.ocr.text_model_name or "").strip()
-            or (cfg.llm.text_model_preference or "").strip()
-        )
+        text_name = resolve_text_model_name(project.settings.text_model_name)
         vision_name = (project.settings.model_name or "").strip()
         text = bind_text_llm_context(
             text_model_name=text_name,

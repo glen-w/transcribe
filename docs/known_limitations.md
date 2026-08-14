@@ -52,8 +52,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Core analysis modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
 - Prefer **OCR cleanup / second-pass LLM verification** and human review edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
 - Optional extras (`bertopic`, spaCy NER path, fine-grained emotion) degrade to named capabilities (`unavailable_extra`) rather than silent substitutes
-- LLM Summaries / Ask notebook need a **text** Ollama model; missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
-- Batch Analyse runs from the preset form only; View pages are read-models over `published.json`. Ask notebook remains an ad-hoc action
+- LLM Summaries / Ask notebook need a **text** Ollama model (workspace default, batch pick, or per-notebook); missing model → `unavailable_model`. Deterministic `highlights` → `summary` → `insights` still work offline
+- Batch Analyse runs from the preset form (plus a shared text-model pick when LLM modules are included); View pages are read-models over `published.json`. Ask notebook remains an ad-hoc action
 - **Analyse → Batch** runs the same frozen plan template sequentially across notebooks (dual progress bars: notebooks + modules). Empty-text notebooks are skipped; there is no OCR-style Force flag. This is orchestration only — not cross-notebook / corpus-level Analyse
 - Batch runs use a frozen `AnalysisRunPlan` under a project analysis lock; mid-run settings / text-model / module-list changes apply to the **next** run only
 - Streamlit UI interruption does not drop an in-process batch (AnalysisCoordinator). Process crash/reopen marks orphaned attempts and run records `interrupted` without clobbering published results; re-run uses cache hits — no auto-resume

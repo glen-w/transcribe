@@ -34,7 +34,12 @@ from transcribe.analysis.eligibility import (
     evaluate_notebook_eligibility_v1,
 )
 from transcribe.analysis.envelope import build_envelope, filter_live_evidence
-from transcribe.analysis.llm_runtime import TextLLMContext, bind_text_llm_context, ollama_base_url_for_binding
+from transcribe.analysis.llm_runtime import (
+    TextLLMContext,
+    bind_text_llm_context,
+    ollama_base_url_for_binding,
+    resolve_text_model_name,
+)
 from transcribe.analysis.modules import get_registered_modules
 from transcribe.analysis.modules._llm_common import build_llm_object, prepared_excerpts
 from transcribe.analysis.modules.narrative_summary import summary_prompt_fingerprint
@@ -336,7 +341,10 @@ class AnalysisRunner:
 
         if module.module_id in LLM_MODULES and llm_ctx is None:
             llm_ctx = bind_text_llm_context(
-                text_model_name=getattr(project.settings, "text_model_name", None),
+                text_model_name=resolve_text_model_name(
+                    getattr(project.settings, "text_model_name", None)
+                )
+                or None,
                 base_url=ollama_base_url_for_binding(
                     getattr(project.settings, "base_url", None),
                 ),
@@ -480,7 +488,10 @@ class AnalysisRunner:
             resolved_llm: TextLLMContext | None = None
             if module.module_id in LLM_MODULES:
                 resolved_llm = bind_text_llm_context(
-                    text_model_name=getattr(project.settings, "text_model_name", None),
+                    text_model_name=resolve_text_model_name(
+                        getattr(project.settings, "text_model_name", None)
+                    )
+                    or None,
                     base_url=ollama_base_url_for_binding(
                         getattr(project.settings, "base_url", None),
                     ),

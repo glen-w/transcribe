@@ -9,6 +9,7 @@ import streamlit as st
 from transcribe.analysis.coordinator import AnalysisCoordinator, AnalysisProgress
 from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
+    resolve_text_model_name,
     suitable_text_model_names,
 )
 from transcribe.analysis.module_catalog import format_module_label
@@ -372,12 +373,13 @@ def _render_config_and_launch(
     _render_module_review(plan.module_ids)
 
     needs_llm = plan.llm_count > 0
-    text_model = project.settings.text_model_name or ""
+    text_model = resolve_text_model_name(project.settings.text_model_name)
     if needs_llm:
         with st.expander("LLM setup", expanded=not bool(text_model)):
             st.caption(
                 "LLM modules need a local **text** Ollama model "
-                "(vision/embedding models are rejected)."
+                "(vision/embedding models are rejected). "
+                "Workspace default: Settings → Models."
             )
             provider = OllamaVisionProvider(project.settings.base_url)
             refresh_models = st.button("Refresh models", key="run_analysis_refresh_models")
@@ -416,7 +418,7 @@ def _render_config_and_launch(
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
     run_disabled = (
         not launch_ids
-        or (needs_llm and not (project.settings.text_model_name or "").strip())
+        or (needs_llm and not (text_model or "").strip())
         or coord.is_running()
     )
 
@@ -448,7 +450,7 @@ def _render_config_and_launch(
         model_bit = (
             f"`{frozen.text_model.model_name}`"
             if frozen.text_model is not None
-            else "LLM unavailable (modules will report unavailable_model)"
+            else "no text model (LLM modules will show Needs a text model)"
         )
         version_bit = (
             f" · preset v{resolved.content_version}" if resolved.preset != "custom" else " · custom"

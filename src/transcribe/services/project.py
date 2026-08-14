@@ -49,7 +49,11 @@ def _seed_ocr_settings() -> OCRSettings:
 
     view = get_config()
     ocr = view.effective.ocr
+    llm = view.effective.llm
     base = (ocr.base_url or "").strip() or default_ollama_base_url()
+    text_model = (ocr.text_model_name or "").strip() or (
+        llm.text_model_preference or ""
+    ).strip()
     data = {
         "base_url": base,
         "prompt_id": ocr.prompt_id,
@@ -59,7 +63,7 @@ def _seed_ocr_settings() -> OCRSettings:
         "cleanup_enabled": ocr.cleanup_enabled,
         "cleanup_mode": ocr.cleanup_mode,
         "cleanup_model_name": ocr.cleanup_model_name,
-        "text_model_name": ocr.text_model_name,
+        "text_model_name": text_model,
         "prefer_mode": getattr(ocr, "prefer_mode", "prefer_is_promote"),
         "auto_activate_composite": getattr(ocr, "auto_activate_composite", True),
     }

@@ -28,7 +28,7 @@ Bulk import / OCR never auto-starts Analyse. The UI may offer opt-in CTAs that s
 | `question_text` | Optional; same Ask text for every notebook when `llm_custom_qa` is included |
 | `effective_config` | Frozen EffectiveConfig snapshot at create |
 | `config_fingerprint` | Fingerprint of config + text model + modules + question (template-level) |
-| `text_model` | Frozen text-model identity when any LLM module is included; else null/absent |
+| `text_model` | Frozen text-model identity when any LLM module is included (batch picker / `--text-model` / seed resolve); applied to every notebook in the run; else null/absent |
 | `plan_template_hash` | SHA-256 of execution-significant **template** fields (excludes per-notebook `project_id` / `run_id`) |
 | `preset_label` / `preset_key` / `preset_content_version` / `preset_policy_fingerprint` | Preset identity when launched from a named preset |
 | `import_run_id` | Optional; set when seeded from an ImportRun |

@@ -39,6 +39,31 @@ class _StubTextClient:
         return "{}"
 
 
+def test_resolve_text_model_name_fallback_chain(monkeypatch):
+    from transcribe.analysis.llm_runtime import resolve_text_model_name
+
+    class _Ocr:
+        text_model_name = "from-ocr"
+
+    class _Llm:
+        text_model_preference = "from-pref"
+
+    class _Cfg:
+        ocr = _Ocr()
+        llm = _Llm()
+
+    monkeypatch.setattr(
+        "transcribe.config.facade.get_config", lambda: _Cfg()
+    )
+    assert resolve_text_model_name(None, override="batch-pick") == "batch-pick"
+    assert resolve_text_model_name("notebook-model") == "notebook-model"
+    assert resolve_text_model_name("") == "from-ocr"
+    _Ocr.text_model_name = ""
+    assert resolve_text_model_name(None) == "from-pref"
+    _Llm.text_model_preference = ""
+    assert resolve_text_model_name("") == ""
+
+
 def test_unsuitable_text_model_name_patterns():
     assert is_unsuitable_text_model_name("llama3.2-vision:latest")
     assert is_unsuitable_text_model_name("nomic-embed-text")

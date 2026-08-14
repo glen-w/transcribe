@@ -273,8 +273,12 @@ def render_models_panel() -> None:
         ),
     )
     text_pref = st.text_input(
-        "Preferred text model (workspace hint)",
+        "Preferred text model (workspace default)",
         value=llm.text_model_preference or "",
+        help=(
+            "Used for Analyse / Detect when a notebook has no text model set, "
+            "and as the default pick on Batch Analyse. Also seeds new notebooks."
+        ),
     )
     num_predict = st.number_input(
         "num_predict", min_value=64, max_value=8192, value=int(llm.num_predict)

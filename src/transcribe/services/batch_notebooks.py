@@ -161,6 +161,7 @@ def list_candidates(
     clock: Clock | None = None,
     ids: IdGenerator | None = None,
     include_analysis: bool = False,
+    include_page_stats: bool = True,
 ) -> list[NotebookCandidate]:
     clock = clock or SystemClock()
     ids = ids or UuidGenerator()
@@ -171,9 +172,12 @@ def list_candidates(
             project = projects.load(reconcile=False)
         except (TranscribeError, OSError, ValueError, KeyError):
             continue
-        total, pending, failed = page_counts(projects, project)
-        with_text = pages_with_text_count(projects, project)
+        total = len(project.pages)
+        pending = failed = with_text = 0
         aggregate = "missing"
+        if include_page_stats:
+            total, pending, failed = page_counts(projects, project)
+            with_text = pages_with_text_count(projects, project)
         if include_analysis:
             try:
                 aggregate = analysis_aggregate_for_project(
@@ -195,6 +199,22 @@ def list_candidates(
             )
         )
     return out
+
+
+def list_candidates_light(
+    corpus: CorpusPaths,
+    *,
+    clock: Clock | None = None,
+    ids: IdGenerator | None = None,
+) -> list[NotebookCandidate]:
+    """Identity + title for pickers. Skips page-result and analysis I/O."""
+    return list_candidates(
+        corpus,
+        clock=clock,
+        ids=ids,
+        include_analysis=False,
+        include_page_stats=False,
+    )
 
 
 def select_pending(candidates: list[NotebookCandidate]) -> list[NotebookCandidate]:

@@ -310,6 +310,66 @@ def test_create_run_requires_modules_and_notebooks(tmp_path: Path) -> None:
         coord.create_run(selected, module_ids=[])
 
 
+def test_create_run_freezes_explicit_text_model_for_batch(tmp_path: Path) -> None:
+    from transcribe.analysis.llm_runtime import RecordedDoubleClient, set_text_llm_client
+    from transcribe.analysis.plan import FrozenTextModel
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("tm")
+    root_a = _make_notebook(corpus, "a", clock=clock, ids=ids)
+    root_b = _make_notebook(corpus, "b", clock=clock, ids=ids)
+    for root, model in ((root_a, "notebook-a:latest"), (root_b, "notebook-b:latest")):
+        projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
+        project = projects.load()
+        settings = project.settings
+        settings.text_model_name = model
+        projects.save_settings(project, settings)
+
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    selected = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    set_text_llm_client(
+        RecordedDoubleClient(responses={"default": "{}"}, digest="batch-digest")
+    )
+    try:
+        run = coord.create_run(
+            selected,
+            module_ids=["llm_summary"],
+            text_model_name="batch-pick:latest",
+        )
+    finally:
+        set_text_llm_client(None)
+
+    assert run.text_model is not None
+    assert run.text_model["model_name"] == "batch-pick:latest"
+    assert run.text_model["resolved_model_digest"] == "batch-digest"
+
+    projects_b = ProjectService(open_project_paths(root_b), clock=clock, ids=ids)
+    plan = coord._plan_for_notebook(run, projects_b, projects_b.load())
+    assert isinstance(plan.text_model, FrozenTextModel)
+    assert plan.text_model.model_name == "batch-pick:latest"
+    assert plan.text_model.resolved_model_digest == "batch-digest"
+
+
+def test_create_run_rejects_unresolvable_explicit_text_model(tmp_path: Path) -> None:
+    from transcribe.analysis.llm_runtime import RecordedDoubleClient, set_text_llm_client
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("bad")
+    _make_notebook(corpus, "nb", clock=clock, ids=ids)
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    selected = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    set_text_llm_client(RecordedDoubleClient(responses={}, healthy=False))
+    try:
+        with pytest.raises(ValidationError, match="could not resolve text model"):
+            coord.create_run(
+                selected,
+                module_ids=["llm_summary"],
+                text_model_name="missing:latest",
+            )
+    finally:
+        set_text_llm_client(None)
+
+
 def test_job_conflict_on_second_start(tmp_path: Path) -> None:
     corpus = _corpus(tmp_path)
     clock, ids = FakeClock(), SequentialIds("cfl")
@@ -516,3 +576,21 @@ def test_ocr_list_candidates_unaffected_by_analysis_fields(tmp_path: Path) -> No
     assert candidates[0].pages_pending > 0
     assert candidates[0].analysis_aggregate == "missing"
     assert select_pending(candidates)
+
+
+def test_list_candidates_light_skips_page_and_analysis_io(tmp_path: Path) -> None:
+    from transcribe.services.batch_notebooks import list_candidates_light
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("light")
+    _make_notebook(corpus, "has-text", clock=clock, ids=ids)
+    light = list_candidates_light(corpus, clock=clock, ids=ids)
+    assert len(light) == 1
+    assert light[0].title == "has-text"
+    assert light[0].pages_total == 1
+    assert light[0].pages_with_text == 0
+    assert light[0].pages_pending == 0
+    assert light[0].analysis_aggregate == "missing"
+    full = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    assert full[0].pages_with_text == 1
+    assert full[0].analysis_aggregate == "missing"

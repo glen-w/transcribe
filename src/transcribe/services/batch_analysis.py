@@ -17,7 +17,6 @@ from transcribe.analysis.plan import (
     FrozenTextModel,
     PlanHashMismatchError,
     build_analysis_run_plan,
-    compute_plan_hash,
     config_fingerprint_for_plan,
 )
 from transcribe.analysis.presets import expand_with_hard_parents
@@ -35,6 +34,7 @@ from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator, to_
 from transcribe.services.batch_notebooks import (
     NotebookCandidate,
     list_candidates,
+    list_candidates_light,
     pages_with_text_count,
     resolve_notebook_root,
     select_by_ids,
@@ -51,6 +51,7 @@ __all__ = [
     "NotebookCandidate",
     "build_batch_analysis_coordinator",
     "list_analysis_candidates",
+    "list_candidates_light",
     "plan_template_hash",
     "select_by_ids",
     "select_from_import_run",
@@ -205,6 +206,7 @@ class BatchAnalysisCoordinator:
         preset_policy_fingerprint: str | None = None,
         import_run_id: str | None = None,
         seed_project: ProjectService | None = None,
+        text_model_name: str | None = None,
     ) -> AnalysisBatchRun:
         if not candidates:
             raise ValidationError("select at least one notebook to analyse")
@@ -221,6 +223,7 @@ class BatchAnalysisCoordinator:
                 clock=self.clock,
                 ids=self.ids,
             )
+        override = (text_model_name or "").strip() or None
         template_plan = build_analysis_run_plan(
             project_service=projects,
             module_ids=ordered,
@@ -231,7 +234,13 @@ class BatchAnalysisCoordinator:
             preset_policy_fingerprint=preset_policy_fingerprint,
             clock=self.clock,
             ids=self.ids,
+            text_model_name=override,
         )
+        if override and template_plan.needs_llm() and template_plan.text_model is None:
+            raise ValidationError(
+                f"could not resolve text model `{override}` "
+                "(needs a reachable text Ollama model)"
+            )
         # Template fingerprint ignores project_id; recompute hash without it.
         tmpl_hash = plan_template_hash(
             module_ids=template_plan.module_ids,
@@ -502,9 +511,10 @@ class BatchAnalysisCoordinator:
         project: Any,
     ) -> AnalysisRunPlan:
         """Build a per-notebook plan from the frozen batch template."""
-        # Prefer rebuilding via build_analysis_run_plan so plan_hash binds to
-        # this project_id, while keeping template module/preset/question.
-        plan = build_analysis_run_plan(
+        batch_frozen = (
+            FrozenTextModel.from_dict(run.text_model) if run.text_model else None
+        )
+        return build_analysis_run_plan(
             project_service=projects,
             module_ids=list(run.module_ids),
             question_text=run.question_text,
@@ -515,47 +525,8 @@ class BatchAnalysisCoordinator:
             clock=self.clock,
             ids=self.ids,
             project=project,
+            text_model=batch_frozen,
         )
-        # If the batch froze a text model, prefer that identity when present.
-        if run.text_model and plan.text_model is None:
-            frozen = FrozenTextModel.from_dict(run.text_model)
-            if frozen is not None:
-                draft = AnalysisRunPlan(
-                    run_id=plan.run_id,
-                    project_id=plan.project_id,
-                    module_ids=plan.module_ids,
-                    question_text=plan.question_text,
-                    effective_config=plan.effective_config,
-                    config_fingerprint=config_fingerprint_for_plan(
-                        plan.effective_config,
-                        text_model=frozen,
-                        module_ids=plan.module_ids,
-                        question_text=plan.question_text,
-                    ),
-                    text_model=frozen,
-                    plan_hash="",
-                    preset_label=plan.preset_label,
-                    preset_key=plan.preset_key,
-                    preset_content_version=plan.preset_content_version,
-                    preset_policy_fingerprint=plan.preset_policy_fingerprint,
-                    created_at=plan.created_at,
-                )
-                plan = AnalysisRunPlan(
-                    run_id=draft.run_id,
-                    project_id=draft.project_id,
-                    module_ids=draft.module_ids,
-                    question_text=draft.question_text,
-                    effective_config=draft.effective_config,
-                    config_fingerprint=draft.config_fingerprint,
-                    text_model=draft.text_model,
-                    plan_hash=compute_plan_hash(draft),
-                    preset_label=draft.preset_label,
-                    preset_key=draft.preset_key,
-                    preset_content_version=draft.preset_content_version,
-                    preset_policy_fingerprint=draft.preset_policy_fingerprint,
-                    created_at=draft.created_at,
-                )
-        return plan
 
     def _root_for_item(self, item: AnalysisBatchItem) -> Path:
         if item.managed_relpath:

@@ -21,7 +21,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `run <project> --model …` | Run OCR (`--force`, `--workers 1|2`, `--base-url`, `--allow-remote-ollama`) |
 | `bulk-run pending\|import-run\|notebooks` | Batch OCR across notebooks (repeat `--model` for multipass; `--force`, `--workers`, `--text-model`, `--no-auto-composite`, `--cleanup`) |
 | `bulk-run status\|resume <ocr_run_id>` | Inspect or resume an OcrBatchRun |
-| `bulk-analyse pending\|import-run\|notebooks` | Batch Analyse across notebooks (`--preset`, optional `--module` / `--question`) |
+| `bulk-analyse pending\|import-run\|notebooks` | Batch Analyse across notebooks (`--preset`, optional `--module` / `--question` / `--text-model`) |
 | `bulk-analyse status\|resume <analysis_batch_id>` | Inspect or resume an AnalysisBatchRun |
 | `multipass <project> --model A --model B …` | Multi-model OCR then rank/composite (`--force`, `--no-auto-composite`, `--text-model`, `--cleanup` to opt in vision-phase cleanup) |
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
@@ -88,7 +88,7 @@ Bulk-import generation is **runtime-normative**; the [acceptance gate](contracts
 | CLI `bulk-analyse status\|resume <id>` | `transcribe bulk-analyse status\|resume …` | Inspect or resume an AnalysisBatchRun |
 | UI **Workflow → Import → Batch** | Streamlit Import Target=Batch | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes; live progress. Legacy Inbox aliases here. |
 | UI **Workflow → Transcribe → Batch** | Streamlit Transcribe Target=Batch | Single-model or multipass Compare models × N notebooks; pending / import-run / pick; resume; live progress |
-| UI **Workflow → Analyse → Batch** | Streamlit Analyse Target=Batch | Same Analyse plan × N notebooks; needing-analysis / import-run / pick; dual-bar live progress |
+| UI **Workflow → Analyse → Batch** | Streamlit Analyse Target=Batch | Same Analyse plan × N notebooks; pick (default) / needing-analysis / import-run; batch text-model freeze when LLM modules included; dual-bar live progress |
 
 ## Explicitly unsupported
 
