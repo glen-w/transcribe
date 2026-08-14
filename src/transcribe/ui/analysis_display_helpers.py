@@ -29,6 +29,106 @@ def unit_series(
     return orders, values
 
 
+def unit_series_rows(
+    units: list[Any],
+    field: str,
+    *,
+    order_key: str = "order",
+) -> list[dict[str, Any]]:
+    """Return chart rows with ``order``, ``page_id``, and ``field`` value."""
+    from transcribe.ui.page_series_selection import page_id_from_unit_id
+
+    out: list[dict[str, Any]] = []
+    for u in units:
+        if not isinstance(u, dict) or u.get(field) is None:
+            continue
+        try:
+            value = float(u[field])
+        except (TypeError, ValueError):
+            continue
+        raw_page = u.get("page_id")
+        page_id = (
+            str(raw_page)
+            if isinstance(raw_page, str) and raw_page
+            else page_id_from_unit_id(
+                str(u["unit_id"]) if isinstance(u.get("unit_id"), str) else None
+            )
+        )
+        if not page_id:
+            continue
+        out.append(
+            {
+                "order": u.get(order_key),
+                "page_id": page_id,
+                field: value,
+            }
+        )
+    return out
+
+
+def topic_shift_series_rows(consecutive: list[Any]) -> list[dict[str, Any]]:
+    """Rows for adjacent-page similarity charts (``from_order`` / ``from_unit_id``)."""
+    from transcribe.ui.page_series_selection import page_id_from_unit_id
+
+    out: list[dict[str, Any]] = []
+    for c in consecutive:
+        if not isinstance(c, dict):
+            continue
+        try:
+            sim = float(c.get("similarity") or 0)
+        except (TypeError, ValueError):
+            continue
+        page_id = page_id_from_unit_id(
+            str(c["from_unit_id"]) if isinstance(c.get("from_unit_id"), str) else None
+        )
+        if not page_id or c.get("from_order") is None:
+            continue
+        out.append(
+            {
+                "order": c.get("from_order"),
+                "page_id": page_id,
+                "similarity": sim,
+            }
+        )
+    return out
+
+
+def epistemic_page_series_rows(units: list[Any]) -> list[dict[str, Any]]:
+    """Hedges vs boosters by page for clickable bar charts."""
+    from transcribe.ui.page_series_selection import page_id_from_unit_id
+
+    out: list[dict[str, Any]] = []
+    for u in units:
+        if not isinstance(u, dict):
+            continue
+        counts = u.get("category_counts") or {}
+        if not isinstance(counts, dict):
+            counts = {}
+        raw_page = u.get("page_id")
+        page_id = (
+            str(raw_page)
+            if isinstance(raw_page, str) and raw_page
+            else page_id_from_unit_id(
+                str(u["unit_id"]) if isinstance(u.get("unit_id"), str) else None
+            )
+        )
+        if not page_id or u.get("order") is None:
+            continue
+        out.append(
+            {
+                "order": u.get("order"),
+                "page_id": page_id,
+                "hedges": (
+                    int(counts.get("epistemic_hedge") or 0)
+                    + int(counts.get("approximator") or 0)
+                    + int(counts.get("modal_uncertainty") or 0)
+                ),
+                "boosters": int(counts.get("certainty_booster") or 0),
+            }
+        )
+    return out
+
+
 def ranked_dict(items: dict[str, Any] | None, *, limit: int = 20) -> list[tuple[str, float]]:
     if not isinstance(items, dict) or not items:
         return []

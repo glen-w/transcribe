@@ -24,13 +24,15 @@ from transcribe.ui.analysis_display_helpers import (
     contextual_label_counts,
     emotion_label_totals,
     epistemic_category_bars,
+    epistemic_page_series_rows,
     group_action_items,
     moments_score_rows,
     motif_rows,
     ranked_dict,
     sentiment_bucket_counts,
+    topic_shift_series_rows,
     topic_weight_rows,
-    unit_series,
+    unit_series_rows,
 )
 from transcribe.ui.analysis_health_view import (
     module_may_show_payload,
@@ -38,6 +40,8 @@ from transcribe.ui.analysis_health_view import (
     render_advanced_payload,
     render_module_unavailable,
 )
+from transcribe.ui.page_series_charts import maybe_jump, render_clickable_page_series
+from transcribe.ui.page_series_selection import page_id_from_unit_id
 from transcribe.ui.wordcloud_render import render_wordcloud_section
 
 
@@ -149,6 +153,7 @@ def render_overview_product(
     render_page_metrics: Callable[[], None] | None = None,
     projects_dir: Path | None = None,
     project_id: str | None = None,
+    on_jump: Callable[[str], None] | None = None,
 ) -> None:
     st.subheader("Overview")
     st.caption(
@@ -198,20 +203,42 @@ def render_overview_product(
         )
         units = payload.get("units") if isinstance(payload.get("units"), list) else []
         if mid == "stats" and units:
-            orders, tokens = unit_series(units, "token_count")
-            if orders:
-                st.caption("Tokens per page")
-                st.bar_chart({"order": orders, "tokens": tokens}, x="order", y="tokens")
+            rows = unit_series_rows(units, "token_count")
+            if rows:
+                st.caption("Tokens per page — click a bar to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="token_count",
+                        key=f"overview_stats_tokens_{project_id or 'nb'}",
+                        chart_type="bar",
+                    ),
+                    on_jump,
+                )
         if mid == "lexical_diversity" and units:
-            orders, ttrs = unit_series(units, "ttr")
-            if orders:
-                st.caption("TTR across pages")
-                st.line_chart({"order": orders, "ttr": ttrs}, x="order", y="ttr")
+            rows = unit_series_rows(units, "ttr")
+            if rows:
+                st.caption("TTR across pages — click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="ttr",
+                        key=f"overview_ttr_{project_id or 'nb'}",
+                    ),
+                    on_jump,
+                )
         if mid == "understandability" and units:
-            orders, flesch = unit_series(units, "flesch_reading_ease")
-            if orders:
-                st.caption("Flesch reading ease across pages")
-                st.line_chart({"order": orders, "flesch": flesch}, x="order", y="flesch")
+            rows = unit_series_rows(units, "flesch_reading_ease")
+            if rows:
+                st.caption("Flesch reading ease across pages — click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="flesch_reading_ease",
+                        key=f"overview_flesch_{project_id or 'nb'}",
+                    ),
+                    on_jump,
+                )
         render_advanced_payload(mid, payload)
 
     if "wordclouds" in overview_ids:
@@ -248,12 +275,16 @@ def render_overview_product(
             if payload is not None:
                 units = payload.get("units") or []
                 st.markdown("**Sentiment over pages**")
-                orders, compounds = unit_series(units, "compound")
-                if orders:
-                    st.line_chart(
-                        {"order": orders, "compound": compounds},
-                        x="order",
-                        y="compound",
+                rows = unit_series_rows(units, "compound")
+                if rows:
+                    st.caption("Click a point to open that page")
+                    maybe_jump(
+                        render_clickable_page_series(
+                            rows,
+                            y="compound",
+                            key=f"overview_sentiment_{project_id or 'nb'}",
+                        ),
+                        on_jump,
                     )
                 buckets = sentiment_bucket_counts(payload)
                 if buckets:
@@ -319,7 +350,13 @@ def render_overview_product(
             render_advanced_payload(mid, payload)
 
 
-def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
+def render_themes_product(
+    health: AnalysisHealth,
+    theme_ids: list[str],
+    *,
+    on_jump: Callable[[str], None] | None = None,
+    project_id: str | None = None,
+) -> None:
     st.subheader("Themes")
     st.caption(
         "Topics, keyphrases, and how themes shift across the notebook. "
@@ -397,15 +434,19 @@ def render_themes_product(health: AnalysisHealth, theme_ids: list[str]) -> None:
                 f"**Theme shifts** · {payload.get('n_units', 0)} units · "
                 f"{len(shifts)} boundary(ies)"
             )
-            if consecutive:
-                st.caption("Adjacent-page similarity (drops mark theme shifts)")
-                st.line_chart(
-                    {
-                        "order": [c.get("from_order") for c in consecutive],
-                        "similarity": [float(c.get("similarity") or 0) for c in consecutive],
-                    },
-                    x="order",
-                    y="similarity",
+            rows = topic_shift_series_rows(consecutive)
+            if rows:
+                st.caption(
+                    "Adjacent-page similarity (drops mark theme shifts) — "
+                    "click a point to open that page"
+                )
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="similarity",
+                        key=f"themes_topic_shift_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
             if shifts:
                 for sh in shifts[:8]:
@@ -439,6 +480,7 @@ def render_mood_product(
     *,
     projects_dir: Path | None = None,
     project_id: str | None = None,
+    on_jump: Callable[[str], None] | None = None,
 ) -> None:
     st.subheader("Mood & tone")
     st.caption(
@@ -471,12 +513,16 @@ def render_mood_product(
         if mid == "sentiment":
             gs = payload.get("global_stats") or {}
             st.markdown(f"**Sentiment** · mean {gs.get('compound_mean', '—')}")
-            orders, compounds = unit_series(units, "compound")
-            if orders:
-                st.line_chart(
-                    {"order": orders, "compound": compounds},
-                    x="order",
-                    y="compound",
+            rows = unit_series_rows(units, "compound")
+            if rows:
+                st.caption("Click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="compound",
+                        key=f"mood_sentiment_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
             buckets = sentiment_bucket_counts(payload)
             if buckets:
@@ -489,13 +535,16 @@ def render_mood_product(
             if labels:
                 st.caption("Emotion lexicon totals")
                 _bar_pairs(labels, x_name="emotion", y_name="weight")
-            orders, intensities = unit_series(units, "intensity")
-            if orders:
-                st.caption("Intensity across pages")
-                st.line_chart(
-                    {"order": orders, "intensity": intensities},
-                    x="order",
-                    y="intensity",
+            rows = unit_series_rows(units, "intensity")
+            if rows:
+                st.caption("Intensity across pages — click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="intensity",
+                        key=f"mood_emotion_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
         elif mid == "affect_tension":
             gs = payload.get("global_stats") or {}
@@ -503,12 +552,16 @@ def render_mood_product(
                 f"**Affect tension** · mean {gs.get('tension_mean', '—')} · "
                 f"conflicts {gs.get('n_conflicting', '—')}"
             )
-            orders, tensions = unit_series(units, "tension")
-            if orders:
-                st.line_chart(
-                    {"order": orders, "tension": tensions},
-                    x="order",
-                    y="tension",
+            rows = unit_series_rows(units, "tension")
+            if rows:
+                st.caption("Click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="tension",
+                        key=f"mood_tension_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
         elif mid == "epistemic_markers":
             g = payload.get("global_stats") or {}
@@ -519,38 +572,24 @@ def render_mood_product(
             cats = epistemic_category_bars(payload)
             if cats:
                 _bar_pairs(cats, x_name="category", y_name="hits")
-            hedge_vals: list[int] = []
-            boost_vals: list[int] = []
-            orders_ep: list[Any] = []
-            for u in units:
-                if not isinstance(u, dict):
-                    continue
-                counts = u.get("category_counts") or {}
-                if not isinstance(counts, dict):
-                    counts = {}
-                orders_ep.append(u.get("order"))
-                hedge_vals.append(
-                    int(counts.get("epistemic_hedge") or 0)
-                    + int(counts.get("approximator") or 0)
-                    + int(counts.get("modal_uncertainty") or 0)
-                )
-                boost_vals.append(int(counts.get("certainty_booster") or 0))
-            if orders_ep:
-                st.caption("Hedges vs boosters by page")
-                st.bar_chart(
-                    {
-                        "order": orders_ep,
-                        "hedges": hedge_vals,
-                        "boosters": boost_vals,
-                    },
-                    x="order",
-                    y=["hedges", "boosters"],
+            rows = epistemic_page_series_rows(units)
+            if rows:
+                st.caption("Hedges vs boosters by page — click a bar to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y=["hedges", "boosters"],
+                        key=f"mood_epistemic_{project_id or 'nb'}",
+                        chart_type="bar",
+                    ),
+                    on_jump,
                 )
         elif mid == "contextual_emotion":
             label_counts = contextual_label_counts(payload)
-            orders, intensities = unit_series(units, "intensity")
+            rows = unit_series_rows(units, "intensity")
+            intens = [float(r["intensity"]) for r in rows]
             top = label_counts[0][0] if label_counts else None
-            mean_i = sum(intensities) / len(intensities) if intensities else None
+            mean_i = sum(intens) / len(intens) if intens else None
             bits = []
             if top:
                 bits.append(f"dominant={top}")
@@ -562,26 +601,34 @@ def render_mood_product(
             if label_counts:
                 st.caption("Top emotion by page (neighbour-smoothed)")
                 _bar_pairs(label_counts, x_name="emotion", y_name="pages")
-            if orders:
-                st.line_chart(
-                    {"order": orders, "intensity": intensities},
-                    x="order",
-                    y="intensity",
+            if rows:
+                st.caption("Click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="intensity",
+                        key=f"mood_contextual_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
         elif mid == "fine_grained_emotion":
             # Optional extra — when a real payload appears, reuse emotion visuals.
             labels = emotion_label_totals(payload) or contextual_label_counts(payload)
-            orders, intensities = unit_series(units, "intensity")
+            rows = unit_series_rows(units, "intensity")
             st.markdown(f"**{title}**")
             if labels:
                 _bar_pairs(labels, x_name="emotion", y_name="weight")
-            if orders:
-                st.line_chart(
-                    {"order": orders, "intensity": intensities},
-                    x="order",
-                    y="intensity",
+            if rows:
+                st.caption("Click a point to open that page")
+                maybe_jump(
+                    render_clickable_page_series(
+                        rows,
+                        y="intensity",
+                        key=f"mood_fine_{project_id or 'nb'}",
+                    ),
+                    on_jump,
                 )
-            if not labels and not orders:
+            if not labels and not rows:
                 st.caption("Ready — open Advanced for details.")
         else:
             st.markdown(f"**{title}** · ready")
@@ -620,10 +667,7 @@ def _page_id_for_moment(
             pid = ref.get("page_id")
             if isinstance(pid, str) and pid:
                 return pid
-        # page_v1 unit_id == page_id; paragraph_v1 uses ``{page_id}/span:…``.
-        if "/span:" in unit_id:
-            return unit_id.split("/span:", 1)[0] or None
-        return unit_id
+        return page_id_from_unit_id(unit_id)
     return None
 
 

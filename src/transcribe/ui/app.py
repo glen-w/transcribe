@@ -509,6 +509,23 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
     # Phase 6 #8 — sole default freshness/health answer across batch tabs.
     render_status_strip(batch_health)
 
+    def _jump_to_page(page_id: str) -> None:
+        from transcribe.ui.action_menus.nav import viewer_page_ids
+        from transcribe.ui.page_viewer import open_page_context
+
+        page_ids = viewer_page_ids(project)
+        if page_id not in page_ids:
+            st.toast("That page is no longer in this notebook.")
+            return
+        open_page_context(
+            page_id=page_id,
+            page_ids=page_ids,
+            project_root=paths.root,
+            return_mode="Review",
+        )
+        st.session_state["ui_mode"] = "Review"
+        st.rerun()
+
     (
         tab_overview,
         tab_themes,
@@ -534,7 +551,7 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
         def _page_metrics() -> None:
             from transcribe.ui.page_metrics_view import render_overview_page_metrics
 
-            render_overview_page_metrics(projects, project)
+            render_overview_page_metrics(projects, project, on_jump=_jump_to_page)
 
         render_overview_product(
             overview_health,
@@ -542,12 +559,18 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
             render_page_metrics=_page_metrics,
             projects_dir=runtime.projects_dir,
             project_id=project.id,
+            on_jump=_jump_to_page,
         )
 
     with tab_themes:
         themes = get_registered_modules(through=THROUGH_THEMES)
         assert set(theme_ids).issubset(set(themes))
-        render_themes_product(themes_health, theme_ids)
+        render_themes_product(
+            themes_health,
+            theme_ids,
+            on_jump=_jump_to_page,
+            project_id=project.id,
+        )
 
     with tab_mood:
         render_mood_product(
@@ -555,27 +578,10 @@ def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
             mood_ids,
             projects_dir=runtime.projects_dir,
             project_id=project.id,
+            on_jump=_jump_to_page,
         )
 
     with tab_moments:
-
-        def _jump_to_page(page_id: str) -> None:
-            from transcribe.ui.action_menus.nav import viewer_page_ids
-            from transcribe.ui.page_viewer import open_page_context
-
-            page_ids = viewer_page_ids(project)
-            if page_id not in page_ids:
-                st.toast("That page is no longer in this notebook.")
-                return
-            open_page_context(
-                page_id=page_id,
-                page_ids=page_ids,
-                project_root=paths.root,
-                return_mode="Review",
-            )
-            st.session_state["ui_mode"] = "Review"
-            st.rerun()
-
         render_moments_product(moments_health, on_jump=_jump_to_page)
 
     with tab_places:
