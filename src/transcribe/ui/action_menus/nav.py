@@ -18,7 +18,7 @@ from transcribe.ui.action_menus.context import (
     project_root_key,
 )
 from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, WorkflowMode, listing_return_mode
-from transcribe.ui.navigation import normalize_ui_mode
+from transcribe.ui.navigation import apply_destination_to_session
 
 
 class ProjectRootError(ValueError):
@@ -199,7 +199,7 @@ def navigate_to_mode(
     state["pending_notebook_root"] = str(root)
     if clear_viewer:
         clear_page_viewer_state(state)
-    state["ui_mode"] = normalize_ui_mode(mode)
+    apply_destination_to_session(state, mode)
     if rerun and session is None:
         st.rerun()
     return True

@@ -148,7 +148,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done) |
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
-| **Analyse information architecture** | Validate Overview / Themes / Mood / Moments / Summaries / Ask against real use. Corpus/period compare + Moments/chart jump → Reading, and Analyse launcher vs View consume split, landed as deepen-in-place. | **U1** (done) + GUI alignment |
+| **Analyse information architecture** | Validate Overview / Themes / Mood / Summaries / Ask against real use. People/Moments/Ask are in-page sections (not extra sidebar items). Corpus/period compare + Moments/chart jump → Reading, and Analyse launcher vs View consume split, landed as deepen-in-place. | **U1** (done) + GUI alignment |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. | Places shipped; Patterns optional |
 

@@ -33,6 +33,7 @@ from transcribe.ui.layout import apply_page_width
 from transcribe.ui.navigation import (
     is_open_notebook_workflow,
     is_view_mode,
+    apply_destination_to_session,
     normalize_ui_mode,
     page_spec_for,
 )
@@ -491,9 +492,9 @@ def main() -> None:
         st.session_state[PENDING_IMPORT_TARGET_KEY] = TARGET_BATCH
     if first_visit:
         mode = "Home"
+        st.session_state["ui_mode"] = mode
     else:
-        mode = normalize_ui_mode(raw_mode)
-    st.session_state["ui_mode"] = mode
+        mode = apply_destination_to_session(st.session_state, raw_mode)
 
     with st.sidebar:
         render_brand()
@@ -605,12 +606,9 @@ def main() -> None:
             _render_workflow(runtime, root, section=mode)
             return
         from transcribe.ui.notebook_views import (
-            render_view_ask,
             render_view_detect,
-            render_view_moments,
             render_view_mood,
             render_view_overview,
-            render_view_people,
             render_view_summaries,
             render_view_themes,
         )
@@ -628,14 +626,8 @@ def main() -> None:
             render_view_themes(**kwargs)
         elif mode == "Mood":
             render_view_mood(**kwargs)
-        elif mode == "Moments":
-            render_view_moments(**kwargs)
-        elif mode == "People":
-            render_view_people(**kwargs)
         elif mode == "Summaries":
             render_view_summaries(**kwargs)
-        elif mode == "Ask":
-            render_view_ask(**kwargs)
         elif mode == "Detect":
             render_view_detect(
                 projects=projects, project=project, project_root=str(paths.root)
