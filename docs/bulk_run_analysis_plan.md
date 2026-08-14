@@ -7,7 +7,7 @@ Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity wit
 **Thesis:** Transcribe already has single-notebook Analyse (`AnalysisCoordinator` + frozen `AnalysisRunPlan`) and multi-notebook OCR (`OcrBatchRun` + `BatchOcrCoordinator`). Users who batch-import and batch-OCR still re-run Analyse one notebook at a time. This plan closes that gap **without** inventing corpus-level / cross-notebook analysis.
 
 ```text
-Import → Batch OCR → Bulk Analyse → per-notebook Published results
+Import → Batch OCR → Bulk Analyse → stay on Analyse (View consume is per-notebook)
          (same selection UX)   (same plan × N projects)
 ```
 
@@ -17,7 +17,7 @@ Import → Batch OCR → Bulk Analyse → per-notebook Published results
 
 ### Goals
 
-1. **Target parity** — Analyse → Run Analysis gets **This notebook | Batch**, matching Import / Transcribe.
+1. **Target parity** — Analyse gets **This notebook | Batch**, matching Import / Transcribe.
 2. **Same selection modes as bulk OCR** — radio: `pending` | `import_run` | `pick` (labels adapted for Analyse; see §3).
 3. **One shared Analyse plan** — preset / custom modules / optional Ask question / text-model freeze, applied sequentially to each selected notebook.
 4. **Durable workspace run** — resume / status / cancel-after-current-notebook, mirroring `OcrBatchRun`.
@@ -34,7 +34,7 @@ Import → Batch OCR → Bulk Analyse → per-notebook Published results
 | Parallel notebooks in one process | Same Ollama bottleneck rule as OCR batch |
 | Auto-start Analyse after OCR / import | Keep handoffs opt-in CTAs only (like “Transcribe imported notebooks”) |
 | Changing per-module publish / cache / health semantics | Reuse `AnalysisCoordinator` / `AnalysisRunner` as-is |
-| Detect bulk | Detection stays Analyse → Detect on the open notebook |
+| Detect bulk | Detection stays View → Detect on the open notebook |
 | Ask-as-batch-health | Ask remains ad-hoc; if included in a frozen plan it runs per notebook but still does not redefine aggregate batch health |
 
 ### Naming (avoid overload)
@@ -55,10 +55,10 @@ Today’s in-notebook multi-module run stays “Analyse batch” / `AnalysisRunP
 | Today | Change |
 |-------|--------|
 | `is_open_notebook_workflow` treats Analyse as requiring a sidebar notebook | Exclude **Analyse** like Import/Transcribe so Batch can open without selection |
-| `app.py` Analyse path always loads one project | Host Target switcher; **This notebook** keeps today’s tabs; **Batch** renders launch + progress only (no Published / Detect tabs) |
+| `app.py` Analyse path always loads one project | Host Target switcher; **This notebook** is the preset launcher; **Batch** renders launch + progress only. Consume surfaces are View pages, not Analyse tabs |
 | `get_analysis_coordinator(project_root)` | Keep for This notebook; add `@st.cache_resource` `get_batch_analysis_coordinator` for workspace batch |
 
-**Published results / Detect** remain notebook-scoped. Batch mode is a launcher + progress surface only. After a batch finishes, offer “Open notebook” / jump to This notebook for the last completed item (same spirit as Transcribe post-run links).
+**View consume pages and Detect** remain notebook-scoped. Batch mode is a launcher + progress surface only. After a batch finishes, **stay on Analyse**; Library opens the gallery, and per-item Open goes to Overview if published, else Reading.
 
 ### 2.2 Target switcher
 
@@ -293,7 +293,7 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 - [ ] Empty-text notebooks are `skipped`; one notebook failure does not abort siblings.
 - [ ] Cancel stops after the current notebook’s cancel semantics; remaining items `cancelled`.
 - [ ] Resume continues non-terminal items; published modules survive crash/reopen (existing analysis rules).
-- [ ] Published results / health / plan_hash semantics unchanged for each notebook.
+- [ ] Per-notebook health / plan_hash semantics unchanged for each notebook.
 
 ### Progress GUI (§5.1)
 

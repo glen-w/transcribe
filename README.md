@@ -50,7 +50,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 
 | Surface | Role |
 |---------|------|
-| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Notebooks (View/Search/Archive) · Workflow (Transcribe/Analyse/Export) |
+| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Home / Library / Search / Archive / Places · Workflow (Import / Transcribe / Review / Analyse / Export) · View (Reading / Overview / …) · System |
 | **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor |
 | **Services API** | Shared by UI and CLI (`transcribe.services`) |
 
@@ -70,10 +70,10 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 - Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
 - Local Ollama vision OCR with content fingerprints for skip/resume; multipass compare / prefer / promote / composite / fine-tune export; timeout and model-load fail-fast circuits
 - Immutable OCR attempts; human edits live in `edited_text`; page delete from the viewer
-- Workspace Archive / View / Search (activity-bin filter, strip paging) over your projects directory
+- Workspace Library / Archive / Search (activity-bin filter, strip paging) over your notebooks directory
 - Unified Import / Transcribe targets (this notebook vs batch) with live job progress; corpus bulk import supported
 - Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
-- Analyse presets (Quick / Balanced / Thorough / Custom) with product read-models (corpus/period compare on Overview/Mood; Moments jump-to-page)
+- Analyse presets (Quick / Balanced / Thorough / Custom); product read-models under View (corpus/period compare on Overview/Mood; Moments and page-series jump-to-page → Reading)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
 - **Core notebook analysis** on transcribed text (Overview, Themes, Mood, Moments, Places, Summaries, Ask) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 

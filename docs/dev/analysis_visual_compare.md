@@ -47,15 +47,16 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 | `contextual_emotion` | dominant-label counts + intensity | no |
 | `fine_grained_emotion` | same when payload exists | no |
 | `affect_tension` | tension line | yes |
-| `moments` / `highlights` | score bars + quote list; Moments **Jump to page** → Review | no |
+| `moments` / `highlights` | score bars + quote list; Moments **Jump to page** → Reading | no |
 | `summary` / `insights` / LLM text | prose / grouped lists | no |
 | `llm_action_items` | grouped action / decision / question | no |
 | `llm_custom_qa` | Ask answer + evidence | no |
 
 **Click-to-page:** within-notebook page-order series (tokens, TTR, Flesch, sentiment,
 emotion / tension / intensity, hedges vs boosters, topic-shift similarity, ink
-coverage) use Altair + Streamlit `on_select` and jump to Review via the same
-`open_page_context` path as Moments. Categorical charts stay non-clickable.
+coverage) use Altair + Streamlit `on_select` and jump to Reading via the same
+`open_page_context` path as Moments (shared `jump_to_reading`; Back returns to
+the source View page). Categorical charts stay non-clickable.
 
 Comparable modules: `stats`, `lexical_diversity`, `understandability`,
 `sentiment`, `emotion`, `affect_tension`, `epistemic_markers`.

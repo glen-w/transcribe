@@ -7,7 +7,7 @@ Import pages → run local OCR → review/edit → export. Product framing: [PRO
 
 ## 1. Create or open a notebook
 
-**UI:** pick an existing notebook from the sidebar dropdown (sets context for Workflow), or choose **Workflow → New notebook**, name it, and create. Rename later from **View** (Rename action) or **Workflow → Import**.
+**UI:** pick an existing notebook from the sidebar **View** picker (sets context for Workflow and View pages), or choose **Workflow → New notebook**, name it, and create. Rename later from **Library** (Rename action) or **Workflow → Import**. First visit opens **Home**.
 
 **CLI:**
 
@@ -27,7 +27,7 @@ Supported inputs: JPEG, PNG, PDF (unencrypted). PDFs are rendered to per-page PN
 
 In the UI: select a notebook → **Workflow → Import** → Target **This notebook** → set **Notebook name** if needed → upload → Import files. A live progress panel shows per-file status.
 
-**Visual declutter** (scanner-border crop) defaults **on** for imports (`ingest.visual_declutter_enabled`). Toggle and **re-apply to an existing notebook** under **App → Settings → Configuration → Import** (does not re-run OCR).
+**Visual declutter** (scanner-border crop) defaults **on** for imports (`ingest.visual_declutter_enabled`). Toggle and **re-apply to an existing notebook** under **Settings → Configuration → Import** (does not re-run OCR).
 
 ## 3. Choose a vision model and run
 
@@ -56,7 +56,7 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
 
 **Review** is a needs-attention queue for the open notebook. Filter to pages that need date approval, have no text, or failed OCR. Approve or ignore all suggested dates in one pass (suspicious date regressions ask for a second confirm). Unapproved suggested dates still appear in the Archive timeline; time-of-day stamps are ignored.
 
-Open Archive / View / Search / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate); attempt previews stay plain text so OCR that looks like markdown (leading `#`, `*`, …) does not blow up the layout. Edits are stored as `edited_text` and survive re-runs. **Delete page** removes one page from the notebook (refuses the last page and while OCR is running).
+Open Library / Search / Archive / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate); attempt previews stay plain text so OCR that looks like markdown (leading `#`, `*`, …) does not blow up the layout. Edits are stored as `edited_text` and survive re-runs. **Delete page** removes one page from the notebook (refuses the last page and while OCR is running).
 
 **Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session.
 
@@ -76,10 +76,10 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
-3. Run analysis, then inspect published results in Overview / Themes / Mood & tone / Moments / People & places / Summaries / Ask notebook. A shared status strip shows whether results are current. Each tab shows module-appropriate charts and lists (not raw JSON). **Word themes** can be **Basic** or **Advanced** (interactive filters). Overview and Mood include **Compare with corpus / period** for numeric metrics vs other notebooks. On **Moments**, **Jump to page** opens that quote in Review. People & places adds **entity tone** when that module has run. Technical module details live under **Advanced**. Use **Notebooks → Places** for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
-4. Open the **Detect** tab to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
+3. Run analysis. This-notebook complete opens **View → Overview**. Inspect published results under **View**: Overview / Themes / Mood / Moments / People / Summaries / Ask. A shared status strip shows whether results are current. Each page shows module-appropriate charts and lists (not raw JSON). **Word themes** can be **Basic** or **Advanced** (interactive filters). Overview and Mood include **Compare with corpus / period** for numeric metrics vs other notebooks. On **Moments**, **Jump to page** (and page-series chart clicks on Overview / Themes / Mood) opens that page in **Reading**. People adds **entity tone** when that module has run. Technical module details live under **Advanced**. Use **Places** in the primary nav for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
+4. Open **View → Detect** to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
 
-Edit what each preset includes under **App → Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles / Configuration tabs hold LLM budgets, named profile activations, import/declutter defaults, and Archive strip paging.
+Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. Models / Profiles / Configuration tabs hold LLM budgets, named profile activations, import/declutter defaults, Archive strip paging, and Overview cards.
 
 | Preset | Modules |
 |--------|---------|
@@ -123,18 +123,20 @@ Settings → Profiles (target **export**). Contract:
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --deep
 ```
 
+In the UI: **System → Diagnostics** (workspace doctor always; notebook doctor when a notebook is selected).
+
 ## 8. Bulk import, batch OCR, and bulk Analyse
 
 Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path for one notebook at a time.
 
-**UI:** **Workflow → Import** → Target **Batch** (legacy **Notebooks → Inbox** opens this).
+**UI:** **Workflow → Import** → Target **Batch** (legacy **Inbox** opens this).
 
 - **One folder → one notebook** — path to a flat folder of scans.
 - **Parent of folders → one notebook each** — path to a parent directory; each immediate child folder with JPEG/PNG/PDF becomes a notebook titled with that folder’s name. Already-imported folder names can be **skipped** or **overwritten**. Overwrite permanently deletes the managed notebook directory and requires typing exactly `OVERWRITE ALL`.
 
 After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare. Import, Transcribe, and batch OCR jobs show live progress (per-item / per-page status with readable filenames).
 
-**Workflow → Analyse → Batch** uses the same three notebook sources (needing analysis / import run / pick). Choose a preset, then **Start batch analysis**. Progress shows an outer notebook bar and an inner module bar for the current notebook; **Stop after current notebook** cancels the rest. Empty-text notebooks are skipped. Published results stay per-notebook under This notebook → Published results.
+**Workflow → Analyse → Batch** uses the same three notebook sources (needing analysis / import run / pick). Choose a preset, then **Start batch analysis**. Progress shows an outer notebook bar and an inner module bar for the current notebook; **Stop after current notebook** cancels the rest. Empty-text notebooks are skipped. After the batch finishes you stay on Analyse; **Library** opens the gallery, and per-item **Open** goes to Overview if that notebook has published analysis, otherwise Reading. Consume published results under **View** for the selected notebook.
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 

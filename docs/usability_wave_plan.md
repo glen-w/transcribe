@@ -3,7 +3,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2**; **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments jump, Overview/Mood corpus/period charts) is **shipped** — not a new wave track.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home and Diagnostics shipped; sample notebook and first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split) is **shipped** — not a new wave track.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
@@ -125,6 +125,8 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 
 **Outcome:** Analyse and Transcribe surfaces read as **user tasks**, not module/OCR consoles. Builds on U0 health/revision.
 
+**Later deepen-in-place (shipped, not a new U1 reopen):** Analyse is the **launcher only** (This notebook | Batch). Product read-models live under **View** (Reading, Overview, Themes, Mood, Moments, People, Summaries, Ask, Detect) and consume current `published.json`. Jump-to-page / page-series clicks open **Reading**, not Review. See [public_surfaces.md](public_surfaces.md).
+
 Parse checklist parenthetical **#7–9** as three shippable items:
 
 ### #7 — Product views
@@ -151,7 +153,7 @@ Replace module-console chrome with task-shaped read-models.
 
 One shared health strip (consume `render_aggregate_caption` / `AnalysisHealth` from U0):
 
-- Placement: above Analyse result tabs (and optionally in Workflow Analyse header while a run is active).
+- Placement: on View consume pages (and optionally in Workflow Analyse header while a run is active). Originally above Analyse result tabs; those tabs moved to View.
 - Answers: revision short prefix · aggregate state · whether a run is active/interrupted.
 - Per-tab duplicate freshness banners collapse into the strip; tab bodies show content or a single empty/unavailable state.
 - Ask caption continues to state it does not update batch health.
@@ -177,7 +179,7 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 ### Key files
 
-`src/transcribe/ui/app.py` (result tabs, Transcribe panel), `ui/analysis_health_view.py`, `ui/run_analysis.py`, `ui/module_ui_groups.py`, docs above, Analyse UI contract tests.
+`src/transcribe/ui/notebook_views.py`, `ui/app.py`, `ui/analysis_health_view.py`, `ui/run_analysis.py`, `ui/module_ui_groups.py`, docs above, Analyse UI contract tests.
 
 ---
 
@@ -185,16 +187,17 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 **Outcome:** A motivated non-expert reaches a first exported notebook without digging into contracts or Docker archaeology.
 
-### U2.1 — Guided first run (in-app)
+### U2.1 — Home (shipped; replaces the setup-wizard sketch)
+
+This Home **replaces** the earlier U2.1 sketch (setup checklist + Open sample on empty Home). Sample notebook stays **U2.2**. Do not ship a wizard TranscriptX already removed.
 
 | Step | Behavior |
 |------|----------|
-| Empty workspace | Notebooks empty state offers **Create notebook** + **Open sample** (U2.2) + link to install tips |
-| Setup checklist | Collapsible panel: projects path writable · Ollama reachable · ≥1 vision model · (optional) text model |
-| Model guidance | Recommend a known-good vision tag from discovery; Refresh invalidates cache; explain unverified identity cost |
-| Privacy | Remote Ollama still requires acknowledgement; checklist flags non-loopback hosts |
+| Empty workspace | Home empty state: **Create notebook** + **Import** (at most two CTAs). No Open sample. |
+| One-line health | Ollama reachable / not reachable, plus a vision-model count when discovery works |
+| Non-empty Home | Cheap archive counts (notebooks / pages), bounded recent list (8) with action strips. Does **not** scan every `published.json` on load. |
 
-No telemetric onboarding — local checklist state only (workspace settings or session).
+No telemetric onboarding — local session / workspace only.
 
 ### U2.2 — Sample / demo notebook
 
@@ -204,11 +207,16 @@ No telemetric onboarding — local checklist state only (workspace settings or s
 
 ### U2.3 — Diagnostics in UI
 
-| Capability | Today | Target |
-|------------|-------|--------|
-| `doctor` | CLI only | **App → Diagnostics** (or Settings section): run project or workspace doctor; show human-readable pass/warn/fail with suggested next steps |
-| Recovery | Contracts / terminal | Short copy for cache rebuild, interrupted analysis re-run, import failure (single-file path) |
-| Runtime paths | Settings captions | Explain inbox/export mounts; bulk Import → Batch is supported (container paths in Docker) |
+**Status:** **[x] shipped** (System → Diagnostics).
+
+| Capability | Behavior |
+|------------|----------|
+| Workspace doctor | Always available (`corpus-doctor`, optional deep hashing) |
+| Notebook doctor | When a notebook is selected in View |
+| Ollama | Same one-line reachability as Home |
+| Recovery / paths | Short copy; Settings still explains inbox/export mounts |
+
+Speaker-profile repair is out of scope.
 
 ### U2.4 — Docs & install path
 
@@ -218,14 +226,14 @@ No telemetric onboarding — local checklist state only (workspace settings or s
 
 ### Acceptance (U2)
 
-- [ ] Empty workspace presents create + sample + checklist without requiring docs.
+- [x] Empty Home presents Create + Import (no sample wizard).
 - [ ] Sample notebook path works offline for import → (optional OCR skip if pre-seeded text) → Analyse Quick → Export.
-- [ ] Doctor results visible in UI with actionable copy.
-- [ ] README / user guide point at the first-run path; no contract reading required for the happy path.
+- [x] Doctor results visible in System → Diagnostics with workspace always / notebook when selected.
+- [ ] README / user guide point at the first-run install path; no contract reading required for the happy path.
 
 ### Key files
 
-`ui/shell.py`, `ui/settings_hub.py`, new `ui/diagnostics.py` (or similar), `services/doctor.py`, `samples/` (new), README, `docs/runtime/*`, `docs/user_guide.md`.
+`ui/home.py`, `ui/diagnostics.py`, `ui/shell.py`, `ui/settings_hub.py`, `services/doctor.py`, `samples/` (U2.2), README, `docs/runtime/*`, `docs/user_guide.md`.
 
 ---
 
@@ -251,7 +259,7 @@ Today Review opens the shared page viewer with thin empty states ([app.py](src/t
 Distinct from Review (edit) and Analyse:
 
 - Chronological page image + text pairing, distraction-free chrome, jump-by-date when dates exist.
-- Reuse page viewer data path; presentation mode / route under Notebooks or Workflow — no new on-disk format.
+- Reuse page viewer data path; presentation mode / route under **View → Reading** — no new on-disk format.
 - Optional “continue reading” remembers last page in session or lightweight UI state (not a new contract).
 
 ### U3.3 — Search & Archive deepening (FTS, not corpus index)
@@ -398,9 +406,9 @@ U4 Inbox polish may remain open after the usability wave is declared done for U0
 - [x] UI contract tests + docs; mark Phase 6 + hardening exit gate
 
 ### U2
-- [ ] Empty-state checklist + model guidance
+- [x] Home: Create / Import + one-line Ollama health (no sample wizard)
 - [ ] Sample notebook one-click path
-- [ ] Diagnostics / doctor UI
+- [x] Diagnostics / doctor UI (workspace always; notebook when selected)
 - [ ] First-run docs path from README
 
 ### U3

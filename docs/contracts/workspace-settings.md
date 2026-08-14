@@ -41,9 +41,10 @@ analysis fingerprints.
 
 | Key | Default | Role |
 |-----|---------|------|
-| `archive_notebooks_initial` | `0` | Notebooks → Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
+| `archive_notebooks_initial` | `0` | Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
+| `overview_cards` | all frozen ids | Ordered visible Overview cards (`page_metrics`, `stats`, `lexical_diversity`, `understandability`, `wordclouds`, `ner`, `sentiment`, `epistemic_markers`). Unknown/duplicate ids dropped; catalogue order; empty after sanitise restores the default all-ids list. Status strip is always shown. |
 
-Edited under **App → Settings → Configuration → Archive**.
+Edited under **Settings → Configuration → Archive** and **Settings → Configuration → Overview**. `ui.*` does not fingerprint.
 
 ## OCR lifecycle knobs (`ocr.*`)
 
