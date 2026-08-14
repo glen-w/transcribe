@@ -24,6 +24,7 @@ from transcribe.ui.action_menus.nav import (
     ProjectRootError,
     clear_page_viewer_state,
     navigate_open,
+    navigate_to_mode,
     navigate_workflow,
     validate_project_root,
 )
@@ -104,17 +105,38 @@ def _render_analyse(ctx: ActionContext, *, section: SectionId, key: str) -> None
 
 def _render_detect(ctx: ActionContext, *, section: SectionId, key: str) -> None:
     def _go() -> None:
-        import streamlit as st
-
-        st.session_state["analyse_focus_detect"] = True
-        navigate_workflow(
+        navigate_to_mode(
             project_root_key=ctx.identity.project_root_key,
             projects_dir_key=ctx.projects_dir_key,
-            mode=WorkflowMode.ANALYSE,
+            mode="Detect",
             rerun=False,
         )
 
     _button(ctx, action=ActionId.DETECT, section=section, key=key, on_activate=_go)
+
+
+def _render_overview(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+    def _go() -> None:
+        navigate_to_mode(
+            project_root_key=ctx.identity.project_root_key,
+            projects_dir_key=ctx.projects_dir_key,
+            mode="Overview",
+            rerun=False,
+        )
+
+    _button(ctx, action=ActionId.OVERVIEW, section=section, key=key, on_activate=_go)
+
+
+def _render_review(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+    def _go() -> None:
+        navigate_to_mode(
+            project_root_key=ctx.identity.project_root_key,
+            projects_dir_key=ctx.projects_dir_key,
+            mode="Review",
+            rerun=False,
+        )
+
+    _button(ctx, action=ActionId.REVIEW, section=section, key=key, on_activate=_go)
 
 
 def _render_export(ctx: ActionContext, *, section: SectionId, key: str) -> None:
@@ -379,6 +401,8 @@ HANDLERS: dict[ActionId, ActionHandler] = {
     ActionId.EXPORT: ActionHandler(_available_workflow, _render_export),
     ActionId.RENAME: ActionHandler(_available_rename, _render_rename),
     ActionId.DELETE: ActionHandler(_available_delete, _render_delete),
+    ActionId.OVERVIEW: ActionHandler(_available_workflow, _render_overview),
+    ActionId.REVIEW: ActionHandler(_available_workflow, _render_review),
 }
 
 

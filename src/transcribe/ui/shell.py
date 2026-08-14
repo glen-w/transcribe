@@ -8,36 +8,40 @@ from pathlib import Path
 
 import streamlit as st
 
-# Notebooks section
-_NOTEBOOK_MODES: tuple[str, ...] = ("View", "Search", "Archive", "Places")
-# Workflow section (create → import → OCR → review, then analyse / export)
-_WORKFLOW_MODES: tuple[str, ...] = (
-    "New notebook",
-    "Import",
-    "Transcribe",
-    "Review",
-    "Reading",
-    "Analyse",
-    "Export",
+from transcribe.ui.navigation import (
+    PRIMARY_MODES,
+    SYSTEM_MODES,
+    VIEW_MODES,
+    WORKFLOW_MODES,
+    is_open_notebook_workflow,
+    is_workflow_mode,
+    nav_disabled_help,
+    nav_enabled,
+    notebook_has_published_analysis,
+    normalize_ui_mode,
+    page_spec_for,
 )
-# App settings (global prefs, not notebook OCR settings)
-_SETTINGS_MODES: tuple[str, ...] = ("Settings",)
-_MODES: tuple[str, ...] = (*_NOTEBOOK_MODES, *_WORKFLOW_MODES, *_SETTINGS_MODES)
 
-_LEGACY_MODE_ALIASES: dict[str, str] = {
-    "Notebooks": "View",
-    "Workflow": "Import",
-    "Create": "New notebook",
-    "New": "New notebook",
-    # Former Transcribe sub-tabs
-    "Run OCR": "Transcribe",
-    "Pages": "Review",
-    # Older Analyse spelling / synonyms
-    "Analyze": "Analyse",
-    "Run Analysis": "Analyse",
-    # Bulk import lived on Notebooks → Inbox; now Workflow → Import → Batch
-    "Inbox": "Import",
-}
+# Re-export so existing ``from transcribe.ui.shell import normalize_ui_mode`` keeps working.
+__all__ = [
+    "NOTEBOOK_SELECTOR_KEY",
+    "PENDING_NOTEBOOK_ROOT_KEY",
+    "SELECTBOX_PLACEHOLDER_NOTEBOOK",
+    "configure_streamlit_page",
+    "favicon_path",
+    "inject_global_styles",
+    "is_open_notebook_workflow",
+    "is_workflow_mode",
+    "logo_path",
+    "normalize_ui_mode",
+    "render_brand",
+    "render_mode_nav",
+    "render_nav_section",
+    "render_notebook_picker",
+    "render_page_shell",
+    "set_ui_mode",
+    "sync_notebook_selector",
+]
 
 NOTEBOOK_SELECTOR_KEY = "notebook_selector"
 PENDING_NOTEBOOK_ROOT_KEY = "pending_notebook_root"
@@ -568,17 +572,28 @@ def set_ui_mode(mode: str) -> None:
     st.rerun()
 
 
-def _nav_button(*, label: str, mode: str, current: str, key_prefix: str = "nav") -> None:
+def _nav_button(
+    *,
+    label: str,
+    mode: str,
+    current: str,
+    key_prefix: str = "nav",
+    disabled: bool = False,
+    help: str | None = None,
+) -> None:
     is_active = current == mode
     text = f"**{label}**" if is_active else label
     btn_type = "primary" if is_active else "secondary"
     # Streamlit keys cannot contain spaces.
     safe = mode.replace(" ", "_")
-    kwargs = {
+    kwargs: dict = {
         "key": f"{key_prefix}_{safe}",
         "type": btn_type,
         "width": "stretch",
+        "disabled": disabled,
     }
+    if help:
+        kwargs["help"] = help
     if st.button(text, **kwargs):
         # Re-clicking the active mode clears page-viewer overlay (no separate Back).
         if st.session_state.get("ui_mode") != mode or st.session_state.get("show_page_viewer"):
@@ -669,15 +684,34 @@ def render_mode_nav(
     *,
     notebook_options: list[tuple[str, str]] | None = None,
 ) -> str:
-    """Left-sidebar mode buttons under Notebooks / Workflow subheads."""
+    """Left-sidebar: unlabeled primary → Workflow → View (picker + pages) → System.
+
+    Stay-don’t-bounce: picker changes never rewrite ``ui_mode``. Missing context
+    disables View buttons; the current page stays put.
+    """
     current = normalize_ui_mode(current)
     st.session_state["ui_mode"] = current
 
-    render_nav_section("Notebooks")
-    for mode in _NOTEBOOK_MODES:
-        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
+    for mode in PRIMARY_MODES:
+        spec = page_spec_for(mode)
+        _nav_button(
+            label=spec.nav_label if spec else mode,
+            mode=mode,
+            current=current,
+            key_prefix="nav",
+        )
 
-    # Active notebook context (TX transcript-picker analogue).
+    render_nav_section("Workflow")
+    for mode in WORKFLOW_MODES:
+        spec = page_spec_for(mode)
+        _nav_button(
+            label=spec.nav_label if spec else mode,
+            mode=mode,
+            current=current,
+            key_prefix="nav",
+        )
+
+    render_nav_section("View")
     opts = list(notebook_options or [])
     if opts:
         previous = st.session_state.get("root")
@@ -700,38 +734,36 @@ def render_mode_nav(
         st.session_state.pop("root", None)
         sync_notebook_selector(None)
 
-    render_nav_section("Workflow")
-    for mode in _WORKFLOW_MODES:
-        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
+    has_notebook = bool(st.session_state.get("root"))
+    has_published = notebook_has_published_analysis(st.session_state.get("root"))
+    for mode in VIEW_MODES:
+        spec = page_spec_for(mode)
+        if spec is None:
+            continue
+        enabled = nav_enabled(
+            spec, has_notebook=has_notebook, has_published=has_published
+        )
+        # Current page stays reachable even when the picker would disable it.
+        disabled = (not enabled) and current != mode
+        help_text = None
+        if disabled:
+            help_text = nav_disabled_help(spec, has_notebook=has_notebook)
+        _nav_button(
+            label=spec.nav_label,
+            mode=mode,
+            current=current,
+            key_prefix="nav",
+            disabled=disabled,
+            help=help_text,
+        )
 
-    render_nav_section("App")
-    for mode in _SETTINGS_MODES:
-        _nav_button(label=mode, mode=mode, current=current, key_prefix="nav")
+    render_nav_section("System")
+    for mode in SYSTEM_MODES:
+        spec = page_spec_for(mode)
+        _nav_button(
+            label=spec.nav_label if spec else mode,
+            mode=mode,
+            current=current,
+            key_prefix="nav",
+        )
     return current
-
-
-def normalize_ui_mode(raw: str | None) -> str:
-    if raw in _LEGACY_MODE_ALIASES:
-        return _LEGACY_MODE_ALIASES[raw]
-    if raw in _MODES:
-        return raw
-    return "Archive"
-
-
-def is_workflow_mode(mode: str) -> bool:
-    return normalize_ui_mode(mode) in _WORKFLOW_MODES
-
-
-def is_open_notebook_workflow(mode: str) -> bool:
-    """Workflow modes that always require an existing notebook selection.
-
-    Import, Transcribe, and Analyse host This notebook | Batch targets; Batch does
-    not need a sidebar notebook, so those pages gate selection themselves.
-    """
-    mode = normalize_ui_mode(mode)
-    return is_workflow_mode(mode) and mode not in {
-        "New notebook",
-        "Import",
-        "Transcribe",
-        "Analyse",
-    }

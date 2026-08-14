@@ -27,6 +27,15 @@ from transcribe.services.project import (
     open_project_paths,
 )
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
+from transcribe.ui.components.context_bar import render_context_bar
+from transcribe.ui.home import render_home
+from transcribe.ui.layout import apply_page_width
+from transcribe.ui.navigation import (
+    is_open_notebook_workflow,
+    is_view_mode,
+    normalize_ui_mode,
+    page_spec_for,
+)
 from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.run_analysis import render_run_analysis_form
@@ -35,9 +44,6 @@ from transcribe.ui.run_transcribe import render_run_transcribe
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
-    is_open_notebook_workflow,
-    is_workflow_mode,
-    normalize_ui_mode,
     render_brand,
     render_mode_nav,
     render_page_shell,
@@ -124,18 +130,13 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         return
 
     if (
-        section in {"Review", "Reading"}
+        section == "Review"
         and st.session_state.get("show_page_viewer")
         and st.session_state.get("view_page_id")
     ):
-        from transcribe.ui.action_menus.nav import (
-            chronological_page_ids,
-            viewer_page_ids,
-        )
+        from transcribe.ui.action_menus.nav import viewer_page_ids
 
-        page_ids = st.session_state.get("view_page_ids") or (
-            chronological_page_ids(project) if section == "Reading" else viewer_page_ids(project)
-        )
+        page_ids = st.session_state.get("view_page_ids") or viewer_page_ids(project)
         render_page_viewer(
             paths=paths,
             projects=projects,
@@ -145,14 +146,13 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
             view_entries=st.session_state.get("view_entries"),
             highlight_query=st.session_state.get("view_highlight", ""),
             back_label=f"Back to {section}",
-            presentation="read" if section == "Reading" else "edit",
+            presentation="edit",
         )
         return
 
     if section == "Analyse":
         _render_analyse_this_notebook(runtime, paths, projects, project)
         return
-    st.caption(f"Project: `{paths.root}`")
 
     if section == "Export":
         _render_export_panel(runtime, paths, projects, project, root)
@@ -162,34 +162,12 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         _render_review_workbench(runtime, paths, projects, project)
         return
 
-    if section == "Reading":
-        _render_reading_mode(paths, projects, project)
-        return
-
 
 def _render_analyse_this_notebook(runtime, paths, projects, project) -> None:
-    from transcribe.ui.run_analysis import analysis_run_in_progress
-    from transcribe.ui.run_detection import render_detection_workspace
-
-    st.caption(f"Project: `{paths.root}`")
-    focus_detect = bool(st.session_state.pop("analyse_focus_detect", False))
+    _ = runtime
+    _ = paths
     analysis_coord = get_analysis_coordinator(str(paths.root))
-    analyse_tabs = st.tabs(["Run Analysis", "Published results", "Detect"])
-    with analyse_tabs[0]:
-        running = render_run_analysis_form(
-            projects=projects, project=project, coord=analysis_coord
-        )
-    with analyse_tabs[1]:
-        if running or analysis_run_in_progress(analysis_coord):
-            st.info("Published results available when the current run finishes.")
-        else:
-            _render_analysis_result_tabs(runtime, paths, projects, project)
-    with analyse_tabs[2]:
-        render_detection_workspace(
-            projects=projects, project_root=str(paths.root)
-        )
-    if focus_detect:
-        st.info("Opened Detect from notebook actions.")
+    render_run_analysis_form(projects=projects, project=project, coord=analysis_coord)
 
 
 def render_analyse_workspace(
@@ -249,7 +227,7 @@ def render_analyse_workspace(
         return
 
     if project is None or projects is None or not root:
-        st.info("Select a notebook above, or create one under Workflow → New notebook.")
+        st.info("Select a notebook in the View block, or create one under Workflow → New notebook.")
         return
     paths = open_project_paths(Path(root))
     _render_analyse_this_notebook(runtime, paths, projects, project)
@@ -424,254 +402,28 @@ def _render_export_panel(runtime, paths, projects, project, root: str) -> None:
     render_export_panel(runtime, paths, projects, project, root, archive=archive)
 
 
-def _render_analysis_result_tabs(runtime, paths, projects, project) -> None:
-    from transcribe.analysis.health import derive_analysis_health, scope_analysis_health
-    from transcribe.analysis.modules import (
-        THROUGH_OVERVIEW,
-        THROUGH_THEMES,
-        get_registered_modules,
-    )
-    from transcribe.analysis.runner import AnalysisRunner, module_freshness
-    from transcribe.analysis.storage import AnalysisStorage
-    from transcribe.ports import SystemClock, UuidGenerator
-    from transcribe.ui.analysis_health_view import render_status_strip
-    from transcribe.ui.analysis_product_views import (
-        render_ask_product,
-        render_moments_product,
-        render_mood_product,
-        render_overview_product,
-        render_summaries_product,
-        render_themes_product,
-    )
-
-    runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-    storage = AnalysisStorage(paths)
-    content_revision = projects.content_revision(project)
-
-    overview_ids = list(get_registered_modules(through=THROUGH_OVERVIEW).keys())
-    theme_ids = [
-        "keyphrases",
-        "topic_modeling",
-        "semantic_similarity",
-        "topic_shift",
-        "bertopic",
-    ]
-    mood_ids = [
-        "sentiment",
-        "emotion",
-        "contextual_emotion",
-        "fine_grained_emotion",
-        "affect_tension",
-        "epistemic_markers",
-    ]
-    synth_ids = [
-        "topic_modeling",
-        "highlights",
-        "summary",
-        "insights",
-        "llm_summary",
-        "llm_action_items",
-        "narrative_summary",
-    ]
-    places_extra_ids = ["entity_sentiment"]
-    batch_ids = list(
-        dict.fromkeys(
-            overview_ids + theme_ids + mood_ids + ["moments"] + synth_ids + places_extra_ids
-        )
-    )
-    analysis_coord = get_analysis_coordinator(str(paths.root))
-    active_run_status = "running" if analysis_coord.is_running() else None
-    if active_run_status is None:
-        # Surface interrupted reopen state on the shared strip when present.
-        try:
-            runs_dir = storage.runs_dir()
-            if runs_dir.is_dir():
-                for path in sorted(runs_dir.glob("*.json"), reverse=True):
-                    rec = storage.read_run_record(path.stem)
-                    if rec and rec.get("status") == "interrupted":
-                        active_run_status = "interrupted"
-                        break
-        except Exception:  # noqa: BLE001 — strip is best-effort
-            pass
-    batch_health = derive_analysis_health(
-        storage=storage,
-        runner=runner,
-        module_ids=batch_ids,
-        content_revision=content_revision,
-        active_run_status=active_run_status,
-    )
-    overview_health = scope_analysis_health(batch_health, overview_ids)
-    themes_health = scope_analysis_health(batch_health, theme_ids)
-    mood_health = scope_analysis_health(batch_health, mood_ids)
-    moments_health = scope_analysis_health(batch_health, ["moments"])
-    summaries_health = scope_analysis_health(batch_health, synth_ids)
-
-    # Phase 6 #8 — sole default freshness/health answer across batch tabs.
-    render_status_strip(batch_health)
-
-    def _jump_to_page(page_id: str) -> None:
+def _render_view_reading(paths, projects, project) -> None:
+    spec = page_spec_for("Reading")
+    assert spec is not None
+    render_page_shell(spec.title, spec.description)
+    if st.session_state.get("show_page_viewer") and st.session_state.get("view_page_id"):
         from transcribe.ui.action_menus.nav import viewer_page_ids
-        from transcribe.ui.page_viewer import open_page_context
 
-        page_ids = viewer_page_ids(project)
-        if page_id not in page_ids:
-            st.toast("That page is no longer in this notebook.")
-            return
-        open_page_context(
-            page_id=page_id,
+        return_mode = st.session_state.get("page_return_mode") or "Library"
+        page_ids = st.session_state.get("view_page_ids") or viewer_page_ids(project)
+        render_page_viewer(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=st.session_state["view_page_id"],
             page_ids=page_ids,
-            project_root=paths.root,
-            return_mode="Review",
+            view_entries=st.session_state.get("view_entries"),
+            highlight_query=st.session_state.get("view_highlight", ""),
+            back_label=f"Back to {return_mode}",
+            presentation="read",
         )
-        st.session_state["ui_mode"] = "Review"
-        st.rerun()
-
-    (
-        tab_overview,
-        tab_themes,
-        tab_mood,
-        tab_moments,
-        tab_places,
-        tab_summaries,
-        tab_ask,
-    ) = st.tabs(
-        [
-            "Overview",
-            "Themes",
-            "Mood & tone",
-            "Moments",
-            "People & places",
-            "Summaries",
-            "Ask notebook",
-        ]
-    )
-
-    with tab_overview:
-
-        def _page_metrics() -> None:
-            from transcribe.ui.page_metrics_view import render_overview_page_metrics
-
-            render_overview_page_metrics(projects, project, on_jump=_jump_to_page)
-
-        render_overview_product(
-            overview_health,
-            overview_ids,
-            render_page_metrics=_page_metrics,
-            projects_dir=runtime.projects_dir,
-            project_id=project.id,
-            on_jump=_jump_to_page,
-        )
-
-    with tab_themes:
-        themes = get_registered_modules(through=THROUGH_THEMES)
-        assert set(theme_ids).issubset(set(themes))
-        render_themes_product(
-            themes_health,
-            theme_ids,
-            on_jump=_jump_to_page,
-            project_id=project.id,
-        )
-
-    with tab_mood:
-        render_mood_product(
-            mood_health,
-            mood_ids,
-            projects_dir=runtime.projects_dir,
-            project_id=project.id,
-            on_jump=_jump_to_page,
-        )
-
-    with tab_moments:
-        render_moments_product(moments_health, on_jump=_jump_to_page)
-
-    with tab_places:
-        from transcribe.ui.places_map import render_notebook_places_tab
-
-        ner_mh = batch_health.modules.get("ner")
-        entity_mh = batch_health.modules.get("entity_sentiment")
-        render_notebook_places_tab(
-            project_root=paths.root,
-            runtime=runtime,
-            ner_health=ner_mh,
-            entity_sentiment_health=entity_mh,
-        )
-
-    with tab_summaries:
-        render_summaries_product(summaries_health, synth_ids)
-
-    with tab_ask:
-        st.caption("Ask notebook is ad-hoc and does not update batch analysis health.")
-        render_ask_product(runner=runner)
-        question = st.session_state.get("ask_notebook_question") or ""
-        rm = module_freshness(
-            runner,
-            storage,
-            ["llm_custom_qa"],
-            question_text=question.strip() or None,
-        )[0]
-        if rm.get("envelope"):
-            st.divider()
-            if rm.get("status") == "stale":
-                st.caption("Last Ask answer is out of date — ask again to refresh.")
-            else:
-                st.caption("Last Ask answer")
-                payload = (rm["envelope"] or {}).get("payload") or {}
-                if payload.get("answer"):
-                    st.markdown(payload["answer"])
-                with st.expander("Advanced · last Ask"):
-                    st.json(payload)
-
-
-_PAGE_SHELL: dict[str, tuple[str, str]] = {
-    "Archive": (
-        "Archive",
-        "Browse notebooks by timeline, tags, and recent activity.",
-    ),
-    "View": (
-        "View",
-        "Open a notebook volume and jump into its pages.",
-    ),
-    "Search": (
-        "Search",
-        "Find text across transcribed notebook pages.",
-    ),
-    "Places": (
-        "Places",
-        "Map places mentioned across all notebooks (from published NER).",
-    ),
-    "New notebook": (
-        "New notebook",
-        "Create a notebook, then import pages and run OCR.",
-    ),
-    "Import": (
-        "Import",
-        "Add pages to this notebook, or batch-import folders into the corpus.",
-    ),
-    "Transcribe": (
-        "Transcribe",
-        "Configure Ollama and run OCR on this notebook or many notebooks.",
-    ),
-    "Review": (
-        "Review",
-        "Correct pages that need attention — dates, empty text, failed OCR.",
-    ),
-    "Reading": (
-        "Reading",
-        "Read pages chronologically without editing.",
-    ),
-    "Analyse": (
-        "Analyse",
-        "This notebook or Batch: same Analyse plan across many notebooks.",
-    ),
-    "Export": (
-        "Export",
-        "Export notebook JSON, Markdown, plain text, HTML, EPUB, and PDF.",
-    ),
-    "Settings": (
-        "Settings",
-        "Workspace knobs: analysis presets, models, profiles, and interface menus.",
-    ),
-}
+        return
+    _render_reading_mode(paths, projects, project)
 
 
 def _notebook_dropdown_options(archive: ArchiveService) -> list[tuple[str, str]]:
@@ -733,10 +485,14 @@ def main() -> None:
     archive.ensure_index()
     notebook_options = _notebook_dropdown_options(archive)
 
+    first_visit = "ui_mode" not in st.session_state
     raw_mode = st.session_state.get("ui_mode")
     if raw_mode == "Inbox":
         st.session_state[PENDING_IMPORT_TARGET_KEY] = TARGET_BATCH
-    mode = normalize_ui_mode(raw_mode)
+    if first_visit:
+        mode = "Home"
+    else:
+        mode = normalize_ui_mode(raw_mode)
     st.session_state["ui_mode"] = mode
 
     with st.sidebar:
@@ -744,52 +500,64 @@ def main() -> None:
         mode = render_mode_nav(mode, notebook_options=notebook_options)
 
     root = st.session_state.get("root") or ""
+    apply_page_width(mode)
+    title_by_root = {r: t for r, t in notebook_options}
+    render_context_bar(
+        mode=mode,
+        root=root or None,
+        title=title_by_root.get(root),
+        show_path=False,
+    )
 
-    # Page viewer overlay when navigated from Archive/Search/View.
-    if (
-        not is_workflow_mode(mode)
-        and st.session_state.get("show_page_viewer")
-        and st.session_state.get("view_page_id")
-        and root
-    ):
-        try:
-            render_page_viewer(
-                page_id=st.session_state["view_page_id"],
-                page_ids=st.session_state.get("view_page_ids"),
-                view_entries=st.session_state.get("view_entries"),
-                highlight_query=st.session_state.get("view_highlight", ""),
-                show_back=False,
-            )
-            return
-        except TranscribeError as exc:
-            st.error(str(exc))
-            st.session_state["show_page_viewer"] = False
+    spec = page_spec_for(mode)
+    if spec is None:
+        spec = page_spec_for("Archive")
+        assert spec is not None
 
-    title, desc = _PAGE_SHELL[mode]
-    render_page_shell(title, desc)
-
-    if mode == "Archive":
-        render_archive(runtime, archive)
-    elif mode == "View":
+    if mode == "Home":
+        render_page_shell(spec.title, spec.description)
+        render_home(runtime, archive)
+        return
+    if mode == "Library":
+        render_page_shell(spec.title, spec.description)
         render_notebooks(runtime, archive)
-    elif mode == "Search":
+        return
+    if mode == "Search":
+        render_page_shell(spec.title, spec.description)
         render_search(runtime, archive)
-    elif mode == "Places":
+        return
+    if mode == "Archive":
+        render_page_shell(spec.title, spec.description)
+        render_archive(runtime, archive)
+        return
+    if mode == "Places":
+        render_page_shell(spec.title, spec.description)
         from transcribe.ui.places_map import render_corpus_places_page
 
         render_corpus_places_page(runtime)
-    elif mode == "Settings":
+        return
+    if mode == "Settings":
+        render_page_shell(spec.title, spec.description)
         render_settings_page()
-    elif mode == "New notebook":
+        return
+    if mode == "Diagnostics":
+        from transcribe.ui.diagnostics import render_diagnostics
+
+        render_page_shell(spec.title, spec.description)
+        render_diagnostics(runtime, root=root or None)
+        return
+    if mode == "New notebook":
+        render_page_shell(spec.title, spec.description)
         _render_new_notebook(runtime, archive)
-    elif mode in {"Import", "Transcribe", "Analyse"}:
+        return
+
+    if mode in {"Import", "Transcribe", "Analyse"}:
+        render_page_shell(spec.title, spec.description)
         projects = ingest = project = None
         if root:
             try:
                 _paths, projects, ingest = _services(root)
                 project = projects.load(reconcile=True)
-                if mode != "Analyse":
-                    st.caption(f"Project: `{_paths.root}`")
             except TranscribeError as exc:
                 st.caption(str(exc))
                 projects = ingest = project = None
@@ -815,11 +583,64 @@ def main() -> None:
                 projects=projects,
                 project=project,
             )
-    elif is_open_notebook_workflow(mode):
+        return
+
+    if is_view_mode(mode) or is_open_notebook_workflow(mode):
         if not root:
-            st.info("Select a notebook above, or create one under Workflow → New notebook.")
+            render_page_shell(spec.title, spec.description)
+            st.info("Select a notebook in View, or create one under Workflow → New notebook.")
             return
-        _render_workflow(runtime, root, section=mode)
+        try:
+            paths, projects, _ingest = _services(root)
+            project = projects.load(reconcile=True)
+        except TranscribeError as exc:
+            render_page_shell(spec.title, spec.description)
+            st.info("Select a notebook in View, or create one under Workflow → New notebook.")
+            st.caption(str(exc))
+            return
+        if mode == "Reading":
+            _render_view_reading(paths, projects, project)
+            return
+        if mode == "Review" or mode == "Export":
+            _render_workflow(runtime, root, section=mode)
+            return
+        from transcribe.ui.notebook_views import (
+            render_view_ask,
+            render_view_detect,
+            render_view_moments,
+            render_view_mood,
+            render_view_overview,
+            render_view_people,
+            render_view_summaries,
+            render_view_themes,
+        )
+
+        kwargs = {
+            "runtime": runtime,
+            "paths": paths,
+            "projects": projects,
+            "project": project,
+            "get_analysis_coordinator": get_analysis_coordinator,
+        }
+        if mode == "Overview":
+            render_view_overview(**kwargs)
+        elif mode == "Themes":
+            render_view_themes(**kwargs)
+        elif mode == "Mood":
+            render_view_mood(**kwargs)
+        elif mode == "Moments":
+            render_view_moments(**kwargs)
+        elif mode == "People":
+            render_view_people(**kwargs)
+        elif mode == "Summaries":
+            render_view_summaries(**kwargs)
+        elif mode == "Ask":
+            render_view_ask(**kwargs)
+        elif mode == "Detect":
+            render_view_detect(
+                projects=projects, project=project, project_root=str(paths.root)
+            )
+        return
 
 
 def path_read(path: Path) -> bytes:

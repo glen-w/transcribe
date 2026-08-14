@@ -361,14 +361,50 @@ class OcrWorkspaceConfig:
         )
 
 
+# Frozen Overview card ids (Settings checklist + render_overview_product).
+OVERVIEW_CARD_IDS: tuple[str, ...] = (
+    "page_metrics",
+    "stats",
+    "lexical_diversity",
+    "understandability",
+    "wordclouds",
+    "ner",
+    "sentiment",
+    "epistemic_markers",
+)
+
+
+def sanitise_overview_cards(raw: Any) -> tuple[str, ...]:
+    """Keep known ids, drop duplicates, emit catalogue order. Empty → default all."""
+    if not raw:
+        return OVERVIEW_CARD_IDS
+    if isinstance(raw, str):
+        items = [raw]
+    elif isinstance(raw, (list, tuple)):
+        items = list(raw)
+    else:
+        return OVERVIEW_CARD_IDS
+    wanted: set[str] = set()
+    for item in items:
+        key = str(item).strip()
+        if key in OVERVIEW_CARD_IDS:
+            wanted.add(key)
+    ordered = tuple(cid for cid in OVERVIEW_CARD_IDS if cid in wanted)
+    return ordered if ordered else OVERVIEW_CARD_IDS
+
+
 @dataclass(frozen=True)
 class UiConfig:
-    """Workspace UI defaults (archive browsing, etc.)."""
+    """Workspace UI defaults (archive browsing, Overview cards). Does not fingerprint."""
 
     archive_notebooks_initial: int = 0
+    overview_cards: tuple[str, ...] = OVERVIEW_CARD_IDS
 
     def as_dict(self) -> dict[str, Any]:
-        return {"archive_notebooks_initial": self.archive_notebooks_initial}
+        return {
+            "archive_notebooks_initial": self.archive_notebooks_initial,
+            "overview_cards": list(self.overview_cards),
+        }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> UiConfig:
@@ -380,7 +416,8 @@ class UiConfig:
             initial = 0
         if initial < 0:
             initial = 0
-        return cls(archive_notebooks_initial=initial)
+        cards = sanitise_overview_cards(data.get("overview_cards"))
+        return cls(archive_notebooks_initial=initial, overview_cards=cards)
 
 
 @dataclass(frozen=True)

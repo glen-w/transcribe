@@ -51,12 +51,22 @@ def render_run_import(
         return
 
     if project is None or projects is None or ingest is None:
-        st.info("Select a notebook above, or create one under Workflow → New notebook.")
+        st.info("Select a notebook in the View block, or create one under Workflow → New notebook.")
         return
 
     flash = st.session_state.pop("import_flash", None)
     if flash:
         st.success(flash)
+        from transcribe.ui.action_menus.ids import SectionId
+        from transcribe.ui.post_job import render_post_job_strip
+
+        render_post_job_strip(
+            SectionId.IMPORT_SUCCESS,
+            project=project,
+            root=root,
+            projects_dir=runtime.projects_dir,
+            instance_prefix="import_done",
+        )
     for err in st.session_state.pop("import_errors", []) or []:
         st.error(err)
 

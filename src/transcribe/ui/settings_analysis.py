@@ -132,7 +132,7 @@ def render_analysis_presets_panel() -> None:
     st.subheader("Analysis presets")
     st.caption(
         "Defines what Quick, Balanced, and Thorough include when you launch analysis. "
-        "Run Analysis still chooses which preset to use. "
+        "Workflow → Analyse still chooses which preset to use. "
         "Custom on that page remains a one-off module picker."
     )
 

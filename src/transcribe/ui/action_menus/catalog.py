@@ -20,7 +20,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.OPEN,
         "Open",
         ":material/folder_open:",
-        "Open the page viewer on the notebook cover (or first page if none).",
+        "Open this notebook in Reading (cover first, or first page if none).",
     ),
     ActionDef(
         ActionId.TRANSCRIBE,
@@ -33,6 +33,18 @@ ACTIONS: tuple[ActionDef, ...] = (
         "Analyse",
         ":material/analytics:",
         "Open Analyse for this notebook.",
+    ),
+    ActionDef(
+        ActionId.OVERVIEW,
+        "Overview",
+        ":material/dashboard:",
+        "Open Overview for this notebook (published results and page ink).",
+    ),
+    ActionDef(
+        ActionId.REVIEW,
+        "Review",
+        ":material/rate_review:",
+        "Open Review to correct dates, empty text, and failed OCR.",
     ),
     ActionDef(
         ActionId.DETECT,
@@ -80,6 +92,23 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
         ActionId.RENAME,
         ActionId.DELETE,
     ),
+    SectionId.IMPORT_SUCCESS: (
+        ActionId.TRANSCRIBE,
+        ActionId.OPEN,
+        ActionId.ANALYSE,
+    ),
+    SectionId.TRANSCRIBE_COMPLETE: (
+        ActionId.REVIEW,
+        ActionId.OPEN,
+        ActionId.ANALYSE,
+        ActionId.EXPORT,
+    ),
+    SectionId.ANALYSE_COMPLETE: (
+        ActionId.OVERVIEW,
+        ActionId.EXPORT,
+        ActionId.OPEN,
+        ActionId.REVIEW,
+    ),
 }
 
 NOTEBOOK_STRIP: tuple[ActionId, ...] = (
@@ -114,6 +143,13 @@ class SectionDefaultKey:
 SECTION_DEFAULTS: dict[SectionDefaultKey, tuple[ActionId, ...]] = {
     SectionDefaultKey(SectionId.ARCHIVE_NOTEBOOK, "notebook"): NOTEBOOK_STRIP,
     SectionDefaultKey(SectionId.VIEW_NOTEBOOK, "notebook"): VIEW_NOTEBOOK_STRIP,
+    SectionDefaultKey(SectionId.IMPORT_SUCCESS, "notebook"): (ActionId.TRANSCRIBE,),
+    SectionDefaultKey(SectionId.TRANSCRIBE_COMPLETE, "notebook"): (ActionId.REVIEW,),
+    SectionDefaultKey(SectionId.ANALYSE_COMPLETE, "notebook"): (
+        ActionId.OVERVIEW,
+        ActionId.EXPORT,
+        ActionId.OPEN,
+    ),
 }
 
 

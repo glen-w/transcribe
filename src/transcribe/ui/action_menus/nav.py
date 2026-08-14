@@ -17,8 +17,8 @@ from transcribe.ui.action_menus.context import (
     build_canonical_identity,
     project_root_key,
 )
-from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, WorkflowMode
-from transcribe.ui.shell import normalize_ui_mode
+from transcribe.ui.action_menus.ids import NavStyle, ReturnMode, WorkflowMode, listing_return_mode
+from transcribe.ui.navigation import normalize_ui_mode
 
 
 class ProjectRootError(ValueError):
@@ -179,6 +179,32 @@ def load_live_notebook_context(
     )
 
 
+def navigate_to_mode(
+    *,
+    project_root_key: str,
+    projects_dir_key: str,
+    mode: str,
+    session: dict | None = None,
+    rerun: bool = True,
+    clear_viewer: bool = True,
+) -> bool:
+    """Validate root, set notebook context, switch ``ui_mode``."""
+    state = session if session is not None else st.session_state
+    try:
+        root = validate_project_root(project_root_key, projects_dir=projects_dir_key)
+    except ProjectRootError:
+        return False
+
+    state["root"] = str(root)
+    state["pending_notebook_root"] = str(root)
+    if clear_viewer:
+        clear_page_viewer_state(state)
+    state["ui_mode"] = normalize_ui_mode(mode)
+    if rerun and session is None:
+        st.rerun()
+    return True
+
+
 def navigate_workflow(
     *,
     project_root_key: str,
@@ -191,20 +217,14 @@ def navigate_workflow(
 
     Returns False without mutating session when validation fails.
     """
-    state = session if session is not None else st.session_state
-    try:
-        root = validate_project_root(project_root_key, projects_dir=projects_dir_key)
-    except ProjectRootError:
-        return False
-
-    # Mutate only after validation succeeds.
-    state["root"] = str(root)
-    state["pending_notebook_root"] = str(root)
-    clear_page_viewer_state(state)
-    state["ui_mode"] = normalize_ui_mode(mode.value)
-    if rerun and session is None:
-        st.rerun()
-    return True
+    return navigate_to_mode(
+        project_root_key=project_root_key,
+        projects_dir_key=projects_dir_key,
+        mode=mode.value,
+        session=session,
+        rerun=rerun,
+        clear_viewer=True,
+    )
 
 
 def navigate_open(
@@ -236,7 +256,7 @@ def navigate_open(
         return False
 
     page_ids = viewer_page_ids(project, preferred_cover_id=ctx.cover_page_id)
-    return_mode = ctx.return_mode.value
+    return_mode = listing_return_mode(ctx.return_mode)
 
     if session is None:
         # Lazy import: page_viewer imports clear_page_viewer_state from this module.
@@ -248,7 +268,7 @@ def navigate_open(
             project_root=root,
             return_mode=return_mode,
         )
-        state["ui_mode"] = return_mode
+        state["ui_mode"] = "Reading"
         if rerun:
             st.rerun()
         return True
@@ -261,7 +281,7 @@ def navigate_open(
     state["view_entries"] = [{"page_id": pid, "project_root": str(root)} for pid in page_ids]
     state["show_page_viewer"] = True
     state["page_return_mode"] = return_mode
-    state["ui_mode"] = return_mode
+    state["ui_mode"] = "Reading"
     return True
 
 

@@ -16,19 +16,23 @@ def render_detection_workspace(
     *,
     projects: ProjectService,
     project_root: str,
+    project_id: str = "nb",
+    show_shell: bool = True,
 ) -> None:
-    render_page_shell(
-        "Detect",
-        "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, and custom phenomena.",
-    )
+    if show_shell:
+        render_page_shell(
+            "Detect",
+            "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
+            "and custom phenomena.",
+        )
     tabs = st.tabs(["Run Detection", "Findings"])
     with tabs[0]:
-        _render_run(projects)
+        _render_run(projects, project_id=project_id)
     with tabs[1]:
-        _render_findings(projects, project_root)
+        _render_findings(projects, project_root, project_id=project_id)
 
 
-def _render_run(projects: ProjectService) -> None:
+def _render_run(projects: ProjectService, *, project_id: str) -> None:
     svc = DetectionService(projects)
     dets = list_all_detectors()
     options = {f"{d.title} ({d.detector_id})": d.detector_id for d in dets}
@@ -36,23 +40,36 @@ def _render_run(projects: ProjectService) -> None:
         "Detectors",
         list(options.keys()),
         default=[next(iter(options))] if options else [],
-        key="detect_run_detectors",
+        key=f"detect_run_detectors_{project_id}",
     )
     project = projects.load()
     page_labels = {
         f"Page {i + 1} ({p.page_id[:8]}…)": p.page_id for i, p in enumerate(project.pages)
     }
-    scope = st.radio("Scope", ["Whole notebook", "Selected pages"], horizontal=True)
+    scope = st.radio(
+        "Scope",
+        ["Whole notebook", "Selected pages"],
+        horizontal=True,
+        key=f"detect_scope_{project_id}",
+    )
     page_ids = None
     if scope == "Selected pages":
-        chosen = st.multiselect("Pages", list(page_labels.keys()))
+        chosen = st.multiselect(
+            "Pages",
+            list(page_labels.keys()),
+            key=f"detect_pages_{project_id}",
+        )
         page_ids = [page_labels[c] for c in chosen]
 
-    force = st.checkbox("Force rerun (ignore cache)", value=False)
+    force = st.checkbox(
+        "Force rerun (ignore cache)",
+        value=False,
+        key=f"detect_force_{project_id}",
+    )
     progress = st.empty()
     status = st.empty()
 
-    if st.button("Run detection", type="primary", width="stretch"):
+    if st.button("Run detection", type="primary", width="stretch", key=f"detect_run_{project_id}"):
         if not selected_labels:
             st.warning("Select at least one detector.")
             return
@@ -93,7 +110,9 @@ def _render_run(projects: ProjectService) -> None:
         st.caption(f"`{d.detector_id}`: **{fresh}**{note}")
 
 
-def _render_findings(projects: ProjectService, project_root: str) -> None:
+def _render_findings(
+    projects: ProjectService, project_root: str, *, project_id: str
+) -> None:
     svc = DetectionService(projects)
     project = projects.load()
     page_order = {p.page_id: i for i, p in enumerate(project.pages)}
@@ -120,24 +139,25 @@ def _render_findings(projects: ProjectService, project_root: str) -> None:
                     f"prompt={f.prompt_provenance} model={f.model_provenance.get('model_name')}"
                 )
                 c1, c2, c3, c4 = st.columns(4)
-                if c1.button("Open pages", key=f"open_{f.finding_id}"):
+                if c1.button("Open pages", key=f"open_{project_id}_{f.finding_id}"):
                     ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
                     open_page_context(
                         page_id=f.start_page_id,
                         page_ids=ids,
                         project_root=project_root,
-                        return_mode="Analyse",
+                        return_mode="Detect",
                         view_entries=[
                             {"page_id": pid, "project_root": project_root} for pid in ids
                         ],
                     )
+                    st.session_state["ui_mode"] = "Detect"
                     st.rerun()
-                if c2.button("Approve", key=f"ap_{f.finding_id}"):
+                if c2.button("Approve", key=f"ap_{project_id}_{f.finding_id}"):
                     svc.set_review_status(info.detector_id, f.finding_id, "approved")
                     st.rerun()
-                if c3.button("Reject", key=f"rj_{f.finding_id}"):
+                if c3.button("Reject", key=f"rj_{project_id}_{f.finding_id}"):
                     svc.set_review_status(info.detector_id, f.finding_id, "rejected")
                     st.rerun()
-                if c4.button("Rerun detector", key=f"rr_{f.finding_id}"):
+                if c4.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
                     svc.run_detector(info.detector_id, force=True)
                     st.rerun()

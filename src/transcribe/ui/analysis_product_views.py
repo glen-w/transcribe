@@ -7,13 +7,15 @@ compare this notebook to a corpus or period average (TX speaker-bar analogue).
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import streamlit as st
 
 from transcribe.analysis.health import AnalysisHealth, ModuleHealth
-from transcribe.services.analysis_compare import extract_foundations_display
+from transcribe.config.models import OVERVIEW_CARD_IDS
+from transcribe.services.analysis_compare import COMPARABLE_SPECS, extract_foundations_display
 from transcribe.ui.analysis_compare_view import (
     render_compare_period_controls,
     render_module_compare_charts,
@@ -77,6 +79,17 @@ def _show_or_note(mh: ModuleHealth, *, title: str) -> dict[str, Any] | None:
         render_module_unavailable(mh, product_title=title)
         return None
     return payload
+
+
+def _hub_link(label: str, mode: str, *, key: str) -> None:
+    from transcribe.ui.shell import set_ui_mode
+
+    if st.button(label, key=key, type="tertiary"):
+        set_ui_mode(mode)
+
+
+def _ns(project_id: str | None, stem: str) -> str:
+    return f"{stem}_{project_id or 'nb'}"
 
 
 def _bar_pairs(pairs: list[tuple[str, float]], *, x_name: str, y_name: str) -> None:
@@ -154,24 +167,35 @@ def render_overview_product(
     projects_dir: Path | None = None,
     project_id: str | None = None,
     on_jump: Callable[[str], None] | None = None,
+    visible_cards: Sequence[str] | None = None,
+    heading: bool = True,
 ) -> None:
-    st.subheader("Overview")
-    st.caption(
-        "Notebook snapshot: counts, diversity, entities, themes, and page ink. "
-        "Numeric charts can compare this notebook with the corpus or a selected period."
-    )
-    if render_page_metrics is not None:
+    if heading:
+        st.subheader("Overview")
+        st.caption(
+            "Notebook snapshot: counts, diversity, entities, themes, and page ink. "
+            "Numeric charts can compare this notebook with the corpus or a selected period."
+        )
+    cards = [c for c in (visible_cards or OVERVIEW_CARD_IDS) if c in OVERVIEW_CARD_IDS]
+    if not cards:
+        cards = list(OVERVIEW_CARD_IDS)
+    card_set = set(cards)
+    pid = project_id or "nb"
+
+    if render_page_metrics is not None and "page_metrics" in card_set:
         try:
             render_page_metrics()
+            _hub_link("Open Themes", "Themes", key=_ns(project_id, "overview_to_themes_pm"))
             st.divider()
         except Exception:  # noqa: BLE001 — optional surface
             pass
 
+    comparable = [c for c in cards if c in COMPARABLE_SPECS]
     period = None
-    if projects_dir is not None:
+    if projects_dir is not None and comparable:
         with st.expander("Compare with corpus / period", expanded=False):
             period = render_compare_period_controls(
-                key_prefix="overview",
+                key_prefix=_ns(project_id, "overview"),
                 projects_dir=projects_dir,
             )
 
@@ -180,7 +204,7 @@ def render_overview_product(
         ("lexical_diversity", "Lexical diversity"),
         ("understandability", "Understandability"),
     ):
-        if mid not in overview_ids:
+        if mid not in overview_ids or mid not in card_set:
             continue
         mh = health.modules.get(mid)
         if mh is None:
@@ -199,7 +223,7 @@ def render_overview_product(
             period=period,
             projects_dir=projects_dir,
             project_id=project_id,
-            chart_key=f"overview_{mid}",
+            chart_key=_ns(project_id, f"overview_{mid}"),
         )
         units = payload.get("units") if isinstance(payload.get("units"), list) else []
         if mid == "stats" and units:
@@ -210,7 +234,7 @@ def render_overview_product(
                     render_clickable_page_series(
                         rows,
                         y="token_count",
-                        key=f"overview_stats_tokens_{project_id or 'nb'}",
+                        key=f"overview_stats_tokens_{pid}",
                         chart_type="bar",
                     ),
                     on_jump,
@@ -223,7 +247,7 @@ def render_overview_product(
                     render_clickable_page_series(
                         rows,
                         y="ttr",
-                        key=f"overview_ttr_{project_id or 'nb'}",
+                        key=f"overview_ttr_{pid}",
                     ),
                     on_jump,
                 )
@@ -235,22 +259,24 @@ def render_overview_product(
                     render_clickable_page_series(
                         rows,
                         y="flesch_reading_ease",
-                        key=f"overview_flesch_{project_id or 'nb'}",
+                        key=f"overview_flesch_{pid}",
                     ),
                     on_jump,
                 )
+        _hub_link("Open Themes", "Themes", key=_ns(project_id, f"overview_to_themes_{mid}"))
         render_advanced_payload(mid, payload)
 
-    if "wordclouds" in overview_ids:
+    if "wordclouds" in overview_ids and "wordclouds" in card_set:
         mh = health.modules.get("wordclouds")
         if mh is not None:
             payload = _show_or_note(mh, title="Word themes")
             if payload is not None:
                 st.markdown("**Word themes**")
-                render_wordcloud_section(payload, key_prefix="overview_wc")
+                render_wordcloud_section(payload, key_prefix=_ns(project_id, "overview_wc"))
+                _hub_link("Open Themes", "Themes", key=_ns(project_id, "overview_to_themes_wc"))
                 render_advanced_payload("wordclouds", payload)
 
-    if "ner" in overview_ids:
+    if "ner" in overview_ids and "ner" in card_set:
         mh = health.modules.get("ner")
         if mh is not None:
             payload = _show_or_note(mh, title="People & entities")
@@ -266,9 +292,10 @@ def render_overview_product(
                     _bar_pairs(entity_rows, x_name="entity", y_name="count")
                 if not label_rows and not entity_rows:
                     st.caption("No named entities found.")
+                _hub_link("Open People", "People", key=_ns(project_id, "overview_to_people"))
                 render_advanced_payload("ner", payload)
 
-    if "sentiment" in overview_ids:
+    if "sentiment" in overview_ids and "sentiment" in card_set:
         mh = health.modules.get("sentiment")
         if mh is not None:
             payload = _show_or_note(mh, title="Sentiment")
@@ -282,7 +309,7 @@ def render_overview_product(
                         render_clickable_page_series(
                             rows,
                             y="compound",
-                            key=f"overview_sentiment_{project_id or 'nb'}",
+                            key=f"overview_sentiment_{pid}",
                         ),
                         on_jump,
                     )
@@ -299,11 +326,12 @@ def render_overview_product(
                     period=period,
                     projects_dir=projects_dir,
                     project_id=project_id,
-                    chart_key="overview_sentiment",
+                    chart_key=_ns(project_id, "overview_sentiment"),
                 )
+                _hub_link("Open Mood", "Mood", key=_ns(project_id, "overview_to_mood_sent"))
                 render_advanced_payload("sentiment", payload)
 
-    if "epistemic_markers" in overview_ids:
+    if "epistemic_markers" in overview_ids and "epistemic_markers" in card_set:
         mh = health.modules.get("epistemic_markers")
         if mh is not None:
             payload = _show_or_note(mh, title="Hedging & certainty")
@@ -325,8 +353,9 @@ def render_overview_product(
                     period=period,
                     projects_dir=projects_dir,
                     project_id=project_id,
-                    chart_key="overview_epistemic",
+                    chart_key=_ns(project_id, "overview_epistemic"),
                 )
+                _hub_link("Open Mood", "Mood", key=_ns(project_id, "overview_to_mood_ep"))
                 render_advanced_payload("epistemic_markers", payload)
 
     handled = {
@@ -356,12 +385,14 @@ def render_themes_product(
     *,
     on_jump: Callable[[str], None] | None = None,
     project_id: str | None = None,
+    heading: bool = True,
 ) -> None:
-    st.subheader("Themes")
-    st.caption(
-        "Topics, keyphrases, and how themes shift across the notebook. "
-        "These are structural views of this notebook (not corpus averages)."
-    )
+    if heading:
+        st.subheader("Themes")
+        st.caption(
+            "Topics, keyphrases, and how themes shift across the notebook. "
+            "These are structural views of this notebook (not corpus averages)."
+        )
     titles = {
         "keyphrases": "Keyphrases",
         "topic_modeling": "Topics",
@@ -481,17 +512,19 @@ def render_mood_product(
     projects_dir: Path | None = None,
     project_id: str | None = None,
     on_jump: Callable[[str], None] | None = None,
+    heading: bool = True,
 ) -> None:
-    st.subheader("Mood & tone")
-    st.caption(
-        "Emotion, affect tension, and hedging across the notebook. "
-        "Intensity / polarity can compare with the corpus or a selected period."
-    )
+    if heading:
+        st.subheader("Mood & tone")
+        st.caption(
+            "Emotion, affect tension, and hedging across the notebook. "
+            "Intensity / polarity can compare with the corpus or a selected period."
+        )
     period = None
     if projects_dir is not None:
         with st.expander("Compare with corpus / period", expanded=False):
             period = render_compare_period_controls(
-                key_prefix="mood",
+                key_prefix=_ns(project_id, "mood"),
                 projects_dir=projects_dir,
             )
     titles = {
@@ -645,7 +678,7 @@ def render_mood_product(
                 period=period,
                 projects_dir=projects_dir,
                 project_id=project_id,
-                chart_key=f"mood_{mid}",
+                chart_key=_ns(project_id, f"mood_{mid}"),
             )
         render_advanced_payload(mid, payload)
 
@@ -675,9 +708,15 @@ def render_moments_product(
     health: AnalysisHealth,
     *,
     on_jump: Callable[[str], None] | None = None,
+    project_id: str | None = None,
+    heading: bool = True,
 ) -> None:
-    st.subheader("Moments")
-    st.caption("Salient quotes from the notebook. Run analysis from the preset form above.")
+    if heading:
+        st.subheader("Moments")
+    st.caption(
+        "Salient quotes from the notebook. Run Analyse from Workflow → Analyse "
+        "if this list is empty."
+    )
     mh = health.modules["moments"]
     payload = _show_or_note(mh, title="Moments")
     if payload is None:
@@ -709,7 +748,7 @@ def render_moments_product(
             and page_id
             and st.button(
                 "Jump to page",
-                key=f"moment_jump_{page_id}_{hash(quote) & 0xFFFF}",
+                key=f"moment_jump_{project_id or 'nb'}_{page_id}_{hash(quote) & 0xFFFF}",
             )
         ):
             on_jump(str(page_id))
@@ -718,11 +757,17 @@ def render_moments_product(
     render_advanced_payload("moments", payload)
 
 
-def render_summaries_product(health: AnalysisHealth, synth_ids: list[str]) -> None:
-    st.subheader("Summaries")
+def render_summaries_product(
+    health: AnalysisHealth,
+    synth_ids: list[str],
+    *,
+    heading: bool = True,
+) -> None:
+    if heading:
+        st.subheader("Summaries")
     st.caption(
         "Highlights, summary, and insights. Optional LLM outputs appear when a "
-        "text model is available. Run analysis from the preset form above."
+        "text model is available. Run Analyse from Workflow → Analyse to refresh."
     )
     titles = {
         "topic_modeling": "Topics (context)",
@@ -858,14 +903,16 @@ def render_ask_product(
     *,
     runner: Any,
     question_key: str = "ask_notebook_question",
+    heading: bool = True,
 ) -> None:
-    st.subheader("Ask notebook")
-    st.caption(
-        "Ask a question grounded in this notebook. Unsupported answers abstain — "
-        "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
-    )
+    if heading:
+        st.subheader("Ask notebook")
+        st.caption(
+            "Ask a question grounded in this notebook. Unsupported answers abstain — "
+            "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
+        )
     question = st.text_input("Question", key=question_key)
-    if st.button("Ask", disabled=not (question or "").strip()):
+    if st.button("Ask", disabled=not (question or "").strip(), key=f"{question_key}_go"):
         with st.spinner("Asking notebook…"):
             env = runner.run_module("llm_custom_qa", question_text=question.strip())
         payload = env.get("payload") or {}

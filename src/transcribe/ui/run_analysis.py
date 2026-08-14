@@ -34,14 +34,12 @@ from transcribe.errors import JobConflictError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
 from transcribe.services.project import ProjectService
-from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import (
     SNAPSHOT_KEY,
     make_initial_snapshot,
     render_progress_panel,
 )
 from transcribe.ui.module_ui_groups import group_modules_for_ui
-from transcribe.ui.shell import set_ui_mode
 
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
@@ -186,38 +184,23 @@ def _render_module_review(module_ids: tuple[str, ...]) -> None:
                 )
 
 
-def _render_post_analysis_actions() -> None:
-    """Compact next-step strip after a successful/finished Analyse run."""
+def _render_post_analysis_actions(*, projects: ProjectService, project: Any) -> None:
+    """Configurable next-step strip after a finished this-notebook Analyse run."""
     last = st.session_state.get(_LAST_RESULTS_KEY)
     if not isinstance(last, dict) or not last:
         return
-    st.markdown("#### Next")
-    cols = st.columns(3, gap="small")
-    with cols[0]:
-        if render_action_link(
-            "View",
-            key="analysis_done_view",
-            icon=":material/menu_book:",
-            help="Open this notebook on the View page.",
-        ):
-            set_ui_mode("View")
-    with cols[1]:
-        if render_action_link(
-            "Review",
-            key="analysis_done_review",
-            icon=":material/rate_review:",
-            help="Browse and edit transcribed pages.",
-        ):
-            set_ui_mode("Review")
-    with cols[2]:
-        if render_action_link(
-            "Published results",
-            key="analysis_done_results",
-            icon=":material/analytics:",
-            help="Stay on Analyse and inspect published result tabs below.",
-        ):
-            st.session_state["_analysis_scroll_results"] = True
-            st.toast("Published results are below.")
+    from transcribe.ui.action_menus.ids import SectionId
+    from transcribe.ui.post_job import render_post_job_strip
+    from transcribe.runtime_paths import build_runtime_paths
+
+    runtime = build_runtime_paths()
+    render_post_job_strip(
+        SectionId.ANALYSE_COMPLETE,
+        project=project,
+        root=projects.paths.root,
+        projects_dir=runtime.projects_dir,
+        instance_prefix="analyse_done",
+    )
 
 
 def _sync_snapshot_from_coord(coord: AnalysisCoordinator) -> AnalysisProgress:
@@ -254,6 +237,10 @@ def _finalize_run(coord: AnalysisCoordinator, progress: AnalysisProgress) -> Non
     if progress.status == "failed":
         # Keep error visible on the snapshot.
         pass
+    elif progress.status == "completed":
+        from transcribe.ui.navigation import normalize_ui_mode
+
+        st.session_state["ui_mode"] = normalize_ui_mode("Overview")
 
 
 def _start_coordinator_run(
@@ -505,7 +492,7 @@ def render_run_analysis_form(
 
     # Post-run strip only when idle so links never point at a mid-run state.
     if not running:
-        _render_post_analysis_actions()
+        _render_post_analysis_actions(projects=projects, project=project)
 
     pending = st.session_state.get(_PENDING_LAUNCH_KEY)
     if running and isinstance(pending, dict):
