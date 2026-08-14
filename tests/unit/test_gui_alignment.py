@@ -139,3 +139,64 @@ def test_empty_state_taxonomy() -> None:
     ):
         assert kind in empty
     assert "[:2]" in empty
+
+
+def test_overview_does_not_gate_on_published_analysis() -> None:
+    views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")
+    start = views.index("def render_view_overview")
+    end = views.index("def render_view_themes")
+    overview = views[start:end]
+    assert "notebook_has_published_analysis" not in overview
+    assert "show_analyse_cta" not in overview
+    assert "empty_kind" not in overview
+    assert "render_overview_page_metrics" in overview
+    assert "body=_body" in overview
+
+
+def test_published_view_pages_use_analyse_cta_when_unpublished() -> None:
+    views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")
+    for name in (
+        "render_view_themes",
+        "render_view_mood",
+        "render_view_moments",
+        "render_view_people",
+        "render_view_summaries",
+    ):
+        assert f"def {name}" in views
+    assert views.count("show_analyse_cta=not published") == 5
+    assert 'empty_kind=None if published else "no_results_yet"' in views
+
+
+def test_detect_empty_uses_detection_storage_not_published() -> None:
+    views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")
+    start = views.index("def render_view_detect")
+    detect = views[start:]
+    assert "notebook_has_detection_results" in detect
+    assert "notebook_has_published_analysis" not in detect
+    assert "No detection findings yet" in detect
+
+
+def test_docs_have_no_stale_ia_copy() -> None:
+    roots = [Path("docs"), Path("README.md")]
+    forbidden = (
+        "Published results",
+        "form above",
+        "Analyse → Detect",
+        "App → Settings",
+    )
+    skip_names = {"INTEGRATION_SEAM.md"}
+    files: list[Path] = []
+    for root in roots:
+        if root.is_file():
+            files.append(root)
+        else:
+            files.extend(p for p in root.rglob("*.md") if p.name not in skip_names)
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for phrase in forbidden:
+            assert phrase not in text, f"{path}: found {phrase!r}"
+        for i, line in enumerate(text.splitlines(), 1):
+            if "Jump to page" in line and "Review" in line:
+                assert "Reading" in line or "not Review" in line, (
+                    f"{path}:{i} still sends Jump to page to Review"
+                )
