@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, MutableMapping
 
 RequiredContext = Literal["none", "notebook", "notebook_published"]
 NavSection = Literal["primary", "workflow", "view", "system"]
@@ -136,7 +136,7 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         id="Themes",
         nav_label="Themes",
         title="Themes",
-        description="Topics, keyphrases, and how themes shift across the notebook.",
+        description="Topics, people, and places in this notebook.",
         section="view",
         required_context="notebook_published",
     ),
@@ -144,23 +144,7 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         id="Mood",
         nav_label="Mood",
         title="Mood & tone",
-        description="Emotion, affect tension, and hedging across the notebook.",
-        section="view",
-        required_context="notebook_published",
-    ),
-    PageSpec(
-        id="Moments",
-        nav_label="Moments",
-        title="Moments",
-        description="Salient quotes from the notebook.",
-        section="view",
-        required_context="notebook_published",
-    ),
-    PageSpec(
-        id="People",
-        nav_label="People",
-        title="People & places",
-        description="People and places from published NER for this notebook.",
+        description="Emotion, affect tension, hedging, and salient quotes.",
         section="view",
         required_context="notebook_published",
     ),
@@ -168,15 +152,7 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         id="Summaries",
         nav_label="Summaries",
         title="Summaries",
-        description="Highlights, summary, and insights for this notebook.",
-        section="view",
-        required_context="notebook_published",
-    ),
-    PageSpec(
-        id="Ask",
-        nav_label="Ask",
-        title="Ask notebook",
-        description="Ask a question grounded in this notebook. Ad-hoc Ask does not update batch health.",
+        description="Highlights, summary, insights, and questions for this notebook.",
         section="view",
         required_context="notebook",
     ),
@@ -231,8 +207,9 @@ CONTEXT_BAR_HIDDEN_MODES: frozenset[str] = frozenset(
 )
 
 # Maps and the page viewer need width more than Overview.
+# Themes hosts the this-notebook People & places map.
 WIDE_LAYOUT_MODES: frozenset[str] = frozenset(
-    {"Home", "Reading", "Review", "Archive", "Places", "People"}
+    {"Home", "Reading", "Review", "Archive", "Places", "Themes"}
 )
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
@@ -248,6 +225,74 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Published results": "Overview",
     "Inbox": "Import",
     "App": "Settings",
+    "Moments": "Mood",
+    "People": "Themes",
+    "Ask": "Summaries",
+}
+
+VIEW_PANEL_PENDING_KEY = "view_panel_pending"
+
+
+@dataclass(frozen=True)
+class ViewPanel:
+    """In-page section on a merged View consume page."""
+
+    id: str
+    label: str
+    title: str
+    description: str
+
+
+VIEW_PAGE_PANELS: dict[str, tuple[ViewPanel, ...]] = {
+    "Themes": (
+        ViewPanel(
+            "themes",
+            "Themes",
+            "Themes",
+            "Topics, keyphrases, and how themes shift across the notebook.",
+        ),
+        ViewPanel(
+            "people",
+            "People",
+            "People & places",
+            "People and places from published NER for this notebook.",
+        ),
+    ),
+    "Mood": (
+        ViewPanel(
+            "mood",
+            "Mood",
+            "Mood & tone",
+            "Emotion, affect tension, and hedging across the notebook.",
+        ),
+        ViewPanel(
+            "moments",
+            "Moments",
+            "Moments",
+            "Salient quotes from the notebook.",
+        ),
+    ),
+    "Summaries": (
+        ViewPanel(
+            "summaries",
+            "Summaries",
+            "Summaries",
+            "Highlights, summary, and insights for this notebook.",
+        ),
+        ViewPanel(
+            "ask",
+            "Ask",
+            "Ask notebook",
+            "Ask a question grounded in this notebook. Ad-hoc Ask does not update batch health.",
+        ),
+    ),
+}
+
+# Former top-level View pages that now open a parent page + in-page section.
+_VIEW_PANEL_ALIASES: dict[str, tuple[str, str]] = {
+    "Moments": ("Mood", "moments"),
+    "People": ("Themes", "people"),
+    "Ask": ("Summaries", "ask"),
 }
 
 NAV_HELP_SELECT_NOTEBOOK = "Select a notebook"
@@ -315,6 +360,35 @@ def normalize_ui_mode(raw: str | None) -> str:
     if raw in PAGE_SPECS_BY_ID:
         return raw
     return "Archive"
+
+
+def destination_for_mode(raw: str | None) -> tuple[str, str | None]:
+    """Map a mode or former View page id to ``(page_id, panel_id|None)``."""
+    if raw in _VIEW_PANEL_ALIASES:
+        return _VIEW_PANEL_ALIASES[raw]
+    return normalize_ui_mode(raw), None
+
+
+def apply_destination_to_session(
+    session: MutableMapping[str, Any], raw: str | None
+) -> str:
+    """Write ``ui_mode`` (and a pending in-page panel when ``raw`` is an alias)."""
+    mode, panel = destination_for_mode(raw)
+    session["ui_mode"] = mode
+    if panel:
+        session[VIEW_PANEL_PENDING_KEY] = panel
+    return mode
+
+
+def view_panel_for(page_id: str, panel_id: str | None) -> ViewPanel | None:
+    panels = VIEW_PAGE_PANELS.get(page_id)
+    if not panels:
+        return None
+    if panel_id:
+        for panel in panels:
+            if panel.id == panel_id:
+                return panel
+    return panels[0]
 
 
 def is_workflow_mode(mode: str) -> bool:

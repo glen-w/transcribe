@@ -13,8 +13,12 @@ from transcribe.ui.navigation import (
     PRIMARY_MODES,
     SYSTEM_MODES,
     VIEW_MODES,
+    VIEW_PAGE_PANELS,
+    VIEW_PANEL_PENDING_KEY,
     WIDE_LAYOUT_MODES,
     WORKFLOW_MODES,
+    apply_destination_to_session,
+    destination_for_mode,
     hide_context_bar,
     is_open_notebook_workflow,
     is_view_mode,
@@ -26,6 +30,7 @@ from transcribe.ui.navigation import (
     normalize_ui_mode,
     page_spec_for,
     use_wide_layout,
+    view_panel_for,
 )
 
 
@@ -44,10 +49,7 @@ def test_page_spec_table_and_sections() -> None:
         "Overview",
         "Themes",
         "Mood",
-        "Moments",
-        "People",
         "Summaries",
-        "Ask",
         "Detect",
     )
     assert SYSTEM_MODES == ("Settings", "Diagnostics")
@@ -76,10 +78,39 @@ def test_analyse_is_workflow_none_overview_is_view_notebook() -> None:
 def test_nav_labels_short_titles_long() -> None:
     assert page_spec_for("Mood").nav_label == "Mood"
     assert page_spec_for("Mood").title == "Mood & tone"
-    assert page_spec_for("People").nav_label == "People"
-    assert page_spec_for("People").title == "People & places"
-    assert page_spec_for("Ask").nav_label == "Ask"
-    assert page_spec_for("Ask").title == "Ask notebook"
+    assert page_spec_for("Themes").nav_label == "Themes"
+    assert page_spec_for("Summaries").nav_label == "Summaries"
+    assert page_spec_for("Summaries").required_context == "notebook"
+    people = view_panel_for("Themes", "people")
+    ask = view_panel_for("Summaries", "ask")
+    moments = view_panel_for("Mood", "moments")
+    assert people is not None
+    assert people.label == "People"
+    assert people.title == "People & places"
+    assert ask is not None
+    assert ask.label == "Ask"
+    assert ask.title == "Ask notebook"
+    assert moments is not None
+    assert moments.label == "Moments"
+
+
+def test_view_panel_aliases_open_parent_section() -> None:
+    assert normalize_ui_mode("Moments") == "Mood"
+    assert normalize_ui_mode("People") == "Themes"
+    assert normalize_ui_mode("Ask") == "Summaries"
+    assert page_spec_for("People") is page_spec_for("Themes")
+    assert destination_for_mode("Moments") == ("Mood", "moments")
+    assert destination_for_mode("People") == ("Themes", "people")
+    assert destination_for_mode("Ask") == ("Summaries", "ask")
+    assert destination_for_mode("Themes") == ("Themes", None)
+    assert set(VIEW_PAGE_PANELS) == {"Themes", "Mood", "Summaries"}
+    session: dict = {}
+    assert apply_destination_to_session(session, "People") == "Themes"
+    assert session["ui_mode"] == "Themes"
+    assert session[VIEW_PANEL_PENDING_KEY] == "people"
+    apply_destination_to_session(session, "Mood")
+    assert session["ui_mode"] == "Mood"
+    assert session[VIEW_PANEL_PENDING_KEY] == "people"
 
 
 def test_legacy_aliases() -> None:
@@ -118,6 +149,9 @@ def test_nav_enabled_and_disabled_help() -> None:
     assert nav_enabled(overview, has_notebook=True, has_published=False)
     assert not nav_enabled(themes, has_notebook=True, has_published=False)
     assert nav_enabled(themes, has_notebook=True, has_published=True)
+    summaries = page_spec_for("Summaries")
+    assert nav_enabled(summaries, has_notebook=True, has_published=False)
+    assert not nav_enabled(summaries, has_notebook=False, has_published=False)
     assert nav_disabled_help(themes, has_notebook=False) == NAV_HELP_SELECT_NOTEBOOK
     assert nav_disabled_help(themes, has_notebook=True) == NAV_HELP_ANALYSE_FIRST
     assert nav_disabled_help(overview, has_notebook=False) == NAV_HELP_SELECT_NOTEBOOK
@@ -143,9 +177,12 @@ def test_context_bar_and_wide_layout() -> None:
     assert use_wide_layout("Reading")
     assert use_wide_layout("Review")
     assert use_wide_layout("Archive")
+    assert use_wide_layout("Themes")
     assert use_wide_layout("People")
     assert not use_wide_layout("Overview")
     assert "Places" in WIDE_LAYOUT_MODES
+    assert "Themes" in WIDE_LAYOUT_MODES
+    assert "People" not in WIDE_LAYOUT_MODES
 
 
 def test_notebook_published_is_any_module_json_not_runs(tmp_path: Path) -> None:

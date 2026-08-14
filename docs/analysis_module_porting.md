@@ -56,7 +56,7 @@ Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
 
 ## Notebook UI surfaces ↔ core modules
 
-Shipped Workflow tabs are marked **UI**. Patterns remain payload feeds without a dedicated tab. **People & places** is an Analyse tab plus **Notebooks → Places** (corpus map): both are read-models over published `ner` (optional Nominatim geocode + local cache).
+Shipped View pages are marked **UI**. Patterns remain payload feeds without a dedicated tab. **People & places** is a Themes section plus **Places** (corpus map): both are read-models over published `ner` (optional Nominatim geocode + local cache). **Moments** is a Mood section; **Ask notebook** is a Summaries section.
 
 | Surface | Status | Core feeds |
 |---------|--------|----------------|
