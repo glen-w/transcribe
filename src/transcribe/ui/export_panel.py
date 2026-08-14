@@ -349,8 +349,10 @@ def render_export_settings_panel() -> None:
     """Settings hub subsection for export defaults."""
     st.subheader("Export defaults")
     st.caption(
-        "Workspace defaults and export profiles (readable / compact / large_print). "
-        "The Workflow → Export panel applies these and can override per run."
+        "Read-only workspace export defaults. Typography profiles: "
+        "`readable` / `compact` / `large_print` (activate under Profiles, "
+        "target **export**). Live format and typography editors are on "
+        "Workflow → Export."
     )
     view = get_config()
     cfg = view.effective.export
