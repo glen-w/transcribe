@@ -622,9 +622,9 @@ def render_page_viewer(
             st.session_state["show_page_viewer"] = False
             return_mode = st.session_state.pop("page_return_mode", None)
             if return_mode:
-                from transcribe.ui.navigation import normalize_ui_mode
+                from transcribe.ui.navigation import apply_destination_to_session
 
-                st.session_state["ui_mode"] = normalize_ui_mode(return_mode)
+                apply_destination_to_session(st.session_state, return_mode)
             st.rerun()
     else:
         top[0].write("")

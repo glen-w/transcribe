@@ -212,7 +212,7 @@ def render_corpus_places_page(runtime: RuntimePaths) -> None:
     st.caption(
         "Aggregates GPE / LOC / FAC entities from every notebook with a published "
         "NER result. Geocoding is optional and cached under the workspace data dir. "
-        "This-notebook map: View → People."
+        "This-notebook map: View → Themes → People."
     )
     snapshot = load_corpus_places(runtime.projects_dir)
     if snapshot.notebooks_scanned == 0:

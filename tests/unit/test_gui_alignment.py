@@ -176,15 +176,23 @@ def test_overview_does_not_gate_on_published_analysis() -> None:
 
 def test_published_view_pages_use_analyse_cta_when_unpublished() -> None:
     views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")
+    wrap = (UI_ROOT / "notebook_view_page.py").read_text(encoding="utf-8")
     for name in (
         "render_view_themes",
         "render_view_mood",
-        "render_view_moments",
-        "render_view_people",
         "render_view_summaries",
     ):
         assert f"def {name}" in views
-    assert views.count("show_analyse_cta=not published") == 5
+    assert "def render_view_moments" not in views
+    assert "def render_view_people" not in views
+    assert "def render_view_ask" not in views
+    assert views.count("show_analyse_cta=not published") == 2
+    assert "render_analyse_cta" in views
+    assert "select_view_panel" in views
+    assert "st.segmented_control" in wrap
+    assert "render_moments_product" in views
+    assert "render_notebook_places_tab" in views
+    assert "render_ask_product" in views
     assert 'empty_kind=None if published else "no_results_yet"' in views
 
 
@@ -218,6 +226,9 @@ def test_docs_have_no_stale_ia_copy() -> None:
             assert phrase not in text, f"{path}: found {phrase!r}"
         for i, line in enumerate(text.splitlines(), 1):
             if "Jump to page" in line and "Review" in line:
-                assert (
-                    "Reading" in line or "not Review" in line
-                ), f"{path}:{i} still sends Jump to page to Review"
+                assert "Reading" in line or "not Review" in line, (
+                    f"{path}:{i} still sends Jump to page to Review"
+                )
+    surfaces = Path("docs/public_surfaces.md").read_text(encoding="utf-8")
+    assert "Reading · Overview · Themes · Mood · Summaries · Detect" in surfaces
+    assert "Themes · Mood · Moments · People · Summaries · Ask · Detect" not in surfaces

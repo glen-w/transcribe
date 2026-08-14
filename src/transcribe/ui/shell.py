@@ -13,6 +13,7 @@ from transcribe.ui.navigation import (
     SYSTEM_MODES,
     VIEW_MODES,
     WORKFLOW_MODES,
+    apply_destination_to_session,
     is_open_notebook_workflow,
     is_workflow_mode,
     nav_disabled_help,
@@ -572,12 +573,11 @@ def render_page_shell(title: str, description: str | None = None) -> None:
 def set_ui_mode(mode: str) -> None:
     """Switch top-level UI mode and rerun (clears page-viewer overlay)."""
     raw = mode
-    mode = normalize_ui_mode(mode)
     if raw == "Inbox":
         from transcribe.ui.targets import PENDING_IMPORT_TARGET_KEY, TARGET_BATCH
 
         st.session_state[PENDING_IMPORT_TARGET_KEY] = TARGET_BATCH
-    st.session_state["ui_mode"] = mode
+    apply_destination_to_session(st.session_state, raw)
     # Clear full viewer nav — not just the overlay flag — so Review cannot
     # resurrect Prev/Next entries for a notebook opened earlier then deleted.
     # Continue-reading map (reading_page_by_root) is preserved across mode changes.
