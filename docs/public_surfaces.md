@@ -42,6 +42,8 @@ Sidebar order matches TranscriptX: unlabeled **primary** → **Workflow** → **
 
 **System:** Settings · Diagnostics.
 
+**Settings** tabs (chrome order): Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Settings `required_context` is `none` (no bounce to Home). Configuration holds folders, import/declutter, Archive paging, and Overview cards. Models holds workspace Ollama URL, OCR `preprocess_profile` seed, LLM budgets, and Apply-OCR-to-notebook (gated on a selected notebook). Live model discovery stays on Transcribe / Analyse. Profiles is a tab (activation pointer; not a System page). Export is read-only workspace defaults; live editors stay on Workflow → Export. Alignment note: [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md).
+
 First visit lands on **Home**. Unknown `ui_mode` still normalises to **Archive**.
 
 **Stay, don’t bounce:** the picker never rewrites the current page. Context bar (“Notebook · *title*”) is hidden on Home, New notebook, Import, Transcribe, Analyse, Settings, and Diagnostics.

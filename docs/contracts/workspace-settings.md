@@ -53,6 +53,7 @@ job authority remains `project.json` → `settings`.
 
 | Key | Default | Role |
 |-----|---------|------|
+| `preprocess_profile` | `none` | Image preprocess named profile (`none` \| `gentle_contrast`). Edited under **Settings → Models**; seeds new notebooks; Apply-OCR can copy. |
 | `prefer_mode` | `prefer_is_promote` | Prefer semantics: `prefer_is_promote` \| `prefer_only` \| `prefer_promote_with_edit_gate` (see [page-result.md](page-result.md)) |
 | `auto_activate_composite` | `true` | After multipass, auto-activate composite candidates |
 | `multipass_default_models` | `[]` | Optional UI default multi-select list |
