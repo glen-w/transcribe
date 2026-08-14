@@ -145,6 +145,28 @@ def test_moments_jump_opens_review_via_page_viewer():
     assert "_page_id_for_moment" in PRODUCT
 
 
+def test_page_series_charts_are_clickable_and_wired_to_jump():
+    """Within-notebook page-order charts jump via the same Review open path."""
+    charts = Path("src/transcribe/ui/page_series_charts.py").read_text(encoding="utf-8")
+    selection = Path("src/transcribe/ui/page_series_selection.py").read_text(encoding="utf-8")
+    metrics = Path("src/transcribe/ui/page_metrics_view.py").read_text(encoding="utf-8")
+    assert "render_clickable_page_series" in charts
+    assert "on_select" in charts
+    assert "PAGE_SELECT" in selection
+    assert "selected_page_id" in selection
+    assert "render_clickable_page_series" in PRODUCT
+    assert "maybe_jump" in PRODUCT
+    assert "on_jump" in PRODUCT
+    assert "unit_series_rows" in PRODUCT
+    assert "topic_shift_series_rows" in PRODUCT
+    assert "epistemic_page_series_rows" in PRODUCT
+    # App shares one jump helper across Overview / Themes / Mood / Moments.
+    assert "on_jump=_jump_to_page" in APP
+    assert APP.count("on_jump=_jump_to_page") >= 4
+    assert "on_jump" in metrics
+    assert "render_clickable_page_series" in metrics
+
+
 def test_phase6_ocr_advanced_groups_power_controls():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     # Primary controls remain outside Advanced.
