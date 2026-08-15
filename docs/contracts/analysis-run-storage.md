@@ -73,7 +73,7 @@ At most one analysis batch run per project across processes, held via `.transcri
 
 ### Frozen AnalysisRunPlan
 
-Batch Analyse launches freeze an immutable **AnalysisRunPlan** before any module runs: ordered module ids, optional question text, EffectiveConfig snapshot + config fingerprint, text-model identity when LLM modules are included, and preset identity (`preset_key`, `preset_content_version`, `preset_policy_fingerprint`). Workers consume the plan (bound config + frozen model identity), not live UI/settings. Mid-run settings / text-model / module-list changes apply to the **next** run only. Notebook content edits mid-run still use publish revalidation (`stale_at_publish`) — text is not frozen as execution authority.
+Batch Analyse launches freeze an immutable **AnalysisRunPlan** before any module runs: ordered module ids, optional detector ids, optional question text, EffectiveConfig snapshot + config fingerprint, text-model identity when LLM modules or detectors are included, and preset identity (`preset_key`, `preset_content_version`, `preset_policy_fingerprint`). Workers consume the plan (bound config + frozen model identity), not live UI/settings. Mid-run settings / text-model / module-list changes apply to the **next** run only. Notebook content edits mid-run still use publish revalidation (`stale_at_publish`) — text is not frozen as execution authority.
 
 #### `plan_hash` (preflight bind)
 
@@ -83,13 +83,14 @@ Batch Analyse launches freeze an immutable **AnalysisRunPlan** before any module
 |-------|-------|
 | `project_id` | from `project.json` |
 | `module_ids` | ordered freeze list |
+| `detector_ids` | ordered detectors (may be empty); run after modules via DetectionService |
 | `question_text` | or null |
 | `effective_config` | full EffectiveConfig snapshot |
 | `text_model` | frozen model object or null |
 | `config_fingerprint` | plan config fingerprint |
 | `preset_key` | `quick` / `balanced` / `thorough` / `custom` (or null) |
 | `preset_content_version` | integer content generation (Custom may use `0`) |
-| `preset_policy_fingerprint` | SHA-256 of policy body (or Custom module-list fingerprint) |
+| `preset_policy_fingerprint` | SHA-256 of policy body (or Custom module/detector-list fingerprint) |
 
 **Preflight bind rule:** the UI freezes the plan at launch confirm and stashes `{plan, plan_hash}`. Start must deserialize that plan and refuse when recomputed `plan_hash` ≠ stored hash. Start **must not** re-snapshot live settings/config. Coordinator start also refuses a tampered or empty `plan_hash`.
 

@@ -12,7 +12,7 @@ Where to change workspace behaviour in the UI and how overlays resolve. Authorit
 | Tab | Typical use |
 |-----|-------------|
 | **Configuration** | Folders, **Backup**, import / visual declutter, Archive paging, Overview cards |
-| **Analysis** | Preset policies (Quick / Balanced / Thorough) |
+| **Analysis** | Preset policies (Quick / Balanced / Thorough; detectors for Thorough / Custom) |
 | **Detection** | Custom detectors |
 | **Prompts** | Prompt Hub (OCR, cleanup, detection definitions) |
 | **Interface** | Action-menu prefs |
@@ -34,7 +34,7 @@ Mid-job / mid-run settings changes apply to the **next** OCR or Analyse run only
 |------|---------|
 | **Install extras** | `[ui]` / `[dev]` / `[export]` — packaging, not runtime presets |
 | **Named profiles** | JSON under `data/config/profiles/<target>/` — activation-pointer overlays |
-| **Analyse UI presets** | Quick / Balanced / Thorough / Custom — module-set policies for Analyse |
+| **Analyse UI presets** | Quick / Balanced / Thorough / Custom — module-set (and optional detector) policies for Analyse |
 
 Builtin export profiles: `default`, `readable`, `compact`, `large_print`. Editing a profile-supplied value detaches that target to `default` and writes workspace overrides.
 

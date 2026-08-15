@@ -52,7 +52,7 @@ Preference stats: `transcribe models --prefs` — [ocr-preference](contracts/ocr
 
 ## 5. Notebook analysis (optional)
 
-**Workflow → Analyse** with Quick / Balanced / Thorough / Custom, then consume under **View** (Overview / Themes / Mood / Summaries). **View → Detect** for poetry, lists, quotations, beer labels, and custom detectors. Batch Analyse under **Workflow → Analyse → Batch**.
+**Workflow → Analyse** with Quick / Balanced / Thorough / Custom, then consume under **View** (Overview / Themes / Mood / Summaries). **Thorough** (and Custom when selected) can include **Detect** detectors in the same Analyse plan; review findings under **View → Detect** (ad-hoc / page-scoped runs still launch from Detect → Run Detection). Batch Analyse under **Workflow → Analyse → Batch**.
 
 Detail: [runtime/analysis.md](runtime/analysis.md). Roadmap: [ROADMAP.md](ROADMAP.md).
 
@@ -87,7 +87,7 @@ Pack notebooks + corpus + config into a ZIP, then replace-restore onto current m
 
 Corpus bulk import is **supported** ([corpus-integrity](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path.
 
-**UI:** **Workflow → Import → Batch** (legacy Inbox). After import, **Transcribe imported notebooks** opens **Transcribe → Batch**. **Analyse → Batch** for multi-notebook Analyse.
+**UI:** **Workflow → Import → Batch** (legacy Inbox). After import, **Transcribe imported notebooks** opens **Transcribe → Batch**. **Analyse → Batch** for multi-notebook Analyse (shared text model when the plan includes LLM modules or detectors; progress runs modules then detectors).
 
 **Docker:** paste **container** paths (`/mnt/inbox`, `/mnt/notebooks`) — [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 

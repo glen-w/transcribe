@@ -30,6 +30,10 @@ Wave 1 shipped `prompt_engine` + `detection` + built-in `poetry` (CLI + caption 
 - Moving analysis module inline prompts into the Hub
 - Archive SQLite indexing of findings
 
+## Follow-on (not Wave 2)
+
+Analyse suite orchestration can freeze `detector_ids` into `AnalysisRunPlan` / Batch and invoke `DetectionService` after modules (This notebook + Batch). That keeps detection storage/contracts intact and does not reopen Wave 2.
+
 ## Exit gate
 
 Wave 2 is done when D1–D9 have code + offline tests, D10 docs linked, Detect/Prompt Hub usable on Analyse/Settings, and the branch is rebase-clean vs `main`.

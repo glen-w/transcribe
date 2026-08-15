@@ -87,6 +87,16 @@ def _str_ids_only(iterable: Iterable[object]) -> Iterator[str]:
             yield item
 
 
+def format_detector_label(detector_id: str) -> str:
+    """Human label for a detector id (built-in or custom)."""
+    from transcribe.detection.api import DetectionService
+
+    for info in DetectionService.list_detectors():
+        if info.detector_id == detector_id:
+            return f"{info.title} ({info.detector_id})"
+    return detector_id
+
+
 def group_modules_for_ui(iterable: Iterable[object]) -> list[tuple[str, list[str]]]:
     """Non-empty (group title, [module ids]) in TX family order."""
     want = frozenset(_str_ids_only(iterable))
@@ -100,6 +110,18 @@ def group_modules_for_ui(iterable: Iterable[object]) -> list[tuple[str, list[str
     unknown = sorted(want - _SPEC_SET)
     if unknown:
         result.append((TECHNICAL_OTHER_TITLE, unknown))
+    return result
+
+
+def group_plan_for_ui(
+    module_ids: Iterable[object],
+    detector_ids: Iterable[object] = (),
+) -> list[tuple[str, list[str]]]:
+    """Module groups plus a Detection section when detectors are selected."""
+    result = group_modules_for_ui(module_ids)
+    dets = [d for d in _str_ids_only(detector_ids)]
+    if dets:
+        result.append(("Detection", dets))
     return result
 
 
