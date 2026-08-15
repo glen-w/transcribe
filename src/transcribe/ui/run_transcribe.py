@@ -52,6 +52,7 @@ from transcribe.ui.components.progress_panel import render_progress_panel
 from transcribe.ui.corpus_listing_cache import (
     corpus_listing_token,
     get_cached_listing,
+    invalidate_listing_key_prefix,
     invalidate_listing_keys,
 )
 from transcribe.ui.shell import set_ui_mode
@@ -75,19 +76,37 @@ _OCR_CANDIDATES_KEY = "tx_batch_ocr_candidates"
 _OCR_CANDIDATES_TOKEN_KEY = "tx_batch_ocr_candidates_token"
 _LIGHT_PICKER_KEY = "tx_batch_light_picker"
 _LIGHT_PICKER_TOKEN_KEY = "tx_batch_light_picker_token"
+_IMPORT_RUNS_KEY = "tx_batch_import_runs"
+_IMPORT_RUNS_TOKEN_KEY = "tx_batch_import_runs_token"
+_RECENT_OCR_RUNS_KEY = "tx_batch_ocr_recent"
+_RECENT_OCR_RUNS_TOKEN_KEY = "tx_batch_ocr_recent_token"
+_IMPORT_ENRICHED_PREFIX = "tx_batch_import_enriched"
 _OCR_SELECTED_KEY = "tx_batch_selected_for_launch"
 _OCR_IMPORT_RUN_KEY = "tx_batch_import_run_for_launch"
 
 
 def invalidate_batch_ocr_caches() -> None:
-    """Drop session-cached OCR candidate listings."""
+    """Drop session-cached OCR candidate listings and related run lists."""
     invalidate_listing_keys(
         st.session_state,
         _OCR_CANDIDATES_KEY,
         _OCR_CANDIDATES_TOKEN_KEY,
         _LIGHT_PICKER_KEY,
         _LIGHT_PICKER_TOKEN_KEY,
+        _IMPORT_RUNS_KEY,
+        _IMPORT_RUNS_TOKEN_KEY,
+        _RECENT_OCR_RUNS_KEY,
+        _RECENT_OCR_RUNS_TOKEN_KEY,
     )
+    invalidate_listing_key_prefix(st.session_state, _IMPORT_ENRICHED_PREFIX)
+
+
+def _invalidate_ocr_and_analyse_listings() -> None:
+    """OCR text changes also stale Analyse 'needing analysis' listings."""
+    invalidate_batch_ocr_caches()
+    from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+
+    invalidate_batch_analyse_caches()
 
 
 def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
@@ -114,6 +133,46 @@ def _cached_ocr_candidates(
         token=corpus_listing_token(corpus),
         loader=_load,
         force=force,
+    )
+
+
+def _cached_import_runs(corpus: CorpusPaths) -> list:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_IMPORT_RUNS_KEY,
+        token_key=_IMPORT_RUNS_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: ImportRunStore(corpus).list_runs(),
+    )
+
+
+def _cached_recent_ocr_runs(corpus: CorpusPaths) -> list:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_RECENT_OCR_RUNS_KEY,
+        token_key=_RECENT_OCR_RUNS_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: OcrBatchRunStore(corpus).list_runs()[:8],
+    )
+
+
+def _cached_import_enriched(
+    corpus: CorpusPaths, import_run_id: str, picker: list[NotebookCandidate]
+) -> list[NotebookCandidate]:
+    token = corpus_listing_token(corpus)
+    cache_key = f"{_IMPORT_ENRICHED_PREFIX}:{import_run_id}"
+    token_key = f"{_IMPORT_ENRICHED_PREFIX}:{import_run_id}:token"
+
+    def _load() -> list[NotebookCandidate]:
+        selected = select_from_import_run(corpus, import_run_id, picker)
+        return enrich_page_stats(selected)
+
+    return get_cached_listing(
+        st.session_state,
+        cache_key=cache_key,
+        token_key=token_key,
+        token=token,
+        loader=_load,
     )
 
 
@@ -378,7 +437,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = False
                 st.session_state[_BATCH_POST_RUN_KEY] = progress.ocr_run_id
                 bump_archive_generation(runtime)
-                invalidate_batch_ocr_caches()
+                _invalidate_ocr_and_analyse_listings()
                 st.rerun()
 
         batch_status_panel()
@@ -591,7 +650,7 @@ def _render_this_notebook_live(
                     st.session_state["_transcribe_post_job_id"] = progress.job_id
                     st.session_state["_transcribe_post_kind"] = "job"
                 bump_archive_generation(runtime)
-                invalidate_batch_ocr_caches()
+                _invalidate_ocr_and_analyse_listings()
                 st.rerun()
 
         job_status_panel()
@@ -766,7 +825,7 @@ def _render_batch_notebook_source(
         )
     elif source == "import_run":
         picker = _cached_light_picker(corpus)
-        runs = ImportRunStore(corpus).list_runs()
+        runs = _cached_import_runs(corpus)
         queued_run = st.session_state.pop(TRANSCRIBE_BATCH_IMPORT_RUN_KEY, None)
         labels = {r.import_run_id: f"{r.import_run_id} · {r.status}" for r in runs}
         run_ids = [r.import_run_id for r in runs]
@@ -784,8 +843,7 @@ def _render_batch_notebook_source(
             import_run_id = str(chosen) if chosen else None
             if import_run_id:
                 try:
-                    selected = select_from_import_run(corpus, import_run_id, picker)
-                    selected = enrich_page_stats(selected)
+                    selected = _cached_import_enriched(corpus, import_run_id, picker)
                     st.caption(
                         f"{len(selected)} committed notebook(s) · "
                         f"{sum(c.pages_pending for c in selected)} pending page(s)."
@@ -796,9 +854,7 @@ def _render_batch_notebook_source(
         picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(TRANSCRIBE_BATCH_NOTEBOOK_IDS_KEY, None)
         options = [c.notebook_id for c in picker]
-        labels = {
-            c.notebook_id: f"{c.title} ({c.pages_total} pages)" for c in picker
-        }
+        labels = {c.notebook_id: c.title for c in picker}
         default = [nid for nid in (queued_ids or []) if nid in options]
         if default and "tx_batch_pick" not in st.session_state:
             st.session_state["tx_batch_pick"] = default
@@ -829,7 +885,7 @@ def _render_batch_launch_actions(
     selected = list(st.session_state.get(_OCR_SELECTED_KEY) or [])
     import_run_id = st.session_state.get(_OCR_IMPORT_RUN_KEY)
 
-    recent = OcrBatchRunStore(corpus).list_runs()[:8]
+    recent = _cached_recent_ocr_runs(corpus)
     if recent:
         with st.expander("Recent batch OCR runs", expanded=False):
             for run in recent:

@@ -122,6 +122,20 @@ def test_settings_hub_tab_labels_and_order() -> None:
     assert "render_model_information" not in hub
 
 
+def test_select_heavy_settings_panels_use_fragments() -> None:
+    """Knob/select Settings surfaces isolate reruns via @st.fragment."""
+    iface = (UI_ROOT / "settings_interface.py").read_text(encoding="utf-8")
+    hub = (UI_ROOT / "settings_hub.py").read_text(encoding="utf-8")
+    analysis = (UI_ROOT / "settings_analysis.py").read_text(encoding="utf-8")
+    detection = (UI_ROOT / "settings_detection.py").read_text(encoding="utf-8")
+    prompts = (UI_ROOT / "settings_prompts.py").read_text(encoding="utf-8")
+    assert "@st.fragment" in iface
+    assert hub.count("@st.fragment") >= 3
+    assert "@st.fragment" in analysis
+    assert "@st.fragment" in detection
+    assert "@st.fragment" in prompts
+
+
 def test_detect_viewer_returns_to_detect() -> None:
     detect = (UI_ROOT / "run_detection.py").read_text(encoding="utf-8")
     views = (UI_ROOT / "notebook_views.py").read_text(encoding="utf-8")

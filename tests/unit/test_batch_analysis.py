@@ -680,3 +680,45 @@ def test_enrich_page_stats_fills_counts_for_light_candidates(tmp_path: Path) -> 
     filled = enrich_page_stats(light, clock=clock, ids=ids)
     assert filled[0].pages_with_text == 1
     assert filled[0].pages_pending >= 1
+
+
+def test_analysis_aggregate_marks_stale_on_module_version_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Published module_version drift must surface as stale without Ollama."""
+    import json
+
+    from transcribe.services import batch_notebooks as bn
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("ver")
+    root = _make_notebook(corpus, "nb", clock=clock, ids=ids)
+    projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    cands = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    run = coord.create_run(cands, module_ids=["stats"])
+    assert coord.run_blocking(run.analysis_batch_id).status == "completed"
+    assert bn.analysis_aggregate_for_project(projects, clock=clock, ids=ids) == "healthy"
+
+    published_path = projects.paths.analysis_dir / "stats" / "published.json"
+    payload = json.loads(published_path.read_text(encoding="utf-8"))
+    payload["module_version"] = f"{payload['module_version']}+drift"
+    published_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def _boom(*_a, **_k):
+        raise AssertionError("stale scan must not bind Ollama / planned_cache_identity")
+
+    monkeypatch.setattr(
+        "transcribe.analysis.runner.AnalysisRunner.planned_cache_identity",
+        _boom,
+    )
+    monkeypatch.setattr(
+        "transcribe.analysis.llm_runtime.bind_text_llm_context",
+        _boom,
+    )
+    assert bn.analysis_aggregate_for_project(projects, clock=clock, ids=ids) == "stale"
+    needing = select_needing_analysis(
+        list_analysis_candidates(corpus, clock=clock, ids=ids)
+    )
+    assert {c.title for c in needing} == {"nb"}
+    assert needing[0].analysis_aggregate == "stale"

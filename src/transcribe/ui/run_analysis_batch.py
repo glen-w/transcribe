@@ -60,6 +60,10 @@ _PENDING_SCAN_KEY = "ax_batch_pending_scan"
 _PENDING_SCAN_TOKEN_KEY = "ax_batch_pending_scan_token"
 _LIGHT_PICKER_KEY = "ax_batch_light_picker"
 _LIGHT_PICKER_TOKEN_KEY = "ax_batch_light_picker_token"
+_IMPORT_RUNS_KEY = "ax_batch_import_runs"
+_IMPORT_RUNS_TOKEN_KEY = "ax_batch_import_runs_token"
+_RECENT_ANALYSE_RUNS_KEY = "ax_batch_analyse_recent"
+_RECENT_ANALYSE_RUNS_TOKEN_KEY = "ax_batch_analyse_recent_token"
 _SELECTED_FOR_LAUNCH_KEY = "ax_batch_selected_for_launch"
 _IMPORT_RUN_FOR_LAUNCH_KEY = "ax_batch_import_run_for_launch"
 
@@ -72,6 +76,10 @@ def invalidate_batch_analyse_caches() -> None:
         _PENDING_SCAN_TOKEN_KEY,
         _LIGHT_PICKER_KEY,
         _LIGHT_PICKER_TOKEN_KEY,
+        _IMPORT_RUNS_KEY,
+        _IMPORT_RUNS_TOKEN_KEY,
+        _RECENT_ANALYSE_RUNS_KEY,
+        _RECENT_ANALYSE_RUNS_TOKEN_KEY,
     )
 
 
@@ -99,6 +107,26 @@ def _cached_needing_analysis(
         token=corpus_listing_token(corpus),
         loader=_load,
         force=force,
+    )
+
+
+def _cached_import_runs(corpus: CorpusPaths) -> list:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_IMPORT_RUNS_KEY,
+        token_key=_IMPORT_RUNS_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: ImportRunStore(corpus).list_runs(),
+    )
+
+
+def _cached_recent_analyse_runs(corpus: CorpusPaths) -> list:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_RECENT_ANALYSE_RUNS_KEY,
+        token_key=_RECENT_ANALYSE_RUNS_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: AnalysisBatchRunStore(corpus).list_runs()[:8],
     )
 
 
@@ -356,7 +384,7 @@ def _render_batch_notebook_source(
                 "Use Pick notebooks to choose notebooks anyway."
             )
     elif source == "import_run":
-        runs = ImportRunStore(corpus).list_runs()
+        runs = _cached_import_runs(corpus)
         queued_run = st.session_state.pop(ANALYSE_BATCH_IMPORT_RUN_KEY, None)
         labels = {r.import_run_id: f"{r.import_run_id} · {r.status}" for r in runs}
         run_ids = [r.import_run_id for r in runs]
@@ -388,16 +416,14 @@ def _render_batch_notebook_source(
                             expanded=len(selected) <= 12,
                         ):
                             for cand in selected:
-                                st.caption(f"- {cand.title} ({cand.pages_total} pages)")
+                                st.caption(f"- {cand.title}")
                 except (TranscribeError, ValidationError) as exc:
                     st.error(str(exc))
     else:
         picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
         options = [c.notebook_id for c in picker]
-        labels = {
-            c.notebook_id: f"{c.title} ({c.pages_total} pages)" for c in picker
-        }
+        labels = {c.notebook_id: c.title for c in picker}
         default = [nid for nid in (queued_ids or []) if nid in options]
         if default and "ax_batch_pick" not in st.session_state:
             st.session_state["ax_batch_pick"] = default
@@ -564,7 +590,7 @@ def _render_batch_preset_and_launch(
         if not (batch_text_model or "").strip():
             st.warning("Select a text model before running LLM modules.")
 
-    recent = AnalysisBatchRunStore(corpus).list_runs()[:8]
+    recent = _cached_recent_analyse_runs(corpus)
     if recent:
         with st.expander("Recent batch analysis runs", expanded=False):
             for run in recent:
