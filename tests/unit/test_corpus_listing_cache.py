@@ -76,3 +76,37 @@ def test_get_cached_listing_respects_force_and_invalidate() -> None:
     )
     assert third == [3]
     assert calls["n"] == 3
+
+
+def test_get_cached_listing_reloads_when_token_changes() -> None:
+    state: dict = {}
+    calls = {"n": 0}
+
+    def loader() -> list[str]:
+        calls["n"] += 1
+        return [f"v{calls['n']}"]
+
+    assert get_cached_listing(
+        state,
+        cache_key="c",
+        token_key="t",
+        token="tok-1",
+        loader=loader,
+    ) == ["v1"]
+    assert get_cached_listing(
+        state,
+        cache_key="c",
+        token_key="t",
+        token="tok-1",
+        loader=loader,
+    ) == ["v1"]
+    assert calls["n"] == 1
+    assert get_cached_listing(
+        state,
+        cache_key="c",
+        token_key="t",
+        token="tok-2",
+        loader=loader,
+    ) == ["v2"]
+    assert calls["n"] == 2
+    assert state["t"] == "tok-2"
