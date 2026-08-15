@@ -37,6 +37,11 @@ from transcribe.services.batch_notebooks import NotebookCandidate
 from transcribe.services.project import ProjectService
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import render_progress_panel
+from transcribe.ui.corpus_listing_cache import (
+    corpus_listing_token,
+    get_cached_listing,
+    invalidate_listing_keys,
+)
 from transcribe.ui.shell import set_ui_mode
 from transcribe.ui.targets import (
     ANALYSE_BATCH_IMPORT_RUN_KEY,
@@ -59,64 +64,42 @@ _SELECTED_FOR_LAUNCH_KEY = "ax_batch_selected_for_launch"
 _IMPORT_RUN_FOR_LAUNCH_KEY = "ax_batch_import_run_for_launch"
 
 
-def _corpus_listing_token(corpus: CorpusPaths) -> str:
-    """Cheap invalidation token for session-cached corpus listings."""
-    from transcribe.services.archive import discover_project_roots
-
-    gen_path = corpus.data_dir / "cache" / "archive.generation"
-    try:
-        gen = gen_path.read_text(encoding="utf-8").strip() or "0"
-    except OSError:
-        gen = "0"
-    parts: list[str] = [f"g={gen}"]
-    for root in discover_project_roots(corpus.projects_dir):
-        try:
-            mtime = (root / "project.json").stat().st_mtime_ns
-        except OSError:
-            mtime = 0
-        parts.append(f"{root.name}:{mtime}")
-    return "|".join(parts)
-
-
 def invalidate_batch_analyse_caches() -> None:
     """Drop session caches after a batch starts or the user asks to refresh."""
-    for key in (
+    invalidate_listing_keys(
+        st.session_state,
         _PENDING_SCAN_KEY,
         _PENDING_SCAN_TOKEN_KEY,
         _LIGHT_PICKER_KEY,
         _LIGHT_PICKER_TOKEN_KEY,
-    ):
-        st.session_state.pop(key, None)
+    )
 
 
 def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
-    token = _corpus_listing_token(corpus)
-    if (
-        st.session_state.get(_LIGHT_PICKER_TOKEN_KEY) == token
-        and isinstance(st.session_state.get(_LIGHT_PICKER_KEY), list)
-    ):
-        return list(st.session_state[_LIGHT_PICKER_KEY])
-    picker = list_candidates_light(corpus)
-    st.session_state[_LIGHT_PICKER_KEY] = picker
-    st.session_state[_LIGHT_PICKER_TOKEN_KEY] = token
-    return list(picker)
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_LIGHT_PICKER_KEY,
+        token_key=_LIGHT_PICKER_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: list_candidates_light(corpus),
+    )
 
 
 def _cached_needing_analysis(
     corpus: CorpusPaths, *, force: bool = False
 ) -> list[NotebookCandidate]:
-    token = _corpus_listing_token(corpus)
-    if (
-        not force
-        and st.session_state.get(_PENDING_SCAN_TOKEN_KEY) == token
-        and isinstance(st.session_state.get(_PENDING_SCAN_KEY), list)
-    ):
-        return list(st.session_state[_PENDING_SCAN_KEY])
-    with st.spinner("Finding notebooks that need analysis…"):
-        selected = select_needing_analysis(list_analysis_candidates(corpus))
-    st.session_state[_PENDING_SCAN_KEY] = selected
-    st.session_state[_PENDING_SCAN_TOKEN_KEY] = token
-    return list(selected)
+    def _load() -> list[NotebookCandidate]:
+        with st.spinner("Finding notebooks that need analysis…"):
+            return select_needing_analysis(list_analysis_candidates(corpus))
+
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_PENDING_SCAN_KEY,
+        token_key=_PENDING_SCAN_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=_load,
+        force=force,
+    )
 
 
 def batch_analysis_progress_to_snapshot(progress: BatchAnalysisProgress) -> dict[str, Any]:

@@ -127,6 +127,7 @@ def _render_preset_editor(
         draft["module_ids"] = None
 
 
+@st.fragment
 def render_analysis_presets_panel() -> None:
     """Edit Quick / Balanced / Thorough policies; save to workspace settings."""
     st.subheader("Analysis presets")

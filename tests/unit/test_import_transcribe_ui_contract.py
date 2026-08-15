@@ -42,11 +42,22 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "Writing export files" in Path("src/transcribe/ui/export_panel.py").read_text(
         encoding="utf-8"
     )
-    assert TRANSCRIBE.count("_render_ocr_settings_form(") == 2
+    assert TRANSCRIBE.count("_render_ocr_settings_form(") == 3
     assert 'key_prefix="tx"' in TRANSCRIBE
     assert 'key_prefix="tx_batch"' not in TRANSCRIBE
     assert "queue_transcribe_imported" in INBOX
     assert "Transcribe imported notebooks" in INBOX
+    assert "@st.fragment" in TRANSCRIBE
+    assert "invalidate_batch_ocr_caches" in TRANSCRIBE
+    assert "_cached_ocr_candidates" in TRANSCRIBE
+    assert "_render_batch_notebook_source" in TRANSCRIBE
+    assert "_render_batch_launch_actions" in TRANSCRIBE
+    assert "Refresh list" in TRANSCRIBE
+    assert "corpus_listing_cache" in TRANSCRIBE
+    detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
+    export = Path("src/transcribe/ui/export_panel.py").read_text(encoding="utf-8")
+    assert "@st.fragment" in detect
+    assert "@st.fragment" in export
 
 
 def test_ocr_batch_run_format_registered() -> None:
