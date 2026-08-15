@@ -39,9 +39,21 @@ def test_shell_defines_review_module_remove_hover_css() -> None:
 
 def test_run_analysis_review_uses_grouped_rows_and_remove_keys() -> None:
     source = Path("src/transcribe/ui/run_analysis.py").read_text(encoding="utf-8")
-    assert "group_modules_for_ui" in source
+    assert "group_plan_for_ui" in source
     assert "_review_rm_" in source
     assert "apply_review_module_removal" in source
+    assert "render_module_review" in source
+
+
+def test_batch_modules_plan_uses_review_remove_pattern() -> None:
+    batch = Path("src/transcribe/ui/run_analysis_batch.py").read_text(encoding="utf-8")
+    assert "Steps in this plan" in batch
+    assert "render_module_review" in batch
+    assert "apply_pending_review_module_removal" in batch
+    assert 'expander_title="Steps in this plan"' in batch
+    # Plain comma-joined labels are no longer the batch plan UI.
+    assert 'st.write(", ".join(format_module_label' not in batch
+    assert 'st.write(", ".join(format_detector_label' not in batch
 
 
 def test_review_module_removal_queues_custom_remainder() -> None:
@@ -60,6 +72,7 @@ def test_review_module_removal_queues_custom_remainder() -> None:
     assert ss["run_analysis_preset"] == "Custom"
     assert ss["run_analysis_custom_modules"] == ["stats", "ner"]
     assert "run_analysis_custom_modules_widget" not in ss
+    assert "batch_analysis_custom_modules" not in ss
     assert "run_analysis_pending_review_removal" not in ss
 
 
@@ -67,6 +80,8 @@ def test_review_module_removal_clears_ask_notebook() -> None:
     ss: dict = {
         "run_analysis_qa_enable": True,
         "run_analysis_qa_text": "What themes?",
+        "batch_analysis_qa_enable": True,
+        "batch_analysis_qa_text": "What themes?",
     }
     ok = apply_review_module_removal(
         ss,
@@ -78,6 +93,21 @@ def test_review_module_removal_clears_ask_notebook() -> None:
     assert ss["run_analysis_custom_modules"] == ["stats"]
     assert ss["run_analysis_qa_enable"] is False
     assert ss["run_analysis_qa_text"] == ""
+    assert ss["batch_analysis_qa_enable"] is False
+    assert ss["batch_analysis_qa_text"] == ""
+
+
+def test_review_module_removal_batch_keep_open_key() -> None:
+    ss: dict = {}
+    ok = apply_review_module_removal(
+        ss,
+        module_ids=["stats", "sentiment"],
+        remove_id="sentiment",
+        keep_open_key="batch_analysis_modules_keep_open",
+    )
+    assert ok is True
+    assert ss["batch_analysis_modules_keep_open"] is True
+    assert "run_analysis_review_modules_keep_open" not in ss
 
 
 def test_review_module_removal_refuses_empty_plan() -> None:
@@ -91,3 +121,17 @@ def test_review_module_removal_refuses_empty_plan() -> None:
         is False
     )
     assert "run_analysis_pending_review_removal" not in ss
+
+
+def test_review_module_removal_allows_detectors_only_remainder() -> None:
+    ss: dict = {"run_analysis_preset": "Balanced"}
+    ok = apply_review_module_removal(
+        ss,
+        module_ids=["stats"],
+        remove_id="stats",
+        detector_ids=["poetry"],
+    )
+    assert ok is True
+    apply_pending_review_module_removal(ss)
+    assert ss["run_analysis_preset"] == "Custom"
+    assert ss["run_analysis_custom_modules"] == []

@@ -55,9 +55,14 @@ _BATCH_WAS_RUNNING_KEY = "_batch_analysis_was_running"
 _BATCH_POST_RUN_KEY = "_batch_analysis_post_run_id"
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
+_CUSTOM_WIDGET_KEY = "batch_analysis_custom_modules"
 _CUSTOM_DETECT_KEY = "run_analysis_custom_detectors"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
+_QA_ENABLE_WIDGET_KEY = "batch_analysis_qa_enable"
+_QA_TEXT_WIDGET_KEY = "batch_analysis_qa_text"
+_MODULES_KEEP_OPEN_KEY = "batch_analysis_modules_keep_open"
+_KEY_PREFIX = "batch_analysis"
 _PENDING_SCAN_KEY = "ax_batch_pending_scan"
 _PENDING_SCAN_TOKEN_KEY = "ax_batch_pending_scan_token"
 _LIGHT_PICKER_KEY = "ax_batch_light_picker"
@@ -475,7 +480,13 @@ def _render_batch_preset_and_launch(
     )
     from transcribe.analysis.module_catalog import format_module_label
     from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
-    from transcribe.ui.module_ui_groups import format_detector_label, group_plan_for_ui
+    from transcribe.ui.module_ui_groups import format_detector_label
+    from transcribe.ui.run_analysis import (
+        apply_pending_review_module_removal,
+        render_module_review,
+    )
+
+    apply_pending_review_module_removal(st.session_state)
 
     corpus = CorpusPaths.from_runtime(runtime)
     batch_selected = list(st.session_state.get(_SELECTED_FOR_LAUNCH_KEY) or [])
@@ -491,15 +502,24 @@ def _render_batch_preset_and_launch(
         help=PRESET_HELP,
     )
     preset = label_to_preset(str(preset_label))
+    suitable = list(suitable_module_ids())
+    stored_custom = list(st.session_state.get(_CUSTOM_KEY) or [])
+    if not stored_custom:
+        stored_custom = list(resolve_analysis_preset("balanced").module_ids)
+        st.session_state[_CUSTOM_KEY] = stored_custom
+
     custom_modules: list[str] = []
     custom_detectors: list[str] = []
     if preset == "custom":
-        suitable = suitable_module_ids()
+        if _CUSTOM_WIDGET_KEY not in st.session_state:
+            st.session_state[_CUSTOM_WIDGET_KEY] = [
+                m for m in stored_custom if m in suitable
+            ]
         selected = st.multiselect(
             "Select modules",
             options=suitable,
             format_func=format_module_label,
-            key="batch_analysis_custom_modules",
+            key=_CUSTOM_WIDGET_KEY,
         )
         st.session_state[_CUSTOM_KEY] = list(selected)
         custom_modules = selected
@@ -522,20 +542,28 @@ def _render_batch_preset_and_launch(
         custom_modules=custom_modules,
         custom_detectors=custom_detectors,
     )
+    if _QA_ENABLE_WIDGET_KEY not in st.session_state:
+        st.session_state[_QA_ENABLE_WIDGET_KEY] = bool(
+            st.session_state.get(_QA_ENABLE_KEY, False)
+        )
     qa_enabled = st.checkbox(
         "Include Ask notebook question",
-        value=bool(st.session_state.get(_QA_ENABLE_KEY, False)),
-        key="batch_analysis_qa_enable",
+        key=_QA_ENABLE_WIDGET_KEY,
         help="Adds llm_custom_qa with the same question on every notebook.",
     )
+    st.session_state[_QA_ENABLE_KEY] = bool(qa_enabled)
     question_text: str | None = None
     if qa_enabled:
+        if _QA_TEXT_WIDGET_KEY not in st.session_state:
+            st.session_state[_QA_TEXT_WIDGET_KEY] = str(
+                st.session_state.get(_QA_TEXT_KEY, "") or ""
+            )
         question_text = st.text_area(
             "Question",
-            value=st.session_state.get(_QA_TEXT_KEY, ""),
-            key="batch_analysis_qa_text",
+            key=_QA_TEXT_WIDGET_KEY,
             placeholder="What themes recur across these pages?",
         )
+        st.session_state[_QA_TEXT_KEY] = question_text or ""
 
     plan = compute_effective_modules(
         resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
@@ -547,14 +575,13 @@ def _render_batch_preset_and_launch(
         parts.append(f"v{resolved.content_version}")
     st.caption(" · ".join(parts) + " · applied to each selected notebook")
 
-    groups = group_plan_for_ui(plan.module_ids, plan.detector_ids)
-    with st.expander("Steps in this plan", expanded=False):
-        for group_name, mids in groups:
-            st.markdown(f"**{group_name}**")
-            if group_name == "Detection":
-                st.write(", ".join(format_detector_label(m) for m in mids))
-            else:
-                st.write(", ".join(format_module_label(m) for m in mids))
+    render_module_review(
+        plan.module_ids,
+        plan.detector_ids,
+        expander_title="Steps in this plan",
+        key_prefix=_KEY_PREFIX,
+        keep_open_key=_MODULES_KEEP_OPEN_KEY,
+    )
 
     needs_llm = plan.needs_llm()
     batch_text_model = ""
