@@ -36,6 +36,7 @@ from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.components.info_tooltip import widget_help
 
 
+@st.fragment
 def render_configuration_panel() -> None:
     st.subheader("Configuration")
     view = get_config()
@@ -244,6 +245,7 @@ def render_configuration_panel() -> None:
 _PREPROCESS_PROFILES = ("none", "gentle_contrast")
 
 
+@st.fragment
 def render_models_panel() -> None:
     st.subheader("Models & LLM budgets")
     view = get_config()
@@ -353,6 +355,7 @@ def render_models_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
 
+@st.fragment
 def render_profiles_panel() -> None:
     st.subheader("Profiles")
     st.caption(

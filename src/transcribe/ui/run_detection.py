@@ -26,11 +26,16 @@ def render_detection_workspace(
             "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
             "and custom phenomena.",
         )
-    tabs = st.tabs(["Run Detection", "Findings"])
-    with tabs[0]:
-        _render_run(projects, project_id=project_id)
-    with tabs[1]:
-        _render_findings(projects, project_root, project_id=project_id)
+
+    @st.fragment
+    def _detect_body() -> None:
+        tabs = st.tabs(["Run Detection", "Findings"])
+        with tabs[0]:
+            _render_run(projects, project_id=project_id)
+        with tabs[1]:
+            _render_findings(projects, project_root, project_id=project_id)
+
+    _detect_body()
 
 
 def _render_run(projects: ProjectService, *, project_id: str) -> None:

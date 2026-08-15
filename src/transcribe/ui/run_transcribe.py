@@ -35,6 +35,11 @@ from transcribe.services.batch_ocr import (
     select_from_import_run,
     select_pending,
 )
+from transcribe.services.batch_notebooks import (
+    NotebookCandidate,
+    enrich_page_stats,
+    list_candidates_light,
+)
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
 from transcribe.services.project import ProjectService
@@ -44,6 +49,11 @@ from transcribe.ui.components.model_info import (
     warn_if_first_compare_model_is_general_vlm,
 )
 from transcribe.ui.components.progress_panel import render_progress_panel
+from transcribe.ui.corpus_listing_cache import (
+    corpus_listing_token,
+    get_cached_listing,
+    invalidate_listing_keys,
+)
 from transcribe.ui.shell import set_ui_mode
 from transcribe.ui.targets import (
     PENDING_TRANSCRIBE_TARGET_KEY,
@@ -61,6 +71,50 @@ from transcribe.ui.targets import (
 _BATCH_SNAPSHOT_KEY = "batch_ocr_progress_snapshot"
 _BATCH_POST_RUN_KEY = "_batch_ocr_post_run_id"
 _BATCH_WAS_RUNNING_KEY = "_batch_ocr_was_running"
+_OCR_CANDIDATES_KEY = "tx_batch_ocr_candidates"
+_OCR_CANDIDATES_TOKEN_KEY = "tx_batch_ocr_candidates_token"
+_LIGHT_PICKER_KEY = "tx_batch_light_picker"
+_LIGHT_PICKER_TOKEN_KEY = "tx_batch_light_picker_token"
+_OCR_SELECTED_KEY = "tx_batch_selected_for_launch"
+_OCR_IMPORT_RUN_KEY = "tx_batch_import_run_for_launch"
+
+
+def invalidate_batch_ocr_caches() -> None:
+    """Drop session-cached OCR candidate listings."""
+    invalidate_listing_keys(
+        st.session_state,
+        _OCR_CANDIDATES_KEY,
+        _OCR_CANDIDATES_TOKEN_KEY,
+        _LIGHT_PICKER_KEY,
+        _LIGHT_PICKER_TOKEN_KEY,
+    )
+
+
+def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_LIGHT_PICKER_KEY,
+        token_key=_LIGHT_PICKER_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: list_candidates_light(corpus),
+    )
+
+
+def _cached_ocr_candidates(
+    corpus: CorpusPaths, *, force: bool = False
+) -> list[NotebookCandidate]:
+    def _load() -> list[NotebookCandidate]:
+        with st.spinner("Scanning notebooks for pending pages…"):
+            return list_candidates(corpus)
+
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_OCR_CANDIDATES_KEY,
+        token_key=_OCR_CANDIDATES_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=_load,
+        force=force,
+    )
 
 
 @st.cache_resource
@@ -324,6 +378,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = False
                 st.session_state[_BATCH_POST_RUN_KEY] = progress.ocr_run_id
                 bump_archive_generation(runtime)
+                invalidate_batch_ocr_caches()
                 st.rerun()
 
         batch_status_panel()
@@ -372,7 +427,7 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
         ):
             try:
                 settings = OCRSettings.from_dict(run.settings if run else {})
-                candidates = list_candidates(coord.corpus)
+                candidates = list_candidates_light(coord.corpus)
                 selected = select_by_ids(candidates, retry_ids)
                 new_run = coord.create_run(
                     selected,
@@ -380,6 +435,7 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
                     force=bool(run.force) if run else False,
                     import_run_id=run.import_run_id if run else None,
                 )
+                invalidate_batch_ocr_caches()
                 coord.start(new_run.ocr_run_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                 st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -448,18 +504,40 @@ def render_run_transcribe(
     seed = (
         project.settings if project is not None else OCRSettings(base_url=default_ollama_base_url())
     )
-    form = _render_ocr_settings_form(seed, key_prefix="tx")
-    if form is None:
-        return
 
     if target == TARGET_BATCH:
-        _render_batch_launch(runtime, batch_coord, form=form, seed=seed)
+        @st.fragment
+        def batch_source_panel() -> None:
+            _render_batch_notebook_source(runtime, project=project)
+
+        batch_source_panel()
+
+        @st.fragment
+        def batch_settings_and_launch() -> None:
+            form = _render_ocr_settings_form(seed, key_prefix="tx")
+            if form is None:
+                return
+            _render_batch_launch_actions(
+                runtime, batch_coord, form=form, seed=seed
+            )
+
+        batch_settings_and_launch()
         return
 
     if project is None or projects is None or not root:
         st.info("Select a notebook in the View block, or create one under Workflow → New notebook.")
         return
-    _render_this_notebook_launch(runtime, root=root, projects=projects, project=project, form=form)
+
+    @st.fragment
+    def this_settings_and_launch() -> None:
+        form = _render_ocr_settings_form(seed, key_prefix="tx")
+        if form is None:
+            return
+        _render_this_notebook_launch(
+            runtime, root=root, projects=projects, project=project, form=form
+        )
+
+    this_settings_and_launch()
 
 
 def _render_this_notebook_live(
@@ -513,6 +591,7 @@ def _render_this_notebook_live(
                     st.session_state["_transcribe_post_job_id"] = progress.job_id
                     st.session_state["_transcribe_post_kind"] = "job"
                 bump_archive_generation(runtime)
+                invalidate_batch_ocr_caches()
                 st.rerun()
 
         job_status_panel()
@@ -648,15 +727,14 @@ def _multipass_default_selection(available: list[str]) -> list[str]:
     return [m for m in configured if m in avail]
 
 
-def _render_batch_launch(
+def _render_batch_notebook_source(
     runtime: RuntimePaths,
-    batch_coord: BatchOcrCoordinator,
     *,
-    form: dict[str, Any],
-    seed: OCRSettings,
+    project: Project | None = None,
 ) -> None:
+    """Notebook source picker; page-result scan only for pending pages."""
+    _ = project
     corpus = CorpusPaths.from_runtime(runtime)
-    candidates = list_candidates(corpus)
     source_options = ["pending", "import_run", "pick"]
     queued_source = st.session_state.pop(TRANSCRIBE_BATCH_SOURCE_KEY, None)
     if queued_source in source_options and "tx_batch_source" not in st.session_state:
@@ -672,15 +750,22 @@ def _render_batch_launch(
         key="tx_batch_source",
         horizontal=True,
     )
-    selected = []
+    selected: list = []
     import_run_id: str | None = None
     if source == "pending":
+        refresh = st.button(
+            "Refresh list",
+            key="tx_batch_pending_refresh",
+            help="Re-scan the corpus for notebooks with untranscribed or failed pages.",
+        )
+        candidates = _cached_ocr_candidates(corpus, force=refresh)
         selected = select_pending(candidates)
         st.caption(
             f"{len(selected)} notebook(s) with untranscribed or failed pages "
             f"({sum(c.pages_pending for c in selected)} page(s))."
         )
     elif source == "import_run":
+        picker = _cached_light_picker(corpus)
         runs = ImportRunStore(corpus).list_runs()
         queued_run = st.session_state.pop(TRANSCRIBE_BATCH_IMPORT_RUN_KEY, None)
         labels = {r.import_run_id: f"{r.import_run_id} · {r.status}" for r in runs}
@@ -699,7 +784,8 @@ def _render_batch_launch(
             import_run_id = str(chosen) if chosen else None
             if import_run_id:
                 try:
-                    selected = select_from_import_run(corpus, import_run_id, candidates)
+                    selected = select_from_import_run(corpus, import_run_id, picker)
+                    selected = enrich_page_stats(selected)
                     st.caption(
                         f"{len(selected)} committed notebook(s) · "
                         f"{sum(c.pages_pending for c in selected)} pending page(s)."
@@ -707,11 +793,11 @@ def _render_batch_launch(
                 except (TranscribeError, ValidationError) as exc:
                     st.error(str(exc))
     else:
+        picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(TRANSCRIBE_BATCH_NOTEBOOK_IDS_KEY, None)
-        options = [c.notebook_id for c in candidates]
+        options = [c.notebook_id for c in picker]
         labels = {
-            c.notebook_id: f"{c.title} ({c.pages_pending} pending / {c.pages_total})"
-            for c in candidates
+            c.notebook_id: f"{c.title} ({c.pages_total} pages)" for c in picker
         }
         default = [nid for nid in (queued_ids or []) if nid in options]
         if default and "tx_batch_pick" not in st.session_state:
@@ -724,9 +810,24 @@ def _render_batch_launch(
         )
         if picked:
             try:
-                selected = select_by_ids(candidates, list(picked))
+                selected = select_by_ids(picker, list(picked))
             except TranscribeError as exc:
                 st.error(str(exc))
+    st.session_state[_OCR_SELECTED_KEY] = selected
+    st.session_state[_OCR_IMPORT_RUN_KEY] = import_run_id
+
+
+def _render_batch_launch_actions(
+    runtime: RuntimePaths,
+    batch_coord: BatchOcrCoordinator,
+    *,
+    form: dict[str, Any],
+    seed: OCRSettings,
+) -> None:
+    """OCR settings consumers: start buttons + compare (fragment-isolated)."""
+    corpus = CorpusPaths.from_runtime(runtime)
+    selected = list(st.session_state.get(_OCR_SELECTED_KEY) or [])
+    import_run_id = st.session_state.get(_OCR_IMPORT_RUN_KEY)
 
     recent = OcrBatchRunStore(corpus).list_runs()[:8]
     if recent:
@@ -743,6 +844,7 @@ def _render_batch_launch(
                 ):
                     if st.button("Resume", key=f"batch_ocr_resume_{run.ocr_run_id}"):
                         try:
+                            invalidate_batch_ocr_caches()
                             batch_coord.start(run.ocr_run_id)
                             st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                             st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -764,6 +866,7 @@ def _render_batch_launch(
                     force=form["force"],
                     import_run_id=import_run_id,
                 )
+                invalidate_batch_ocr_caches()
                 batch_coord.start(new_run.ocr_run_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                 st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -835,6 +938,7 @@ def _render_batch_launch(
                     vision_model_names=list(batch_multi_models),
                     multipass_cleanup_enabled=bool(batch_compare_cleanup),
                 )
+                invalidate_batch_ocr_caches()
                 batch_coord.start(new_run.ocr_run_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                 st.session_state.pop(_BATCH_POST_RUN_KEY, None)

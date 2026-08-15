@@ -27,6 +27,7 @@ from transcribe.prompt_engine.store import (
 )
 
 
+@st.fragment
 def render_prompts_panel() -> None:
     st.subheader("Prompts")
     st.caption(

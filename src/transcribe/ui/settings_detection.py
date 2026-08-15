@@ -12,6 +12,7 @@ from transcribe.detection.custom import (
 from transcribe.detection.registry import list_all_detectors
 
 
+@st.fragment
 def render_detection_settings_panel() -> None:
     st.subheader("Detection")
     st.caption("Built-in and custom detectors. Run from View → Detect after selecting a notebook.")

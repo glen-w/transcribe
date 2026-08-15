@@ -39,6 +39,23 @@ def render_export_panel(
     root: str,
     archive: ArchiveService | None = None,
 ) -> None:
+    @st.fragment
+    def _export_body() -> None:
+        _render_export_panel_body(
+            runtime, paths, projects, project, root, archive=archive
+        )
+
+    _export_body()
+
+
+def _render_export_panel_body(
+    runtime: RuntimePaths,
+    paths,
+    projects: ProjectService,
+    project,
+    root: str,
+    archive: ArchiveService | None = None,
+) -> None:
     view = get_config()
     export_cfg = view.effective.export
     active_profile = view.effective.activations.export
@@ -345,6 +362,7 @@ def render_export_panel(
             st.error(f"Fine-tune export failed: {exc}")
 
 
+@st.fragment
 def render_export_settings_panel() -> None:
     """Settings hub subsection for export defaults."""
     st.subheader("Export defaults")

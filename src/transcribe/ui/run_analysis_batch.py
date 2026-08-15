@@ -33,9 +33,15 @@ from transcribe.services.batch_analysis import (
     select_from_import_run,
     select_needing_analysis,
 )
+from transcribe.services.batch_notebooks import NotebookCandidate
 from transcribe.services.project import ProjectService
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import render_progress_panel
+from transcribe.ui.corpus_listing_cache import (
+    corpus_listing_token,
+    get_cached_listing,
+    invalidate_listing_keys,
+)
 from transcribe.ui.shell import set_ui_mode
 from transcribe.ui.targets import (
     ANALYSE_BATCH_IMPORT_RUN_KEY,
@@ -50,6 +56,50 @@ _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
+_PENDING_SCAN_KEY = "ax_batch_pending_scan"
+_PENDING_SCAN_TOKEN_KEY = "ax_batch_pending_scan_token"
+_LIGHT_PICKER_KEY = "ax_batch_light_picker"
+_LIGHT_PICKER_TOKEN_KEY = "ax_batch_light_picker_token"
+_SELECTED_FOR_LAUNCH_KEY = "ax_batch_selected_for_launch"
+_IMPORT_RUN_FOR_LAUNCH_KEY = "ax_batch_import_run_for_launch"
+
+
+def invalidate_batch_analyse_caches() -> None:
+    """Drop session caches after a batch starts or the user asks to refresh."""
+    invalidate_listing_keys(
+        st.session_state,
+        _PENDING_SCAN_KEY,
+        _PENDING_SCAN_TOKEN_KEY,
+        _LIGHT_PICKER_KEY,
+        _LIGHT_PICKER_TOKEN_KEY,
+    )
+
+
+def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_LIGHT_PICKER_KEY,
+        token_key=_LIGHT_PICKER_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=lambda: list_candidates_light(corpus),
+    )
+
+
+def _cached_needing_analysis(
+    corpus: CorpusPaths, *, force: bool = False
+) -> list[NotebookCandidate]:
+    def _load() -> list[NotebookCandidate]:
+        with st.spinner("Finding notebooks that need analysis…"):
+            return select_needing_analysis(list_analysis_candidates(corpus))
+
+    return get_cached_listing(
+        st.session_state,
+        cache_key=_PENDING_SCAN_KEY,
+        token_key=_PENDING_SCAN_TOKEN_KEY,
+        token=corpus_listing_token(corpus),
+        loader=_load,
+        force=force,
+    )
 
 
 def batch_analysis_progress_to_snapshot(progress: BatchAnalysisProgress) -> dict[str, Any]:
@@ -130,6 +180,7 @@ def render_batch_analysis_progress(
             ):
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = False
                 st.session_state[_BATCH_POST_RUN_KEY] = progress.analysis_batch_id
+                invalidate_batch_analyse_caches()
                 st.rerun()
 
         batch_status_panel()
@@ -195,6 +246,7 @@ def _render_batch_complete_actions(
                     ),
                     import_run_id=run.import_run_id if run else None,
                 )
+                invalidate_batch_analyse_caches()
                 coord.start(new_run.analysis_batch_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                 st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -254,7 +306,6 @@ def _render_batch_notebook_source(
     project: Any | None = None,
 ) -> tuple[list, str | None]:
     """Notebook picker first; expensive health scan only for 'needing analysis'."""
-    picker = list_candidates_light(corpus)
     source_options = ["pick", "pending", "import_run"]
     queued_source = st.session_state.pop(ANALYSE_BATCH_SOURCE_KEY, None)
     if queued_source in source_options:
@@ -279,8 +330,12 @@ def _render_batch_notebook_source(
     selected: list = []
     import_run_id: str | None = None
     if source == "pending":
-        with st.spinner("Finding notebooks that need analysis…"):
-            selected = select_needing_analysis(list_analysis_candidates(corpus))
+        refresh = st.button(
+            "Refresh list",
+            key="ax_batch_pending_refresh",
+            help="Re-scan the corpus for notebooks that need analysis.",
+        )
+        selected = _cached_needing_analysis(corpus, force=refresh)
         st.caption(
             f"{len(selected)} notebook(s) needing analysis "
             f"({sum(c.pages_with_text for c in selected)} page(s) with text)."
@@ -319,6 +374,7 @@ def _render_batch_notebook_source(
             import_run_id = str(chosen_run) if chosen_run else None
             if import_run_id:
                 try:
+                    picker = _cached_light_picker(corpus)
                     selected = select_from_import_run(
                         corpus,
                         import_run_id,
@@ -336,6 +392,7 @@ def _render_batch_notebook_source(
                 except (TranscribeError, ValidationError) as exc:
                     st.error(str(exc))
     else:
+        picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
         options = [c.notebook_id for c in picker]
         labels = {
@@ -370,17 +427,19 @@ def _render_batch_notebook_source(
                     st.error(str(exc))
             else:
                 st.caption("Select at least one notebook.")
+    st.session_state[_SELECTED_FOR_LAUNCH_KEY] = selected
+    st.session_state[_IMPORT_RUN_FOR_LAUNCH_KEY] = import_run_id
     return selected, import_run_id
 
 
-def render_batch_analysis_launch(
+def _render_batch_preset_and_launch(
     runtime: RuntimePaths,
     batch_coord: BatchAnalysisCoordinator,
     *,
     projects: ProjectService | None = None,
     project: Any | None = None,
 ) -> None:
-    """Preset form + notebook selection for Analyse → Batch."""
+    """Preset / module / LLM controls — fragment-isolated from notebook discovery."""
     from transcribe.analysis.module_catalog import format_module_label
     from transcribe.analysis.llm_runtime import (
         is_unsuitable_text_model_name,
@@ -391,9 +450,8 @@ def render_batch_analysis_launch(
     from transcribe.ui.module_ui_groups import group_modules_for_ui
 
     corpus = CorpusPaths.from_runtime(runtime)
-    batch_selected, import_run_id = _render_batch_notebook_source(
-        corpus, project=project
-    )
+    batch_selected = list(st.session_state.get(_SELECTED_FOR_LAUNCH_KEY) or [])
+    import_run_id = st.session_state.get(_IMPORT_RUN_FOR_LAUNCH_KEY)
 
     if _PRESET_KEY not in st.session_state:
         st.session_state[_PRESET_KEY] = PRESET_LABELS["balanced"]
@@ -522,6 +580,7 @@ def render_batch_analysis_launch(
                         "Resume", key=f"batch_analysis_resume_{run.analysis_batch_id}"
                     ):
                         try:
+                            invalidate_batch_analyse_caches()
                             batch_coord.start(run.analysis_batch_id)
                             st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                             st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -562,9 +621,38 @@ def render_batch_analysis_launch(
                         (batch_text_model or "").strip() if needs_llm else None
                     ),
                 )
+                invalidate_batch_analyse_caches()
                 batch_coord.start(new_run.analysis_batch_id)
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = True
                 st.session_state.pop(_BATCH_POST_RUN_KEY, None)
                 st.rerun()
             except (JobConflictError, TranscribeError, ValidationError) as exc:
                 st.error(str(exc))
+
+
+def render_batch_analysis_launch(
+    runtime: RuntimePaths,
+    batch_coord: BatchAnalysisCoordinator,
+    *,
+    projects: ProjectService | None = None,
+    project: Any | None = None,
+) -> None:
+    """Preset form + notebook selection for Analyse → Batch."""
+    corpus = CorpusPaths.from_runtime(runtime)
+
+    @st.fragment
+    def _source_fragment() -> None:
+        _render_batch_notebook_source(corpus, project=project)
+
+    _source_fragment()
+
+    @st.fragment
+    def _preset_fragment() -> None:
+        _render_batch_preset_and_launch(
+            runtime,
+            batch_coord,
+            projects=projects,
+            project=project,
+        )
+
+    _preset_fragment()
