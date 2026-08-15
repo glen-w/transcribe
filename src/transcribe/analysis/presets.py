@@ -43,10 +43,10 @@ PRESET_LABELS: dict[AnalysisPreset, str] = {
 }
 
 PRESET_HELP = (
-    "**Quick** — no LLM, no heavy modules.\n\n"
+    "**Quick** — no LLM, no heavy modules, no detectors.\n\n"
     "**Balanced** — limited heavy modules + LLM summary only.\n\n"
-    "**Thorough** — all suitable modules for this notebook.\n\n"
-    "**Custom** — pick modules."
+    "**Thorough** — all suitable modules + detectors for this notebook.\n\n"
+    "**Custom** — pick modules and detectors."
 )
 
 _CUSTOM_QA_MODULE = "llm_custom_qa"
@@ -62,6 +62,8 @@ class PresetPolicy:
     heavy_module_ids: tuple[str, ...] = ()
     include_excluded_from_default: bool = False
     module_ids: tuple[str, ...] | None = None
+    allow_detection: bool = False
+    detector_ids: tuple[str, ...] = ()
     content_version: int = 1
 
 
@@ -73,6 +75,8 @@ def _policy_from_config(cfg: PresetPolicyConfig) -> PresetPolicy:
         heavy_module_ids=cfg.heavy_module_ids,
         include_excluded_from_default=cfg.include_excluded_from_default,
         module_ids=cfg.module_ids,
+        allow_detection=cfg.allow_detection,
+        detector_ids=cfg.detector_ids,
         content_version=int(cfg.content_version),
     )
 
@@ -89,13 +93,25 @@ def preset_policy_fingerprint(policy: PresetPolicy | PresetPolicyConfig) -> str:
             "heavy_module_ids": list(policy.heavy_module_ids),
             "include_excluded_from_default": policy.include_excluded_from_default,
             "module_ids": (None if policy.module_ids is None else list(policy.module_ids)),
+            "allow_detection": policy.allow_detection,
+            "detector_ids": list(policy.detector_ids),
         }
     return hashlib.sha256(canonical_json_bytes(body)).hexdigest()
 
 
-def custom_modules_fingerprint(module_ids: Sequence[str]) -> str:
+def custom_modules_fingerprint(
+    module_ids: Sequence[str],
+    detector_ids: Sequence[str] = (),
+) -> str:
     """Stable identity surrogate for Custom preset selections."""
-    return hashlib.sha256(canonical_json_bytes({"module_ids": list(module_ids)})).hexdigest()
+    return hashlib.sha256(
+        canonical_json_bytes(
+            {
+                "module_ids": list(module_ids),
+                "detector_ids": list(detector_ids),
+            }
+        )
+    ).hexdigest()
 
 
 def bump_preset_content_versions(
@@ -137,6 +153,7 @@ class ResolvedAnalysisPreset:
     module_ids: tuple[str, ...]
     content_version: int = 1
     policy_fingerprint: str = ""
+    detector_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -145,6 +162,14 @@ class EffectiveModulePlan:
     llm_count: int
     heavy_count: int
     custom_qa_execution: bool
+    detector_ids: tuple[str, ...] = ()
+
+    @property
+    def detector_count(self) -> int:
+        return len(self.detector_ids)
+
+    def needs_llm(self) -> bool:
+        return self.llm_count > 0 or self.detector_count > 0
 
 
 def _dedupe_preserve_order(modules: Sequence[str]) -> list[str]:
@@ -173,6 +198,13 @@ def suitable_module_ids(
     return tuple(out)
 
 
+def suitable_detector_ids() -> tuple[str, ...]:
+    """Registered detectors (built-ins + customs) available for Analyse presets."""
+    from transcribe.detection.api import DetectionService
+
+    return tuple(info.detector_id for info in DetectionService.list_detectors())
+
+
 def reconcile_custom_modules(
     selected: Sequence[str],
     *,
@@ -191,6 +223,15 @@ def reconcile_custom_modules(
         else:
             removed.append(mid)
     return tuple(kept), tuple(removed)
+
+
+def reconcile_custom_detectors(
+    selected: Sequence[str],
+    *,
+    suitable: Sequence[str] | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    pool = tuple(suitable) if suitable is not None else suitable_detector_ids()
+    return reconcile_custom_modules(selected, suitable=pool)
 
 
 def _module_passes_policy(mid: str, policy: PresetPolicy) -> bool:
@@ -266,13 +307,26 @@ def _modules_from_policy(
     return prune_modules_with_unsatisfied_deps(selected)
 
 
+def _detectors_from_policy(
+    suitable: Sequence[str],
+    policy: PresetPolicy,
+) -> tuple[str, ...]:
+    if not policy.allow_detection:
+        return ()
+    if policy.detector_ids:
+        kept, _ = reconcile_custom_detectors(policy.detector_ids, suitable=suitable)
+        return kept
+    return tuple(suitable)
+
+
 def resolve_analysis_preset(
     preset: AnalysisPreset | str,
     *,
     custom_modules: Sequence[str] | None = None,
+    custom_detectors: Sequence[str] | None = None,
     effective: EffectiveConfig | None = None,
 ) -> ResolvedAnalysisPreset:
-    """Resolve Quick / Balanced / Thorough / Custom into ordered module ids."""
+    """Resolve Quick / Balanced / Thorough / Custom into modules + detectors."""
     if preset not in VALID_PRESETS:
         preset = "balanced"
     preset_key: AnalysisPreset = preset  # type: ignore[assignment]
@@ -281,31 +335,39 @@ def resolve_analysis_preset(
         include_heavy=True,
         include_excluded_from_default=True,
     )
+    detectors_suitable = suitable_detector_ids()
 
     cfg = effective if effective is not None else require_operation_config()
     policies = policies_from_effective(cfg)
 
     if preset_key == "custom":
         kept, _ = reconcile_custom_modules(list(custom_modules or ()), suitable=suitable)
-        if not kept:
+        dets, _ = reconcile_custom_detectors(
+            list(custom_detectors or ()), suitable=detectors_suitable
+        )
+        if not kept and not dets:
             balanced = resolve_analysis_preset("balanced", effective=cfg)
             kept = balanced.module_ids
-        fp = custom_modules_fingerprint(kept)
+            dets = balanced.detector_ids
+        fp = custom_modules_fingerprint(kept, dets)
         return ResolvedAnalysisPreset(
             preset="custom",
             module_ids=kept,
             content_version=0,
             policy_fingerprint=fp,
+            detector_ids=dets,
         )
 
     policy = policies[preset_key]
     modules = _modules_from_policy(suitable, policy)
+    detectors = _detectors_from_policy(detectors_suitable, policy)
     cfg_policy = getattr(cfg.analysis.ui_presets, preset_key)
     return ResolvedAnalysisPreset(
         preset=preset_key,
         module_ids=modules,
         content_version=int(cfg_policy.content_version),
         policy_fingerprint=preset_policy_fingerprint(cfg_policy),
+        detector_ids=detectors,
     )
 
 
@@ -341,6 +403,7 @@ def compute_effective_modules(
         llm_count=llm_count,
         heavy_count=heavy_count,
         custom_qa_execution=bool(custom_qa_execution),
+        detector_ids=tuple(resolved.detector_ids),
     )
 
 
@@ -378,7 +441,9 @@ __all__ = [
     "policies_from_effective",
     "preset_policy_fingerprint",
     "prune_modules_with_unsatisfied_deps",
+    "reconcile_custom_detectors",
     "reconcile_custom_modules",
     "resolve_analysis_preset",
+    "suitable_detector_ids",
     "suitable_module_ids",
 ]

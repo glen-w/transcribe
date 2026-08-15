@@ -117,7 +117,7 @@ class AnalysisCoordinator:
                 return
             self._run.cancel_event.set()
             self._run.progress.cancel_requested = True
-            self._run.progress.message = "Stopping after current module…"
+            self._run.progress.message = "Stopping after current step…"
             snap = _snapshot_progress(self._run.progress)
         _default_progress_log(snap)
 
@@ -137,7 +137,7 @@ class AnalysisCoordinator:
             progress = AnalysisProgress(
                 run_id=plan.run_id,
                 status="running",
-                total=len(plan.module_ids),
+                total=plan.step_total(),
                 message="Starting…",
             )
             state = AnalysisRunState(progress=progress, plan=plan)
@@ -173,7 +173,7 @@ class AnalysisCoordinator:
         progress = AnalysisProgress(
             run_id=plan.run_id,
             status="running",
-            total=len(plan.module_ids),
+            total=plan.step_total(),
         )
         state = AnalysisRunState(progress=progress, plan=plan)
         with self._lock:
@@ -261,11 +261,12 @@ class AnalysisCoordinator:
     ) -> None:
         plan = state.plan
         assert plan is not None
+        step_total = plan.step_total()
         self._update_progress(
             state,
             on_progress=on_progress,
             status="running",
-            total=len(plan.module_ids),
+            total=step_total,
             message="Running analysis…",
         )
         self._persist_run(state, terminal=False)
@@ -319,14 +320,28 @@ class AnalysisCoordinator:
             self._persist_run(state, terminal=False)
 
         try:
-            results = self.runner.run_batch_from_plan(
-                plan,
-                cancel_event=state.cancel_event,
-                on_module_started=on_started,
-                on_module_finished=on_finished,
-            )
-            with self._lock:
-                state.results.update(results)
+            if plan.module_ids:
+                results = self.runner.run_batch_from_plan(
+                    plan,
+                    cancel_event=state.cancel_event,
+                    on_module_started=on_started,
+                    on_module_finished=on_finished,
+                )
+                with self._lock:
+                    state.results.update(results)
+            if not state.cancel_event.is_set() and plan.detector_ids:
+                self._run_detectors(
+                    state,
+                    completed=completed,
+                    failed=failed,
+                    skipped=skipped,
+                    outcomes=outcomes,
+                    on_progress=on_progress,
+                )
+                with self._lock:
+                    completed = state.progress.completed
+                    failed = state.progress.failed
+                    skipped = state.progress.skipped
             if state.cancel_event.is_set():
                 status = "cancelled"
                 message = "Cancelled"
@@ -350,6 +365,83 @@ class AnalysisCoordinator:
                 error=str(exc),
             )
             self._persist_run(state, terminal=True)
+
+    def _run_detectors(
+        self,
+        state: AnalysisRunState,
+        *,
+        completed: int,
+        failed: int,
+        skipped: int,
+        outcomes: dict[str, str],
+        on_progress: Callable[[AnalysisProgress], None] | None = None,
+    ) -> None:
+        plan = state.plan
+        assert plan is not None
+        from transcribe.detection.api import DetectionService
+
+        text_ctx = plan.build_llm_context()
+        svc = DetectionService(self.projects, text_ctx=text_ctx)
+        module_count = len(plan.module_ids)
+        total = plan.step_total()
+        for offset, detector_id in enumerate(plan.detector_ids):
+            if state.cancel_event.is_set():
+                break
+            index = module_count + offset + 1
+            self._update_progress(
+                state,
+                on_progress=on_progress,
+                current_module_id=detector_id,
+                message=f"Detecting {detector_id} ({index}/{total})…",
+                completed=completed,
+                failed=failed,
+                skipped=skipped,
+                module_outcomes=dict(outcomes),
+            )
+            self._persist_run(state, terminal=False)
+            try:
+                env = svc.run_detector(
+                    detector_id,
+                    force=False,
+                    cancel_check=state.cancel_event.is_set,
+                )
+            except Exception as exc:  # noqa: BLE001
+                _log.exception("detector %s failed", detector_id)
+                env = {
+                    "outcome": "failed",
+                    "capability": "error",
+                    "error": str(exc),
+                }
+            outcome = str(env.get("outcome") or "failed")
+            if state.cancel_event.is_set() and outcome not in {
+                "success",
+                "skipped_not_applicable",
+                "unavailable_dependency",
+                "insufficient_data",
+            }:
+                outcome = "cancelled"
+                env = {**env, "outcome": outcome}
+            outcomes[detector_id] = outcome
+            if outcome == "failed":
+                failed += 1
+            elif outcome == "cancelled":
+                skipped += 1
+            else:
+                completed += 1
+            with self._lock:
+                state.results[detector_id] = env
+                state.progress.module_outcomes = dict(outcomes)
+            self._update_progress(
+                state,
+                on_progress=on_progress,
+                completed=completed,
+                failed=failed,
+                skipped=skipped,
+                current_module_id=detector_id,
+                message=f"{detector_id}: {outcome}",
+                module_outcomes=dict(outcomes),
+            )
+            self._persist_run(state, terminal=False)
 
 
 def build_analysis_coordinator(

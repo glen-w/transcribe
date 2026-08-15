@@ -14,5 +14,5 @@ PROFILE_FORMAT = "transcribe.profile"
 # Bump when fingerprint-included analysis keys/types/semantics change.
 ANALYSIS_CONFIG_VERSION = "1"
 
-# Subset version for ui_presets policy shape.
-PRESET_POLICY_VERSION = "1"
+# Subset version for ui_presets policy shape (bump when policy body keys change).
+PRESET_POLICY_VERSION = "2"

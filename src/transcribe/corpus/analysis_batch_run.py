@@ -85,6 +85,7 @@ class AnalysisBatchRun:
     items: list[AnalysisBatchItem] = field(default_factory=list)
     format: str = "transcribe.analysis-batch-run"
     schema_version: int = 1
+    detector_ids: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -95,6 +96,7 @@ class AnalysisBatchRun:
             "updated_at": self.updated_at,
             "status": self.status,
             "module_ids": list(self.module_ids),
+            "detector_ids": list(self.detector_ids),
             "effective_config": dict(self.effective_config),
             "config_fingerprint": self.config_fingerprint,
             "plan_template_hash": self.plan_template_hash,
@@ -160,6 +162,7 @@ class AnalysisBatchRun:
             items=[AnalysisBatchItem.from_dict(i) for i in data.get("items") or []],
             format=str(data.get("format", "transcribe.analysis-batch-run")),
             schema_version=int(data.get("schema_version", 1)),
+            detector_ids=[str(d) for d in (data.get("detector_ids") or [])],
         )
 
 
@@ -168,8 +171,10 @@ def validate_analysis_batch_run(run: AnalysisBatchRun) -> None:
         raise ValidationError(f"invalid analysis-batch-run status: {run.status!r}")
     if not run.analysis_batch_id.strip():
         raise ValidationError("analysis_batch_id must be non-empty")
-    if not run.module_ids:
-        raise ValidationError("analysis-batch-run requires at least one module_id")
+    if not run.module_ids and not run.detector_ids:
+        raise ValidationError(
+            "analysis-batch-run requires at least one module_id or detector_id"
+        )
     seen: set[str] = set()
     for item in run.items:
         if item.state not in ITEM_STATES:

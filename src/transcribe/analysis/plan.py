@@ -77,9 +77,15 @@ class AnalysisRunPlan:
     preset_content_version: int | None = None
     preset_policy_fingerprint: str | None = None
     created_at: str | None = None
+    detector_ids: tuple[str, ...] = ()
 
     def needs_llm(self) -> bool:
-        return any(mid in _LLM_MODULES for mid in self.module_ids)
+        return any(mid in _LLM_MODULES for mid in self.module_ids) or bool(
+            self.detector_ids
+        )
+
+    def step_total(self) -> int:
+        return len(self.module_ids) + len(self.detector_ids)
 
     def build_llm_context(self) -> TextLLMContext | None:
         """Rebuild a TextLLMContext from frozen identity (live client, frozen digest)."""
@@ -98,6 +104,7 @@ class AnalysisRunPlan:
             "run_id": self.run_id,
             "project_id": self.project_id,
             "module_ids": list(self.module_ids),
+            "detector_ids": list(self.detector_ids),
             "question_text": self.question_text,
             "effective_config": self.effective_config.as_dict(),
             "config_fingerprint": self.config_fingerprint,
@@ -113,6 +120,7 @@ class AnalysisRunPlan:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> AnalysisRunPlan:
         modules = tuple(str(m) for m in (data.get("module_ids") or ()))
+        detectors = tuple(str(d) for d in (data.get("detector_ids") or ()))
         cfg_raw = data.get("effective_config")
         if not isinstance(cfg_raw, Mapping):
             cfg_raw = {}
@@ -149,6 +157,7 @@ class AnalysisRunPlan:
                 else None
             ),
             created_at=(str(data["created_at"]) if data.get("created_at") is not None else None),
+            detector_ids=detectors,
         )
         return plan
 
@@ -159,6 +168,7 @@ def compute_plan_hash(plan: AnalysisRunPlan | Mapping[str, Any]) -> str:
         body = {
             "project_id": plan.project_id,
             "module_ids": list(plan.module_ids),
+            "detector_ids": list(plan.detector_ids),
             "question_text": plan.question_text,
             "effective_config": plan.effective_config.as_dict(),
             "text_model": plan.text_model.as_dict() if plan.text_model else None,
@@ -172,6 +182,7 @@ def compute_plan_hash(plan: AnalysisRunPlan | Mapping[str, Any]) -> str:
         body = {
             "project_id": plan.get("project_id"),
             "module_ids": list(plan.get("module_ids") or ()),
+            "detector_ids": list(plan.get("detector_ids") or ()),
             "question_text": plan.get("question_text"),
             "effective_config": cfg if isinstance(cfg, Mapping) else {},
             "text_model": plan.get("text_model"),
@@ -200,11 +211,13 @@ def config_fingerprint_for_plan(
     text_model: FrozenTextModel | None,
     module_ids: Sequence[str],
     question_text: str | None,
+    detector_ids: Sequence[str] = (),
 ) -> str:
     payload = {
         "effective_config": effective.as_dict(),
         "text_model": text_model.as_dict() if text_model else None,
         "module_ids": list(module_ids),
+        "detector_ids": list(detector_ids),
         "question_text": question_text,
     }
     return hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
@@ -224,10 +237,11 @@ def build_analysis_run_plan(
     project: Any | None = None,
     text_model: FrozenTextModel | None = None,
     text_model_name: str | None = None,
+    detector_ids: Sequence[str] = (),
 ) -> AnalysisRunPlan:
     """Freeze launch inputs once. Call before AnalysisCoordinator.start.
 
-    When LLM modules are included:
+    When LLM modules or detectors are included:
     - ``text_model`` (already frozen) wins when provided (batch shared freeze).
     - else bind via ``text_model_name`` override → notebook → workspace defaults.
     """
@@ -236,8 +250,9 @@ def build_analysis_run_plan(
 
     project = project or project_service.load(reconcile=True)
     ordered = tuple(batch_module_order(list(expand_with_hard_parents(list(module_ids)))))
-    if not ordered:
-        raise ValueError("analysis run plan requires at least one module")
+    detectors = tuple(dict.fromkeys(str(d).strip() for d in detector_ids if str(d).strip()))
+    if not ordered and not detectors:
+        raise ValueError("analysis run plan requires at least one module or detector")
 
     effective = snapshot_for_operation(
         project_settings=project.settings,
@@ -245,7 +260,8 @@ def build_analysis_run_plan(
     )
     q = (question_text or "").strip() or None
     frozen_model: FrozenTextModel | None = None
-    if any(mid in _LLM_MODULES for mid in ordered):
+    needs_text_model = any(mid in _LLM_MODULES for mid in ordered) or bool(detectors)
+    if needs_text_model:
         if text_model is not None:
             frozen_model = text_model
         else:
@@ -273,6 +289,7 @@ def build_analysis_run_plan(
         text_model=frozen_model,
         module_ids=ordered,
         question_text=q,
+        detector_ids=detectors,
     )
     draft = AnalysisRunPlan(
         run_id=run_id,
@@ -288,6 +305,7 @@ def build_analysis_run_plan(
         preset_content_version=preset_content_version,
         preset_policy_fingerprint=preset_policy_fingerprint,
         created_at=to_iso(clock.now()),
+        detector_ids=detectors,
     )
     return AnalysisRunPlan(
         run_id=draft.run_id,
@@ -303,6 +321,7 @@ def build_analysis_run_plan(
         preset_content_version=draft.preset_content_version,
         preset_policy_fingerprint=draft.preset_policy_fingerprint,
         created_at=draft.created_at,
+        detector_ids=draft.detector_ids,
     )
 
 
@@ -327,6 +346,7 @@ def run_record_payload(
         "project_id": plan.project_id,
         "status": status,
         "module_ids": list(plan.module_ids),
+        "detector_ids": list(plan.detector_ids),
         "question_text": plan.question_text,
         "config_fingerprint": plan.config_fingerprint,
         "plan_hash": plan.plan_hash,
@@ -336,7 +356,7 @@ def run_record_payload(
         "preset_content_version": plan.preset_content_version,
         "preset_policy_fingerprint": plan.preset_policy_fingerprint,
         "effective_config": plan.effective_config.as_dict(),
-        "total": len(plan.module_ids),
+        "total": plan.step_total(),
         "completed": completed,
         "failed": failed,
         "skipped": skipped,

@@ -15,11 +15,13 @@ def test_builtin_policies_match_transcriptx_defaults():
     quick = BUILTIN_PRESET_POLICIES["quick"]
     assert quick.allow_llm is False
     assert quick.allow_heavy is False
+    assert quick.allow_detection is False
 
     balanced = BUILTIN_PRESET_POLICIES["balanced"]
     assert balanced.allow_llm is True
     assert balanced.llm_module_ids == ("llm_summary",)
     assert balanced.heavy_module_ids == ("semantic_similarity",)
+    assert balanced.allow_detection is False
 
     thorough = BUILTIN_PRESET_POLICIES["thorough"]
     assert thorough.allow_llm is True
@@ -27,6 +29,7 @@ def test_builtin_policies_match_transcriptx_defaults():
     assert thorough.include_excluded_from_default is True
     assert thorough.llm_module_ids == ()
     assert thorough.heavy_module_ids == ()
+    assert thorough.allow_detection is True
 
 
 def test_quick_excludes_llm_and_heavy():
@@ -57,6 +60,8 @@ def test_thorough_includes_heavies_and_llm_suite():
     assert "llm_action_items" in resolved.module_ids
     assert "narrative_summary" in resolved.module_ids
     assert "insights" in resolved.module_ids
+    assert resolved.detector_ids
+    assert "poetry" in resolved.detector_ids
 
 
 def test_custom_seeds_from_balanced_when_empty():

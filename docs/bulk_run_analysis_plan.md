@@ -34,8 +34,9 @@ Import → Batch OCR → Bulk Analyse → stay on Analyse (View consume is per-n
 | Parallel notebooks in one process | Same Ollama bottleneck rule as OCR batch |
 | Auto-start Analyse after OCR / import | Keep handoffs opt-in CTAs only (like “Transcribe imported notebooks”) |
 | Changing per-module publish / cache / health semantics | Reuse `AnalysisCoordinator` / `AnalysisRunner` as-is |
-| Detect bulk | Detection stays View → Detect on the open notebook |
 | Ask-as-batch-health | Ask remains ad-hoc; if included in a frozen plan it runs per notebook but still does not redefine aggregate batch health |
+
+Detectors may be included in the same Analyse plan template (`detector_ids`); they publish under each notebook’s `detection/` via `DetectionService` after modules. View → Detect remains the findings review surface (and ad-hoc page-scoped runs).
 
 ### Naming (avoid overload)
 
@@ -58,7 +59,7 @@ Today’s in-notebook multi-module run stays “Analyse batch” / `AnalysisRunP
 | `app.py` Analyse path always loads one project | Host Target switcher; **This notebook** is the preset launcher; **Batch** renders launch + progress only. Consume surfaces are View pages, not Analyse tabs |
 | `get_analysis_coordinator(project_root)` | Keep for This notebook; add `@st.cache_resource` `get_batch_analysis_coordinator` for workspace batch |
 
-**View consume pages and Detect** remain notebook-scoped. Batch mode is a launcher + progress surface only. After a batch finishes, **stay on Analyse**; Library opens the gallery, and per-item Open goes to Overview if published, else Reading.
+**View consume pages and Detect findings** remain notebook-scoped. Batch mode is a launcher + progress surface only (modules and optional detectors from the shared plan). After a batch finishes, **stay on Analyse**; Library opens the gallery, and per-item Open goes to Overview if published, else Reading.
 
 ### 2.2 Target switcher
 
