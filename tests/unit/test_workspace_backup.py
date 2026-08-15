@@ -11,6 +11,7 @@ import pytest
 from transcribe.errors import BackupError
 from transcribe.persistence.atomic import write_json_atomic
 from transcribe.runtime_paths import RuntimePaths
+from transcribe.services import workspace_backup as workspace_backup_mod
 from transcribe.services.workspace_backup import (
     MANIFEST_NAME,
     BackupOptions,
@@ -151,3 +152,48 @@ def test_dry_run_restore_does_not_write(tmp_path: Path) -> None:
     assert result.ok
     assert marker.read_bytes() == before
     assert (rt.projects_dir / "demo" / "extra.txt").is_file()
+    assert any("mapped onto" in m for m in result.messages)
+    assert any("archive counts:" in m for m in result.messages)
+
+
+def test_create_refuses_existing_dest_without_force(tmp_path: Path) -> None:
+    rt = _runtime(tmp_path)
+    _seed_workspace(rt)
+    dest = rt.export_dir / "backups" / "ws.zip"
+    service = WorkspaceBackupService()
+    service.create_backup(rt, dest)
+    with pytest.raises(BackupError, match="already exists"):
+        service.create_backup(rt, dest)
+    service.create_backup(rt, dest, force=True)
+    assert dest.is_file()
+
+
+def test_restore_refuses_archive_under_projects(tmp_path: Path) -> None:
+    rt = _runtime(tmp_path)
+    _seed_workspace(rt)
+    service = WorkspaceBackupService()
+    good = rt.export_dir / "backups" / "ws.zip"
+    service.create_backup(rt, good)
+    nested = rt.projects_dir / "ws.zip"
+    nested.write_bytes(good.read_bytes())
+    with pytest.raises(BackupError, match="replace root projects"):
+        service.restore_backup(rt, nested, safety=False, dry_run=False)
+
+
+def test_restore_allows_archive_under_exports_backups(tmp_path: Path) -> None:
+    rt = _runtime(tmp_path)
+    _seed_workspace(rt)
+    service = WorkspaceBackupService()
+    archive = rt.export_dir / "backups" / "ws.zip"
+    service.create_backup(rt, archive, BackupOptions(include_exports=True))
+    result = service.restore_backup(rt, archive, safety=False, dry_run=True)
+    assert result.ok
+
+
+def test_create_refuses_insufficient_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    rt = _runtime(tmp_path)
+    _seed_workspace(rt)
+    dest = rt.export_dir / "backups" / "ws.zip"
+    monkeypatch.setattr(workspace_backup_mod, "_free_disk_bytes", lambda _path: 1024)
+    with pytest.raises(BackupError, match="insufficient free disk space"):
+        WorkspaceBackupService().create_backup(rt, dest)

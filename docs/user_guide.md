@@ -127,7 +127,7 @@ In the UI: **System → Diagnostics** (workspace doctor always; notebook doctor 
 
 ## 7b. Workspace backup / restore
 
-Pack the authoritative workspace (notebooks + corpus + config) into a ZIP, move it, then replace-restore onto the current mounts.
+Pack the authoritative workspace (notebooks + corpus + config) into a ZIP, move it, then replace-restore onto the current mounts. Full operator guide: [backup_and_restore.md](backup_and_restore.md).
 
 ```bash
 ./transcribe.sh cli backup create
@@ -140,7 +140,7 @@ Pack the authoritative workspace (notebooks + corpus + config) into a ZIP, move 
 
 Default write path: `{TRANSCRIBE_EXPORT_DIR}/backups/transcribe-workspace-<stamp>.zip`. Restore remaps archive role roots onto the current `TRANSCRIBE_*` paths, writes a safety ZIP first (unless `--no-safety-backup`), clears rebuildable `data/cache/`, then runs corpus-doctor. Inbox and exports are **off** by default.
 
-In the UI: **Settings → Configuration → Backup** (path-based create/restore; confirm checkbox required). Prefer the CLI for large corpora. Contract: [contracts/workspace-backup.md](contracts/workspace-backup.md).
+In the UI: **Settings → Configuration → Backup** (create, verify, dry-run, confirm-gated restore). Prefer the CLI for large corpora. Contract: [contracts/workspace-backup.md](contracts/workspace-backup.md).
 
 ## 8. Bulk import, batch OCR, and bulk Analyse
 

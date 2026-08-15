@@ -30,7 +30,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels`, `--force`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
 | `corpus-doctor` | Workspace corpus integrity (`--deep` also doctors each notebook) |
-| `backup create` | Full-workspace ZIP to `{EXPORT}/backups/` (`--dest`, `--include-inbox`, `--include-exports`) |
+| `backup create` | Full-workspace ZIP to `{EXPORT}/backups/` (`--dest`, `--force`, `--include-inbox`, `--include-exports`) |
 | `backup verify <archive.zip>` | Verify manifest + file index without changing the workspace |
 | `restore <archive.zip>` | Replace-only restore (`--yes` required; `--dry-run`; `--no-safety-backup`) |
 
@@ -46,7 +46,7 @@ Sidebar order matches TranscriptX: unlabeled **primary** → **Workflow** → **
 
 **System:** Settings · Diagnostics.
 
-**Settings** tabs (chrome order): Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Settings `required_context` is `none` (no bounce to Home). Configuration holds folders, **Backup** (full-workspace ZIP create/restore via on-disk paths), import/declutter, Archive paging, and Overview cards. Models holds workspace Ollama URL, OCR `preprocess_profile` seed, LLM budgets, and Apply-OCR-to-notebook (gated on a selected notebook). Live model discovery stays on Transcribe / Analyse. Profiles is a tab (activation pointer; not a System page). Export is read-only workspace defaults; live editors stay on Workflow → Export. Alignment note: [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md).
+**Settings** tabs (chrome order): Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Settings `required_context` is `none` (no bounce to Home). Configuration holds folders, **Backup** (full-workspace ZIP create / verify / dry-run / restore via on-disk paths), import/declutter, Archive paging, and Overview cards. Models holds workspace Ollama URL, OCR `preprocess_profile` seed, LLM budgets, and Apply-OCR-to-notebook (gated on a selected notebook). Live model discovery stays on Transcribe / Analyse. Profiles is a tab (activation pointer; not a System page). Export is read-only workspace defaults; live editors stay on Workflow → Export. Alignment note: [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md).
 
 First visit lands on **Home**. Unknown `ui_mode` still normalises to **Archive**.
 
@@ -93,8 +93,8 @@ Bulk-import generation is **runtime-normative**; the [acceptance gate](contracts
 | UI **Workflow → Import → Batch** | Streamlit Import Target=Batch | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes; live progress. Legacy Inbox aliases here. |
 | UI **Workflow → Transcribe → Batch** | Streamlit Transcribe Target=Batch | Single-model or multipass Compare models × N notebooks; pending / import-run / pick; resume; live progress |
 | UI **Workflow → Analyse → Batch** | Streamlit Analyse Target=Batch | Same Analyse plan × N notebooks; pick (default) / needing-analysis / import-run; batch text-model freeze when LLM modules included; dual-bar live progress |
-| CLI `backup create\|verify` / `restore` | `transcribe backup …` / `transcribe restore …` | Full-workspace ZIP; replace-only restore with safety ZIP; see [workspace-backup.md](contracts/workspace-backup.md) |
-| UI **Settings → Configuration → Backup** | Streamlit Configuration | Path-based create/restore (no browser zip transfer) |
+| CLI `backup create\|verify` / `restore` | `transcribe backup …` / `transcribe restore …` | Full-workspace ZIP; replace-only restore with safety ZIP; see [workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md) |
+| UI **Settings → Configuration → Backup** | Streamlit Configuration | Path-based create / verify / dry-run / restore (no browser zip transfer) |
 
 ## Explicitly unsupported
 

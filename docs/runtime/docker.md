@@ -48,6 +48,8 @@ Separate `HOST_*` vs `TRANSCRIBE_*` names avoid Compose `.env` vs `environment:`
 
 Prefer absolute host paths **outside the git clone** for projects, inbox, and exports so wiping the repo never deletes notebook work.
 
+To move a workspace between hosts or remount volumes, use full-workspace backup/restore (role roots remap onto the current `HOST_*` / `TRANSCRIBE_*` mounts): [../backup_and_restore.md](../backup_and_restore.md).
+
 Project folder internals: [../contracts/project-on-disk.md](../contracts/project-on-disk.md).
 
 ### Bulk import paths (Import → Batch / CLI in Docker)

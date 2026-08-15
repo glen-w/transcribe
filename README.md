@@ -51,7 +51,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 | Surface | Role |
 |---------|------|
 | **Streamlit UI** (`./transcribe.sh ui`) | Primary — Home / Library / Search / Archive / Places · Workflow (Import / Transcribe / Review / Analyse / Export) · View (Reading / Overview / …) · System |
-| **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor |
+| **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor, backup, restore |
 | **Services API** | Shared by UI and CLI (`transcribe.services`) |
 
 ```bash
@@ -61,9 +61,11 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 ./transcribe.sh cli run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model gemma3:4b
 ./transcribe.sh cli export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 ./transcribe.sh cli doctor "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
+./transcribe.sh cli backup create
+./transcribe.sh cli backup verify "$TRANSCRIBE_EXPORT_DIR/backups/transcribe-workspace-….zip"
 ```
 
-More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces.md).
+More: [user guide](docs/user_guide.md) · [backup & restore](docs/backup_and_restore.md) · [public surfaces](docs/public_surfaces.md).
 
 ## What it does today
 
@@ -75,7 +77,7 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 - Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
 - Analyse presets (Quick / Balanced / Thorough / Custom); product read-models under View (corpus/period compare on Overview/Mood; Moments and page-series jump-to-page → Reading)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
-- **Full-workspace backup / restore** (ZIP of notebooks + corpus + config; CLI + Settings → Configuration)
+- **Full-workspace backup / restore** (ZIP of notebooks + corpus + config; CLI + Settings → Configuration) — [backup_and_restore.md](docs/backup_and_restore.md)
 - **Core notebook analysis** on transcribed text (Overview, Themes with People, Mood with Moments, Summaries with Ask, Detect) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).

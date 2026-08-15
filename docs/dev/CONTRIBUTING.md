@@ -41,6 +41,7 @@ Update the **owning** doc:
 | Page-result / fingerprint fields | [contracts/page-result.md](../contracts/page-result.md) |
 | Analysis document / result / run storage / eligibility | [contracts/analysis-document.md](../contracts/analysis-document.md) · [analysis-result.md](../contracts/analysis-result.md) · [analysis-run-storage.md](../contracts/analysis-run-storage.md) · [notebook-eligibility.md](../contracts/notebook-eligibility.md) |
 | Export files / notebook JSON | [contracts/notebook-export.md](../contracts/notebook-export.md) |
+| Full-workspace backup ZIP / restore | [contracts/workspace-backup.md](../contracts/workspace-backup.md) · [backup_and_restore.md](../backup_and_restore.md) |
 | CLI/UI entrypoints | [public_surfaces.md](../public_surfaces.md) + README links |
 | Ownership / component shape | [ARCHITECTURE.md](../ARCHITECTURE.md) |
 | Vision / roadmap | [PRODUCT.md](../PRODUCT.md) / [ROADMAP.md](../ROADMAP.md) / [usability_wave_plan.md](../usability_wave_plan.md) (active focus) / [product_hardening_plan.md](../product_hardening_plan.md) (U0/U1 checklist) |

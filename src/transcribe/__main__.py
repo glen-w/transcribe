@@ -282,6 +282,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also pack TRANSCRIBE_EXPORT_DIR (skips the destination zip itself)",
     )
+    p_backup_create.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite destination if the .zip already exists",
+    )
     p_backup_verify = backup_sub.add_parser(
         "verify",
         help="Verify a workspace backup ZIP without changing the workspace",
@@ -1145,11 +1150,17 @@ def _cmd_backup(args: argparse.Namespace) -> int:
                     include_inbox=bool(args.include_inbox),
                     include_exports=bool(args.include_exports),
                 ),
+                force=bool(args.force),
             )
             print(f"wrote {result.archive_path}")
             print(
                 f"notebooks={result.notebook_count} files={result.file_count} "
                 f"uncompressed_bytes={result.uncompressed_bytes}"
+            )
+            includes = result.manifest.get("includes") or {}
+            print(
+                "includes: "
+                + ", ".join(f"{key}={value}" for key, value in sorted(includes.items()))
             )
             return 0
         if args.backup_cmd == "verify":
@@ -1157,10 +1168,21 @@ def _cmd_backup(args: argparse.Namespace) -> int:
             for message in result.messages:
                 print(f"note: {message}")
             counts = (result.manifest.get("counts") or {}) if result.manifest else {}
+            includes = (result.manifest.get("includes") or {}) if result.manifest else {}
             print(
                 "ok: backup verified "
-                f"(notebooks={counts.get('notebooks')} files={counts.get('files')})"
+                f"(notebooks={counts.get('notebooks')} files={counts.get('files')} "
+                f"uncompressed_bytes={counts.get('uncompressed_bytes')})"
             )
+            if includes:
+                print(
+                    "includes: "
+                    + ", ".join(f"{key}={value}" for key, value in sorted(includes.items()))
+                )
+            created = (result.manifest or {}).get("created_at")
+            version = (result.manifest or {}).get("transcribe_version")
+            if created or version:
+                print(f"created_at={created} transcribe_version={version}")
             return 0
     except BackupError as exc:
         print(f"error: {exc}", file=sys.stderr)

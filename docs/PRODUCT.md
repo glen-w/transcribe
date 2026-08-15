@@ -14,6 +14,7 @@ On your machine you can:
 3. Review and correct text page by page
 4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Summaries, Detect under **View**; People & places lives on Themes, Moments on Mood, Ask notebook on Summaries; corpus Places map in the primary nav)
 5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
+6. Back up and restore the full workspace (notebooks + corpus + config) as a local ZIP
 
 without requiring a cloud OCR provider or a TranscriptX dependency.
 
@@ -41,6 +42,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Page-first domain (ordered pages, not timed speaker segments)
 - Human edits preserved separately from raw OCR attempts
 - Portable export without required absolute paths
+- Full-workspace backup / restore (`transcribe.workspace-backup` ZIP; replace-only onto current mounts)
 - Core notebook analysis modules and Analyse (optional local text Ollama for LLM modules)
 - Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability (**U2** open except Home/Diagnostics from GUI alignment), daily workbench (**U3** done); OCR fail-fast, Analyse corpus-compare, Moments/chart jump → Reading, and Analyse/View split are shipped deepen-in-place ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
 
@@ -61,3 +63,4 @@ See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, 
 - Architecture shape: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Contracts: [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 - User flows: [user_guide.md](user_guide.md)
+- Workspace backup / restore: [backup_and_restore.md](backup_and_restore.md)
