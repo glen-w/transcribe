@@ -59,10 +59,24 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "Refresh list" in TRANSCRIBE
     assert "corpus_listing_cache" in TRANSCRIBE
     assert "({c.pages_pending} pending / {c.pages_total})" not in TRANSCRIBE
+    assert "_cached_import_runs" in TRANSCRIBE
+    assert "_cached_recent_ocr_runs" in TRANSCRIBE
+    assert "_cached_import_enriched" in TRANSCRIBE
+    assert "_invalidate_ocr_and_analyse_listings" in TRANSCRIBE
+    assert 'f"{c.title} ({c.pages_total} pages)"' not in TRANSCRIBE
     detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
     export = Path("src/transcribe/ui/export_panel.py").read_text(encoding="utf-8")
     assert "@st.fragment" in detect
     assert "@st.fragment" in export
+
+
+def test_create_notebook_does_not_clear_all_cache_resources() -> None:
+    """Creating a notebook must not wipe live JobCoordinator / analysis resources."""
+    create_fn = APP.split("def _render_new_notebook", 1)[1].split("\ndef ", 1)[0]
+    assert "cache_resource.clear()" not in create_fn
+    assert "invalidate_batch_ocr_caches" in create_fn
+    assert "invalidate_batch_analyse_caches" in create_fn
+    assert "Create notebook" in create_fn
 
 
 def test_ocr_batch_run_format_registered() -> None:

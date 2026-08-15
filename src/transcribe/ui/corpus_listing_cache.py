@@ -3,6 +3,19 @@
 Widget clicks on Analyse / Transcribe Batch must not re-walk every notebook's
 page results. Callers pass a cheap ``token`` (see ``corpus_listing_token``) and
 optional ``force`` for an explicit Refresh.
+
+Practice rules
+--------------
+1. Expensive corpus walks (page results, analysis aggregates) go through
+   ``get_cached_listing`` + ``corpus_listing_token``, or an explicit Refresh.
+2. Mutations that change listings bump ``archive.generation`` *and* invalidate
+   the relevant session keys (``invalidate_listing_keys`` /
+   ``invalidate_batch_*_caches``).
+3. Do not call ``planned_cache_identity`` or bind Ollama from corpus discovery
+   / Batch picker paths — use the lightweight scan helpers instead.
+4. Prefer ``@st.fragment`` for knob/select panels; prefer targeted session
+   invalidation over ``st.cache_resource.clear()`` (which drops live job
+   coordinators).
 """
 
 from __future__ import annotations
@@ -62,3 +75,10 @@ def get_cached_listing(
 def invalidate_listing_keys(session_state: Any, *keys: str) -> None:
     for key in keys:
         session_state.pop(key, None)
+
+
+def invalidate_listing_key_prefix(session_state: Any, prefix: str) -> None:
+    """Drop all session keys that start with ``prefix`` (and matching tokens)."""
+    for key in list(session_state.keys()):
+        if str(key).startswith(prefix):
+            session_state.pop(key, None)

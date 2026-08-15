@@ -8,6 +8,7 @@ from transcribe.corpus.paths import CorpusPaths
 from transcribe.ui.corpus_listing_cache import (
     corpus_listing_token,
     get_cached_listing,
+    invalidate_listing_key_prefix,
     invalidate_listing_keys,
 )
 
@@ -110,3 +111,16 @@ def test_get_cached_listing_reloads_when_token_changes() -> None:
     ) == ["v2"]
     assert calls["n"] == 2
     assert state["t"] == "tok-2"
+
+
+def test_invalidate_listing_key_prefix() -> None:
+    state = {
+        "tx_batch_import_enriched:run-a": [1],
+        "tx_batch_import_enriched:run-a:token": "t",
+        "tx_batch_import_enriched:run-b": [2],
+        "other": [3],
+    }
+    invalidate_listing_key_prefix(state, "tx_batch_import_enriched")
+    assert "other" in state
+    assert state["other"] == [3]
+    assert not any(str(k).startswith("tx_batch_import_enriched") for k in state)

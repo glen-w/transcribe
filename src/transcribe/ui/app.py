@@ -464,8 +464,16 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
                 corpus_paths=CorpusPaths.from_runtime(runtime),
             ).create(title=cleaned)
             bump_archive_generation(runtime)
+            # Drop Batch listing caches; keep live job coordinators (avoid
+            # clearing all Streamlit resource caches).
+            from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+            from transcribe.ui.run_transcribe import invalidate_batch_ocr_caches
+
+            invalidate_batch_ocr_caches()
+            invalidate_batch_analyse_caches()
+            archive._validated_at = None
+            archive._validated_generation = None
             archive.ensure_index()
-            st.cache_resource.clear()
             st.session_state["root"] = str(paths.root)
             sync_notebook_selector(str(paths.root))
             st.session_state.pop("new_notebook_title", None)
