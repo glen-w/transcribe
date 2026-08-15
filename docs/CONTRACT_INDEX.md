@@ -12,7 +12,8 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | Managed originals, fingerprints, duplicates, source/render invariants | [contracts/source-asset.md](contracts/source-asset.md) |
 | ImportRun / ImportPlan lifecycle, idempotency, crash/resume | [contracts/import-run.md](contracts/import-run.md) |
 | Multi-notebook OCR batch (OcrBatchRun) | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) |
-| Multi-notebook Analyse batch (AnalysisBatchRun) | [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md) || Corpus/notebook doctor invariants, repair boundaries, bulk-import acceptance gate | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+| Multi-notebook Analyse batch (AnalysisBatchRun) | [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md) |
+| Corpus/notebook doctor invariants, repair boundaries, bulk-import acceptance gate | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
 | Project directory layout, `project.json`, ingest journal, locks, optional `analysis/` | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
 | Page results, attempts, edits, fingerprints, prefer/compare (persisted) | [contracts/page-result.md](contracts/page-result.md) |
 | OCR multipass job records, rank/composite phases | [contracts/ocr-multipass.md](contracts/ocr-multipass.md) |

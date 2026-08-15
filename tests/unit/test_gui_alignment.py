@@ -159,7 +159,9 @@ def test_search_and_library_open_reading() -> None:
 def test_this_notebook_analyse_goes_overview_batch_stays() -> None:
     run = (UI_ROOT / "run_analysis.py").read_text(encoding="utf-8")
     batch = (UI_ROOT / "run_analysis_batch.py").read_text(encoding="utf-8")
-    assert 'normalize_ui_mode("Overview")' in run
+    # Suite complete: Overview when modules ran; Detect when detector-only.
+    assert 'dest = "Overview" if has_modules else "Detect"' in run
+    assert "normalize_ui_mode(dest)" in run
     assert "ANALYSE_COMPLETE" in run
     assert 'set_ui_mode("Library")' in batch
     assert 'set_ui_mode("Overview")' not in batch

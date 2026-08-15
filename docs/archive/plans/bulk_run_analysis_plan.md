@@ -1,5 +1,7 @@
 Type: PRODUCT
-Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity with Transcribe Batch). Does not define runtime schemas — those land in a new CONTRACT when implementation starts. Companion to [ROADMAP.md](ROADMAP.md) and the shipped OCR batch pattern ([contracts/ocr-batch-run.md](contracts/ocr-batch-run.md)).
+Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity with Transcribe Batch). Does not define runtime schemas — those land in a new CONTRACT when implementation starts. Companion to [ROADMAP.md](../../ROADMAP.md) and the shipped OCR batch pattern ([contracts/ocr-batch-run.md](../../contracts/ocr-batch-run.md)).
+
+> **Archived / superseded.** Bulk Analyse delivery plan (shipped). Runtime rules: analysis-batch-run contract. Current authority: [docs/contracts/analysis-batch-run.md](../../contracts/analysis-batch-run.md). Do not treat as live roadmap or support policy.
 
 # Bulk run analysis plan
 
@@ -34,8 +36,9 @@ Import → Batch OCR → Bulk Analyse → stay on Analyse (View consume is per-n
 | Parallel notebooks in one process | Same Ollama bottleneck rule as OCR batch |
 | Auto-start Analyse after OCR / import | Keep handoffs opt-in CTAs only (like “Transcribe imported notebooks”) |
 | Changing per-module publish / cache / health semantics | Reuse `AnalysisCoordinator` / `AnalysisRunner` as-is |
-| Detect bulk | Detection stays View → Detect on the open notebook |
 | Ask-as-batch-health | Ask remains ad-hoc; if included in a frozen plan it runs per notebook but still does not redefine aggregate batch health |
+
+Detectors may be included in the same Analyse plan template (`detector_ids`); they publish under each notebook’s `detection/` via `DetectionService` after modules. View → Detect remains the findings review surface (and ad-hoc page-scoped runs).
 
 ### Naming (avoid overload)
 
@@ -58,7 +61,7 @@ Today’s in-notebook multi-module run stays “Analyse batch” / `AnalysisRunP
 | `app.py` Analyse path always loads one project | Host Target switcher; **This notebook** is the preset launcher; **Batch** renders launch + progress only. Consume surfaces are View pages, not Analyse tabs |
 | `get_analysis_coordinator(project_root)` | Keep for This notebook; add `@st.cache_resource` `get_batch_analysis_coordinator` for workspace batch |
 
-**View consume pages and Detect** remain notebook-scoped. Batch mode is a launcher + progress surface only. After a batch finishes, **stay on Analyse**; Library opens the gallery, and per-item Open goes to Overview if published, else Reading.
+**View consume pages and Detect findings** remain notebook-scoped. Batch mode is a launcher + progress surface only (modules and optional detectors from the shared plan). After a batch finishes, **stay on Analyse**; Library opens the gallery, and per-item Open goes to Overview if published, else Reading.
 
 ### 2.2 Target switcher
 
@@ -137,7 +140,7 @@ Fingerprint / cache skip inside a notebook remains `AnalysisRunner` behavior —
 
 ## 4. Durable contract (`AnalysisBatchRun`)
 
-New CONTRACT: `docs/contracts/analysis-batch-run.md` (implementation PR). Pattern-match [ocr-batch-run.md](contracts/ocr-batch-run.md).
+New CONTRACT: `docs/contracts/analysis-batch-run.md` (implementation PR). Pattern-match [ocr-batch-run.md](../../contracts/ocr-batch-run.md).
 
 ### Storage
 
@@ -325,8 +328,8 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 
 | Artifact | Role |
 |----------|------|
-| [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) | Pattern to clone for workspace batch runs |
-| [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) | Inner plan / publish / lock authority |
+| [contracts/ocr-batch-run.md](../../contracts/ocr-batch-run.md) | Pattern to clone for workspace batch runs |
+| [contracts/analysis-run-storage.md](../../contracts/analysis-run-storage.md) | Inner plan / publish / lock authority |
 | `src/transcribe/services/batch_ocr.py` | Coordinator + selection template |
 | `src/transcribe/ui/run_transcribe.py` | Target + `_render_batch_progress` template |
 | `src/transcribe/ui/components/progress_panel.py` | Shared dual-bar panel |

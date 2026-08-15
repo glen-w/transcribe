@@ -115,6 +115,7 @@ def plan_template_hash(
     preset_key: str | None,
     preset_content_version: int | None,
     preset_policy_fingerprint: str | None,
+    detector_ids: Sequence[str] = (),
 ) -> str:
     """Hash of template fields shared across notebooks (no project_id / run_id)."""
     cfg = (
@@ -129,6 +130,7 @@ def plan_template_hash(
     )
     body = {
         "module_ids": list(module_ids),
+        "detector_ids": list(detector_ids),
         "question_text": question_text,
         "effective_config": cfg,
         "text_model": model,
@@ -207,12 +209,16 @@ class BatchAnalysisCoordinator:
         import_run_id: str | None = None,
         seed_project: ProjectService | None = None,
         text_model_name: str | None = None,
+        detector_ids: Sequence[str] = (),
     ) -> AnalysisBatchRun:
         if not candidates:
             raise ValidationError("select at least one notebook to analyse")
         ordered = list(batch_module_order(list(expand_with_hard_parents(list(module_ids)))))
-        if not ordered:
-            raise ValidationError("analysis batch requires at least one module")
+        detectors = list(dict.fromkeys(str(d).strip() for d in detector_ids if str(d).strip()))
+        if not ordered and not detectors:
+            raise ValidationError(
+                "analysis batch requires at least one module or detector"
+            )
 
         # Freeze template from the first candidate (or an explicit seed project).
         if seed_project is not None:
@@ -235,6 +241,7 @@ class BatchAnalysisCoordinator:
             clock=self.clock,
             ids=self.ids,
             text_model_name=override,
+            detector_ids=detectors,
         )
         if override and template_plan.needs_llm() and template_plan.text_model is None:
             raise ValidationError(
@@ -244,6 +251,7 @@ class BatchAnalysisCoordinator:
         # Template fingerprint ignores project_id; recompute hash without it.
         tmpl_hash = plan_template_hash(
             module_ids=template_plan.module_ids,
+            detector_ids=template_plan.detector_ids,
             question_text=template_plan.question_text,
             effective_config=template_plan.effective_config,
             config_fingerprint=template_plan.config_fingerprint,
@@ -258,16 +266,18 @@ class BatchAnalysisCoordinator:
             text_model=template_plan.text_model,
             module_ids=template_plan.module_ids,
             question_text=template_plan.question_text,
+            detector_ids=template_plan.detector_ids,
         )
 
         now = to_iso(self.clock.now())
+        step_total = template_plan.step_total()
         items = [
             AnalysisBatchItem(
                 notebook_id=c.notebook_id,
                 title=c.title,
                 managed_relpath=c.managed_relpath,
                 state="pending",
-                modules_total=len(ordered),
+                modules_total=step_total,
             )
             for c in candidates
         ]
@@ -277,6 +287,7 @@ class BatchAnalysisCoordinator:
             updated_at=now,
             status="pending",
             module_ids=list(ordered),
+            detector_ids=list(template_plan.detector_ids),
             question_text=template_plan.question_text,
             effective_config=template_plan.effective_config.as_dict(),
             config_fingerprint=cfg_fp,
@@ -307,7 +318,7 @@ class BatchAnalysisCoordinator:
                 analysis_batch_id=run.analysis_batch_id,
                 status="running",
                 total=len(run.items),
-                modules_total=len(run.module_ids),
+                modules_total=len(run.module_ids) + len(run.detector_ids),
                 message="Starting…",
             )
             state = _BatchState(progress=progress, run=run)
@@ -346,7 +357,7 @@ class BatchAnalysisCoordinator:
                 analysis_batch_id=run.analysis_batch_id,
                 status="running",
                 total=len(run.items),
-                modules_total=len(run.module_ids),
+                modules_total=len(run.module_ids) + len(run.detector_ids),
             )
             state = _BatchState(progress=progress, run=run)
             self._state = state
@@ -391,7 +402,7 @@ class BatchAnalysisCoordinator:
                 state.progress.modules_completed = 0
                 state.progress.modules_failed = 0
                 state.progress.modules_skipped = 0
-                state.progress.modules_total = len(run.module_ids)
+                state.progress.modules_total = len(run.module_ids) + len(run.detector_ids)
                 state.progress.message = f"Analysing {label}"
                 state.progress.total = total
                 snap = _snapshot(state.progress)
@@ -405,13 +416,13 @@ class BatchAnalysisCoordinator:
                 project = projects.load(reconcile=True)
                 if pages_with_text_count(projects, project) == 0:
                     item.state = "skipped"
-                    item.modules_total = len(run.module_ids)
+                    item.modules_total = len(run.module_ids) + len(run.detector_ids)
                     item.error_message = "no effective page text"
                     continue
 
                 plan = self._plan_for_notebook(run, projects, project)
                 item.inner_run_id = plan.run_id
-                item.modules_total = len(plan.module_ids)
+                item.modules_total = plan.step_total()
                 self.store.save(run)
 
                 coord = AnalysisCoordinator(
@@ -431,8 +442,8 @@ class BatchAnalysisCoordinator:
                         state.progress.modules_completed = progress.completed
                         state.progress.modules_failed = progress.failed
                         state.progress.modules_skipped = progress.skipped
-                        state.progress.modules_total = progress.total or len(
-                            run.module_ids
+                        state.progress.modules_total = progress.total or (
+                            len(run.module_ids) + len(run.detector_ids)
                         )
                         state.progress.message = progress.message or (
                             f"Analysing {progress.current_module_id} in {_label}"
@@ -526,6 +537,7 @@ class BatchAnalysisCoordinator:
             ids=self.ids,
             project=project,
             text_model=batch_frozen,
+            detector_ids=list(run.detector_ids),
         )
 
     def _root_for_item(self, item: AnalysisBatchItem) -> Path:

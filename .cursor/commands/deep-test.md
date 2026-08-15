@@ -48,10 +48,23 @@ For every plan phase / todo / acceptance criterion:
 | Code landed | Locate symbols/files named in the plan; confirm behavior matches the written decision |
 | Tests landed | Confirm planned tests exist and cover the stated cases |
 | Docs landed | Confirm planned doc updates exist and match code |
+| Docs + backup/restore | Any **new feature, output artifact, or setting** must be documented and covered by backup/restore (see §1.1a) |
 | Explicit non-goals | Confirm out-of-scope items were not accidentally implemented |
 | Contracts / schemas | Confirm versioned project artifacts, provenance fields, and invariants match the plan |
 
 Use `git status`, `git diff`, and targeted searches. Prefer reading the plan’s todo list and marking each item `landed` / `partial` / `missing`.
+
+### 1.1a Docs + backup/restore coverage (mandatory when the plan adds surfaces)
+
+For every new or changed **feature**, **output**, or **setting** introduced by the plan:
+
+| Surface | Must verify |
+|---------|-------------|
+| Documentation | User/dev guides and contracts mention it where appropriate; indexes (`USER_INDEX` / `DEV_INDEX` / `docs/index.md`) link it; no silent undocumented knobs or exports |
+| `# backup` include/exclude | Code, config, schemas, and docs for the surface are included by `# backup`; generated/runtime data dirs are explicitly excluded so restore stays lean and correct |
+| Product portability | If the surface persists under `projects/`, workspace settings, or export packages, confirm restore/reopen still finds it (schema/version fields, defaulting, migration notes). If product backup/restore is still a candidate, document the gap as residual risk — do not invent a product backup API |
+
+Treat missing docs or backup-path drift as a **plan gap** and fix before §2 (or waive with user confirmation).
 
 ### 1.2 Fix issues
 
@@ -135,6 +148,7 @@ Execute `# pre-release` (skip nested backup if §0 already succeeded). Fix **fai
 Report:
 
 - Plan landing table (`landed` / `partial` / `missing` / `waived`)
+- Docs + backup/restore coverage for new features / outputs / settings
 - Tests: baseline → after expansion
 - Live OCR probes: pass / fail / skipped (Ollama/model)
 - Resume/cancel/export notes

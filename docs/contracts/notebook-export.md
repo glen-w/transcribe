@@ -1,3 +1,6 @@
+Type: CONTRACT
+Authority: self — portable notebook export formats, revision stamps, and bundle layout
+
 # Notebook export
 
 ## Formats produced

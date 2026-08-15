@@ -404,7 +404,13 @@ def main(argv: list[str] | None = None) -> int:
             "--module",
             action="append",
             default=[],
-            help="Module id (repeatable; required when --preset custom)",
+            help="Module id (repeatable; required when --preset custom without --detector)",
+        )
+        parser.add_argument(
+            "--detector",
+            action="append",
+            default=[],
+            help="Detector id (repeatable; included in the Analyse plan)",
         )
         parser.add_argument(
             "--question",
@@ -1034,7 +1040,7 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
         print(
             f"analysis_batch_id={run.analysis_batch_id} status={run.status} "
             f"preset={run.preset_key or '-'} modules={len(run.module_ids)} "
-            f"items={len(run.items)}"
+            f"detectors={len(run.detector_ids)} items={len(run.items)}"
         )
         if run.import_run_id:
             print(f"import_run_id={run.import_run_id}")
@@ -1057,12 +1063,21 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
 
     preset = str(args.preset or "balanced")
     custom = [m.strip() for m in (args.module or []) if m and str(m).strip()]
-    if preset == "custom" and not custom:
-        print("error: --preset custom requires at least one --module", file=sys.stderr)
+    custom_dets = [
+        d.strip() for d in (getattr(args, "detector", None) or []) if d and str(d).strip()
+    ]
+    if preset == "custom" and not custom and not custom_dets:
+        print(
+            "error: --preset custom requires at least one --module or --detector",
+            file=sys.stderr,
+        )
         return 2
-    resolved = resolve_analysis_preset(preset, custom_modules=custom)
+    resolved = resolve_analysis_preset(
+        preset, custom_modules=custom, custom_detectors=custom_dets
+    )
     question = (args.question or "").strip() or None
     module_ids = list(resolved.module_ids)
+    detector_ids = list(resolved.detector_ids)
     if question and "llm_custom_qa" not in module_ids:
         module_ids.append("llm_custom_qa")
 
@@ -1093,6 +1108,7 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
     run = coord.create_run(
         selected,
         module_ids=module_ids,
+        detector_ids=detector_ids,
         question_text=question,
         preset_label=preset.title(),
         preset_key=resolved.preset,
@@ -1103,7 +1119,8 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
     )
     print(
         f"analysis_batch_id={run.analysis_batch_id} notebooks={len(run.items)} "
-        f"preset={run.preset_key} modules={len(run.module_ids)}"
+        f"preset={run.preset_key} modules={len(run.module_ids)} "
+        f"detectors={len(run.detector_ids)}"
     )
     progress = coord.run_blocking(run.analysis_batch_id)
     finished = store.load(progress.analysis_batch_id)

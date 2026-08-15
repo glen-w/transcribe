@@ -21,32 +21,69 @@ Authority: …
 
 Exception: root `README.md` stays a lightweight entry guide (no Type/Authority banner) and links out.
 
+Archived docs under `docs/archive/` carry an **Archived / superseded** banner and link to a current authority. Do not list them as live product docs in `USER_INDEX`.
+
 ## Indexes
 
 - Users: [../USER_INDEX.md](../USER_INDEX.md)
 - Developers: [../DEV_INDEX.md](../DEV_INDEX.md)
 - Contracts: [../CONTRACT_INDEX.md](../CONTRACT_INDEX.md)
+- Archive: [../archive/ARCHIVE_INDEX.md](../archive/ARCHIVE_INDEX.md)
+- Surfaces map: [docs_architecture.md](docs_architecture.md)
 
-## When code changes
+## Contract authorities (single source of truth)
 
-Update the **owning** doc:
+When you change behaviour for a concept, update the **owning** contract first, then adjust guides to summarize and link.
+
+| Concept | Authority |
+|---------|-----------|
+| Project layout / journal / locks | [contracts/project-on-disk.md](../contracts/project-on-disk.md) |
+| Page results / prefer / fingerprints | [contracts/page-result.md](../contracts/page-result.md) |
+| Export / `content_revision` | [contracts/notebook-export.md](../contracts/notebook-export.md) |
+| Workspace settings / profiles | [contracts/workspace-settings.md](../contracts/workspace-settings.md) |
+| Workspace backup | [contracts/workspace-backup.md](../contracts/workspace-backup.md) |
+| Public surfaces / support policy | [public_surfaces.md](../public_surfaces.md) |
+| Corpus / import / integrity | [contracts/notebook-corpus.md](../contracts/notebook-corpus.md) · [import-run.md](../contracts/import-run.md) · [corpus-integrity.md](../contracts/corpus-integrity.md) |
+| Analysis / detection | analysis-* and detection-* under [CONTRACT_INDEX](../CONTRACT_INDEX.md) |
+| Terminology index | [TERMS.md](../TERMS.md) (GUIDE; not authoritative alone) |
+
+## Documentation sync checklist
+
+### 1. Contract changes
+
+It is a docs failure if behaviour changes are only described in README, runtime guides, or architecture without being reflected in the owning contract.
+
+### 2. Guides, architecture, and runtime docs
+
+Hard failure conditions:
+
+- Any GUIDE or ARCHITECTURE that defines project layout, provenance, export schema, or support policy as new rules
+- Any `docs/runtime/*` doc that invents invariants instead of summarizing + linking a contract
+
+Fix by moving the rule into the contract and replacing the original with a short summary + link.
+
+### 3. Entry points and examples
+
+1. Confirm CLI / UI examples in README and [public_surfaces.md](../public_surfaces.md) match code
+2. Confirm [runtime/docker.md](../runtime/docker.md) matches `docker-compose.yml` mounts and ports
+3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README Direction
+4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan
+
+### 4. When code changes (quick map)
 
 | Change | Update |
 |--------|--------|
-| Corpus index / notebook identity / workspace locks | [contracts/notebook-corpus.md](../contracts/notebook-corpus.md) |
-| Source fingerprints / duplicates / source-render invariants | [contracts/source-asset.md](../contracts/source-asset.md) |
-| ImportRun / ImportPlan / bulk resume | [contracts/import-run.md](../contracts/import-run.md) |
-| Corpus doctor / bulk-import acceptance gate | [contracts/corpus-integrity.md](../contracts/corpus-integrity.md) |
-| Project layout / journal / locks / optional `analysis/` | [contracts/project-on-disk.md](../contracts/project-on-disk.md) |
-| Page-result / fingerprint fields | [contracts/page-result.md](../contracts/page-result.md) |
-| Analysis document / result / run storage / eligibility | [contracts/analysis-document.md](../contracts/analysis-document.md) · [analysis-result.md](../contracts/analysis-result.md) · [analysis-run-storage.md](../contracts/analysis-run-storage.md) · [notebook-eligibility.md](../contracts/notebook-eligibility.md) |
-| Tags / organisation catalog | [contracts/tag-catalog.md](../contracts/tag-catalog.md) |
-| Full-workspace backup ZIP / restore | [contracts/workspace-backup.md](../contracts/workspace-backup.md) · [backup_and_restore.md](../backup_and_restore.md) |
-| CLI/UI entrypoints | [public_surfaces.md](../public_surfaces.md) + README links |
-| Ownership / component shape | [ARCHITECTURE.md](../ARCHITECTURE.md) |
-| Vision / roadmap | [PRODUCT.md](../PRODUCT.md) / [ROADMAP.md](../ROADMAP.md) / [usability_wave_plan.md](../usability_wave_plan.md) (active focus) / [product_hardening_plan.md](../product_hardening_plan.md) (U0/U1 checklist) |
+| Corpus / import / doctor | corpus contracts |
+| Page-result / multipass / preference | page-result · ocr-multipass · ocr-preference |
+| Analysis / detection | analysis-* · detection-* · notebook-eligibility |
+| Tags / organisation catalog | [tag-catalog.md](../contracts/tag-catalog.md) |
+| Export / backup | notebook-export · workspace-backup · runtime guides |
+| CLI/UI entrypoints | public_surfaces + README links |
+| Ownership / shape | ARCHITECTURE |
+| Vision / roadmap | PRODUCT · ROADMAP · usability_wave_plan |
 
-Then skim guides for stale summaries (replace normative drift with a one-line summary + link).
+
+Then skim guides for stale summaries.
 
 ## Formatting
 

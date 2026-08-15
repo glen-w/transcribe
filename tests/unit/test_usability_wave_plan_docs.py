@@ -6,6 +6,7 @@ from pathlib import Path
 
 DOCS = Path(__file__).resolve().parents[2] / "docs"
 ROOT = DOCS.parent
+ARCHIVE_PLANS = DOCS / "archive" / "plans"
 
 
 def test_usability_wave_plan_exists_with_tracks():
@@ -25,7 +26,7 @@ def test_indexes_and_roadmap_link_usability_wave():
     for rel in (
         "ROADMAP.md",
         "PRODUCT.md",
-        "product_hardening_plan.md",
+        "archive/plans/product_hardening_plan.md",
         "DEV_INDEX.md",
         "USER_INDEX.md",
         "index.md",
@@ -41,20 +42,20 @@ def test_readme_direction_links_usability_wave():
 
 
 def test_history_docs_point_at_usability_wave_now():
-    for rel in (
-        "analysis_wave1_plan.md",
-        "analysis_wave1_hardening_plan.md",
-        "analysis_module_porting.md",
+    for path in (
+        ARCHIVE_PLANS / "analysis_wave1_plan.md",
+        ARCHIVE_PLANS / "analysis_wave1_hardening_plan.md",
+        DOCS / "dev" / "analysis_module_porting.md",
     ):
-        text = (DOCS / rel).read_text(encoding="utf-8")
-        assert "Now — Product hardening" not in text, f"{rel} has stale Now heading"
+        text = path.read_text(encoding="utf-8")
+        assert "Now — Product hardening" not in text, f"{path} has stale Now heading"
         assert (
             "usability_wave_plan.md" in text or "Usability wave" in text
-        ), f"{rel} should point at usability wave"
+        ), f"{path} should point at usability wave"
 
 
 def test_hardening_checklist_splits_phase6_items():
-    text = (DOCS / "product_hardening_plan.md").read_text(encoding="utf-8")
+    text = (ARCHIVE_PLANS / "product_hardening_plan.md").read_text(encoding="utf-8")
     assert "| #7 |" in text
     assert "| #8 |" in text
     assert "| #9 |" in text
@@ -80,3 +81,18 @@ def test_roadmap_now_is_usability_wave():
 def test_detection_contract_documents_midrun_reconcile_rule():
     text = (DOCS / "contracts" / "detection-run-storage.md").read_text(encoding="utf-8")
     assert "reconcile=False" in text
+
+
+def test_archived_plans_have_banners_and_live_indexes_do_not_list_as_active():
+    for name in (
+        "analysis_wave1_plan.md",
+        "analysis_wave1_hardening_plan.md",
+        "detection_wave2_plan.md",
+        "bulk_run_analysis_plan.md",
+        "product_hardening_plan.md",
+    ):
+        text = (ARCHIVE_PLANS / name).read_text(encoding="utf-8")
+        assert "Archived / superseded" in text, f"{name} missing archive banner"
+    user = (DOCS / "USER_INDEX.md").read_text(encoding="utf-8")
+    assert "Not in this index" in user
+    assert "ARCHIVE_INDEX" in user
