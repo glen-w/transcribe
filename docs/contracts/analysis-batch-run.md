@@ -25,6 +25,7 @@ Bulk import / OCR never auto-starts Analyse. The UI may offer opt-in CTAs that s
 | `analysis_batch_id` | Stable UUID; filename stem |
 | `status` | `pending` \| `running` \| `completed` \| `partial` \| `failed` \| `cancelled` |
 | `module_ids` | Ordered modules applied to every notebook (hard parents expanded at create) |
+| `detector_ids` | Ordered detectors applied to every notebook after modules (may be empty); publish under `detection/` |
 | `question_text` | Optional; same Ask text for every notebook when `llm_custom_qa` is included |
 | `effective_config` | Frozen EffectiveConfig snapshot at create |
 | `config_fingerprint` | Fingerprint of config + text model + modules + question (template-level) |
@@ -55,8 +56,8 @@ Bulk import / OCR never auto-starts Analyse. The UI may offer opt-in CTAs that s
 ## Execution
 
 1. Resolve each item to a managed notebook root (corpus index, else project-folder scan).
-2. Build a per-notebook `AnalysisRunPlan` from the frozen template (new `run_id`, that `project_id`, same modules/config/model/preset/question); verify `plan_hash`.
-3. `AnalysisCoordinator.run_blocking(plan)` with nested progress forwarded to the workspace progress snapshot.
+2. Build a per-notebook `AnalysisRunPlan` from the frozen template (new `run_id`, that `project_id`, same modules/detectors/config/model/preset/question); verify `plan_hash`.
+3. `AnalysisCoordinator.run_blocking(plan)` with nested progress forwarded to the workspace progress snapshot (modules then detectors).
 4. One notebook at a time; per-project `.transcribe.analysis.lock` still applies.
 5. Cancel: request cancel on the active inner coordinator; do not start remaining notebooks (`cancelled` items).
 
@@ -66,4 +67,5 @@ Bulk import / OCR never auto-starts Analyse. The UI may offer opt-in CTAs that s
 - Cross-notebook / corpus-level Analyse synthesis
 - OCR-style `force` recompute flag
 - Auto-start Analyse after import or OCR
-- Replacing per-module publish / cache / health semantics
+- Replacing per-module or per-detector publish / cache / health semantics
+- Implementing detectors as analysis modules

@@ -1,8 +1,7 @@
-# Settings / profiles / models alignment (TranscriptX ↔ Transcribe)
+Type: GUIDE
+Authority: developer note — does not redefine runtime contracts; settings owned by workspace-settings.md
 
-Authority: developer note. Does not redefine runtime contracts. Owning
-contracts remain [workspace-settings.md](../contracts/workspace-settings.md)
-and [prompt-definition.md](../contracts/prompt-definition.md).
+# Settings / profiles / models alignment (TranscriptX ↔ Transcribe)
 
 TX source pin (read, not imported): `glen-w/TranscriptX` `main` at
 [`da742f937996d8fd2d4d40ecd9135af5126e4404`](https://github.com/glen-w/TranscriptX/commit/da742f937996d8fd2d4d40ecd9135af5126e4404)

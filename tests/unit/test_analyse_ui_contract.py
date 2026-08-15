@@ -177,7 +177,8 @@ def test_page_series_charts_are_clickable_and_wired_to_jump():
 
 
 def test_this_notebook_complete_navigates_to_overview():
-    assert 'normalize_ui_mode("Overview")' in RUN
+    assert 'normalize_ui_mode(dest)' in RUN
+    assert 'dest = "Overview" if has_modules else "Detect"' in RUN
     assert 'progress.status == "completed"' in RUN
 
 
@@ -214,7 +215,9 @@ def test_compare_starts_in_background_not_spinner():
 
 def test_phase6_last_run_is_product_summary():
     assert "last_run_product_summary" in RUN
-    assert "Advanced · per-module outcomes" in RUN
+    assert "Advanced · per-step outcomes" in RUN
+    assert "detector_ids" in RUN or "Select detectors" in RUN
+    assert "suitable_detector_ids" in RUN
     assert "outcome=`" not in RUN
 
 
@@ -260,6 +263,10 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "Start batch analysis" in batch
     assert "Text model for this batch" in batch
     assert "text_model_name=" in batch
+    assert "Select detectors" in batch
+    assert "detector_ids=" in batch
+    assert "Steps in this plan" in batch
+    assert "suitable_detector_ids" in batch
     assert "configured on each notebook" not in batch
     assert "unavailable_model" not in batch
     assert "Retry failed" in batch

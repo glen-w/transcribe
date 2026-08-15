@@ -24,6 +24,8 @@ Hard rules
 	•	If a guide, architecture doc, or runtime doc contains normative language for project layout, provenance, export schema, or support policy, move or delete it and replace it with a short summary plus a link to the authoritative contract.
 	•	Do not create new contract docs lightly; prefer extending an existing authoritative contract when possible.
 	•	Do not document TranscriptX integration as shipped behavior until an explicit post-1.0 effort; keep “future consumer” notes in PRODUCT/ARCHITECTURE only.
+	•	Shipped delivery history belongs under `docs/archive/` with an **Archived / superseded** banner; do not list archived plans as live product docs in `USER_INDEX`.
+	•	Surfaces map: `docs/dev/docs_architecture.md`.
 
 Lint rules (must fail #docs)
 	•	Concept uniqueness:
@@ -34,6 +36,9 @@ Lint rules (must fail #docs)
 		•	Fail if `docs/ARCHITECTURE.md` (when present) defines behavior or invariants instead of describing structure and boundaries.
 	•	TERMS:
 		•	Fail if `docs/TERMS.md` (when present) introduces new meanings or rule text instead of acting as a non-authoritative index that points to CONTRACT sections.
+	•	Archive:
+		•	Fail if a live `USER_INDEX` row presents an archived plan as current product guidance without the archive path / “Not in this index” pattern.
+		•	Fail if a file under `docs/archive/` lacks an **Archived / superseded** banner.
 
 ⸻
 
@@ -74,7 +79,7 @@ On greenfield with almost no docs: create a minimal set (`README.md` + one ARCHI
 	•	Install / run (venv, `pip install -e .`, Streamlit / CLI).
 	•	Prerequisites (Ollama + a vision model).
 	•	Links to contracts and deeper guides — no duplicated normative schema dumps.
-	•	Focus sync: when changing ROADMAP **Now** / product-focus copy, keep [docs/usability_wave_plan.md](../../docs/usability_wave_plan.md) status in sync and ensure README Direction + [USER_INDEX](../../docs/USER_INDEX.md) / [DEV_INDEX](../../docs/DEV_INDEX.md) / [index.md](../../docs/index.md) still link the active focus plan.
+	•	Focus sync: when changing ROADMAP **Now** / product-focus copy, keep [docs/usability_wave_plan.md](../../docs/usability_wave_plan.md) status in sync and ensure README Direction + [USER_INDEX](../../docs/USER_INDEX.md) / [DEV_INDEX](../../docs/DEV_INDEX.md) / [index.md](../../docs/index.md) still link the active focus plan. Historical delivery plans live under [docs/archive/](../../docs/archive/README.md).
 
 ⸻
 

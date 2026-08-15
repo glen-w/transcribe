@@ -80,4 +80,4 @@ Do not run `black .` at repo root (can touch `.venv`). Prefer `.[dev]` extras fo
 
 ## Docs when you change behaviour
 
-Follow [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md): update the owning CONTRACT (or PRODUCT/ARCHITECTURE) rather than inventing rules in guides.
+Follow [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md): update the owning CONTRACT (or PRODUCT/ARCHITECTURE) rather than inventing rules in guides. Docs surfaces: [dev/docs_architecture.md](dev/docs_architecture.md).

@@ -17,6 +17,7 @@ from transcribe.analysis.presets import (
     format_preset_label,
     label_to_preset,
     resolve_analysis_preset,
+    suitable_detector_ids,
     suitable_module_ids,
 )
 from transcribe.corpus.analysis_batch_run import AnalysisBatchRunStore
@@ -55,6 +56,7 @@ _BATCH_POST_RUN_KEY = "_batch_analysis_post_run_id"
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
 _CUSTOM_WIDGET_KEY = "batch_analysis_custom_modules"
+_CUSTOM_DETECT_KEY = "run_analysis_custom_detectors"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
 _QA_ENABLE_WIDGET_KEY = "batch_analysis_qa_enable"
@@ -471,13 +473,14 @@ def _render_batch_preset_and_launch(
     project: Any | None = None,
 ) -> None:
     """Preset / module / LLM controls — fragment-isolated from notebook discovery."""
-    from transcribe.analysis.module_catalog import format_module_label
     from transcribe.analysis.llm_runtime import (
         is_unsuitable_text_model_name,
         resolve_text_model_name,
         suitable_text_model_names,
     )
+    from transcribe.analysis.module_catalog import format_module_label
     from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
+    from transcribe.ui.module_ui_groups import format_detector_label
     from transcribe.ui.run_analysis import (
         apply_pending_review_module_removal,
         render_module_review,
@@ -506,6 +509,7 @@ def _render_batch_preset_and_launch(
         st.session_state[_CUSTOM_KEY] = stored_custom
 
     custom_modules: list[str] = []
+    custom_detectors: list[str] = []
     if preset == "custom":
         if _CUSTOM_WIDGET_KEY not in st.session_state:
             st.session_state[_CUSTOM_WIDGET_KEY] = [
@@ -519,10 +523,25 @@ def _render_batch_preset_and_launch(
         )
         st.session_state[_CUSTOM_KEY] = list(selected)
         custom_modules = selected
+        suitable_dets = suitable_detector_ids()
+        selected_dets = st.multiselect(
+            "Select detectors",
+            options=suitable_dets,
+            format_func=format_detector_label,
+            key="batch_analysis_custom_detectors",
+            help="Prompt-backed content detectors applied to every notebook.",
+        )
+        st.session_state[_CUSTOM_DETECT_KEY] = list(selected_dets)
+        custom_detectors = selected_dets
     else:
         custom_modules = list(st.session_state.get(_CUSTOM_KEY) or [])
+        custom_detectors = list(st.session_state.get(_CUSTOM_DETECT_KEY) or [])
 
-    resolved = resolve_analysis_preset(preset, custom_modules=custom_modules)
+    resolved = resolve_analysis_preset(
+        preset,
+        custom_modules=custom_modules,
+        custom_detectors=custom_detectors,
+    )
     if _QA_ENABLE_WIDGET_KEY not in st.session_state:
         st.session_state[_QA_ENABLE_WIDGET_KEY] = bool(
             st.session_state.get(_QA_ENABLE_KEY, False)
@@ -550,18 +569,21 @@ def _render_batch_preset_and_launch(
         resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
     )
     parts = [f"**{format_preset_label(preset)}** · {len(plan.module_ids)} modules"]
+    if plan.detector_ids:
+        parts.append(f"{len(plan.detector_ids)} detectors")
     if resolved.preset != "custom":
         parts.append(f"v{resolved.content_version}")
     st.caption(" · ".join(parts) + " · applied to each selected notebook")
 
     render_module_review(
         plan.module_ids,
-        expander_title="Modules in this plan",
+        plan.detector_ids,
+        expander_title="Steps in this plan",
         key_prefix=_KEY_PREFIX,
         keep_open_key=_MODULES_KEEP_OPEN_KEY,
     )
 
-    needs_llm = plan.llm_count > 0
+    needs_llm = plan.needs_llm()
     batch_text_model = ""
     if needs_llm:
         from transcribe.config.facade import get_config
@@ -576,7 +598,7 @@ def _render_batch_preset_and_launch(
             getattr(project.settings, "text_model_name", None) if project else None
         )
         st.caption(
-            "LLM modules need a **text** Ollama model for this batch. "
+            "LLM modules and detectors need a **text** Ollama model for this batch. "
             "Pick one below (applied to every selected notebook), or set a "
             "workspace default under Settings → Models."
         )
@@ -616,7 +638,7 @@ def _render_batch_preset_and_launch(
             key="batch_ax_text_model_info",
         )
         if not (batch_text_model or "").strip():
-            st.warning("Select a text model before running LLM modules.")
+            st.warning("Select a text model before running LLM modules or detectors.")
 
     recent = _cached_recent_analyse_runs(corpus)
     if recent:
@@ -643,8 +665,9 @@ def _render_batch_preset_and_launch(
                             st.error(str(exc))
 
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
+    launch_detectors = list(plan.detector_ids)
     start_disabled = (
-        not launch_ids
+        (not launch_ids and not launch_detectors)
         or not batch_selected
         or (needs_llm and not (batch_text_model or "").strip())
     )
@@ -657,13 +680,14 @@ def _render_batch_preset_and_launch(
         if not batch_selected:
             st.error("Select at least one notebook.")
         elif needs_llm and not (batch_text_model or "").strip():
-            st.error("Select a text model for LLM modules.")
+            st.error("Select a text model for LLM modules or detectors.")
         else:
             try:
                 q = (question_text or "").strip() or None
                 new_run = batch_coord.create_run(
                     batch_selected,
                     module_ids=launch_ids,
+                    detector_ids=launch_detectors,
                     question_text=q,
                     preset_label=format_preset_label(preset),
                     preset_key=resolved.preset,

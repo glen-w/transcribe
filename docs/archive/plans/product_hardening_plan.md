@@ -1,5 +1,7 @@
 Type: PRODUCT
-Authority: Product hardening checklist and phase sequencing for Analyse robustness/UX. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) **Now — Usability wave** and the full track plan [usability_wave_plan.md](usability_wave_plan.md) (U0 = Phases 3–5, U1 = Phase 6).
+Authority: Product hardening checklist and phase sequencing for Analyse robustness/UX. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](../../ROADMAP.md) **Now — Usability wave** and the full track plan [usability_wave_plan.md](../../usability_wave_plan.md) (U0 = Phases 3–5, U1 = Phase 6).
+
+> **Archived / superseded.** U0/U1 hardening checklist (done). Active focus: usability_wave_plan.md. Current authority: [docs/usability_wave_plan.md](../../usability_wave_plan.md). Do not treat as live roadmap or support policy.
 
 # Product hardening plan
 
@@ -47,4 +49,4 @@ Phased delivery after the core module set. Order: **#10 → #3/#4 → #1/#2 → 
 - **#7** Overview / Themes / Mood / Moments / Summaries / Ask / Last run are product read-models; module ids, capability enums, and `st.json` live under **Advanced**.
 - **#9** Transcribe primary chrome is vision model + Start (+ optional cleanup toggle). Workers, force re-OCR, cleanup detail, and capability dumps sit under **Advanced**. Remote-host privacy acknowledgement stays visible/confirm-gated.
 
-Governing contracts: [analysis-run-storage](contracts/analysis-run-storage.md) · [analysis-result](contracts/analysis-result.md) · [project-on-disk](contracts/project-on-disk.md).
+Governing contracts: [analysis-run-storage](../../contracts/analysis-run-storage.md) · [analysis-result](../../contracts/analysis-result.md) · [project-on-disk](../../contracts/project-on-disk.md).

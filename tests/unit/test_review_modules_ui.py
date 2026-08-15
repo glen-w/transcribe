@@ -39,7 +39,7 @@ def test_shell_defines_review_module_remove_hover_css() -> None:
 
 def test_run_analysis_review_uses_grouped_rows_and_remove_keys() -> None:
     source = Path("src/transcribe/ui/run_analysis.py").read_text(encoding="utf-8")
-    assert "group_modules_for_ui" in source
+    assert "group_plan_for_ui" in source
     assert "_review_rm_" in source
     assert "apply_review_module_removal" in source
     assert "render_module_review" in source
@@ -47,12 +47,13 @@ def test_run_analysis_review_uses_grouped_rows_and_remove_keys() -> None:
 
 def test_batch_modules_plan_uses_review_remove_pattern() -> None:
     batch = Path("src/transcribe/ui/run_analysis_batch.py").read_text(encoding="utf-8")
-    assert "Modules in this plan" in batch
+    assert "Steps in this plan" in batch
     assert "render_module_review" in batch
     assert "apply_pending_review_module_removal" in batch
-    assert 'expander_title="Modules in this plan"' in batch
+    assert 'expander_title="Steps in this plan"' in batch
     # Plain comma-joined labels are no longer the batch plan UI.
     assert 'st.write(", ".join(format_module_label' not in batch
+    assert 'st.write(", ".join(format_detector_label' not in batch
 
 
 def test_review_module_removal_queues_custom_remainder() -> None:
@@ -120,3 +121,17 @@ def test_review_module_removal_refuses_empty_plan() -> None:
         is False
     )
     assert "run_analysis_pending_review_removal" not in ss
+
+
+def test_review_module_removal_allows_detectors_only_remainder() -> None:
+    ss: dict = {"run_analysis_preset": "Balanced"}
+    ok = apply_review_module_removal(
+        ss,
+        module_ids=["stats"],
+        remove_id="stats",
+        detector_ids=["poetry"],
+    )
+    assert ok is True
+    apply_pending_review_module_removal(ss)
+    assert ss["run_analysis_preset"] == "Custom"
+    assert ss["run_analysis_custom_modules"] == []

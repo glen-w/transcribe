@@ -117,3 +117,7 @@ export GID="$(id -g)"
 
 - Surfaces: [../public_surfaces.md](../public_surfaces.md)
 - User flows: [../user_guide.md](../user_guide.md)
+- Installation: [installation.md](installation.md)
+- Settings: [settings.md](settings.md)
+- OCR: [ocr.md](ocr.md)
+- Security bind: [../../SECURITY.md](../../SECURITY.md)

@@ -1,11 +1,13 @@
 Type: PRODUCT
-Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependency map, checklists, test intent, exit criteria). **Internal delivery history only** — product language uses “core module set”, not “Wave 1”. Does **not** define runtime contracts, schemas, storage rules, cache identity, refusal/outcome enums, or atomicity. Those live only in CONTRACT docs — this plan must not silently become a second authority. Disposition table: [analysis_module_porting.md](analysis_module_porting.md); roadmap: [ROADMAP.md](ROADMAP.md).
+Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependency map, checklists, test intent, exit criteria). **Internal delivery history only** — product language uses “core module set”, not “Wave 1”. Does **not** define runtime contracts, schemas, storage rules, cache identity, refusal/outcome enums, or atomicity. Those live only in CONTRACT docs — this plan must not silently become a second authority. Disposition table: [analysis_module_porting.md](../../dev/analysis_module_porting.md); roadmap: [ROADMAP.md](../../ROADMAP.md).
+
+> **Archived / superseded.** Core analysis delivery history (shipped). Current product focus: usability wave. Current authority: [docs/ROADMAP.md](../../ROADMAP.md). Do not treat as live roadmap or support policy.
 
 # Wave 1 plan — TranscriptX analysis ports (internal)
 
 > **Internal numbering.** This document keeps historical Wave / sub-wave ids (`1.1`…`1e.2`). User-facing docs, UI, and code should say **core modules**, not “Wave 1”.
 
-**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a core-set blocker — tracked under the **usability wave** on [ROADMAP.md](ROADMAP.md) **Now** / [usability_wave_plan.md](usability_wave_plan.md) (U1 payload polish). Deferred reinterpretations and `ocr_quality` are **not scheduled**.
+**Delivery status: [x] done** (2026-08-09). All sub-waves **1.1 → 1e.2** landed: contracts, adapter/`analysis/` storage, 25 registered modules, pin registry, offline tests, and Workflow tabs Overview / Themes / Mood & tone / Moments / Summaries / Ask notebook. Residual polish (dedicated People & places or Patterns tabs, keyphrase-enriched wordclouds) is not a core-set blocker — tracked under the **usability wave** on [ROADMAP.md](../../ROADMAP.md) **Now** / [usability_wave_plan.md](../../usability_wave_plan.md) (U1 payload polish). Deferred reinterpretations and `ocr_quality` are **not scheduled**.
 
 Detailed delivery plan for the 25 **Port early** modules. Companion to the disposition map and roadmap.
 
@@ -13,12 +15,12 @@ Detailed delivery plan for the 25 **Port early** modules. Companion to the dispo
 
 | Concern | Contract |
 |---------|----------|
-| Managed project layout (`analysis/` optional) | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
-| Frozen `AnalysisDocument` schema v1 (ordering, uniqueness, `source_ref`, dates, empty/excluded/blank OCR, split profiles) | [contracts/analysis-document.md](contracts/analysis-document.md) |
-| Result envelope v1 (payloads vs envelope, provenance, evidence, capability, min-input, LLM refusal) | [contracts/analysis-result.md](contracts/analysis-result.md) |
-| Storage, `project_id` lookup, cache identity, hard/optional parents, atomic publish | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
-| Sole Wave-1 eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](contracts/notebook-eligibility.md) |
-| TX pin rows + concrete upstream commit | [dev/analysis_port_pins.md](dev/analysis_port_pins.md) |
+| Managed project layout (`analysis/` optional) | [contracts/project-on-disk.md](../../contracts/project-on-disk.md) |
+| Frozen `AnalysisDocument` schema v1 (ordering, uniqueness, `source_ref`, dates, empty/excluded/blank OCR, split profiles) | [contracts/analysis-document.md](../../contracts/analysis-document.md) |
+| Result envelope v1 (payloads vs envelope, provenance, evidence, capability, min-input, LLM refusal) | [contracts/analysis-result.md](../../contracts/analysis-result.md) |
+| Storage, `project_id` lookup, cache identity, hard/optional parents, atomic publish | [contracts/analysis-run-storage.md](../../contracts/analysis-run-storage.md) |
+| Sole Wave-1 eligibility policy (`notebook_eligibility_v1`) | [contracts/notebook-eligibility.md](../../contracts/notebook-eligibility.md) |
+| TX pin rows + concrete upstream commit | [dev/analysis_port_pins.md](../../dev/analysis_port_pins.md) |
 
 When this plan and a contract disagree, **the contract wins**. Do not restate cache-identity formulas, outcome enums, or publish/atomicity rules here — link only.
 
@@ -32,8 +34,8 @@ Port deterministic / content-analysis modules **almost verbatim**. Wrap them wit
 
 Canonical input and result shapes are frozen in contracts **before** ports:
 
-- Input: [analysis-document.md](contracts/analysis-document.md) (`format: "transcribe.analysis-document"`, schema v1)
-- Output envelope: [analysis-result.md](contracts/analysis-result.md) — cores supply **payloads**; adapters emit the envelope
+- Input: [analysis-document.md](../../contracts/analysis-document.md) (`format: "transcribe.analysis-document"`, schema v1)
+- Output envelope: [analysis-result.md](../../contracts/analysis-result.md) — cores supply **payloads**; adapters emit the envelope
 
 Summary shape (non-normative reminder — full field rules in the contract):
 
@@ -79,11 +81,11 @@ Notebook UI (capability vocabulary from analysis-result)
 | **Ported core** — scoring, ranking, clustering, lexicon/model inference, **payload** close to TX | Envelope fields, page IDs, locking, OCR provenance, Streamlit, archive SQLite, cache identity |
 | **Transcribe adapters** — project → `AnalysisDocument`, eligibility invocation, payload → envelope + durable store, UI | Analytical algorithms (keep TX-recognisable) |
 
-Layout, storage binding, invalidation, attempt/crash non-clobber, and atomicity: **[project-on-disk](contracts/project-on-disk.md)** + **[analysis-run-storage](contracts/analysis-run-storage.md)** + **[analysis-result](contracts/analysis-result.md)** — not this plan.
+Layout, storage binding, invalidation, attempt/crash non-clobber, and atomicity: **[project-on-disk](../../contracts/project-on-disk.md)** + **[analysis-run-storage](../../contracts/analysis-run-storage.md)** + **[analysis-result](../../contracts/analysis-result.md)** — not this plan.
 
 ### Provenance (delivery requirement)
 
-Every port fills [analysis_port_pins.md](dev/analysis_port_pins.md) with the **concrete** upstream commit/tag and per-file hashes **before** implementation is marked done. Envelope provenance fields are owned by [analysis-result.md](contracts/analysis-result.md) (not a bare `ported_from = "TranscriptX 1.x / <module>"`). Classify each module `parity` | `adaptation` | `fork`.
+Every port fills [analysis_port_pins.md](../../dev/analysis_port_pins.md) with the **concrete** upstream commit/tag and per-file hashes **before** implementation is marked done. Envelope provenance fields are owned by [analysis-result.md](../../contracts/analysis-result.md) (not a bare `ported_from = "TranscriptX 1.x / <module>"`). Classify each module `parity` | `adaptation` | `fork`.
 
 ### Copy, don't extract (yet)
 
@@ -99,7 +101,7 @@ Every port fills [analysis_port_pins.md](dev/analysis_port_pins.md) with the **c
 | **`paragraph_v1`** | Moments, highlights, fine-grained emotion, QA evidence — when page text is long |
 | **Document-level `text`** | Whole-notebook summaries, wordclouds, lexical diversity rollups |
 
-Splitter rules and stable derived-unit IDs are **frozen in** [analysis-document.md](contracts/analysis-document.md). **`paragraph_v1` must be implemented and tested before Moments / LLM synthesis modules** modules that emit span evidence. Cores stay unit-agnostic.
+Splitter rules and stable derived-unit IDs are **frozen in** [analysis-document.md](../../contracts/analysis-document.md). **`paragraph_v1` must be implemented and tested before Moments / LLM synthesis modules** modules that emit span evidence. Cores stay unit-agnostic.
 
 ### Chronology (no TX timing machinery)
 
@@ -109,17 +111,17 @@ Wave 1 modules that benefit: `topic_shift`, `sentiment`, `emotion` / family, `ne
 
 ### Analysis / cache identity (link only)
 
-Results must vary with content **and** adapter granularity/splitting, module configuration, dependency outputs, algorithm/schema version, lexicon/model digest, eligibility output when used, and LLM prompt/runtime parameters. **Formula and field list:** [analysis-run-storage.md](contracts/analysis-run-storage.md) (composes [analysis-document](contracts/analysis-document.md) content fingerprint). This plan does not restate the hash.
+Results must vary with content **and** adapter granularity/splitting, module configuration, dependency outputs, algorithm/schema version, lexicon/model digest, eligibility output when used, and LLM prompt/runtime parameters. **Formula and field list:** [analysis-run-storage.md](../../contracts/analysis-run-storage.md) (composes [analysis-document](../../contracts/analysis-document.md) content fingerprint). This plan does not restate the hash.
 
 ### Eligibility (named policy only)
 
-**Sole Wave-1 compatibility policy:** [`notebook_eligibility_v1`](contracts/notebook-eligibility.md). Replaces TX `insight_eligibility` for the modules listed there. No per-module soften/bypass/stub. Explicit ungated modules and `wordclouds` keyphrase enrichment are resolved in that contract (+ optional-parent table in analysis-run-storage).
+**Sole Wave-1 compatibility policy:** [`notebook_eligibility_v1`](../../contracts/notebook-eligibility.md). Replaces TX `insight_eligibility` for the modules listed there. No per-module soften/bypass/stub. Explicit ungated modules and `wordclouds` keyphrase enrichment are resolved in that contract (+ optional-parent table in analysis-run-storage).
 
 ---
 
 ## 2. Dependency DAG (all 25 modules)
 
-**Hard-parent compatibility** (acceptable outcomes, cache_identity match) is owned solely by [analysis-run-storage.md](contracts/analysis-run-storage.md). The tables below are the delivery map: hard vs optional enrichment vs fallback. Do not implement against a different parent set without a contract change.
+**Hard-parent compatibility** (acceptable outcomes, cache_identity match) is owned solely by [analysis-run-storage.md](../../contracts/analysis-run-storage.md). The tables below are the delivery map: hard vs optional enrichment vs fallback. Do not implement against a different parent set without a contract change.
 
 ### Hard dependencies
 
@@ -144,7 +146,7 @@ Results must vary with content **and** adapter granularity/splitting, module con
 
 | TX dependency | Wave 1 resolution |
 |---------------|-------------------|
-| `insight_eligibility` | **`notebook_eligibility_v1` only** ([notebook-eligibility](contracts/notebook-eligibility.md)) — never ad-hoc stubs |
+| `insight_eligibility` | **`notebook_eligibility_v1` only** ([notebook-eligibility](../../contracts/notebook-eligibility.md)) — never ad-hoc stubs |
 | `momentum` (for `moments`) | **Not ported** — `moments` = notebook salience `fork` |
 | BERTopic / embeddings / transformer extras | Named capability `unavailable_extra` / `unavailable_model` — no silent substitute algorithm under the same module_id |
 | Ollama | `unavailable_model`; deterministic `highlights` → `summary` → `insights` remains |
@@ -186,7 +188,7 @@ Notebook UI is **not** a TX module picker clone. Target surfaces:
 | **Ask notebook** | Grounded custom QA | `llm_custom_qa` |
 | **Summaries** | Notebook / month / section summaries, narrative, action items | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items`, `understandability`, `wordclouds` |
 
-UI must distinguish capability states from [analysis-result.md](contracts/analysis-result.md): `success` / `partial` / `unavailable_extra` / `unavailable_model` / `insufficient_data` / `unavailable_dependency` / `failed` / empty findings vs true failure — never collapse these into one spinner or blank panel.
+UI must distinguish capability states from [analysis-result.md](../../contracts/analysis-result.md): `success` / `partial` / `unavailable_extra` / `unavailable_model` / `insufficient_data` / `unavailable_dependency` / `failed` / empty findings vs true failure — never collapse these into one spinner or blank panel.
 
 ---
 
@@ -261,9 +263,9 @@ Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slice
 
 **Before 1.1 coding:** contracts indexed and frozen for document + envelope + storage + eligibility ([§9](#9-implementation-gate)).
 
-**Before 1d/1e coding:** `paragraph_v1` splitter + stable span IDs proven ([analysis-document](contracts/analysis-document.md)); evidence render/stale rules exercised.
+**Before 1d/1e coding:** `paragraph_v1` splitter + stable span IDs proven ([analysis-document](../../contracts/analysis-document.md)); evidence render/stale rules exercised.
 
-**Before 1e coding:** bounded-context / chunking policy ids defined for LLM modules ([analysis-result](contracts/analysis-result.md) + cache `llm` object in [analysis-run-storage](contracts/analysis-run-storage.md)); Ollama capability degradation wired.
+**Before 1e coding:** bounded-context / chunking policy ids defined for LLM modules ([analysis-result](../../contracts/analysis-result.md) + cache `llm` object in [analysis-run-storage](../../contracts/analysis-run-storage.md)); Ollama capability degradation wired.
 
 ### Wave 1b — Language
 
@@ -307,7 +309,7 @@ Former umbrella for adapter + stats/lex/readability/clouds. Prefer decimal slice
 | **Unlocks** | **Summaries**; **Ask notebook**; richer Moments via highlights |
 | **Risk** | LLM flakiness / groundedness; keep deterministic path offline |
 | **TX note** | `highlights` / `insights` use `notebook_eligibility_v1`. LLM modules optional behind capability checks |
-| **LLM delivery rules** | Follow [analysis-result](contracts/analysis-result.md) abstention/evidence/stale rules and [analysis-run-storage](contracts/analysis-run-storage.md) `llm` cache fields; recorded doubles use the same validation path as live Ollama |
+| **LLM delivery rules** | Follow [analysis-result](../../contracts/analysis-result.md) abstention/evidence/stale rules and [analysis-run-storage](../../contracts/analysis-run-storage.md) `llm` cache fields; recorded doubles use the same validation path as live Ollama |
 | **Decimals** | **1e.0** `paragraph_v1` + `notebook_chunks_units_v1` + text Ollama; **1e.1** deterministic synthesis (+ 1.4/`topic_modeling` parents); **1e.2** LLM suite |
 
 ### Suggested ship order (summary)
@@ -330,12 +332,12 @@ Common port checklist (every module) — **satisfied for Wave 1 as of 2026-08-09
 
 - [x] Contracts + pin gate satisfied ([§9](#9-implementation-gate))
 - [x] Copy TX core with attribution; keep structure recognisable (adaptation/fork where noted)
-- [x] Exact TX pin row (concrete commit + file sha256 where applicable) + `semantic_class` in [analysis_port_pins.md](dev/analysis_port_pins.md)
+- [x] Exact TX pin row (concrete commit + file sha256 where applicable) + `semantic_class` in [analysis_port_pins.md](../../dev/analysis_port_pins.md)
 - [x] Accept `AnalysisDocument` (or thin segment-shaped view produced by adapter)
-- [x] Emit **payload only**; adapter wraps [analysis-result](contracts/analysis-result.md) envelope
+- [x] Emit **payload only**; adapter wraps [analysis-result](../../contracts/analysis-result.md) envelope
 - [x] No imports of Transcribe `Page` / Streamlit / project paths in core
 - [x] Durable write via analysis-run-storage rules (link — do not invent identity)
-- [x] Edge cases map to named outcomes/capabilities ([analysis-result](contracts/analysis-result.md))
+- [x] Edge cases map to named outcomes/capabilities ([analysis-result](../../contracts/analysis-result.md))
 - [x] Minimum-input behaviour covered by fixtures (one-page, empty, short, all-blank as relevant)
 - [x] Compatibility fixtures: exact / tolerance / shape as appropriate ([§8](#8-compatibility-corpus-and-acceptance-tests))
 - [x] UI wires to the surface in §3 and distinguishes capability states (Overview / Themes / Mood / Moments / Summaries / Ask; People & places / Patterns remain payload feeds without dedicated tabs)
@@ -400,7 +402,7 @@ Keep `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary` in 
 |------|--------|
 | **Optional Ollama** | Deterministic synthesis (`highlights` → `summary` → `insights`) must work with LLM offline |
 | **Honesty labeling** | UI marks LLM outputs; capability `unavailable_model` when runtime missing |
-| **Contract-owned** | Abstention, stale evidence, bounded chunking, and `llm` cache-identity fields — [analysis-result](contracts/analysis-result.md), [analysis-run-storage](contracts/analysis-run-storage.md) |
+| **Contract-owned** | Abstention, stale evidence, bounded chunking, and `llm` cache-identity fields — [analysis-result](../../contracts/analysis-result.md), [analysis-run-storage](../../contracts/analysis-run-storage.md) |
 | **Test doubles** | Recorded responses must hit the same validation/abstention path as live Ollama |
 | **No speaker LLM** | `llm_speaker_summary` stays Wave 4 (do not port) |
 | **Large notebooks** | Define and pin chunking/reduction policy ids **before** 1e implementation — do not assume the full notebook fits the model context window |
@@ -457,7 +459,7 @@ Maintain a small fixture set under Transcribe tests (exact path chosen at implem
 - Optional-extra / model absence → named capability (`unavailable_extra` / `unavailable_model`), not tracebacks or ambiguous empty success
 - Evidence round-trip: renderable quote + stale citation not shown against newer text
 - E2E managed project → edit/reorder → rerun → stable unit ids where text+splitter unchanged; UI navigation via validated evidence / `source_ref`
-- `notebook_eligibility_v1` policy tests ([notebook-eligibility](contracts/notebook-eligibility.md))
+- `notebook_eligibility_v1` policy tests ([notebook-eligibility](../../contracts/notebook-eligibility.md))
 
 ---
 
@@ -465,12 +467,12 @@ Maintain a small fixture set under Transcribe tests (exact path chosen at implem
 
 No Wave 1 module may land until:
 
-1. analysis-document, analysis-result, analysis-run-storage, and notebook-eligibility are written and indexed in [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
-2. [project-on-disk.md](contracts/project-on-disk.md) is reconciled (`analysis/` optional; sole layout authority)
+1. analysis-document, analysis-result, analysis-run-storage, and notebook-eligibility are written and indexed in [CONTRACT_INDEX.md](../../CONTRACT_INDEX.md)
+2. [project-on-disk.md](../../contracts/project-on-disk.md) is reconciled (`analysis/` optional; sole layout authority)
 3. `notebook_eligibility_v1` is the named sole Wave-1 eligibility policy in CONTRACT
 4. AnalysisDocument schema v1 is treated as frozen (including split profiles, blank/excluded OCR membership, uniqueness/ordering)
 5. Result envelope v1 is treated as frozen (ports supply payloads only)
-6. The module has an exact TX pin row (concrete commit) and semantic classification in [analysis_port_pins.md](dev/analysis_port_pins.md)
+6. The module has an exact TX pin row (concrete commit) and semantic classification in [analysis_port_pins.md](../../dev/analysis_port_pins.md)
 7. Slice-specific prerequisites hold (`paragraph_v1` before 1d/1e span evidence; LLM chunking policy before 1e)
 8. Acceptance tests required above exist for that module’s claims
 
@@ -514,4 +516,4 @@ A sub-wave is **done** only when all of the following hold. The next slice must 
 - Which Overview widgets ship visually with 1a vs wait for 1b entities
 - Non-identity UX copy and chart aesthetics
 
-**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](ROADMAP.md) **Now — Usability wave** / [usability_wave_plan.md](usability_wave_plan.md) (deferred reinterpretations not scheduled).
+**Post-ship residual hardening:** parent freshness, UI/cache honesty, moments `paragraph_v1`, and §8 test gaps are tracked in [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) (does not restate contract formulas). Ongoing product priority: [ROADMAP.md](../../ROADMAP.md) **Now — Usability wave** / [usability_wave_plan.md](../../usability_wave_plan.md) (deferred reinterpretations not scheduled).

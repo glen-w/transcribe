@@ -85,10 +85,26 @@ If the user has not already run `# backup` in this session, recommend running it
 
 ---
 
-## 6. Soft / optional
+## 6. Docs + backup/restore coverage (mandatory)
+
+Ensure recent work did not leave new product surfaces undocumented or outside backup/restore.
+
+Scope: compare this branch / dirty worktree against the base branch (or the session’s plan) for **new or changed features, output artifacts, and settings**.
+
+| Check | Pass when | Failure / warning |
+|-------|-----------|-------------------|
+| Documented | Each new feature / output / setting appears in the right doc layer (CONTRACT for invariants/schemas; GUIDE for flows; indexes link discoverable surfaces) | Undocumented user-visible knob or export → **failure**; minor index-only drift → **warning** |
+| `# backup` paths | Code/config/docs for the surface are covered by `# backup` includes; generated/runtime dirs are listed in excludes | New top-level code/doc path missing from backup includes → **failure**; unclear data vs code boundary → **warning** |
+| Restore / reopen | Persisted settings and outputs still load after a fresh open (defaults, schema version, migration note). Custom commands remain restorable via `"$REPO_ROOT backup/custom-commands/"` | Broken reopen or missing schema default → **failure**; product corpus backup/restore still a ROADMAP candidate (no API yet) → **warning** (note gap; do not invent APIs) |
+
+No new surfaces in the diff → **pass** (N/A). Record the list of surfaces checked in the summary.
+
+---
+
+## 7. Soft / optional
 
 - `black --check` / `ruff check` / `mypy` → report; auto-fix only if the user asks (this command is non-mutating by default).
-- Docs drift → **warning**.
+- Docs drift beyond §6 → **warning**.
 - CI status via `gh` when available → informational; missing CI/gh → **skipped**.
 
 ---
@@ -102,5 +118,6 @@ If the user has not already run `# backup` in this session, recommend running it
 | Packaging | pass / failure / skipped |
 | Docker | pass / failure / skipped |
 | Hygiene | pass / failure / skipped |
+| Docs + backup/restore | pass / failure / warning / skipped |
 
 Then list failures and warnings. End with a **local confidence** line: `CONFIDENT` / `NEEDS FIXES` / `HIGH RISK` — explicitly **not** a release approval.
