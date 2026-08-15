@@ -47,8 +47,10 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Full-workspace ZIPs pack notebooks, corpus, and config (optional inbox/exports). They **never** treat `data/cache/archive.sqlite` as authority; restore deletes `data/cache/` so Archive rebuilds.
 - Restore is **replace-only** onto the current `TRANSCRIBE_*` mounts (path-agnostic role-root layout). There is no merge / per-notebook restore in v1.
 - Large workspaces: use CLI disk paths (`backup create` / `restore`); the Settings UI does not download or upload multi-GB ZIPs through the browser.
-- Backup ZIPs contain page images and OCR/analysis text — treat them as sensitive local files (no cloud upload from Transcribe).
-- Create/restore refuse while a corpus lock or notebook OCR/analysis job lock is held.
+- Backup ZIPs contain page images and OCR/analysis text — treat them as sensitive local files (no encryption; no cloud upload from Transcribe).
+- Create/restore refuse while a corpus lock or notebook OCR/analysis job lock is held; create refuses clobbering an existing dest without `--force`; restore refuses archives that sit under trees being replaced (except `{EXPORT}/backups/`).
+- Automatic pre-restore safety ZIPs use **default** create options (inbox/exports omitted). If restore fails mid-replace, recover from that `pre-restore-*.zip` (path is included in the error when written).
+- Operator guide: [backup_and_restore.md](backup_and_restore.md).
 
 ## Privacy
 

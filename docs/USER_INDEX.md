@@ -7,6 +7,7 @@ Authority: curated navigation only — does not own product rules or contracts
 |-----|---------|
 | [PRODUCT.md](PRODUCT.md) | What Transcribe is and is not |
 | [user_guide.md](user_guide.md) | Import → run → review → export |
+| [backup_and_restore.md](backup_and_restore.md) | Full-workspace ZIP create / verify / restore |
 | [runtime/installation.md](runtime/installation.md) | Local install and helper script |
 | [runtime/docker.md](runtime/docker.md) | Compose mounts and Ollama from Docker |
 | [known_limitations.md](known_limitations.md) | Public honesty page |

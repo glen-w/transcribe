@@ -25,5 +25,7 @@ Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODU
 | Overview cards | `ui.overview_cards` — which Overview cards are visible (status strip always on) | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
 | OcrBatchRun | Durable batch OCR across notebooks | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) |
 | AnalysisBatchRun | Durable bulk Analyse across notebooks (orchestration only) | [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md) |
+| `transcribe.workspace-backup` | Full-workspace ZIP (role roots); replace-only restore | [contracts/workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md) |
+| Role roots | Path-agnostic ZIP prefixes (`projects/`, `data/…`) remapped to current mounts on restore | [contracts/workspace-backup.md](contracts/workspace-backup.md) |
 | Detector | Prompt-backed scan for notebook phenomena (not a saved prompt alone) | [contracts/detection-definition.md](contracts/detection-definition.md) |
 | DetectionFinding | Derived span finding with provenance and review status | [contracts/detection-finding.md](contracts/detection-finding.md) |
