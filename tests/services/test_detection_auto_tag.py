@@ -116,3 +116,34 @@ def test_apply_tags_from_published_without_rerun(tmp_path: Path, monkeypatch):
     n = svc.apply_tags_from_published("poetry")
     assert n >= 1
     assert any("poetry" in p.tags for p in projects.load().pages)
+
+
+def test_apply_tags_skips_rejected_findings(tmp_path: Path, monkeypatch):
+    runtime = _runtime(tmp_path)
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(runtime.data_dir))
+    paths = open_project_paths(runtime.projects_dir / "poem")
+    clock, ids = FakeClock(), SequentialIds("poem")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("poem-notebook")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p0.png", _png_bytes())
+    project = projects.load()
+    projects.save_user_edit(project.pages[0].page_id, POEM_P2)
+    client = RecordedDoubleClient(
+        responses={
+            "default": _poetry_response(
+                detected=True, continues_before=False, continues_after=False
+            ),
+        },
+        digest="test-digest",
+    )
+    svc = DetectionService(projects, text_ctx=_bind(client))
+    result = svc.run_detector("poetry", force=True, auto_tag=False)
+    assert result["outcome"] == "success"
+    findings = svc.list_findings("poetry")
+    assert findings
+    for finding in findings:
+        svc.set_review_status("poetry", finding.finding_id, "rejected")
+    n = svc.apply_tags_from_published("poetry")
+    assert n == 0
+    assert all("poetry" not in p.tags for p in projects.load().pages)

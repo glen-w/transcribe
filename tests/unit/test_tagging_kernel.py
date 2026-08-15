@@ -101,6 +101,34 @@ def test_filter_ids_and_constrain_entries():
     assert constrain_entries(entries, tags, []) == entries
 
 
+def test_constrain_entries_and_order_and_missing_tags():
+    """Viewer AND filter preserves entry order; missing tag map → empty slugs."""
+    entries = [
+        {"page_id": "p3", "project_root": "/b"},
+        {"page_id": "p1", "project_root": "/a"},
+        {"page_id": "p2", "project_root": "/a"},
+        {"page_id": "orphan", "project_root": "/a"},
+    ]
+    tags = {
+        "p1": ["poetry", "travel"],
+        "p2": ["travel"],
+        "p3": ["poetry", "lists"],
+    }
+    multi = constrain_entries(entries, tags, ["poetry", "lists"])
+    assert [e["page_id"] for e in multi] == ["p3"]
+    both = constrain_entries(entries, tags, ["poetry", "travel"])
+    assert [e["page_id"] for e in both] == ["p1"]
+    none = constrain_entries(entries, tags, ["missing"])
+    assert none == []
+    # orphan has no tags entry → treated as untagged
+    assert constrain_entries(entries, tags, ["poetry"]) == [
+        {"page_id": "p3", "project_root": "/b"},
+        {"page_id": "p1", "project_root": "/a"},
+    ]
+    assert constrain_entries([], tags, ["poetry"]) == []
+    assert constrain_entries(entries, {}, ["poetry"]) == []
+
+
 def test_default_color_stable_and_orphan_display():
     a = default_color_for_slug("poetry")
     b = default_color_for_slug("poetry")

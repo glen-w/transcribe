@@ -129,3 +129,63 @@ def test_union_page_tags_is_additive(tmp_path: Path):
     after = projects.load(reconcile=False)
     assert after.pages[0].tags == ["keep", "poetry"]
     assert after.pages[1].tags == ["poetry"]
+
+
+def test_merge_and_delete_rewrite_corpus(tmp_path: Path, monkeypatch):
+    runtime = _runtime(tmp_path)
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(runtime.data_dir))
+    monkeypatch.setenv("TRANSCRIBE_PROJECTS_DIR", str(runtime.projects_dir))
+    clock, ids = FakeClock(), SequentialIds("nb")
+    projects = _notebook(runtime, "nb1", clock, ids)
+    svc = TagService(runtime, clock=clock, ids=SequentialIds("tag"))
+    pages = projects.load().pages
+    svc.assign_page(projects, pages[0].page_id, ["poety", "travel"])
+    svc.assign_page(projects, pages[1].page_id, ["poetry"])
+    svc.assign_notebook(projects, ["poety"])
+    catalog = svc.load_catalog()
+    source = catalog.get_by_slug("poety")
+    target = catalog.get_by_slug("poetry")
+    assert source is not None and target is not None
+    _, merge_result = svc.merge(source.tag_id, target.tag_id)
+    assert merge_result.updated_notebooks == 1
+    after_merge = projects.load(reconcile=False)
+    assert after_merge.pages[0].tags == ["poetry", "travel"]
+    assert after_merge.pages[1].tags == ["poetry"]
+    assert after_merge.tags == ["poetry"]
+    assert svc.load_catalog().get_by_slug("poety") is None
+
+    poetry = svc.load_catalog().get_by_slug("poetry")
+    assert poetry is not None
+    _, delete_result = svc.delete(poetry.tag_id)
+    assert delete_result.updated_notebooks == 1
+    after_delete = projects.load(reconcile=False)
+    assert after_delete.pages[0].tags == ["travel"]
+    assert after_delete.pages[1].tags == []
+    assert after_delete.tags == []
+    assert svc.load_catalog().get_by_slug("poetry") is None
+
+
+def test_rewrite_skips_notebook_with_job_lock(tmp_path: Path, monkeypatch):
+    from transcribe.persistence.locks import JobLock
+
+    runtime = _runtime(tmp_path)
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(runtime.data_dir))
+    monkeypatch.setenv("TRANSCRIBE_PROJECTS_DIR", str(runtime.projects_dir))
+    clock, ids = FakeClock(), SequentialIds("nb")
+    projects = _notebook(runtime, "busy", clock, ids)
+    svc = TagService(runtime, clock=clock, ids=SequentialIds("tag"))
+    page_id = projects.load().pages[0].page_id
+    svc.assign_page(projects, page_id, ["tmp"])
+    tag = svc.load_catalog().get_by_slug("tmp")
+    assert tag is not None
+    held = JobLock(projects.paths.job_lock)
+    assert held.try_acquire()
+    try:
+        _, result = svc.change_slug(tag.tag_id, "renamed")
+        assert result.updated_notebooks == 0
+        assert any("busy" in root for root in result.skipped_roots)
+        still = projects.load(reconcile=False)
+        assert still.pages[0].tags == ["tmp"]
+        assert svc.load_catalog().get_by_slug("renamed") is not None
+    finally:
+        held.release()

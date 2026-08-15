@@ -136,3 +136,78 @@ def test_export_profile_compact_options():
     opts = ExportOptions.from_dict(overlay["export"])
     assert opts.typography.body_size_pt == 10.0
     assert opts.page_breaks == "continuous"
+
+
+def test_export_notebook_includes_tag_catalog(tmp_path: Path, monkeypatch):
+    from transcribe.runtime_paths import RuntimePaths
+    from transcribe.services.tags import TagService
+
+    data = tmp_path / "data"
+    projects_dir = tmp_path / "projects"
+    for path in (data, projects_dir, tmp_path / "inbox", tmp_path / "exports", data / "config"):
+        path.mkdir(parents=True, exist_ok=True)
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=data,
+        projects_dir=projects_dir,
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(data))
+    monkeypatch.setenv("TRANSCRIBE_PROJECTS_DIR", str(projects_dir))
+    paths = open_project_paths(projects_dir / "tagged")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("Tagged")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("a.png", _png_bytes())
+    page_id = projects.load().pages[0].page_id
+    tags = TagService(runtime, clock=clock, ids=SequentialIds("tag"))
+    tags.assign_page(projects, page_id, [" Poetry "])
+    export = ExportService(paths, projects)
+    notebook = export.build_notebook(projects.load())
+    assert "tag_catalog" in notebook
+    rows = notebook["tag_catalog"]
+    assert len(rows) == 1
+    assert rows[0]["slug"] == "poetry"
+    assert rows[0]["label"] == "Poetry"
+    assert rows[0]["color"].startswith("#")
+
+
+def test_catalog_label_rename_does_not_change_content_revision(
+    tmp_path: Path, monkeypatch
+):
+    from transcribe.runtime_paths import RuntimePaths
+    from transcribe.services.tags import TagService
+
+    data = tmp_path / "data"
+    projects_dir = tmp_path / "projects"
+    for path in (data, projects_dir, tmp_path / "inbox", tmp_path / "exports", data / "config"):
+        path.mkdir(parents=True, exist_ok=True)
+    runtime = RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=data,
+        projects_dir=projects_dir,
+        inbox_dir=tmp_path / "inbox",
+        export_dir=tmp_path / "exports",
+    )
+    monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(data))
+    monkeypatch.setenv("TRANSCRIBE_PROJECTS_DIR", str(projects_dir))
+    paths = open_project_paths(projects_dir / "rev")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("Rev")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("a.png", _png_bytes())
+    page_id = projects.load().pages[0].page_id
+    tags = TagService(runtime, clock=clock, ids=SequentialIds("tag"))
+    tags.assign_page(projects, page_id, ["Poetry"])
+    rev1 = projects.content_revision()
+    poetry = tags.load_catalog().get_by_slug("poetry")
+    assert poetry is not None
+    tags.rename_label(poetry.tag_id, "Poems")
+    rev2 = projects.content_revision()
+    assert rev1 == rev2
+    tags.assign_page(projects, page_id, ["poems"])
+    rev3 = projects.content_revision()
+    assert rev3 != rev1
