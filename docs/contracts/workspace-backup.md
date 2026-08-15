@@ -47,7 +47,7 @@ exports/           # only when includes.exports
 <path>\t<size>\t<sha256>
 ```
 
-Verify recomputes this index over non-manifest members and compares the digest.
+Verify recomputes this index over non-manifest members and compares the digest. Pack and verify stream file bytes (chunked) so large corpora do not require loading each member fully into memory.
 
 ## Always include (when present on disk)
 
@@ -69,6 +69,7 @@ Verify recomputes this index over non-manifest members and compares the digest.
 
 - `data/cache/**` (including `archive.sqlite`) — disposable; rebuild after restore
 - `*.lock` files
+- `*.partial` files (interrupted zip writes)
 - `.staging/` directories
 - Project-local `.cache/**` and thumbnail caches
 - The destination ZIP path itself when it would fall under a packed root
@@ -77,8 +78,10 @@ Verify recomputes this index over non-manifest members and compares the digest.
 
 1. Refuse if the workspace corpus lock is held.
 2. Refuse if any managed notebook holds an OCR or analysis job lock.
-3. Write via `*.zip.partial` then atomic rename to the destination.
-4. Member names must stay under the role prefixes above (zip-slip rejected on write and read).
+3. Refuse if the destination `.zip` already exists unless `force` / `--force`.
+4. Refuse when free disk space on the destination filesystem is below a fixed headroom (256 MiB) plus the estimated uncompressed payload size.
+5. Write via `*.zip.partial` then atomic rename to the destination.
+6. Member names must stay under the role prefixes above (zip-slip rejected on write and read).
 
 Default destination: `{TRANSCRIBE_EXPORT_DIR}/backups/transcribe-workspace-<YYYYMMDD-HHMMSS>.zip`.
 
@@ -86,7 +89,7 @@ Default destination: `{TRANSCRIBE_EXPORT_DIR}/backups/transcribe-workspace-<YYYY
 
 1. Open ZIP; require and parse the root manifest via `require_format(..., "transcribe.workspace-backup")`.
 2. Reject members that escape role roots (`..`, absolute paths, unexpected top-level names).
-3. Require `projects/` and `data/config/` and `data/corpus/` presence consistent with `includes`.
+3. Require `projects/` and `data/config/` and `data/corpus/` presence consistent with `includes` (empty trees may soft-note).
 4. Recompute `file_index_sha256` over packed files; mismatch → fail.
 
 Verify does **not** mutate the workspace.
@@ -97,16 +100,20 @@ Verify does **not** mutate the workspace.
 
 1. `verify` the archive (fail closed).
 2. Refuse corpus lock or any notebook OCR/analysis job lock.
-3. Unless disabled, create a **safety backup** of the current workspace (same create path; default options) under `{export_dir}/backups/pre-restore-<stamp>.zip`.
-4. Replace role roots present in the archive:
+3. Refuse if the archive path resolves under a tree that restore will replace (`projects`, `data/config`, `data/corpus`, and `inbox`/`exports` when those includes are true). Archives under `{export_dir}/backups/` are allowed even when `includes.exports` is true (that directory is preserved during exports replace).
+4. Unless disabled, create a **safety backup** of the current workspace (same create path; default options — inbox/exports off) under `{export_dir}/backups/pre-restore-<stamp>.zip`.
+5. Refuse when free disk space is below fixed headroom plus estimated restore payload (and safety backup size when enabled).
+6. Replace role roots present in the archive:
    - Clear children of `projects_dir`, then extract `projects/`
    - Replace `data_dir/config/` and `data_dir/corpus/`
-   - Replace ledger file when packed; remove local ledger when archive has `includes.ledger` false and no ledger member (leave untouched when ledger was never in scope — v1: if archive omits ledger member, delete local ledger only when `includes.ledger` is false **and** a prior ledger existed under data — simpler rule: **if ledger member present → write it; if absent → leave local ledger as-is**)
-   - When `includes.inbox` / `includes.exports`: replace those roots the same way
-5. Delete `data_dir/cache/` when present (Archive/FTS rebuilds on next use).
-6. Run corpus doctor (`deep=true`); report findings. Successful restore leaves doctor green or warnings-only for documented quarantine retention ([corpus-integrity.md](corpus-integrity.md)).
+   - Replace ledger file when packed; leave local ledger as-is when the archive omits the ledger member
+   - When `includes.inbox` / `includes.exports`: replace those roots the same way (`exports/backups/` preserved when replacing exports)
+7. Delete `data_dir/cache/` when present (Archive/FTS rebuilds on next use).
+8. Run corpus doctor (`deep=true`); report findings. Successful restore leaves doctor green or warnings-only for documented quarantine retention ([corpus-integrity.md](corpus-integrity.md)).
 
-Dry-run: perform verify + lock checks + describe replacements; write nothing.
+If replace fails after a safety backup was written, errors include the safety archive path so operators can recover.
+
+Dry-run: perform verify + lock checks + archive-location guard + describe replacements (counts and mapped paths); write nothing.
 
 ## Non-goals (v1)
 

@@ -57,7 +57,8 @@ def render_configuration_panel() -> None:
     st.caption(
         "Full-workspace ZIP (notebooks + corpus + config). "
         "Writes under Exports → `backups/`. Restore **replaces** the current workspace. "
-        "Large archives: prefer CLI (`transcribe backup create` / `transcribe restore`)."
+        "Large archives: prefer CLI (`transcribe backup create` / `transcribe restore`). "
+        "Guide: docs/backup_and_restore.md."
     )
     include_inbox = st.checkbox(
         "Include inbox",
@@ -100,8 +101,8 @@ def render_configuration_panel() -> None:
     st.markdown("##### Restore")
     st.caption(
         "Provide a path to a workspace backup ZIP on this machine. "
-        "A safety ZIP of the current workspace is written first. "
-        "After restore, check System → Diagnostics."
+        "Verify or dry-run first. A real restore writes a safety ZIP, then **replaces** "
+        "notebooks, corpus, and config. After restore, check System → Diagnostics."
     )
     restore_path = st.text_input(
         "Backup archive path",
@@ -109,6 +110,46 @@ def render_configuration_panel() -> None:
         key="workspace_backup_restore_path",
         placeholder=str(runtime.export_dir / "backups" / "transcribe-workspace-….zip"),
     )
+    verify_col, dry_col = st.columns(2)
+    with verify_col:
+        if st.button("Verify archive", key="workspace_backup_verify"):
+            from transcribe.errors import BackupError
+            from transcribe.services.workspace_backup import WorkspaceBackupService
+
+            if not restore_path.strip():
+                st.error("Enter the path to a backup ZIP.")
+            else:
+                try:
+                    result = WorkspaceBackupService().verify_backup(Path(restore_path.strip()))
+                    counts = result.manifest.get("counts") or {}
+                    st.success(
+                        "Archive verified "
+                        f"(notebooks={counts.get('notebooks')}, files={counts.get('files')})."
+                    )
+                    for message in result.messages:
+                        st.caption(message)
+                except BackupError as exc:
+                    st.error(str(exc))
+    with dry_col:
+        if st.button("Dry-run restore", key="workspace_backup_dry_run"):
+            from transcribe.errors import BackupError
+            from transcribe.services.workspace_backup import WorkspaceBackupService
+
+            if not restore_path.strip():
+                st.error("Enter the path to a backup ZIP.")
+            else:
+                try:
+                    result = WorkspaceBackupService().restore_backup(
+                        runtime,
+                        Path(restore_path.strip()),
+                        safety=False,
+                        dry_run=True,
+                    )
+                    st.info("Dry-run complete — no changes written.")
+                    for message in result.messages:
+                        st.caption(message)
+                except BackupError as exc:
+                    st.error(str(exc))
     restore_confirm = st.checkbox(
         "I understand this replaces notebooks, corpus, and config",
         value=False,

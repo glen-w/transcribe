@@ -24,6 +24,8 @@ MANIFEST_NAME = "transcribe.workspace-backup.json"
 FORMAT = "transcribe.workspace-backup"
 ROLE_TOP_LEVEL = frozenset({"projects", "data", "inbox", "exports"})
 EXCLUDE_DIR_NAMES = frozenset({".cache", ".staging", "thumbs", "__pycache__"})
+MIN_FREE_DISK_BYTES = 256 * 1024 * 1024
+_HASH_CHUNK = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,57 @@ def default_safety_dest(runtime: RuntimePaths, *, stamp: str | None = None) -> P
     return runtime.export_dir / "backups" / f"pre-restore-{when}.zip"
 
 
+def _sha256_file(path: Path) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(_HASH_CHUNK)
+            if not chunk:
+                break
+            digest.update(chunk)
+            size += len(chunk)
+    return digest.hexdigest(), size
+
+
+def _sha256_zip_member(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    size = 0
+    with zf.open(info, "r") as handle:
+        while True:
+            chunk = handle.read(_HASH_CHUNK)
+            if not chunk:
+                break
+            digest.update(chunk)
+            size += len(chunk)
+    return digest.hexdigest(), size
+
+
+def _free_disk_bytes(path: Path) -> int:
+    probe = path if path.exists() else path.parent
+    probe.mkdir(parents=True, exist_ok=True)
+    return int(shutil.disk_usage(probe).free)
+
+
+def _ensure_disk_budget(root: Path, *, additional: int = 0) -> None:
+    free = _free_disk_bytes(root)
+    if free - additional < MIN_FREE_DISK_BYTES:
+        raise BackupError(
+            f"insufficient free disk space ({free} bytes free; "
+            f"need at least {MIN_FREE_DISK_BYTES} bytes headroom"
+            + (f" plus {additional} bytes estimated" if additional else "")
+            + ")"
+        )
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
 class WorkspaceBackupService:
     """Create, verify, and replace-restore full-workspace ZIP archives."""
 
@@ -76,6 +129,8 @@ class WorkspaceBackupService:
         runtime: RuntimePaths,
         dest: Path,
         options: BackupOptions | None = None,
+        *,
+        force: bool = False,
     ) -> BackupResult:
         options = options or BackupOptions()
         dest = Path(dest)
@@ -83,6 +138,10 @@ class WorkspaceBackupService:
 
         if dest.suffix.lower() != ".zip":
             raise BackupError("backup destination must be a .zip path")
+        if dest.exists() and not force:
+            raise BackupError(
+                f"backup destination already exists: {dest} (pass force=True / --force to overwrite)"
+            )
 
         dest.parent.mkdir(parents=True, exist_ok=True)
         partial = dest.with_name(dest.name + ".partial")
@@ -142,8 +201,16 @@ class WorkspaceBackupService:
             )
 
         entries.sort(key=lambda item: item[0])
-        index_lines: list[str] = []
         uncompressed = 0
+        for _member, src in entries:
+            try:
+                uncompressed += src.stat().st_size
+            except OSError:
+                pass
+        _ensure_disk_budget(dest.parent, additional=uncompressed)
+
+        index_lines: list[str] = []
+        packed_bytes = 0
         notebook_count = self._count_notebooks(projects_root)
         try:
             with zipfile.ZipFile(
@@ -154,11 +221,10 @@ class WorkspaceBackupService:
             ) as zf:
                 for member, src in entries:
                     self._assert_safe_member(member)
-                    data = src.read_bytes()
-                    digest = hashlib.sha256(data).hexdigest()
-                    index_lines.append(f"{member}\t{len(data)}\t{digest}")
-                    uncompressed += len(data)
-                    zf.writestr(member, data)
+                    digest, size = _sha256_file(src)
+                    index_lines.append(f"{member}\t{size}\t{digest}")
+                    packed_bytes += size
+                    zf.write(src, arcname=member)
 
                 manifest = {
                     "format": FORMAT,
@@ -172,7 +238,7 @@ class WorkspaceBackupService:
                     "counts": {
                         "notebooks": notebook_count,
                         "files": len(entries),
-                        "uncompressed_bytes": uncompressed,
+                        "uncompressed_bytes": packed_bytes,
                     },
                     "file_index_sha256": hashlib.sha256(
                         ("\n".join(index_lines) + ("\n" if index_lines else "")).encode("utf-8")
@@ -197,7 +263,7 @@ class WorkspaceBackupService:
             archive_path=dest,
             manifest=manifest,
             file_count=len(entries),
-            uncompressed_bytes=uncompressed,
+            uncompressed_bytes=packed_bytes,
             notebook_count=notebook_count,
         )
 
@@ -241,9 +307,8 @@ class WorkspaceBackupService:
                         has_config = True
                     if name.startswith("data/corpus/"):
                         has_corpus = True
-                    data = zf.read(info)
-                    digest = hashlib.sha256(data).hexdigest()
-                    index_lines.append(f"{name}\t{len(data)}\t{digest}")
+                    digest, size = _sha256_zip_member(zf, info)
+                    index_lines.append(f"{name}\t{size}\t{digest}")
 
                 index_lines.sort()
                 digest = hashlib.sha256(
@@ -280,13 +345,25 @@ class WorkspaceBackupService:
         archive = Path(archive)
         verify = self.verify_backup(archive)
         self._refuse_busy(runtime)
+        self._refuse_archive_under_replace_roots(runtime, archive, verify.manifest)
 
         includes = verify.manifest.get("includes") or {}
         messages = list(verify.messages)
+        counts = verify.manifest.get("counts") or {}
         messages.append(
             "restore will replace: projects, data/config, data/corpus"
             + (", inbox" if includes.get("inbox") else "")
             + (", exports" if includes.get("exports") else "")
+        )
+        messages.append(
+            f"mapped onto projects={runtime.projects_dir} data={runtime.data_dir}"
+            + (f" inbox={runtime.inbox_dir}" if includes.get("inbox") else "")
+            + (f" exports={runtime.export_dir}" if includes.get("exports") else "")
+        )
+        messages.append(
+            "archive counts: "
+            f"notebooks={counts.get('notebooks')} files={counts.get('files')} "
+            f"uncompressed_bytes={counts.get('uncompressed_bytes')}"
         )
 
         if dry_run:
@@ -299,6 +376,16 @@ class WorkspaceBackupService:
                 dry_run=True,
             )
 
+        uncompressed = int(counts.get("uncompressed_bytes") or 0)
+        safety_estimate = 0
+        if safety:
+            # Safety ZIP packs current workspace (default options); budget roughly current size.
+            safety_estimate = self._estimate_workspace_bytes(runtime, BackupOptions())
+        _ensure_disk_budget(
+            runtime.export_dir if safety else runtime.data_dir,
+            additional=uncompressed + safety_estimate,
+        )
+
         safety_archive: Path | None = None
         if safety:
             safety_dest = default_safety_dest(runtime)
@@ -306,44 +393,53 @@ class WorkspaceBackupService:
                 runtime,
                 safety_dest,
                 safety_options or BackupOptions(),
+                force=True,
             ).archive_path
             messages.append(f"safety backup written to {safety_archive}")
 
-        with zipfile.ZipFile(archive, mode="r") as zf:
-            members = [
-                info
-                for info in zf.infolist()
-                if not info.filename.endswith("/") and info.filename != MANIFEST_NAME
-            ]
-            for info in members:
-                self._assert_safe_member(info.filename)
+        try:
+            with zipfile.ZipFile(archive, mode="r") as zf:
+                members = [
+                    info
+                    for info in zf.infolist()
+                    if not info.filename.endswith("/") and info.filename != MANIFEST_NAME
+                ]
+                for info in members:
+                    self._assert_safe_member(info.filename)
 
-            self._clear_directory_children(runtime.projects_dir)
-            runtime.projects_dir.mkdir(parents=True, exist_ok=True)
-            self._extract_prefix(zf, members, "projects/", runtime.projects_dir)
+                self._clear_directory_children(runtime.projects_dir)
+                runtime.projects_dir.mkdir(parents=True, exist_ok=True)
+                self._extract_prefix(zf, members, "projects/", runtime.projects_dir)
 
-            config_dest = runtime.data_dir / "config"
-            corpus_dest = runtime.data_dir / "corpus"
-            self._replace_tree_from_zip(zf, members, "data/config/", config_dest)
-            self._replace_tree_from_zip(zf, members, "data/corpus/", corpus_dest)
+                config_dest = runtime.data_dir / "config"
+                corpus_dest = runtime.data_dir / "corpus"
+                self._replace_tree_from_zip(zf, members, "data/config/", config_dest)
+                self._replace_tree_from_zip(zf, members, "data/corpus/", corpus_dest)
 
-            ledger_member = "data/ocr_preference_ledger.json"
-            ledger_dest = runtime.data_dir / "ocr_preference_ledger.json"
-            member_names = {info.filename for info in members}
-            if ledger_member in member_names:
-                ledger_dest.parent.mkdir(parents=True, exist_ok=True)
-                ledger_dest.write_bytes(zf.read(ledger_member))
+                ledger_member = "data/ocr_preference_ledger.json"
+                ledger_dest = runtime.data_dir / "ocr_preference_ledger.json"
+                member_names = {info.filename for info in members}
+                if ledger_member in member_names:
+                    ledger_dest.parent.mkdir(parents=True, exist_ok=True)
+                    self._extract_member_to(zf, ledger_member, ledger_dest)
 
-            if includes.get("inbox"):
-                self._replace_tree_from_zip(zf, members, "inbox/", runtime.inbox_dir)
-            if includes.get("exports"):
-                self._replace_tree_from_zip(
-                    zf,
-                    members,
-                    "exports/",
-                    runtime.export_dir,
-                    preserve_relative={"backups"},
-                )
+                if includes.get("inbox"):
+                    self._replace_tree_from_zip(zf, members, "inbox/", runtime.inbox_dir)
+                if includes.get("exports"):
+                    self._replace_tree_from_zip(
+                        zf,
+                        members,
+                        "exports/",
+                        runtime.export_dir,
+                        preserve_relative={"backups"},
+                    )
+        except BackupError:
+            raise
+        except Exception as exc:
+            hint = ""
+            if safety_archive is not None:
+                hint = f" Safety archive at {safety_archive}."
+            raise BackupError(f"restore failed after workspace changes began: {exc}.{hint}") from exc
 
         cache_dir = runtime.data_dir / "cache"
         if cache_dir.exists():
@@ -386,6 +482,72 @@ class WorkspaceBackupService:
             if analysis_lock_held(root / ".transcribe.analysis.lock"):
                 raise BackupError(f"analysis job lock held for notebook at {root}")
 
+    def _refuse_archive_under_replace_roots(
+        self,
+        runtime: RuntimePaths,
+        archive: Path,
+        manifest: dict[str, Any],
+    ) -> None:
+        try:
+            resolved = archive.resolve()
+        except OSError as exc:
+            raise BackupError(f"cannot resolve archive path: {archive}: {exc}") from exc
+
+        includes = manifest.get("includes") or {}
+        blocked: list[tuple[str, Path]] = [
+            ("projects", runtime.projects_dir),
+            ("data/config", runtime.data_dir / "config"),
+            ("data/corpus", runtime.data_dir / "corpus"),
+        ]
+        if includes.get("inbox"):
+            blocked.append(("inbox", runtime.inbox_dir))
+        if includes.get("exports"):
+            # exports/backups is preserved during replace; allow archives there.
+            backups_root = runtime.export_dir / "backups"
+            if _is_relative_to(resolved, backups_root):
+                return
+            blocked.append(("exports", runtime.export_dir))
+
+        for label, root in blocked:
+            if root.exists() and _is_relative_to(resolved, root):
+                raise BackupError(
+                    f"archive path sits under replace root {label} ({root}); "
+                    "move the ZIP outside the workspace trees being replaced "
+                    "(exports/backups/ is safe when exports are replaced)"
+                )
+
+    def _estimate_workspace_bytes(
+        self,
+        runtime: RuntimePaths,
+        options: BackupOptions,
+    ) -> int:
+        total = 0
+        skip_paths: set[Path] = set()
+        roots: list[tuple[Path, str]] = [
+            (runtime.projects_dir, "projects"),
+            (runtime.data_dir / "config", "data/config"),
+            (runtime.data_dir / "corpus", "data/corpus"),
+        ]
+        if options.include_inbox:
+            roots.append((runtime.inbox_dir, "inbox"))
+        if options.include_exports:
+            roots.append((runtime.export_dir, "exports"))
+        for root, prefix in roots:
+            if not root.is_dir():
+                continue
+            for _member, src in self._collect_tree(root, prefix=prefix, skip_paths=skip_paths):
+                try:
+                    total += src.stat().st_size
+                except OSError:
+                    continue
+        ledger = runtime.data_dir / "ocr_preference_ledger.json"
+        if ledger.is_file():
+            try:
+                total += ledger.stat().st_size
+            except OSError:
+                pass
+        return total
+
     def _collect_tree(
         self,
         root: Path,
@@ -403,6 +565,8 @@ class WorkspaceBackupService:
             except OSError:
                 continue
             if resolved in skip_paths:
+                continue
+            if path.name.endswith(".partial"):
                 continue
             rel = path.relative_to(root).as_posix()
             parts = Path(rel).parts
@@ -490,6 +654,12 @@ class WorkspaceBackupService:
                 tmp.rename(target)
 
     @staticmethod
+    def _extract_member_to(zf: zipfile.ZipFile, member: str, target: Path) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(member, "r") as src, target.open("wb") as dest:
+            shutil.copyfileobj(src, dest, length=_HASH_CHUNK)
+
+    @staticmethod
     def _extract_prefix(
         zf: zipfile.ZipFile,
         members: Iterable[zipfile.ZipInfo],
@@ -510,4 +680,5 @@ class WorkspaceBackupService:
             except ValueError as exc:
                 raise BackupError(f"zip-slip extract rejected: {name!r}") from exc
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(zf.read(info))
+            with zf.open(info, "r") as src, target.open("wb") as dest:
+                shutil.copyfileobj(src, dest, length=_HASH_CHUNK)
