@@ -77,18 +77,18 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
 3. Run analysis. This-notebook complete opens **View → Overview**. Inspect published results under **View**: Overview / Themes / Mood / Summaries. Themes includes **People**; Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current. Each page shows module-appropriate charts and lists (not raw JSON). **Word themes** can be **Basic** or **Advanced** (interactive filters). Overview and Mood include **Compare with corpus / period** for numeric metrics vs other notebooks. On **Mood → Moments**, **Jump to page** (and page-series chart clicks on Overview / Themes / Mood) opens that page in **Reading**. Themes → People adds **entity tone** when that module has run. Technical module details live under **Advanced**. Use **Places** in the primary nav for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
-4. Open **View → Detect** to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
+4. **Thorough** (and Custom when you select them) can include **Detect** detectors in the same Analyse plan. Open **View → Detect** to review findings (approve/reject, jump to pages). Ad-hoc / page-scoped runs still launch from Detect → Run Detection.
 
 Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. **Settings** tabs: Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Configuration holds folders, **Backup** (full-workspace ZIP), import/declutter, Archive paging, and Overview cards. Models holds the workspace Ollama URL, OCR preprocess seed (`none` / `gentle_contrast`), LLM budgets, and Apply-OCR to the open notebook. Profiles activates named overlays (`workflow` / `ocr` / `llm` / `export`). Interface customises action menus. Export shows read-only typography defaults (`readable` / `compact` / `large_print`); change them on **Workflow → Export** or by activating an export profile.
 
-| Preset | Modules |
-|--------|---------|
-| **Quick** | Light/medium only — no LLM, no heavy modules |
+| Preset | Includes |
+|--------|----------|
+| **Quick** | Light/medium only — no LLM, no heavy modules, no detectors |
 | **Balanced** | Adds `semantic_similarity` + `llm_summary` |
-| **Thorough** | All suitable core modules (including heavy + LLM suite) |
-| **Custom** | Pick modules (seeded from Balanced) |
+| **Thorough** | All suitable core modules (including heavy + LLM suite) + all detectors |
+| **Custom** | Pick modules and detectors (modules seeded from Balanced) |
 
-Use a **text** Ollama model for LLM modules. Set a workspace default under **Settings → Models**, configure per notebook under This notebook Analyse, or pick one for a whole **Batch** run. Deterministic synthesis works without it. When a model or optional component is missing, Analyse says so in plain language (for example “Needs a text model”) rather than raw capability enums. Roadmap: [ROADMAP.md](ROADMAP.md).
+Use a **text** Ollama model for LLM modules and detectors. Set a workspace default under **Settings → Models**, configure per notebook under This notebook Analyse, or pick one for a whole **Batch** run. Deterministic synthesis works without it. When a model or optional component is missing, Analyse says so in plain language (for example “Needs a text model”) rather than raw capability enums. Roadmap: [ROADMAP.md](ROADMAP.md).
 
 **Transcribe:** choose a vision model and start transcription. Optional OCR cleanup is a one-line toggle; workers, force re-run, and cleanup detail sit under **Advanced**. Batch OCR, Batch Analyse, and Import → Batch share the same live progress panel style.
 
@@ -153,7 +153,7 @@ Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/c
 
 After a successful import, **Transcribe imported notebooks** opens **Workflow → Transcribe → Batch** with those notebooks selected. You can also pick **Notebooks with pending pages** or a manual list. Batch OCR uses one shared plan and runs notebooks one after another (fingerprint skip unless Force). Use **Start batch transcription** for a single vision model, or **Compare models** / **Start batch multipass compare** to run two or more vision models on each notebook (rank + optional composite), same as This notebook compare. Import, Transcribe, and batch OCR jobs show live progress (per-item / per-page status with readable filenames).
 
-**Workflow → Analyse → Batch** opens with a **Pick notebooks** list (default). You can also scan **Notebooks needing analysis** or seed from an import run. Choose a preset (and a **text model** when the plan includes LLM modules — applied to every notebook in the batch), then **Start batch analysis**. Progress shows an outer notebook bar and an inner module bar for the current notebook; **Stop after current notebook** cancels the rest. Empty-text notebooks are skipped. After the batch finishes you stay on Analyse; **Library** opens the gallery, and per-item **Open** goes to Overview if that notebook has published analysis, otherwise Reading. Consume published results under **View** for the selected notebook.
+**Workflow → Analyse → Batch** opens with a **Pick notebooks** list (default). You can also scan **Notebooks needing analysis** or seed from an import run. Choose a preset (and a **text model** when the plan includes LLM modules or detectors — applied to every notebook in the batch), then **Start batch analysis**. Progress shows an outer notebook bar and an inner steps bar for the current notebook (modules then detectors); **Stop after current notebook** cancels the rest. Empty-text notebooks are skipped. After the batch finishes you stay on Analyse; **Library** opens the gallery, and per-item **Open** goes to Overview if that notebook has published analysis, otherwise Reading. Consume published results under **View** for the selected notebook.
 
 **Docker:** paste **container** paths (`/mnt/inbox`, or `/mnt/notebooks` if you mounted `HOST_BULK_IMPORT_DIR`), not host paths like `/Users/...`. Details: [runtime/docker.md](runtime/docker.md#bulk-import-paths-inbox-ui--cli-in-docker).
 

@@ -30,6 +30,7 @@ from transcribe.analysis.presets import (
     format_preset_label,
     label_to_preset,
     resolve_analysis_preset,
+    suitable_detector_ids,
     suitable_module_ids,
 )
 from transcribe.errors import JobConflictError
@@ -41,11 +42,13 @@ from transcribe.ui.components.progress_panel import (
     make_initial_snapshot,
     render_progress_panel,
 )
-from transcribe.ui.module_ui_groups import group_modules_for_ui
+from transcribe.ui.module_ui_groups import format_detector_label, group_plan_for_ui
 
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
 _CUSTOM_WIDGET_KEY = "run_analysis_custom_modules_widget"
+_CUSTOM_DETECT_KEY = "run_analysis_custom_detectors"
+_CUSTOM_DETECT_WIDGET_KEY = "run_analysis_custom_detectors_widget"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
 _CUSTOM_QA_MODULE = "llm_custom_qa"
@@ -121,6 +124,7 @@ def apply_review_module_removal(
     *,
     module_ids: Sequence[str],
     remove_id: str,
+    detector_ids: Sequence[str] = (),
 ) -> bool:
     """
     Queue dropping ``remove_id`` from the run (Custom + remainder).
@@ -131,7 +135,7 @@ def apply_review_module_removal(
     if remove_id not in module_ids:
         return False
     remaining = [m for m in module_ids if m != remove_id]
-    if not remaining:
+    if not remaining and not detector_ids:
         return False
 
     payload: dict[str, Any] = {"remaining": list(remaining)}
@@ -147,6 +151,7 @@ def _render_review_module_row(
     *,
     module_ids: Sequence[str],
     can_remove: bool,
+    detector_ids: Sequence[str] = (),
 ) -> None:
     label = format_module_label(module_id)
     if not can_remove:
@@ -166,24 +171,32 @@ def _render_review_module_row(
                 st.session_state,
                 module_ids=module_ids,
                 remove_id=module_id,
+                detector_ids=detector_ids,
             ):
                 st.rerun()
             else:
-                st.toast("Keep at least one module in the run.")
+                st.toast("Keep at least one module or detector in the run.")
 
 
-def _render_module_review(module_ids: tuple[str, ...]) -> None:
+def _render_module_review(
+    module_ids: tuple[str, ...],
+    detector_ids: tuple[str, ...] = (),
+) -> None:
     expanded = bool(st.session_state.pop(_REVIEW_KEEP_OPEN_KEY, False))
-    with st.expander("Review modules", expanded=expanded):
-        can_remove = len(module_ids) > 1
-        for title, rows in group_modules_for_ui(module_ids):
+    with st.expander("Review plan", expanded=expanded):
+        can_remove = (len(module_ids) + len(detector_ids)) > 1
+        for title, rows in group_plan_for_ui(module_ids, detector_ids):
             st.markdown(f"**{title}**")
             for mid in rows:
-                _render_review_module_row(
-                    mid,
-                    module_ids=module_ids,
-                    can_remove=can_remove,
-                )
+                if title == "Detection":
+                    st.markdown(f"- {format_detector_label(mid)}")
+                else:
+                    _render_review_module_row(
+                        mid,
+                        module_ids=module_ids,
+                        can_remove=can_remove and bool(module_ids),
+                        detector_ids=detector_ids,
+                    )
 
 
 def _render_post_analysis_actions(*, projects: ProjectService, project: Any) -> None:
@@ -246,9 +259,12 @@ def _finalize_run(coord: AnalysisCoordinator, progress: AnalysisProgress) -> Non
         # Keep error visible on the snapshot.
         pass
     elif progress.status == "completed":
+        from transcribe.analysis.module_catalog import get_module_info
         from transcribe.ui.navigation import normalize_ui_mode
 
-        st.session_state["ui_mode"] = normalize_ui_mode("Overview")
+        has_modules = any(get_module_info(mid) is not None for mid in results)
+        dest = "Overview" if has_modules else "Detect"
+        st.session_state["ui_mode"] = normalize_ui_mode(dest)
 
 
 def _start_coordinator_run(
@@ -260,7 +276,12 @@ def _start_coordinator_run(
     """Start from a frozen AnalysisRunPlan already bound in pending (no re-snapshot)."""
     plan_raw = pending.get("plan")
     launch_ids = list(pending.get("modules") or [])
-    st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(launch_ids))
+    detector_ids = list(pending.get("detectors") or [])
+    if isinstance(plan_raw, dict):
+        detector_ids = list(plan_raw.get("detector_ids") or detector_ids)
+    st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(
+        len(launch_ids) + len(detector_ids)
+    )
     try:
         if not isinstance(plan_raw, dict):
             raise PlanHashMismatchError("pending launch is missing a frozen analysis plan")
@@ -314,6 +335,7 @@ def _render_config_and_launch(
     apply_pending_review_module_removal(st.session_state)
 
     suitable = list(suitable_module_ids())
+    suitable_dets = list(suitable_detector_ids())
     options = [PRESET_LABELS[p] for p in VALID_PRESETS]
     if _PRESET_KEY not in st.session_state:
         st.session_state[_PRESET_KEY] = "Balanced"
@@ -334,6 +356,7 @@ def _render_config_and_launch(
     if not stored_custom:
         stored_custom = list(resolve_analysis_preset("balanced").module_ids)
         st.session_state[_CUSTOM_KEY] = stored_custom
+    stored_detectors = list(st.session_state.get(_CUSTOM_DETECT_KEY) or [])
 
     if preset == "custom":
         if _CUSTOM_WIDGET_KEY not in st.session_state:
@@ -346,10 +369,28 @@ def _render_config_and_launch(
         )
         st.session_state[_CUSTOM_KEY] = list(selected)
         custom_modules = selected
+        if _CUSTOM_DETECT_WIDGET_KEY not in st.session_state:
+            st.session_state[_CUSTOM_DETECT_WIDGET_KEY] = [
+                d for d in stored_detectors if d in suitable_dets
+            ]
+        selected_dets = st.multiselect(
+            "Select detectors",
+            options=suitable_dets,
+            format_func=format_detector_label,
+            key=_CUSTOM_DETECT_WIDGET_KEY,
+            help="Prompt-backed content detectors (poetry, lists, …).",
+        )
+        st.session_state[_CUSTOM_DETECT_KEY] = list(selected_dets)
+        custom_detectors = selected_dets
     else:
         custom_modules = list(st.session_state.get(_CUSTOM_KEY) or [])
+        custom_detectors = list(st.session_state.get(_CUSTOM_DETECT_KEY) or [])
 
-    resolved = resolve_analysis_preset(preset, custom_modules=custom_modules)
+    resolved = resolve_analysis_preset(
+        preset,
+        custom_modules=custom_modules,
+        custom_detectors=custom_detectors,
+    )
 
     qa_enabled = st.checkbox(
         "Include Ask notebook question",
@@ -370,6 +411,8 @@ def _render_config_and_launch(
         resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
     )
     parts = [f"**{format_preset_label(preset)}** · {len(plan.module_ids)} modules"]
+    if plan.detector_ids:
+        parts.append(f"{len(plan.detector_ids)} detectors")
     if resolved.preset != "custom":
         parts.append(f"v{resolved.content_version}")
     if plan.llm_count:
@@ -377,14 +420,14 @@ def _render_config_and_launch(
     if plan.heavy_count:
         parts.append(f"{plan.heavy_count} heavy")
     st.caption(" · ".join(parts))
-    _render_module_review(plan.module_ids)
+    _render_module_review(plan.module_ids, plan.detector_ids)
 
-    needs_llm = plan.llm_count > 0
+    needs_llm = plan.needs_llm()
     text_model = resolve_text_model_name(project.settings.text_model_name)
     if needs_llm:
         with st.expander("LLM setup", expanded=not bool(text_model)):
             st.caption(
-                "LLM modules need a local **text** Ollama model "
+                "LLM modules and detectors need a local **text** Ollama model "
                 "(vision/embedding models are rejected). "
                 "Workspace default: Settings → Models."
             )
@@ -420,11 +463,12 @@ def _render_config_and_launch(
                 st.success(f"Text model set to `{chosen}`")
                 st.rerun()
             if not (chosen or text_model):
-                st.warning("Select a text model before running LLM modules.")
+                st.warning("Select a text model before running LLM modules or detectors.")
 
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
+    launch_detectors = list(plan.detector_ids)
     run_disabled = (
-        not launch_ids
+        (not launch_ids and not launch_detectors)
         or (needs_llm and not (text_model or "").strip())
         or coord.is_running()
     )
@@ -449,6 +493,7 @@ def _render_config_and_launch(
                 clock=SystemClock(),
                 ids=UuidGenerator(),
                 project=project,
+                detector_ids=launch_detectors,
             )
         except Exception as exc:  # noqa: BLE001
             st.error(f"Could not freeze analysis plan: {exc}")
@@ -457,13 +502,17 @@ def _render_config_and_launch(
         model_bit = (
             f"`{frozen.text_model.model_name}`"
             if frozen.text_model is not None
-            else "no text model (LLM modules will show Needs a text model)"
+            else "no text model (LLM steps will show Needs a text model)"
         )
         version_bit = (
             f" · preset v{resolved.content_version}" if resolved.preset != "custom" else " · custom"
         )
+        detector_bit = (
+            f" · {len(frozen.detector_ids)} detectors" if frozen.detector_ids else ""
+        )
         st.session_state[_PENDING_LAUNCH_KEY] = {
             "modules": list(frozen.module_ids),
+            "detectors": list(frozen.detector_ids),
             "question_text": q,
             "preset_label": format_preset_label(preset),
             "preset_key": resolved.preset,
@@ -474,10 +523,10 @@ def _render_config_and_launch(
             "started": False,
             "footer_summary": (
                 f"Running **{format_preset_label(preset)}**{version_bit} · "
-                f"{len(frozen.module_ids)} modules · {model_bit}"
+                f"{len(frozen.module_ids)} modules{detector_bit} · {model_bit}"
             ),
         }
-        st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(len(frozen.module_ids))
+        st.session_state[SNAPSHOT_KEY] = make_initial_snapshot(frozen.step_total())
         st.session_state[_IN_PROGRESS_KEY] = True
         st.rerun()
 
@@ -594,7 +643,7 @@ def render_run_analysis_form(
         else:
             preset_label = None
         st.caption(last_run_product_summary(last, preset_label=preset_label))
-        with st.expander("Advanced · per-module outcomes"):
+        with st.expander("Advanced · per-step outcomes"):
             for mid, row in last.items():
                 st.write(
                     f"**{format_module_label(mid)}:** "
