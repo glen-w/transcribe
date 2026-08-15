@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pymupdf
 
-from transcribe.ingest import IngestService
-from transcribe.persistence.atomic import read_json
-from transcribe.services.export import ExportService
-from transcribe.services.export_document import bundle_revision_hex, build_document
-from transcribe.services.export_options import ExportOptions, ExportTypography
-from transcribe.services.job import JobCoordinator
-from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
+from transcribe.ingest import IngestService
+from transcribe.persistence.atomic import read_json
+from transcribe.services.export import ExportService
+from transcribe.services.export_document import build_document, bundle_revision_hex
+from transcribe.services.export_options import ExportOptions, ExportTypography
+from transcribe.services.job import JobCoordinator
+from transcribe.services.project import ProjectService, open_project_paths
 
 
 def _notebook_with_edit(tmp_path: Path, title: str = "Notebook") -> tuple:
@@ -174,9 +174,7 @@ def test_export_notebook_includes_tag_catalog(tmp_path: Path, monkeypatch):
     assert rows[0]["color"].startswith("#")
 
 
-def test_catalog_label_rename_does_not_change_content_revision(
-    tmp_path: Path, monkeypatch
-):
+def test_catalog_label_rename_does_not_change_content_revision(tmp_path: Path, monkeypatch):
     from transcribe.runtime_paths import RuntimePaths
     from transcribe.services.tags import TagService
 
