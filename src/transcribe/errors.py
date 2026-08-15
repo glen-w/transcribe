@@ -30,5 +30,9 @@ class CorpusError(TranscribeError):
     """Workspace corpus index / ImportRun authority failed."""
 
 
+class BackupError(TranscribeError):
+    """Workspace backup create / verify / restore failed."""
+
+
 class JobConflictError(TranscribeError):
     pass

@@ -24,6 +24,7 @@ SUPPORTED: dict[str, int] = {
     "transcribe.ocr-preference-ledger": 1,
     "transcribe.ocr-multipass-job": 1,
     "transcribe.finetune-export-manifest": 1,
+    "transcribe.workspace-backup": 1,
 }
 
 

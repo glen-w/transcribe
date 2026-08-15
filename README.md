@@ -75,6 +75,7 @@ More: [user guide](docs/user_guide.md) · [public surfaces](docs/public_surfaces
 - Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
 - Analyse presets (Quick / Balanced / Thorough / Custom); product read-models under View (corpus/period compare on Overview/Mood; Moments and page-series jump-to-page → Reading)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
+- **Full-workspace backup / restore** (ZIP of notebooks + corpus + config; CLI + Settings → Configuration)
 - **Core notebook analysis** on transcribed text (Overview, Themes with People, Mood with Moments, Summaries with Ask, Detect) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
