@@ -336,7 +336,7 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 - [x] Acceptance gate green before any “supported” bulk/inbox claim in public surfaces.
 - [ ] Inbox workflow shows outcomes for imported / failed / duplicated / needs-review (polish).
 - [x] Crash-injection and idempotency covered by corpus suite; doctor recovers index.
-- [x] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (backup/restore productization, quality thumbs) stay candidates unless explicitly pulled in.
+- [x] ROADMAP corpus section moves from planned → done for the shipped slice; remaining lifecycle items (quality thumbs; longevity/upgrades beyond backup) stay candidates unless explicitly pulled in. Workspace backup/restore is shipped (see ROADMAP lifecycle table).
 
 ### Key files
 

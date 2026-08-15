@@ -257,6 +257,58 @@ def main(argv: list[str] | None = None) -> int:
         help="Also deep-doctor each registered notebook",
     )
 
+    p_backup = sub.add_parser(
+        "backup",
+        help="Create or verify a full-workspace backup ZIP",
+    )
+    backup_sub = p_backup.add_subparsers(dest="backup_cmd", required=True)
+    p_backup_create = backup_sub.add_parser(
+        "create",
+        help="Write a workspace backup ZIP (notebooks + corpus + config)",
+    )
+    p_backup_create.add_argument(
+        "--dest",
+        type=Path,
+        default=None,
+        help="Destination .zip (default: {EXPORT}/backups/transcribe-workspace-<stamp>.zip)",
+    )
+    p_backup_create.add_argument(
+        "--include-inbox",
+        action="store_true",
+        help="Also pack TRANSCRIBE_INBOX_DIR",
+    )
+    p_backup_create.add_argument(
+        "--include-exports",
+        action="store_true",
+        help="Also pack TRANSCRIBE_EXPORT_DIR (skips the destination zip itself)",
+    )
+    p_backup_verify = backup_sub.add_parser(
+        "verify",
+        help="Verify a workspace backup ZIP without changing the workspace",
+    )
+    p_backup_verify.add_argument("archive", type=Path)
+
+    p_restore = sub.add_parser(
+        "restore",
+        help="Replace the current workspace from a backup ZIP",
+    )
+    p_restore.add_argument("archive", type=Path)
+    p_restore.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm replace (required to write)",
+    )
+    p_restore.add_argument(
+        "--no-safety-backup",
+        action="store_true",
+        help="Skip automatic pre-restore safety ZIP",
+    )
+    p_restore.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Verify and describe replace plan without writing",
+    )
+
     p_bulk_run = sub.add_parser(
         "bulk-run",
         help="Run OCR across many notebooks (OcrBatchRun)",
@@ -401,6 +453,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_bulk_analyse(args, clock=clock, ids=ids)
         if args.cmd == "corpus-doctor":
             return _cmd_corpus_doctor(args)
+        if args.cmd == "backup":
+            return _cmd_backup(args)
+        if args.cmd == "restore":
+            return _cmd_restore(args)
 
         if args.cmd == "init":
             paths = open_project_paths(args.project)
@@ -1066,6 +1122,96 @@ def _cmd_corpus_doctor(args: argparse.Namespace) -> int:
     elif report.ok:
         print("ok: no errors (warnings above)")
     return 0 if report.ok else 1
+
+
+def _cmd_backup(args: argparse.Namespace) -> int:
+    from transcribe.errors import BackupError
+    from transcribe.runtime_paths import build_runtime_paths
+    from transcribe.services.workspace_backup import (
+        BackupOptions,
+        WorkspaceBackupService,
+        default_backup_dest,
+    )
+
+    runtime = build_runtime_paths()
+    service = WorkspaceBackupService()
+    try:
+        if args.backup_cmd == "create":
+            dest = Path(args.dest) if args.dest else default_backup_dest(runtime)
+            result = service.create_backup(
+                runtime,
+                dest,
+                BackupOptions(
+                    include_inbox=bool(args.include_inbox),
+                    include_exports=bool(args.include_exports),
+                ),
+            )
+            print(f"wrote {result.archive_path}")
+            print(
+                f"notebooks={result.notebook_count} files={result.file_count} "
+                f"uncompressed_bytes={result.uncompressed_bytes}"
+            )
+            return 0
+        if args.backup_cmd == "verify":
+            result = service.verify_backup(Path(args.archive))
+            for message in result.messages:
+                print(f"note: {message}")
+            counts = (result.manifest.get("counts") or {}) if result.manifest else {}
+            print(
+                "ok: backup verified "
+                f"(notebooks={counts.get('notebooks')} files={counts.get('files')})"
+            )
+            return 0
+    except BackupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"error: unknown backup subcommand {args.backup_cmd!r}", file=sys.stderr)
+    return 2
+
+
+def _cmd_restore(args: argparse.Namespace) -> int:
+    from transcribe.errors import BackupError
+    from transcribe.runtime_paths import build_runtime_paths
+    from transcribe.services.workspace_backup import WorkspaceBackupService
+
+    runtime = build_runtime_paths()
+    service = WorkspaceBackupService()
+    archive = Path(args.archive)
+    dry_run = bool(args.dry_run)
+    if not dry_run and not args.yes:
+        print(
+            "Restore replaces notebooks, corpus, and config from the archive.\n"
+            f"  archive: {archive}\n"
+            f"  projects: {runtime.projects_dir}\n"
+            f"  data: {runtime.data_dir}\n"
+            "Re-run with --yes to confirm, or --dry-run to preview.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        result = service.restore_backup(
+            runtime,
+            archive,
+            safety=not bool(args.no_safety_backup),
+            dry_run=dry_run,
+        )
+    except BackupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for message in result.messages:
+        print(message)
+    if result.safety_archive is not None:
+        print(f"safety_archive={result.safety_archive}")
+    if result.doctor is not None:
+        for finding in result.doctor.findings:
+            print(f"{finding.severity}: [{finding.code}] {finding.message}")
+        for nb_id, nb_report in result.doctor.notebook_reports.items():
+            for finding in nb_report.findings:
+                print(f"{finding.severity}: [{nb_id}/{finding.code}] {finding.message}")
+    if dry_run:
+        print("ok: dry-run complete (no changes)")
+        return 0
+    return 0 if result.ok else 1
 
 
 if __name__ == "__main__":

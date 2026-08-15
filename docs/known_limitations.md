@@ -42,6 +42,14 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Ollama model discovery metadata is cached by base URL + transport timeout; **Refresh** invalidates. Execution clients stay lightweight. Model information shows verified vs unverified identity (digest) and preference last-used when available.
 - Archive notebook strip paging defaults to **show all** (`ui.archive_notebooks_initial = 0`). A positive value loads that many cards before **Show more**; session state can expand further until rerun/reset.
 
+## Workspace backup / restore
+
+- Full-workspace ZIPs pack notebooks, corpus, and config (optional inbox/exports). They **never** treat `data/cache/archive.sqlite` as authority; restore deletes `data/cache/` so Archive rebuilds.
+- Restore is **replace-only** onto the current `TRANSCRIBE_*` mounts (path-agnostic role-root layout). There is no merge / per-notebook restore in v1.
+- Large workspaces: use CLI disk paths (`backup create` / `restore`); the Settings UI does not download or upload multi-GB ZIPs through the browser.
+- Backup ZIPs contain page images and OCR/analysis text — treat them as sensitive local files (no cloud upload from Transcribe).
+- Create/restore refuse while a corpus lock or notebook OCR/analysis job lock is held.
+
 ## Privacy
 
 - Local-by-default Ollama. Remote hosts exfiltrate page images by design of that configuration
