@@ -53,9 +53,10 @@ def get_cached_listing(
         cached = session_state[cache_key]
         return list(cached) if isinstance(cached, list) else cached  # type: ignore[return-value]
     value = loader()
-    session_state[cache_key] = value
+    stored = list(value) if isinstance(value, list) else value
+    session_state[cache_key] = stored
     session_state[token_key] = token
-    return list(value) if isinstance(value, list) else value  # type: ignore[return-value]
+    return list(stored) if isinstance(stored, list) else stored  # type: ignore[return-value]
 
 
 def invalidate_listing_keys(session_state: Any, *keys: str) -> None:

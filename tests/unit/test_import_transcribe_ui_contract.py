@@ -50,10 +50,15 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "@st.fragment" in TRANSCRIBE
     assert "invalidate_batch_ocr_caches" in TRANSCRIBE
     assert "_cached_ocr_candidates" in TRANSCRIBE
+    assert "_cached_light_picker" in TRANSCRIBE
+    assert "list_candidates_light" in TRANSCRIBE
+    assert "enrich_page_stats" in TRANSCRIBE
     assert "_render_batch_notebook_source" in TRANSCRIBE
     assert "_render_batch_launch_actions" in TRANSCRIBE
+    assert "batch_source_panel" in TRANSCRIBE
     assert "Refresh list" in TRANSCRIBE
     assert "corpus_listing_cache" in TRANSCRIBE
+    assert "({c.pages_pending} pending / {c.pages_total})" not in TRANSCRIBE
     detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
     export = Path("src/transcribe/ui/export_panel.py").read_text(encoding="utf-8")
     assert "@st.fragment" in detect

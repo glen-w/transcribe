@@ -640,3 +640,43 @@ def test_analysis_aggregate_scan_skips_ollama_bind(tmp_path: Path, monkeypatch) 
     assert coord.run_blocking(run.analysis_batch_id).status == "completed"
     after = bn.analysis_aggregate_for_project(projects, clock=clock, ids=ids)
     assert after == "healthy"
+
+
+def test_list_analysis_candidates_loads_each_page_result_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("once")
+    root = _make_notebook(corpus, "nb", clock=clock, ids=ids)
+    coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
+    cands = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    run = coord.create_run(cands, module_ids=["stats"])
+    assert coord.run_blocking(run.analysis_batch_id).status == "completed"
+
+    original = ProjectService.load_page_result
+    calls = {"n": 0}
+
+    def _counted(self, page_id):  # noqa: ANN001
+        calls["n"] += 1
+        return original(self, page_id)
+
+    monkeypatch.setattr(ProjectService, "load_page_result", _counted)
+    listed = list_analysis_candidates(corpus, clock=clock, ids=ids)
+    assert listed[0].analysis_aggregate == "healthy"
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(
+        reconcile=False
+    )
+    assert calls["n"] == len(project.pages)
+
+
+def test_enrich_page_stats_fills_counts_for_light_candidates(tmp_path: Path) -> None:
+    from transcribe.services.batch_notebooks import enrich_page_stats, list_candidates_light
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("enr")
+    _make_notebook(corpus, "nb", clock=clock, ids=ids)
+    light = list_candidates_light(corpus, clock=clock, ids=ids)
+    assert light[0].pages_with_text == 0
+    filled = enrich_page_stats(light, clock=clock, ids=ids)
+    assert filled[0].pages_with_text == 1
+    assert filled[0].pages_pending >= 1

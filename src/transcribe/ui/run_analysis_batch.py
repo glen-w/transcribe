@@ -306,7 +306,6 @@ def _render_batch_notebook_source(
     project: Any | None = None,
 ) -> tuple[list, str | None]:
     """Notebook picker first; expensive health scan only for 'needing analysis'."""
-    picker = _cached_light_picker(corpus)
     source_options = ["pick", "pending", "import_run"]
     queued_source = st.session_state.pop(ANALYSE_BATCH_SOURCE_KEY, None)
     if queued_source in source_options:
@@ -375,6 +374,7 @@ def _render_batch_notebook_source(
             import_run_id = str(chosen_run) if chosen_run else None
             if import_run_id:
                 try:
+                    picker = _cached_light_picker(corpus)
                     selected = select_from_import_run(
                         corpus,
                         import_run_id,
@@ -392,6 +392,7 @@ def _render_batch_notebook_source(
                 except (TranscribeError, ValidationError) as exc:
                     st.error(str(exc))
     else:
+        picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
         options = [c.notebook_id for c in picker]
         labels = {
@@ -638,7 +639,12 @@ def render_batch_analysis_launch(
 ) -> None:
     """Preset form + notebook selection for Analyse → Batch."""
     corpus = CorpusPaths.from_runtime(runtime)
-    _render_batch_notebook_source(corpus, project=project)
+
+    @st.fragment
+    def _source_fragment() -> None:
+        _render_batch_notebook_source(corpus, project=project)
+
+    _source_fragment()
 
     @st.fragment
     def _preset_fragment() -> None:

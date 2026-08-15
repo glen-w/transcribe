@@ -244,6 +244,7 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "invalidate_batch_analyse_caches" in batch
     assert "@st.fragment" in batch
     assert "corpus_listing_cache" in batch
+    assert "_source_fragment" in batch
     assert 'st.session_state["ax_batch_source"] = "pick"' in batch
     assert "Select notebooks" in batch
     assert "_render_batch_notebook_source" in batch

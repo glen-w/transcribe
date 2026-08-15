@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 
 from transcribe.analysis import ADAPTER_VERSION
 from transcribe.analysis.document import (
@@ -17,7 +18,9 @@ from transcribe.analysis.document import (
     is_whitespace_only,
     validate_analysis_document,
 )
-from transcribe.domain.models import PageIndex, Project
+from collections.abc import Mapping
+
+from transcribe.domain.models import PageIndex, PageResult, Project
 from transcribe.services.project import ProjectService
 
 _BLANK_LINE_SPLIT = re.compile(r"\n{2,}")
@@ -30,9 +33,21 @@ def _unit_date(page: PageIndex) -> str | None:
     return f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
 
 
+def _page_result(
+    page_id: str,
+    project_service: ProjectService,
+    results: Mapping[str, PageResult | None] | None,
+) -> PageResult | None:
+    if results is not None:
+        return results.get(page_id)
+    return project_service.load_page_result(page_id)
+
+
 def build_page_v1_document(
     project: Project,
     project_service: ProjectService,
+    *,
+    results: Mapping[str, PageResult | None] | None = None,
 ) -> AnalysisDocument:
     """Canonical page_v1 adapter. Raises AnalysisDocumentError if empty after omission."""
     units: list[AnalysisUnit] = []
@@ -40,7 +55,7 @@ def build_page_v1_document(
     for page in project.pages:
         if page.analysis_excluded:
             continue
-        result = project_service.load_page_result(page.page_id)
+        result = _page_result(page.page_id, project_service, results)
         text = result.effective_text() if result else None
         if text is None or is_whitespace_only(text):
             continue
@@ -90,6 +105,8 @@ def _paragraph_spans(text: str) -> list[tuple[int, int]]:
 def build_paragraph_v1_document(
     project: Project,
     project_service: ProjectService,
+    *,
+    results: Mapping[str, PageResult | None] | None = None,
 ) -> AnalysisDocument:
     """paragraph_v1 adapter with stable ``page_id/span:start-end`` unit ids."""
     units: list[AnalysisUnit] = []
@@ -97,7 +114,7 @@ def build_paragraph_v1_document(
     for page in project.pages:
         if page.analysis_excluded:
             continue
-        result = project_service.load_page_result(page.page_id)
+        result = _page_result(page.page_id, project_service, results)
         text = result.effective_text() if result else None
         if text is None or is_whitespace_only(text):
             continue

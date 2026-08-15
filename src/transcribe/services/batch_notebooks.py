@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from transcribe.corpus.import_run import ImportRunStore, committed_notebook_ids
 from transcribe.corpus.index import CorpusIndexStore
@@ -58,23 +59,33 @@ def _managed_relpath(corpus: CorpusPaths, root: Path) -> str:
 
 def page_counts(projects: ProjectService, project) -> tuple[int, int, int]:
     """Return (total, pending_or_failed, failed) page counts."""
-    total, pending, failed, _with_text = page_stats(projects, project)
+    total, pending, failed, _with_text, _results = collect_page_stats(projects, project)
     return total, pending, failed
 
 
 def pages_with_text_count(projects: ProjectService, project) -> int:
-    _total, _pending, _failed, with_text = page_stats(projects, project)
+    _total, _pending, _failed, with_text, _results = collect_page_stats(projects, project)
     return with_text
 
 
 def page_stats(projects: ProjectService, project) -> tuple[int, int, int, int]:
     """Single pass over page results → (total, pending_or_failed, failed, with_text)."""
+    total, pending, failed, with_text, _results = collect_page_stats(projects, project)
+    return total, pending, failed, with_text
+
+
+def collect_page_stats(
+    projects: ProjectService, project
+) -> tuple[int, int, int, int, dict[str, Any]]:
+    """Load each page result once → counts plus ``{page_id: result}``."""
     total = len(project.pages)
     pending = 0
     failed = 0
     with_text = 0
+    results: dict[str, Any] = {}
     for page in project.pages:
         result = projects.load_page_result(page.page_id)
+        results[page.page_id] = result
         if result is None or result.status != "succeeded":
             pending += 1
         if result is not None and result.status == "failed":
@@ -82,7 +93,39 @@ def page_stats(projects: ProjectService, project) -> tuple[int, int, int, int]:
         text = result.effective_text() if result else None
         if text and str(text).strip():
             with_text += 1
-    return total, pending, failed, with_text
+    return total, pending, failed, with_text, results
+
+
+def enrich_page_stats(
+    candidates: list[NotebookCandidate],
+    *,
+    clock: Clock | None = None,
+    ids: IdGenerator | None = None,
+) -> list[NotebookCandidate]:
+    """Fill pending/text counts for a small candidate list (import-run captions)."""
+    clock = clock or SystemClock()
+    ids = ids or UuidGenerator()
+    out: list[NotebookCandidate] = []
+    for cand in candidates:
+        try:
+            projects = ProjectService(open_project_paths(cand.root), clock=clock, ids=ids)
+            project = projects.load(reconcile=False)
+            total, pending, failed, with_text, _results = collect_page_stats(
+                projects, project
+            )
+        except (TranscribeError, OSError, ValueError, KeyError):
+            out.append(cand)
+            continue
+        out.append(
+            replace(
+                cand,
+                pages_total=total,
+                pages_pending=pending,
+                pages_failed=failed,
+                pages_with_text=with_text,
+            )
+        )
+    return out
 
 
 def _fingerprint_for_module(
@@ -92,6 +135,7 @@ def _fingerprint_for_module(
     project,
     page_fp: list[str | None],
     para_fp: list[str | None],
+    results: dict[str, Any] | None = None,
 ) -> str | None:
     """Lazy page/paragraph content fingerprints for scan-time staleness."""
     from transcribe.analysis.adapter import (
@@ -108,16 +152,48 @@ def _fingerprint_for_module(
         if module_id in PARAGRAPH_PREFERRED:
             if para_fp[0] is None:
                 try:
-                    doc = build_paragraph_v1_document(project, projects)
+                    doc = build_paragraph_v1_document(
+                        project, projects, results=results
+                    )
                 except AnalysisDocumentError:
-                    doc = build_page_v1_document(project, projects)
+                    doc = build_page_v1_document(project, projects, results=results)
                 para_fp[0] = content_fingerprint(doc)
             return para_fp[0]
         if page_fp[0] is None:
-            page_fp[0] = content_fingerprint(build_page_v1_document(project, projects))
+            page_fp[0] = content_fingerprint(
+                build_page_v1_document(project, projects, results=results)
+            )
         return page_fp[0]
     except AnalysisDocumentError:
         return None
+
+
+def _latest_run_status(runs_dir) -> str | None:
+    """Newest analysis run record status, if any (scan path; no full history walk)."""
+    try:
+        files = list(runs_dir.glob("*.json"))
+    except OSError:
+        return None
+    if not files:
+        return None
+    newest = files[0]
+    newest_mtime = -1
+    for path in files:
+        try:
+            mtime = path.stat().st_mtime_ns
+        except OSError:
+            continue
+        if mtime >= newest_mtime:
+            newest = path
+            newest_mtime = mtime
+    try:
+        from transcribe.persistence.atomic import read_json
+
+        payload = read_json(newest)
+    except (OSError, ValueError, TypeError):
+        return None
+    status = str(payload.get("status") or "")
+    return status or None
 
 
 def analysis_aggregate_for_project(
@@ -126,6 +202,8 @@ def analysis_aggregate_for_project(
     clock: Clock | None = None,
     ids: IdGenerator | None = None,
     project=None,
+    results: dict[str, Any] | None = None,
+    registered: dict | None = None,
 ) -> str:
     """Corpus-scan aggregate for candidate captions / needing-analysis filter.
 
@@ -158,21 +236,11 @@ def analysis_aggregate_for_project(
         return "missing"
 
     storage = AnalysisStorage(projects.paths)
-    # Interrupted outer runs (reconcile may not have run yet on scan path).
-    runs_dir = storage.runs_dir()
-    if runs_dir.is_dir():
-        for path in runs_dir.glob("*.json"):
-            try:
-                from transcribe.persistence.atomic import read_json
-
-                payload = read_json(path)
-            except (OSError, ValueError, TypeError):
-                continue
-            status = str(payload.get("status") or "")
-            if status == "interrupted":
-                return "interrupted"
-            if status == "running":
-                return "running"
+    latest_status = _latest_run_status(storage.runs_dir())
+    if latest_status == "interrupted":
+        return "interrupted"
+    if latest_status == "running":
+        return "running"
 
     if project is None:
         try:
@@ -180,32 +248,30 @@ def analysis_aggregate_for_project(
         except (TranscribeError, OSError, ValueError, KeyError):
             return "missing"
 
-    registered = get_registered_modules()
+    modules = registered if registered is not None else get_registered_modules()
     page_fp: list[str | None] = [None]
     para_fp: list[str | None] = [None]
     saw_ok = False
     saw_failed = False
     saw_degraded = False
-    saw_stale = False
 
     for mid in module_ids:
         published = storage.read_published(mid)
         if published is None:
             continue
-        module = registered.get(mid)
+        module = modules.get(mid)
         if module is not None and published.get("module_version") != module.module_version:
-            saw_stale = True
-            continue
+            return "stale"
         expected_fp = _fingerprint_for_module(
             mid,
             projects=projects,
             project=project,
             page_fp=page_fp,
             para_fp=para_fp,
+            results=results,
         )
         if expected_fp is None or published.get("content_fingerprint") != expected_fp:
-            saw_stale = True
-            continue
+            return "stale"
         outcome = str(published.get("outcome") or "")
         capability = str(published.get("capability") or "")
         if outcome == "failed" or capability == "failed":
@@ -216,8 +282,6 @@ def analysis_aggregate_for_project(
             continue
         saw_ok = True
 
-    if saw_stale:
-        return "stale"
     if saw_failed:
         return "failed"
     if not saw_ok and not saw_degraded:
@@ -291,6 +355,11 @@ def list_candidates(
 ) -> list[NotebookCandidate]:
     clock = clock or SystemClock()
     ids = ids or UuidGenerator()
+    registered = None
+    if include_analysis:
+        from transcribe.analysis.modules import get_registered_modules
+
+        registered = get_registered_modules()
     out: list[NotebookCandidate] = []
     for root in discover_project_roots(corpus.projects_dir):
         try:
@@ -301,8 +370,11 @@ def list_candidates(
         total = len(project.pages)
         pending = failed = with_text = 0
         aggregate = "missing"
+        results_map: dict[str, Any] | None = None
         if include_page_stats:
-            total, pending, failed, with_text = page_stats(projects, project)
+            total, pending, failed, with_text, results_map = collect_page_stats(
+                projects, project
+            )
         if include_analysis:
             # Empty-text notebooks never enter needing-analysis; skip health I/O.
             if with_text == 0 and include_page_stats:
@@ -310,7 +382,12 @@ def list_candidates(
             else:
                 try:
                     aggregate = analysis_aggregate_for_project(
-                        projects, clock=clock, ids=ids, project=project
+                        projects,
+                        clock=clock,
+                        ids=ids,
+                        project=project,
+                        results=results_map,
+                        registered=registered,
                     )
                 except (OSError, ValueError, KeyError, TypeError, TranscribeError):
                     aggregate = "missing"
