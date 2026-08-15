@@ -63,6 +63,9 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "_cached_recent_ocr_runs" in TRANSCRIBE
     assert "_cached_import_enriched" in TRANSCRIBE
     assert "_invalidate_ocr_and_analyse_listings" in TRANSCRIBE
+    assert "tx_batch_import_runs" in TRANSCRIBE
+    assert "tx_batch_ocr_recent" in TRANSCRIBE
+    assert "tx_batch_import_enriched" in TRANSCRIBE
     assert 'f"{c.title} ({c.pages_total} pages)"' not in TRANSCRIBE
     detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
     export = Path("src/transcribe/ui/export_panel.py").read_text(encoding="utf-8")

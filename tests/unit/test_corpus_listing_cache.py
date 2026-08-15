@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from transcribe.corpus.paths import CorpusPaths
 from transcribe.ui.corpus_listing_cache import (
     corpus_listing_token,
@@ -124,3 +126,56 @@ def test_invalidate_listing_key_prefix() -> None:
     assert "other" in state
     assert state["other"] == [3]
     assert not any(str(k).startswith("tx_batch_import_enriched") for k in state)
+
+
+def test_invalidate_batch_ocr_caches_clears_run_lists_and_enrich(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import transcribe.ui.run_transcribe as rt
+
+    state: dict = {
+        rt._OCR_CANDIDATES_KEY: ["c"],
+        rt._OCR_CANDIDATES_TOKEN_KEY: "tok",
+        rt._LIGHT_PICKER_KEY: ["p"],
+        rt._LIGHT_PICKER_TOKEN_KEY: "tok",
+        rt._IMPORT_RUNS_KEY: ["r"],
+        rt._IMPORT_RUNS_TOKEN_KEY: "tok",
+        rt._RECENT_OCR_RUNS_KEY: ["recent"],
+        rt._RECENT_OCR_RUNS_TOKEN_KEY: "tok",
+        f"{rt._IMPORT_ENRICHED_PREFIX}:imp-1": ["e"],
+        f"{rt._IMPORT_ENRICHED_PREFIX}:imp-1:token": "tok",
+        "unrelated": True,
+    }
+    monkeypatch.setattr(rt.st, "session_state", state)
+    rt.invalidate_batch_ocr_caches()
+    assert "unrelated" in state
+    for key in (
+        rt._OCR_CANDIDATES_KEY,
+        rt._IMPORT_RUNS_KEY,
+        rt._RECENT_OCR_RUNS_KEY,
+        f"{rt._IMPORT_ENRICHED_PREFIX}:imp-1",
+    ):
+        assert key not in state
+
+
+def test_invalidate_ocr_and_analyse_listings_clears_both(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import transcribe.ui.run_analysis_batch as ax
+    import transcribe.ui.run_transcribe as rt
+
+    state: dict = {
+        rt._IMPORT_RUNS_KEY: ["r"],
+        ax._PENDING_SCAN_KEY: ["scan"],
+        ax._IMPORT_RUNS_KEY: ["ar"],
+        ax._RECENT_ANALYSE_RUNS_KEY: ["rr"],
+        "keep": 1,
+    }
+    monkeypatch.setattr(rt.st, "session_state", state)
+    monkeypatch.setattr(ax.st, "session_state", state)
+    rt._invalidate_ocr_and_analyse_listings()
+    assert "keep" in state
+    assert rt._IMPORT_RUNS_KEY not in state
+    assert ax._PENDING_SCAN_KEY not in state
+    assert ax._IMPORT_RUNS_KEY not in state
+    assert ax._RECENT_ANALYSE_RUNS_KEY not in state

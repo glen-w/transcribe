@@ -247,6 +247,8 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "_source_fragment" in batch
     assert "_cached_import_runs" in batch
     assert "_cached_recent_analyse_runs" in batch
+    assert "ax_batch_import_runs" in batch
+    assert "ax_batch_analyse_recent" in batch
     assert 'f"{c.title} ({c.pages_total} pages)"' not in batch
     assert 'st.session_state["ax_batch_source"] = "pick"' in batch
     assert "Select notebooks" in batch
