@@ -253,7 +253,19 @@ class ExportService:
                 },
             )
         )
-        return {
+        used_slugs = list(project.tags)
+        for page in project.pages:
+            used_slugs.extend(page.tags)
+        tag_catalog: list[dict[str, Any]] = []
+        try:
+            from transcribe.services.tags import TagService
+            from transcribe.tagging.kernel import snapshot_for_slugs
+
+            catalog = TagService().load_catalog()
+            tag_catalog = snapshot_for_slugs(catalog, used_slugs)
+        except Exception:  # noqa: BLE001 — export must not fail if catalog is absent
+            tag_catalog = []
+        payload: dict[str, Any] = {
             "format": "transcribe.notebook",
             "schema_version": 1,
             "application_version": __version__,
@@ -280,6 +292,9 @@ class ExportService:
             ],
             "pages": pages_out,
         }
+        if tag_catalog:
+            payload["tag_catalog"] = tag_catalog
+        return payload
 
     def build_markdown(self, snapshot: ExportSnapshot | Project) -> str:
         """Backward-compatible single-notebook markdown builder."""

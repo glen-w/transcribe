@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import streamlit as st
 
 from transcribe.detection.api import DetectionService
@@ -72,6 +71,21 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
         value=False,
         key=f"detect_force_{project_id}",
     )
+    from transcribe.services.tags import TagService
+
+    tag_svc = TagService()
+    auto_key = f"detect_auto_tag_{project_id}"
+    if auto_key not in st.session_state:
+        st.session_state[auto_key] = bool(
+            selected_labels
+            and any(tag_svc.auto_tag_enabled(options[label]) for label in selected_labels)
+        )
+    auto_tag = st.checkbox(
+        "Tag matching pages",
+        key=auto_key,
+        help="Add each detector’s tag to pages in published findings (additive). "
+        "Does not change detection cache identity. Re-running re-adds tags you removed.",
+    )
     progress = st.empty()
     status = st.empty()
 
@@ -95,10 +109,13 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
                     page_ids=page_ids,
                     force=force,
                     progress_callback=_progress,
+                    auto_tag=auto_tag,
                 )
                 n = len(result.get("findings") or [])
                 outcome = result.get("outcome")
-                status.success(f"`{did}` → {outcome}, {n} finding(s)")
+                tagged = result.get("auto_tagged_pages")
+                extra = f", tagged {tagged} page(s)" if auto_tag and tagged is not None else ""
+                status.success(f"`{did}` → {outcome}, {n} finding(s){extra}")
                 if result.get("warnings"):
                     with st.expander(f"Warnings ({did})"):
                         st.json(result["warnings"])
@@ -116,9 +133,7 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
         st.caption(f"`{d.detector_id}`: **{fresh}**{note}")
 
 
-def _render_findings(
-    projects: ProjectService, project_root: str, *, project_id: str
-) -> None:
+def _render_findings(projects: ProjectService, project_root: str, *, project_id: str) -> None:
     svc = DetectionService(projects)
     project = projects.load()
     page_order = {p.page_id: i for i, p in enumerate(project.pages)}
@@ -128,7 +143,16 @@ def _render_findings(
         if not findings:
             continue
         fresh = svc.freshness(info.detector_id)
-        st.markdown(f"### {info.title} `{info.detector_id}` · freshness: **{fresh}**")
+        head = st.columns([5, 2])
+        head[0].markdown(f"### {info.title} `{info.detector_id}` · freshness: **{fresh}**")
+        if head[1].button(
+            "Apply tags from findings",
+            key=f"apply_tags_{project_id}_{info.detector_id}",
+            help="Tag pages in published findings without re-running detection.",
+        ):
+            n = svc.apply_tags_from_published(info.detector_id)
+            st.success(f"Tagged {n} page(s)")
+            st.rerun()
         for f in findings:
             start_i = page_order.get(f.start_page_id, "?")
             end_i = page_order.get(f.end_page_id, "?")

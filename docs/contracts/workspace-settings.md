@@ -37,6 +37,10 @@ also be **re-applied** to an existing notebook from that panel (creates a new
 Workspace `ui.*` holds UI presentation defaults that do not affect OCR or
 analysis fingerprints.
 
+Detection auto-tag defaults live in `data/config/detection-auto-tag.json`
+(`transcribe.detection-auto-tag` v1), **not** in fingerprint-relevant settings.
+See [tag-catalog.md](tag-catalog.md).
+
 ## UI knobs (`ui.*`)
 
 | Key | Default | Role |

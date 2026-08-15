@@ -76,13 +76,53 @@ class DetectionService:
         force: bool = False,
         cancel_check: Any | None = None,
         progress_callback: Any | None = None,
+        auto_tag: bool = False,
     ) -> dict[str, Any]:
-        return self.runner.run_detector(
+        result = self.runner.run_detector(
             detector_id,
             page_ids=page_ids,
             force=force,
             cancel_check=cancel_check,
             progress_callback=progress_callback,
+        )
+        if auto_tag:
+            tagged = self.apply_tags_from_published(detector_id)
+            result = dict(result)
+            result["auto_tagged_pages"] = tagged
+        return result
+
+    def apply_tags_from_published(self, detector_id: str) -> int:
+        """Union ``finding_type`` onto span pages for non-rejected published findings."""
+        custom = load_custom_detectors()
+        detector = resolve_detector(detector_id, custom_detectors=custom)
+        findings = self.list_findings(detector_id)
+        if not findings:
+            return 0
+        page_ids: list[str] = []
+        seen: set[str] = set()
+        for finding in findings:
+            if finding.review_status == "rejected":
+                continue
+            for pid in self._page_ids_between(finding.start_page_id, finding.end_page_id):
+                if pid in seen:
+                    continue
+                seen.add(pid)
+                page_ids.append(pid)
+        if not page_ids:
+            return 0
+        from transcribe.services.tags import TagService
+        from transcribe.tagging.kernel import normalize_slug
+
+        slug_source = (
+            detector.finding_type if detector is not None else detector_id
+        ) or detector_id
+        slug = normalize_slug(slug_source)
+        label = detector.title if detector is not None else slug
+        return TagService().union_page_tags(
+            self.project_service,
+            page_ids,
+            slug,
+            label=label,
         )
 
     def list_findings(self, detector_id: str) -> list[DetectionFinding]:

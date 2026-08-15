@@ -58,7 +58,7 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
 
 Open Library / Search / Archive / Review / Reading, then the page viewer. Use ← / → or type a page number and press Enter / Go to jump. Review’s viewer shows status, the transcription model used for the active OCR attempt, and any cleanup note. When multiple attempts exist, **Compare OCR attempts** lets you Prefer / Promote (modes: prefer=promote, prefer-only, or edit-gate); attempt previews stay plain text so OCR that looks like markdown (leading `#`, `*`, …) does not blow up the layout. Edits are stored as `edited_text` and survive re-runs. **Delete page** removes one page from the notebook (refuses the last page and while OCR is running).
 
-**Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session.
+**Reading** opens the same pages chronologically (dated pages first) as image + read-only text — no edit, re-run, or delete controls. Jump by date when dates exist; the last page is remembered for the session. Click a coloured tag pill (for example **Poetry**) to show only pages with that tag; **Clear tag filter** restores the full set.
 
 **Archive:** click an activity bar to filter notebooks/pages to that date bin. The notebook strip loads `ui.archive_notebooks_initial` cards first (default **all**; change under **Settings → Configuration → Archive**), then **Show more** / **Show fewer**.
 
@@ -77,9 +77,9 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 1. Choose an analysis preset (**Quick** / **Balanced** / **Thorough** / **Custom**) — same policy model as TranscriptX.
 2. Optionally enable an Ask-notebook question.
 3. Run analysis. This-notebook complete opens **View → Overview**. Inspect published results under **View**: Overview / Themes / Mood / Summaries. Themes includes **People**; Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current. Each page shows module-appropriate charts and lists (not raw JSON). **Word themes** can be **Basic** or **Advanced** (interactive filters). Overview and Mood include **Compare with corpus / period** for numeric metrics vs other notebooks. On **Mood → Moments**, **Jump to page** (and page-series chart clicks on Overview / Themes / Mood) opens that page in **Reading**. Themes → People adds **entity tone** when that module has run. Technical module details live under **Advanced**. Use **Places** in the primary nav for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
-4. Open **View → Detect** to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject.
+4. Open **View → Detect** to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject. Check **Tag matching pages** (or **Apply tags from findings**) to add the detector’s tag onto matching pages.
 
-Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. **Settings** tabs: Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Configuration holds folders, **Backup** (full-workspace ZIP), import/declutter, Archive paging, and Overview cards. Models holds the workspace Ollama URL, OCR preprocess seed (`none` / `gentle_contrast`), LLM budgets, and Apply-OCR to the open notebook. Profiles activates named overlays (`workflow` / `ocr` / `llm` / `export`). Interface customises action menus. Export shows read-only typography defaults (`readable` / `compact` / `large_print`); change them on **Workflow → Export** or by activating an export profile.
+Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts**, custom detectors and auto-tag defaults under **Settings → Detection**, and the tag catalogue (labels, colours, rename, merge) under **Settings → Tags**. **Settings** tabs: Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export. Configuration holds folders, **Backup** (full-workspace ZIP), import/declutter, Archive paging, and Overview cards. Models holds the workspace Ollama URL, OCR preprocess seed (`none` / `gentle_contrast`), LLM budgets, and Apply-OCR to the open notebook. Profiles activates named overlays (`workflow` / `ocr` / `llm` / `export`). Interface customises action menus. Export shows read-only typography defaults (`readable` / `compact` / `large_print`); change them on **Workflow → Export** or by activating an export profile.
 
 | Preset | Modules |
 |--------|---------|
@@ -96,6 +96,7 @@ CLI detection:
 
 ```bash
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry --auto-tag
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
 ```
 

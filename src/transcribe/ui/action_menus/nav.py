@@ -32,7 +32,8 @@ def clear_page_viewer_state(session: dict | None = None) -> None:
     state.pop("view_page_ids", None)
     state.pop("view_entries", None)
     state.pop("view_highlight", None)
-    state.pop("page_return_mode", None)
+    state.pop("view_entries_base", None)
+    state.pop("viewer_tag_filter", None)
 
 
 def validate_project_root(

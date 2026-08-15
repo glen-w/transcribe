@@ -125,8 +125,21 @@ def render_run_import(
             project = projects.update_notebook_metadata(title=cleaned)
             bump_archive_generation(runtime)
             st.success("Notebook name saved")
-    tags_in = st.text_input("Notebook tags (comma-separated)", value=", ".join(project.tags))
+    from transcribe.services.tags import TagService
+    from transcribe.ui.tag_pills import render_tag_assignment_editor, render_tag_chips
+
+    tag_svc = TagService(runtime)
+    catalog = tag_svc.load_catalog()
+    if project.tags:
+        render_tag_chips(project.tags, catalog)
+    selected_tags, new_tag_raw = render_tag_assignment_editor(
+        current=project.tags,
+        catalog=catalog,
+        key_prefix=f"nb_tags_{project.id}",
+    )
     if st.button("Save notebook tags"):
-        project = projects.update_notebook_metadata(tags=[t for t in tags_in.split(",")])
+        combined = list(selected_tags)
+        combined.extend(t for t in new_tag_raw.split(",") if t.strip())
+        project = tag_svc.assign_notebook(projects, combined)
         bump_archive_generation(runtime)
         st.success("Tags saved")

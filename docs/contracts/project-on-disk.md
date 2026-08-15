@@ -63,6 +63,7 @@ Other contracts (including analysis-run-storage, detection-run-storage, and page
 - `format` must be `"transcribe.project"`
 - `schema_version` must be `1` for this build
 - Owns notebook metadata (title, tags, cover page, date range), OCR settings, `sources`, ordered `pages`, and `renders`
+- Notebook and page `tags` are **slugs** (`string[]`). Display labels and colours live in the workspace catalog ([tag-catalog.md](tag-catalog.md)); `transcribe.project` v1 is unchanged. Orphan slugs remain valid.
 - Canonical notebook identity is `project_id` / `id` (stable across moves of the project directory); domain alias `notebook_id ≡ project.id`
 - **Page order** within the notebook is the `pages` array order (authoritative; not filename lexicography)
 - Source and page identity is by ID (`source_id`, `page_id`, `render_id`), not by filename alone

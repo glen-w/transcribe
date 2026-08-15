@@ -27,7 +27,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `export-finetune <project> [dest]` | Export images + preferred/active text for external fine-tuning |
 | `status <project>` | Print per-page status |
-| `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels`, `--force`, `--list`) |
+| `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels`, `--force`, `--auto-tag`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
 | `corpus-doctor` | Workspace corpus integrity (`--deep` also doctors each notebook) |
 | `backup create` | Full-workspace ZIP to `{EXPORT}/backups/` (`--dest`, `--force`, `--include-inbox`, `--include-exports`) |
@@ -46,7 +46,7 @@ Sidebar order matches TranscriptX: unlabeled **primary** → **Workflow** → **
 
 **System:** Settings · Diagnostics.
 
-**Settings** tabs (chrome order): Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export. Settings `required_context` is `none` (no bounce to Home). Configuration holds folders, **Backup** (full-workspace ZIP create / verify / dry-run / restore via on-disk paths), import/declutter, Archive paging, and Overview cards. Models holds workspace Ollama URL, OCR `preprocess_profile` seed, LLM budgets, and Apply-OCR-to-notebook (gated on a selected notebook). Live model discovery stays on Transcribe / Analyse. Profiles is a tab (activation pointer; not a System page). Export is read-only workspace defaults; live editors stay on Workflow → Export. Alignment note: [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md).
+**Settings** tabs (chrome order): Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export. Settings `required_context` is `none` (no bounce to Home). **Tags** is the workspace catalogue (rename labels, colours, merge/delete with corpus rewrite). Configuration holds folders, **Backup** (full-workspace ZIP create / verify / dry-run / restore via on-disk paths), import/declutter, Archive paging, and Overview cards. Models holds workspace Ollama URL, OCR `preprocess_profile` seed, LLM budgets, and Apply-OCR-to-notebook (gated on a selected notebook). Live model discovery stays on Transcribe / Analyse. Profiles is a tab (activation pointer; not a System page). Export is read-only workspace defaults; live editors stay on Workflow → Export. Alignment note: [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md).
 
 First visit lands on **Home**. Unknown `ui_mode` still normalises to **Archive**.
 
@@ -56,11 +56,11 @@ First visit lands on **Home**. Unknown `ui_mode` still normalises to **Archive**
 
 **Diagnostics:** workspace corpus-doctor always; notebook doctor when a notebook is selected; Ollama line as on Home.
 
-**Library** shows cover thumbnails and notebook tag chips; Search supports Period/Year/Range filters with clear empty states. **Archive** supports clickable activity bins (filter to that date — not Reading), notebook-strip paging via workspace `ui.archive_notebooks_initial` (**Settings → Configuration → Archive**; `0` = show all), and configurable action menus (**Settings → Interface**). Page viewer supports Prefer/Promote when multiple OCR attempts exist, and **Delete page** (refuses last page / OCR job lock).
+**Library** shows cover thumbnails and coloured notebook tag chips; Search supports Period/Year/Range filters with clear empty states. **Archive** supports clickable activity bins (filter to that date — not Reading), notebook-strip paging via workspace `ui.archive_notebooks_initial` (**Settings → Configuration → Archive**; `0` = show all), and configurable action menus (**Settings → Interface**). Page viewer supports Prefer/Promote when multiple OCR attempts exist, **Delete page** (refuses last page / OCR job lock), and clickable page-tag pills that AND-filter the current Prev/Next set.
 
 **Review** is a needs-attention queue: filter to unapproved dates, empty text, or failed OCR; batch approve/ignore suggested dates; edit transcription and metadata in the shared page viewer.
 
-**Reading** is a first-class View page (chronological image + read-only text, jump-by-date, session continue-reading). **Open** from Library / Archive, Search hits, Moments jump, and Overview / Themes / Mood / page-metrics chart clicks all land on Reading (Back returns to the source listing or View page). Review’s edit viewer is unchanged. Detect’s page viewer returns to Detect.
+**Reading** is a first-class View page (chronological image + read-only text, jump-by-date, session continue-reading). **Open** from Library / Archive, Search hits, Moments jump, and Overview / Themes / Mood / page-metrics chart clicks all land on Reading (Back returns to the source listing or View page). Review’s edit viewer is unchanged. Detect’s page viewer returns to Detect. Clicking a page-tag pill (for example **Poetry**) constrains served pages to those with that tag; **Clear tag filter** restores the baseline.
 
 **Import** uses a Target switcher (TranscriptX-style): **This notebook** (file uploader into the selected notebook) or **Batch** (folder / parent-of-folders ImportRun, recent runs, resume). Legacy **Inbox** aliases to Import → Batch. Import commits show a live progress panel.
 

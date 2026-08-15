@@ -637,17 +637,10 @@ def _parse_month_name_input(text: str) -> ApproximateDate | None:
 
 
 def normalize_tags(tags: list[str] | None) -> list[str]:
-    if not tags:
-        return []
-    seen: set[str] = set()
-    out: list[str] = []
-    for raw in tags:
-        token = " ".join(str(raw).strip().lower().split())
-        if not token or token in seen:
-            continue
-        seen.add(token)
-        out.append(token)
-    return out
+    """Ordered unique slugs. Implementation lives in the tagging kernel."""
+    from transcribe.tagging.kernel import normalize_slugs
+
+    return normalize_slugs(tags)
 
 
 def inclusive_day_span(start: ApproximateDate, end: ApproximateDate) -> int | None:

@@ -106,6 +106,7 @@ def test_settings_hub_tab_labels_and_order() -> None:
         "Configuration",
         "Analysis",
         "Detection",
+        "Tags",
         "Prompts",
         "Interface",
         "Models",
@@ -128,11 +129,13 @@ def test_select_heavy_settings_panels_use_fragments() -> None:
     hub = (UI_ROOT / "settings_hub.py").read_text(encoding="utf-8")
     analysis = (UI_ROOT / "settings_analysis.py").read_text(encoding="utf-8")
     detection = (UI_ROOT / "settings_detection.py").read_text(encoding="utf-8")
+    tags = (UI_ROOT / "settings_tags.py").read_text(encoding="utf-8")
     prompts = (UI_ROOT / "settings_prompts.py").read_text(encoding="utf-8")
     assert "@st.fragment" in iface
     assert hub.count("@st.fragment") >= 3
     assert "@st.fragment" in analysis
     assert "@st.fragment" in detection
+    assert "@st.fragment" in tags
     assert "@st.fragment" in prompts
 
 
@@ -240,9 +243,9 @@ def test_docs_have_no_stale_ia_copy() -> None:
             assert phrase not in text, f"{path}: found {phrase!r}"
         for i, line in enumerate(text.splitlines(), 1):
             if "Jump to page" in line and "Review" in line:
-                assert "Reading" in line or "not Review" in line, (
-                    f"{path}:{i} still sends Jump to page to Review"
-                )
+                assert (
+                    "Reading" in line or "not Review" in line
+                ), f"{path}:{i} still sends Jump to page to Review"
     surfaces = Path("docs/public_surfaces.md").read_text(encoding="utf-8")
     assert "Reading · Overview · Themes · Mood · Summaries · Detect" in surfaces
     assert "Themes · Mood · Moments · People · Summaries · Ask · Detect" not in surfaces

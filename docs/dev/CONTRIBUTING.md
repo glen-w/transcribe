@@ -40,7 +40,7 @@ Update the **owning** doc:
 | Project layout / journal / locks / optional `analysis/` | [contracts/project-on-disk.md](../contracts/project-on-disk.md) |
 | Page-result / fingerprint fields | [contracts/page-result.md](../contracts/page-result.md) |
 | Analysis document / result / run storage / eligibility | [contracts/analysis-document.md](../contracts/analysis-document.md) · [analysis-result.md](../contracts/analysis-result.md) · [analysis-run-storage.md](../contracts/analysis-run-storage.md) · [notebook-eligibility.md](../contracts/notebook-eligibility.md) |
-| Export files / notebook JSON | [contracts/notebook-export.md](../contracts/notebook-export.md) |
+| Tags / organisation catalog | [contracts/tag-catalog.md](../contracts/tag-catalog.md) |
 | Full-workspace backup ZIP / restore | [contracts/workspace-backup.md](../contracts/workspace-backup.md) · [backup_and_restore.md](../backup_and_restore.md) |
 | CLI/UI entrypoints | [public_surfaces.md](../public_surfaces.md) + README links |
 | Ownership / component shape | [ARCHITECTURE.md](../ARCHITECTURE.md) |
