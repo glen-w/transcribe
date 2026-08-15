@@ -1,6 +1,7 @@
-# Analyse visual compare (TranscriptX alignment)
+Type: GUIDE
+Authority: developer note — View chart compare behaviour; does not redefine analysis contracts
 
-Authority: developer note. Does not redefine runtime contracts.
+# Analyse visual compare (TranscriptX alignment)
 
 ## Problem
 

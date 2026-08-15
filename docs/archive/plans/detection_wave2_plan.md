@@ -1,5 +1,7 @@
 Type: PRODUCT
-Authority: Detection / Prompt Hub wave 2 delivery and hardening checklist. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) Prompt Hub + Prompt-backed Detection (shipped wave 2).
+Authority: Detection / Prompt Hub wave 2 delivery and hardening checklist. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](../../ROADMAP.md) Prompt Hub + Prompt-backed Detection (shipped wave 2).
+
+> **Archived / superseded.** Detection Prompt Hub / Detect delivery history (shipped parallel track). Current authority: [docs/ROADMAP.md](../../ROADMAP.md). Do not treat as live roadmap or support policy.
 
 # Detection / Prompt Hub wave 2
 
@@ -32,4 +34,4 @@ Wave 1 shipped `prompt_engine` + `detection` + built-in `poetry` (CLI + caption 
 
 Wave 2 is done when D1–D9 have code + offline tests, D10 docs linked, Detect/Prompt Hub usable on Analyse/Settings, and the branch is rebase-clean vs `main`.
 
-Governing contracts: [prompt-definition](contracts/prompt-definition.md) · [detection-definition](contracts/detection-definition.md) · [detection-finding](contracts/detection-finding.md) · [detection-result](contracts/detection-result.md) · [detection-run-storage](contracts/detection-run-storage.md).
+Governing contracts: [prompt-definition](../../contracts/prompt-definition.md) · [detection-definition](../../contracts/detection-definition.md) · [detection-finding](../../contracts/detection-finding.md) · [detection-result](../../contracts/detection-result.md) · [detection-run-storage](../../contracts/detection-run-storage.md).

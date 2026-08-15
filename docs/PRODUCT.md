@@ -56,7 +56,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 
 ## Honesty
 
-See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, analysis capability caveats, and privacy. Shipped vs planned analysis: [ROADMAP.md](ROADMAP.md) · [analysis_wave1_plan.md](analysis_wave1_plan.md).
+See [known_limitations.md](known_limitations.md) for model quality, PDF quirks, analysis capability caveats, and privacy. Shipped vs planned analysis: [ROADMAP.md](ROADMAP.md) · [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md).
 
 ## Related
 

@@ -1,13 +1,13 @@
 Type: PRODUCT
-Authority: TranscriptX → Transcribe analysis-module porting dispositions and notebook reinterpret notes. Does not define runtime contracts or shipped module IDs. Core delivery history (internal slices): [analysis_wave1_plan.md](analysis_wave1_plan.md).
+Authority: TranscriptX → Transcribe analysis-module porting dispositions and notebook reinterpret notes. Does not define runtime contracts or shipped module IDs. Core delivery history (internal slices): [analysis_wave1_plan.md.
 
 # Analysis module porting (from TranscriptX)
 
 Planning map for which TranscriptX analysis modules to bring into Transcribe, how to adapt them for page/notebook text, and which to leave behind.
 
-**Core module set (Port early) is shipped** — see [ROADMAP.md](ROADMAP.md) and [analysis_wave1_plan.md](analysis_wave1_plan.md). **Deferred reinterpretations and `ocr_quality` are not scheduled**; current product focus is the **usability wave** ([ROADMAP.md](ROADMAP.md) **Now** · [usability_wave_plan.md](usability_wave_plan.md)). This map remains the disposition authority for deferred / later / out-of-scope rows when reopened.
+**Core module set (Port early) is shipped** — see [ROADMAP.md and [analysis_wave1_plan.md. **Deferred reinterpretations and `ocr_quality` are not scheduled**; current product focus is the **usability wave** ([ROADMAP.md **Now** · [usability_wave_plan.md). This map remains the disposition authority for deferred / later / out-of-scope rows when reopened.
 
-Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md).
+Transcribe is page-first OCR text, not timed speaker segments. Modules that assume speakers, turns, audio, prosody, or ASR word confidence do not transfer as-is. See also [INTEGRATION_SEAM.md.
 
 **Disposition legend**
 
@@ -19,7 +19,7 @@ Transcribe is page-first OCR text, not timed speaker segments. Modules that assu
 | **Do not port** | Intrinsically transcript/audio/interpersonal; out of scope |
 | **New (special case)** | Notebook analogue of a TranscriptX idea; implement fresh, do not port the TX code |
 
-**Slice** column uses internal delivery ids from [analysis_wave1_plan.md](analysis_wave1_plan.md). The core set was delivered as slices **1a–1e**. Product sequencing: [ROADMAP.md](ROADMAP.md).
+**Slice** column uses internal delivery ids from [analysis_wave1_plan.md. The core set was delivered as slices **1a–1e**. Product sequencing: [ROADMAP.md.
 
 ---
 
@@ -27,7 +27,7 @@ Transcribe is page-first OCR text, not timed speaker segments. Modules that assu
 
 Port analytical cores **almost verbatim**. Thin **notebook adapters** own project I/O. Modules must **not** be rewritten to understand notebooks, `Page` objects, or Streamlit state.
 
-**Contracts first:** [analysis-document](contracts/analysis-document.md) · [analysis-result](contracts/analysis-result.md) · [analysis-run-storage](contracts/analysis-run-storage.md) · [notebook-eligibility](contracts/notebook-eligibility.md) · layout [project-on-disk](contracts/project-on-disk.md). Pins: [dev/analysis_port_pins.md](dev/analysis_port_pins.md).
+**Contracts first:** [analysis-document · [analysis-result · [analysis-run-storage · [notebook-eligibility · layout [project-on-disk. Pins: [dev/analysis_port_pins.md.
 
 ```text
 Managed notebook project (ingest copies sources/; external originals untouched)
@@ -46,11 +46,11 @@ analysis-result → project-local analysis/ storage (bound to project_id) → No
 | Managed project identity, page IDs, persistence under `analysis/`, invalidation, locking, UI | Scoring / ranking / clustering / inference on text+units |
 
 - Copy modules with **exact TX pins** and `parity` / `adaptation` / `fork` classification. **Resist** extracting a shared `transcriptx-analysis` library until identical cores are obvious.
-- Core eligibility: sole named policy [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) — no ad-hoc per-module insight_eligibility stubs.
+- Core eligibility: sole named policy [`notebook_eligibility_v1` — no ad-hoc per-module insight_eligibility stubs.
 - Small compatibility test corpus for TX ↔ Transcribe diffs (implementation-time).
 - Chronology = unit `order` + optional `date` — no synthetic wall-clock or fake speakers.
 
-Full detail: [analysis_wave1_plan.md](analysis_wave1_plan.md).
+Full detail: [analysis_wave1_plan.md.
 
 ---
 
@@ -64,7 +64,7 @@ Shipped View pages are marked **UI**. Patterns remain payload feeds without a de
 | **Themes** | UI | `keyphrases`, `topic_modeling`, `bertopic`, `topic_shift`, `semantic_similarity` |
 | **People & places** | UI | `ner` (map/list); `entity_sentiment` remains available as payload polish |
 
-Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations artifact, intentional divergences): [dev/places_tx_alignment.md](dev/places_tx_alignment.md).
+Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations artifact, intentional divergences): [dev/places_tx_alignment.md.
 | **Mood & tone** | UI | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
 | **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops deferred with reinterpretation / later rows |
 | **Moments** | UI | `moments`, `highlights` |
@@ -85,8 +85,8 @@ Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations ar
 | `sentiment` | Language & Meaning | Port early | 1.3 | Unit-level polarity; chronology via order/date |
 | `epistemic_markers` | Language & Meaning | Port early | 1.3 | Hedging / certainty markers in handwritten prose |
 | `entity_sentiment` | Language & Meaning | Port early | 1.4 | Needs `ner` + `sentiment` |
-| `keyphrases` | Language & Meaning | Port early | 1.4 | Use [`notebook_eligibility_v1`](contracts/notebook-eligibility.md); do not pull TX `insight_eligibility` |
-| `topic_modeling` | Language & Meaning | Port early | 1c | Topics over page corpus; [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
+| `keyphrases` | Language & Meaning | Port early | 1.4 | Use [`notebook_eligibility_v1`; do not pull TX `insight_eligibility` |
+| `topic_modeling` | Language & Meaning | Port early | 1c | Topics over page corpus; [`notebook_eligibility_v1` |
 | `bertopic` | Language & Meaning | Port early | 1c | Optional BERTopic extra |
 | `semantic_similarity` | Language & Meaning | Port early | 1c | Across pages; no multi-speaker gate |
 | `topic_shift` | Dynamics & Flow | Port early | 1c | Shifts along page order / dates, not timestamps |
@@ -95,7 +95,7 @@ Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations ar
 | `fine_grained_emotion` | Language & Meaning | Port early | 1d | Finer emotion taxonomy |
 | `affect_tension` | Dynamics & Flow | Port early | 1d | Needs `emotion` + `sentiment` |
 | `moments` | Dynamics & Flow | Port early | 1d | Notebook salience (no TX `momentum`/pauses) |
-| `highlights` | Summary & Synthesis | Port early | 1e | Quote-forward spans; [`notebook_eligibility_v1`](contracts/notebook-eligibility.md) |
+| `highlights` | Summary & Synthesis | Port early | 1e | Quote-forward spans; [`notebook_eligibility_v1` |
 | `summary` | Summary & Synthesis | Port early | 1e | From highlights |
 | `insights` | Summary & Synthesis | Port early | 1e | Needs highlights + topics; `notebook_eligibility_v1` |
 | `llm_summary` | Summary & Synthesis | Port early | 1e | Optional local Ollama; honesty label |
@@ -146,7 +146,7 @@ Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations ar
 
 1. **Canonical units, not Page objects** — adapters produce `AnalysisDocument`; cores stay TX-shaped.
 2. **Contracts first** — schemas, outcomes/attempts, storage, eligibility, and dependency compatibility are CONTRACT-owned; PRODUCT summarises.
-3. **Exact pins + semantic class** — no module lands without a [pin registry](dev/analysis_port_pins.md) row (`parity` / `adaptation` / `fork`).
+3. **Exact pins + semantic class** — no module lands without a [pin registry row (`parity` / `adaptation` / `fork`).
 4. **Managed-project storage** — durable analysis under project `analysis/`; no global analysis authority; no in-place `.transcribe/` layout.
 5. **Prefer deepen-in-place** after a module lands; do not invent parallel IDs for the same user-facing object.
 6. **Reinterpretations keep the TX name only when semantics stay close**; otherwise introduce a notebook-native id (e.g. `ocr_quality`, and a new id if conversation-loop analogues are rebuilt).

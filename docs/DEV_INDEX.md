@@ -3,27 +3,42 @@ Authority: curated maintainer navigation only — does not own contracts
 
 # Developer docs index
 
+Active developer and maintainer docs. Historical material is listed only via [ARCHIVE_INDEX](archive/ARCHIVE_INDEX.md).
+
+## Orientation
+
 | Doc | Purpose |
 |-----|---------|
 | [developer_quickstart.md](developer_quickstart.md) | Mental model, venv, tests, extension points |
+| [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md) | Docs authority model and sync checklist |
+| [dev/docs_architecture.md](dev/docs_architecture.md) | Docs surfaces map |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System shape and ownership boundaries |
+| [PRODUCT.md](PRODUCT.md) | Product definition |
 | [CONTRACT_INDEX.md](CONTRACT_INDEX.md) | Concept → authoritative contract |
-| [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md) | Docs authority model and change checklist |
+
+## Active product
+
+| Doc | Purpose |
+|-----|---------|
+| [ROADMAP.md](ROADMAP.md) | Product roadmap: usability wave, corpus, shipped capabilities |
+| [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (active; U2 open) |
+| [public_surfaces.md](public_surfaces.md) | GUI IA and supported entrypoints |
+| [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
+
+## Engineering notes
+
+| Doc | Purpose |
+|-----|---------|
 | [runtime/installation.md](runtime/installation.md) | Install extras and env vars |
 | [runtime/docker.md](runtime/docker.md) | Container layout |
-| [ROADMAP.md](ROADMAP.md) | Product roadmap: usability wave, corpus, shipped capabilities (PRODUCT) |
-| [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (trust, Analyse UX, first-run, workbench, gated corpus) |
-| [product_hardening_plan.md](product_hardening_plan.md) | Numbered hardening checklist (#1–#13) and phase outcomes (U0/U1) |
-| [analysis_module_porting.md](analysis_module_porting.md) | TX → Transcribe dispositions |
-| [analysis_wave1_plan.md](analysis_wave1_plan.md) | Core delivery history / internal slices (PRODUCT; shipped) |
-| [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Post-ship hardening checklist for analysis infra |
-| [detection_wave2_plan.md](detection_wave2_plan.md) | Prompt Hub + Detection wave 2 delivery / hardening checklist |
-| [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md) | Multi-notebook Analyse → Batch (selection parity with bulk OCR) |
-| [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry (PRODUCT) |
-| [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX (patterns only) |
-| [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md) | Settings / profiles / models / prompts alignment with TranscriptX (patterns only) |
-| [dev/analysis_visual_compare.md](dev/analysis_visual_compare.md) | View charts: this notebook vs corpus/period (TX speaker-bar analogue); page-series jump → Reading |
-| [public_surfaces.md](public_surfaces.md) | GUI IA (Library, Analyse launcher, View consume, stay-don’t-bounce) |
-| [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
+| [dev/analysis_module_porting.md](dev/analysis_module_porting.md) | TX → Transcribe dispositions (living map) |
+| [dev/analysis_port_pins.md](dev/analysis_port_pins.md) | Exact TX commit/file pin registry |
+| [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX |
+| [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md) | Settings / profiles / models / prompts alignment |
+| [dev/analysis_visual_compare.md](dev/analysis_visual_compare.md) | View charts: this notebook vs corpus/period |
+
+## Archive
+
+Historical delivery plans (Wave 1 analysis, Detection wave 2, bulk Analyse, U0/U1 hardening checklist): [archive/ARCHIVE_INDEX.md](archive/ARCHIVE_INDEX.md).
 
 Default suite stays offline (fake Ollama provider). Live OCR probes are optional and environmental.

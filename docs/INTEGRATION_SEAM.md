@@ -32,6 +32,6 @@ Portable export rules: [contracts/notebook-export.md](contracts/notebook-export.
 ## Related
 
 - Product boundaries: [PRODUCT.md](PRODUCT.md)
-- Analysis port planning: [ROADMAP.md](ROADMAP.md) · [analysis_module_porting.md](analysis_module_porting.md) · [analysis_wave1_plan.md](analysis_wave1_plan.md)
+- Analysis port planning: [ROADMAP.md](ROADMAP.md) · [analysis_module_porting.md](dev/analysis_module_porting.md) · [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)
 
 Note: analysis ports use a **canonical `AnalysisDocument`** inside Transcribe ([contracts/analysis-document.md](contracts/analysis-document.md)). That is separate from this future *export* handoff into TranscriptX.

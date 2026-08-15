@@ -1,5 +1,5 @@
 Type: PRODUCT
-Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria, exit gates). Does not define runtime schemas or contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) and [product_hardening_plan.md](product_hardening_plan.md). Product language: **usability wave** (not “Wave 2” — Detection already uses that label).
+Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria, exit gates). Does not define runtime schemas or contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) and [product_hardening_plan.md](archive/plans/product_hardening_plan.md). Product language: **usability wave** (not “Wave 2” — Detection already uses that label).
 
 # Usability wave plan
 
@@ -12,7 +12,7 @@ Trust foundation          Daily workbench              Living corpus
 (phases 3–6)       →      (onboard · review · read)  →  (inbox · bulk · search+)
 ```
 
-Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](detection_wave2_plan.md) via [PR #6](https://github.com/glen-w/transcribe/pull/6)). It is not the centerpiece of this wave and must not steal naming (“Wave 2”).
+Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) via [PR #6](https://github.com/glen-w/transcribe/pull/6)). It is not the centerpiece of this wave and must not steal naming (“Wave 2”).
 
 ---
 
@@ -43,7 +43,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | Say | Do not say |
 |-----|------------|
 | Usability wave, tracks **U0–U4** | Wave 2 (reserved for Detection drafts) |
-| Core modules | Wave 1 (internal history only — [analysis_wave1_plan.md](analysis_wave1_plan.md)) |
+| Core modules | Wave 1 (internal history only — [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)) |
 | Product views / status strip | “Module console”, “payload dump” as primary UI |
 
 ---
@@ -52,9 +52,9 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 
 | Artifact | Role in this wave |
 |----------|-------------------|
-| [product_hardening_plan.md](product_hardening_plan.md) Phases **3–5** (#5/#6/#11/#12/#13) | **U0** — **done** on `main` ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
+| [product_hardening_plan.md](archive/plans/product_hardening_plan.md) Phases **3–5** (#5/#6/#11/#12/#13) | **U0** — **done** on `main` ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | Hardening Phase **6** (#7–9) | **U1** — **done** (product views, status strip, OCR Advanced) |
-| [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
+| [analysis_wave1_hardening_plan.md](archive/plans/analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
 | Detection wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6)) | **Shipped** parallel track; coordinate only where Prompt Hub / page-viewer findings share chrome |
 | Corpus contracts | **U4** acceptance gate green; bulk-import UI/CLI supported; Inbox polish may continue |
 
@@ -245,7 +245,7 @@ Speaker-profile repair is out of scope.
 
 ### U3.1 — Review as a work queue
 
-Today Review opens the shared page viewer with thin empty states ([app.py](src/transcribe/ui/app.py) Review section; [page_viewer.py](src/transcribe/ui/page_viewer.py)).
+Today Review opens the shared page viewer with thin empty states ([app.py](../src/transcribe/ui/app.py) Review section; [page_viewer.py](../src/transcribe/ui/page_viewer.py)).
 
 | Add | Detail |
 |-----|--------|
@@ -348,7 +348,7 @@ Supported bulk-import UI/CLI and inbox-as-product required:
 
 | Track | Coordination rule |
 |-------|-------------------|
-| Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
+| Detection Wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6); [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md)) | **Shipped**; may share page-viewer finding captions and Prompt Hub settings; must not redefine Analyse health or block U1 |
 | Visual declutter expansion | Remains ROADMAP preprocessing candidate; explicit re-apply is **shipped**; further ops not required for usability-wave exit |
 | OCR lifecycle (multipass / prefer / promote / composite / fine-tune) | **Shipped** (W0–W5 / [PR #15](https://github.com/glen-w/transcribe/pull/15)); Review queue only needs honesty around suggested dates / force re-OCR |
 | Quality thumbs / prompt management UI | Candidates; Detection Prompt Hub may absorb prompt browse — do not duplicate |
@@ -382,7 +382,7 @@ U4 Inbox polish may remain open after the usability wave is declared done for U0
 
 | Doc | When |
 |-----|------|
-| [product_hardening_plan.md](product_hardening_plan.md) | U0/U1 status rows |
+| [product_hardening_plan.md](archive/plans/product_hardening_plan.md) | U0/U1 status rows |
 | [ROADMAP.md](ROADMAP.md) | Point **Now** at this plan; tick phases; move U2/U3 into active sequencing |
 | [public_surfaces.md](public_surfaces.md) | Product views, Reading mode, Diagnostics, Inbox (only when supported) |
 | [user_guide.md](user_guide.md) | First-run, Review queue, Reading |

@@ -1,0 +1,65 @@
+Type: GUIDE
+Authority: Analyse / Detect / View operations — summarizes analysis and detection contracts; does not redefine schemas
+
+# Analysis and Detect
+
+Run notebook analysis on transcribed text, consume results under **View**, and scan for phenomena with Detect. Product framing: [PRODUCT.md](../PRODUCT.md). Entrypoints / IA: [public_surfaces.md](../public_surfaces.md). Limits: [known_limitations.md](../known_limitations.md).
+
+**Contracts:** [analysis-document](../contracts/analysis-document.md) · [analysis-result](../contracts/analysis-result.md) · [analysis-run-storage](../contracts/analysis-run-storage.md) · [analysis-batch-run](../contracts/analysis-batch-run.md) · [notebook-eligibility](../contracts/notebook-eligibility.md) · detection contracts via [CONTRACT_INDEX](../CONTRACT_INDEX.md).
+
+## This notebook Analyse
+
+**UI:** **Workflow → Analyse**
+
+1. Choose a preset (**Quick** / **Balanced** / **Thorough** / **Custom**).
+2. Optionally enable an Ask-notebook question.
+3. Run analysis. On success, open **View → Overview**.
+
+| Preset | Modules (summary) |
+|--------|-------------------|
+| **Quick** | Light/medium only — no LLM, no heavy modules |
+| **Balanced** | Adds `semantic_similarity` + `llm_summary` |
+| **Thorough** | All suitable core modules (including heavy + LLM suite) |
+| **Custom** | Pick modules (seeded from Balanced) |
+
+Use a **text** Ollama model for LLM modules (workspace default under **Settings → Models**, per-notebook Analyse, or Batch pick). Deterministic synthesis works without it. Missing model/extras surface as plain capability messages (for example “Needs a text model”).
+
+Edit preset policies under **Settings → Analysis**. Mid-run settings changes apply to the **next** run only.
+
+## View consume
+
+Inspect published results under **View**: Overview / Themes / Mood / Summaries. Themes includes **People**; Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current.
+
+- Overview / Mood: **Compare with corpus / period** for numeric metrics vs other notebooks
+- Mood → Moments and page-series charts: **Jump to page** → Reading
+- **Places** (primary nav): map of places across notebooks (opt-in geocoding)
+- Technical module details under **Advanced**
+
+Chart compare notes: [dev/analysis_visual_compare.md](../dev/analysis_visual_compare.md).
+
+## Detect
+
+**UI:** **View → Detect** — poetry, to-do lists, lists, quotations, beer labels, or custom detectors. Review findings, jump to source pages, approve/reject.
+
+```bash
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
+```
+
+Manage prompts under **Settings → Prompts**; custom detectors under **Settings → Detection**.
+
+## Batch Analyse
+
+```bash
+./transcribe.sh cli bulk-analyse pending|import-run|notebooks --preset balanced
+./transcribe.sh cli bulk-analyse status|resume <analysis_batch_id>
+```
+
+**UI:** **Workflow → Analyse → Batch** — pick notebooks, preset, optional shared text model, **Start batch analysis**. Dual progress (notebooks + modules). Empty-text notebooks are skipped. Orchestration only — publish stays per-notebook ([analysis-batch-run](../contracts/analysis-batch-run.md)).
+
+## Related
+
+- Settings / presets: [settings.md](settings.md)
+- OCR first: [ocr.md](ocr.md)
+- Golden path: [user_guide.md](../user_guide.md)
+- Roadmap / focus: [ROADMAP.md](../ROADMAP.md) · [usability_wave_plan.md](../usability_wave_plan.md)

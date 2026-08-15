@@ -7,6 +7,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 
 ## OCR quality
 
+Operational guide: [runtime/ocr.md](runtime/ocr.md).
+
 - Handwriting quality varies widely by model, lighting, and page density
 - Vision model availability and architectures differ across Ollama builds (a listed “vision” model may still fail to load)
 - Preprocess default is **none**; `gentle_contrast` is optional and Pillow-based (no OpenCV in v1)
@@ -44,6 +46,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 
 ## Workspace backup / restore
 
+Operator guide: [backup_and_restore.md](backup_and_restore.md).
+
 - Full-workspace ZIPs pack notebooks, corpus, and config (optional inbox/exports). They **never** treat `data/cache/archive.sqlite` as authority; restore deletes `data/cache/` so Archive rebuilds.
 - Restore is **replace-only** onto the current `TRANSCRIBE_*` mounts (path-agnostic role-root layout). There is no merge / per-notebook restore in v1.
 - Large workspaces: use CLI disk paths (`backup create` / `restore`); the Settings UI does not download or upload multi-GB ZIPs through the browser.
@@ -58,6 +62,8 @@ Single place for “what can go wrong / what we are not promising.” Product pr
 - Transcribe does not ship cloud OCR providers
 
 ## Analysis
+
+Operational guide: [runtime/analysis.md](runtime/analysis.md). Settings / presets: [runtime/settings.md](runtime/settings.md).
 
 - Core analysis modules are shipped; quality follows OCR text quality (noisy handwriting hurts NER, topics, and LLM grounding)
 - Prefer **OCR cleanup / second-pass LLM verification** and human review edits to improve text before analysis; a dedicated `ocr_quality` analysis module is deferred ([ROADMAP.md](ROADMAP.md))
