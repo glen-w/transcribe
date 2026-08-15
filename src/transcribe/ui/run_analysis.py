@@ -46,12 +46,16 @@ from transcribe.ui.module_ui_groups import group_modules_for_ui
 _PRESET_KEY = "run_analysis_preset"
 _CUSTOM_KEY = "run_analysis_custom_modules"
 _CUSTOM_WIDGET_KEY = "run_analysis_custom_modules_widget"
+_BATCH_CUSTOM_WIDGET_KEY = "batch_analysis_custom_modules"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
+_BATCH_QA_ENABLE_KEY = "batch_analysis_qa_enable"
+_BATCH_QA_TEXT_KEY = "batch_analysis_qa_text"
 _CUSTOM_QA_MODULE = "llm_custom_qa"
 _REVIEW_KEEP_OPEN_KEY = "run_analysis_review_modules_keep_open"
 _PENDING_REVIEW_REMOVAL_KEY = "run_analysis_pending_review_removal"
 _KEY_PREFIX = "run_analysis"
+_BATCH_KEY_PREFIX = "batch_analysis"
 _PENDING_LAUNCH_KEY = "run_analysis_pending_launch"
 _IN_PROGRESS_KEY = "analysis_run_in_progress"
 _LAST_RESULTS_KEY = "run_analysis_last_results"
@@ -108,12 +112,15 @@ def apply_pending_review_module_removal(session_state: Any) -> None:
         return
     session_state[_PRESET_KEY] = "Custom"
     session_state[_CUSTOM_KEY] = list(remaining)
-    # Drop the multiselect widget key so it re-seeds from custom_modules
-    # (filtered to picker options) before the widget is created.
+    # Drop multiselect widget keys so they re-seed from custom_modules
+    # (filtered to picker options) before the widgets are created.
     session_state.pop(_CUSTOM_WIDGET_KEY, None)
+    session_state.pop(_BATCH_CUSTOM_WIDGET_KEY, None)
     if pending.get("clear_qa"):
         session_state[_QA_ENABLE_KEY] = False
         session_state[_QA_TEXT_KEY] = ""
+        session_state[_BATCH_QA_ENABLE_KEY] = False
+        session_state[_BATCH_QA_TEXT_KEY] = ""
 
 
 def apply_review_module_removal(
@@ -121,6 +128,7 @@ def apply_review_module_removal(
     *,
     module_ids: Sequence[str],
     remove_id: str,
+    keep_open_key: str = _REVIEW_KEEP_OPEN_KEY,
 ) -> bool:
     """
     Queue dropping ``remove_id`` from the run (Custom + remainder).
@@ -138,16 +146,19 @@ def apply_review_module_removal(
     if remove_id == _CUSTOM_QA_MODULE:
         payload["clear_qa"] = True
     session_state[_PENDING_REVIEW_REMOVAL_KEY] = payload
-    session_state[_REVIEW_KEEP_OPEN_KEY] = True
+    session_state[keep_open_key] = True
     return True
 
 
-def _render_review_module_row(
+def render_review_module_row(
     module_id: str,
     *,
     module_ids: Sequence[str],
     can_remove: bool,
+    key_prefix: str = _KEY_PREFIX,
+    keep_open_key: str = _REVIEW_KEEP_OPEN_KEY,
 ) -> None:
+    """One Review-modules row with optional hover ✕ (TranscriptX pattern)."""
     label = format_module_label(module_id)
     if not can_remove:
         st.markdown(f"- {label}")
@@ -158,7 +169,7 @@ def _render_review_module_row(
     with remove_col:
         if st.button(
             "✕",
-            key=f"{_KEY_PREFIX}_review_rm_{module_id}",
+            key=f"{key_prefix}_review_rm_{module_id}",
             help=f"Remove from run: {label}",
             type="tertiary",
         ):
@@ -166,24 +177,39 @@ def _render_review_module_row(
                 st.session_state,
                 module_ids=module_ids,
                 remove_id=module_id,
+                keep_open_key=keep_open_key,
             ):
                 st.rerun()
             else:
                 st.toast("Keep at least one module in the run.")
 
 
-def _render_module_review(module_ids: tuple[str, ...]) -> None:
-    expanded = bool(st.session_state.pop(_REVIEW_KEEP_OPEN_KEY, False))
-    with st.expander("Review modules", expanded=expanded):
-        can_remove = len(module_ids) > 1
-        for title, rows in group_modules_for_ui(module_ids):
+def render_module_review(
+    module_ids: tuple[str, ...] | Sequence[str],
+    *,
+    expander_title: str = "Review modules",
+    key_prefix: str = _KEY_PREFIX,
+    keep_open_key: str = _REVIEW_KEEP_OPEN_KEY,
+) -> None:
+    """Grouped module list with hover-to-remove ✕ buttons (shell CSS)."""
+    expanded = bool(st.session_state.pop(keep_open_key, False))
+    ids = tuple(module_ids)
+    with st.expander(expander_title, expanded=expanded):
+        can_remove = len(ids) > 1
+        for title, rows in group_modules_for_ui(ids):
             st.markdown(f"**{title}**")
             for mid in rows:
-                _render_review_module_row(
+                render_review_module_row(
                     mid,
-                    module_ids=module_ids,
+                    module_ids=ids,
                     can_remove=can_remove,
+                    key_prefix=key_prefix,
+                    keep_open_key=keep_open_key,
                 )
+
+
+def _render_module_review(module_ids: tuple[str, ...]) -> None:
+    render_module_review(module_ids)
 
 
 def _render_post_analysis_actions(*, projects: ProjectService, project: Any) -> None:
