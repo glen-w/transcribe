@@ -48,3 +48,4 @@ Compiled to `detector_id = custom/<slug>` with fixed response schema `custom_fin
 
 - Detectors must not add boolean flags to `PageIndex` (e.g. `contains_poem`).
 - Detectors must not be implemented solely as analysis modules when page/window scanning and cross-page spans are required.
+- Auto-tag (opt-in) may **union** `normalize_slug(finding_type)` onto `PageIndex.tags` for pages in a finding span. That uses the existing tags list — it is not a boolean flag. Auto-tag is **not** part of `cache_config` / cache identity. See [tag-catalog.md](tag-catalog.md).

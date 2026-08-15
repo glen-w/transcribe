@@ -40,6 +40,7 @@ CLI ──────────────────┘              │
 | Portable interchange | Export snapshot — [contracts/notebook-export.md](contracts/notebook-export.md) |
 | OCR HTTP | `VisionOCRProvider` (Ollama implementation) |
 | UI widgets | `transcribe.ui` only — must not invent OCR/persistence rules |
+| Organisation tag catalog (slugs, labels, colours) | [contracts/tag-catalog.md](contracts/tag-catalog.md) |
 | Workspace search/timeline | `ArchiveService` over rebuildable SQLite |
 
 ## Key runtime objects (shape, not schema)
@@ -54,7 +55,8 @@ CLI ──────────────────┘              │
 - **DoctorService** — structural integrity (+ optional deep hashing); quarantined ingest journals reported as errors
 - **CorpusDoctorService / CorpusIndexStore / ImportRunStore** — workspace corpus authority under `data/corpus/` (runtime-normative; see corpus contracts)
 - **AnalysisCoordinator / AnalysisRunPlan / AnalysisRunner / AnalysisStorage** — project-scoped async batch runs freeze an `AnalysisRunPlan` (modules, EffectiveConfig, text-model identity) and execute under `.transcribe.analysis.lock`; publish under `analysis/`; UI freshness via `module_freshness` / `planned_cache_identity` (UI must not hand-build cache identities). Mid-run settings apply to the next run only; crash/reopen marks orphaned attempts/runs `interrupted` without clobbering published results
-- **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides; freshness via `detector_freshness` / planned cache identity
+- **DetectionRunner / DetectionStorage / prompt_engine / Prompt Hub** — prompt-backed page/window detectors (`poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, custom); publish findings under `detection/`; Settings → Prompts resolves OCR/cleanup/detection definitions with workspace overrides; freshness via `detector_freshness` / planned cache identity. Opt-in auto-tag unions `finding_type` onto span pages and is **not** part of detector cache identity
+- **TagService / TagCatalogStore** — workspace `personal_corpus.tag-catalog` at `data/config/tag-catalog.json`; assignments remain `tags: string[]` on notebooks/pages; host-agnostic kernel in `transcribe.tagging.kernel` for a future TranscriptX copy
 - **PageMetricsService** — Pillow ink coverage / blankness / dominant hue over active renders; publish under `page_metrics/`; cache identity = algorithm version + ordered `(page_id, render_sha256)` (not text Analyse)
 - **Visual declutter** — Pillow scanner-border crop at import and via `ProjectService.reapply_visual_declutter` (Settings → Configuration); provenance on renders ([contracts/source-asset.md](contracts/source-asset.md))
 - **Ollama discovery cache** — thread-safe model metadata keyed by normalized base URL + transport timeout; providers stay lightweight execution clients

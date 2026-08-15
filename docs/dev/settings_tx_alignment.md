@@ -31,7 +31,7 @@ or Overview wordcloud cards except existing `ui.overview_cards` copy.
 
 | Concern | Transcribe behaviour |
 |---------|----------------------|
-| Settings tabs | Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export (`settings_interface.py` `SETTINGS_TABS`) |
+| Settings tabs | Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export (`settings_interface.py` `SETTINGS_TABS`) |
 | System | Settings · Diagnostics only. Profiles stays a **tab**, not a System page |
 | Gating | Settings `required_context` is `"none"` (stay-don’t-bounce). Apply-OCR gated on a selected notebook; Re-apply declutter has its own notebook picker |
 | Configuration | Workspace-only guided sections (folders, import, archive, Overview cards). No Default/Project/Run radio |

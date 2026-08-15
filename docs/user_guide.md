@@ -42,7 +42,7 @@ In the UI: select a notebook → **Workflow → Import** → Target **This noteb
 
 ## 4. Review, Reading, and search
 
-**Review** is a needs-attention queue for the open notebook (dates, empty text, OCR failures). Prefer / Promote when multiple attempts exist; edits live in `edited_text`. **Reading** is chronological image + read-only text. **Archive** / **Search** span the workspace.
+**Review** is a needs-attention queue for the open notebook (dates, empty text, OCR failures). Prefer / Promote when multiple attempts exist; edits live in `edited_text`. **Reading** is chronological image + read-only text. **Archive** / **Search** span the workspace. In the page viewer, click a coloured tag pill to AND-filter the served page set; **Clear tag filter** restores the full set ([tag-catalog](contracts/tag-catalog.md)).
 
 ```bash
 ./transcribe.sh cli status "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
@@ -54,7 +54,7 @@ Preference stats: `transcribe models --prefs` — [ocr-preference](contracts/ocr
 
 **Workflow → Analyse** with Quick / Balanced / Thorough / Custom, then consume under **View** (Overview / Themes / Mood / Summaries). **Thorough** (and Custom when selected) can include **Detect** detectors in the same Analyse plan; review findings under **View → Detect** (ad-hoc / page-scoped runs still launch from Detect → Run Detection). Batch Analyse under **Workflow → Analyse → Batch**.
 
-Detail: [runtime/analysis.md](runtime/analysis.md). Roadmap: [ROADMAP.md](ROADMAP.md).
+Detail: [runtime/analysis.md](runtime/analysis.md) (includes Detect auto-tag). Tag catalogue: [tag-catalog](contracts/tag-catalog.md) · **Settings → Tags**. Roadmap: [ROADMAP.md](ROADMAP.md).
 
 ## 6. Export
 

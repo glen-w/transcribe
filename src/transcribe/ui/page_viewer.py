@@ -12,7 +12,6 @@ from transcribe.domain.dates import (
     DATE_SOURCE_INHERITED,
     format_approve_all_dates_help,
     looks_like_unparsed_date_stamp,
-    normalize_tags,
     parse_date_input,
 )
 from transcribe.domain.models import CleanupRecord, OCRAttempt, Project
@@ -473,6 +472,33 @@ def _filter_existing_entries(entries: list[dict[str, str]]) -> list[dict[str, st
     return [e for e in entries if _entry_root_exists(e["project_root"])]
 
 
+def _page_tags_for_entries(entries: list[dict[str, str]]) -> dict[str, list[str]]:
+    """Load page tag assignments for viewer entries (one project load per root)."""
+    out: dict[str, list[str]] = {}
+    by_root: dict[str, list[str]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        pid = str(entry.get("page_id") or "")
+        root = str(entry.get("project_root") or "")
+        if not pid or not root:
+            continue
+        by_root.setdefault(root, []).append(pid)
+    for root, page_ids in by_root.items():
+        wanted = set(page_ids)
+        try:
+            svc = ProjectService(
+                open_project_paths(Path(root)), clock=SystemClock(), ids=UuidGenerator()
+            )
+            project = svc.load(reconcile=False)
+        except Exception:  # noqa: BLE001 — skip unreadable notebooks
+            continue
+        for page in project.pages:
+            if page.page_id in wanted:
+                out[page.page_id] = list(page.tags)
+    return out
+
+
 def _resolve_view_entries(
     *,
     page_ids: list[str] | None,
@@ -562,6 +588,29 @@ def render_page_viewer(
         st.info("No pages in this context.")
         return project
 
+    if view_entries is not None or page_ids is not None:
+        baseline = entries
+        st.session_state["view_entries_base"] = baseline
+    else:
+        raw_base = st.session_state.get("view_entries_base")
+        baseline = raw_base if isinstance(raw_base, list) and raw_base else entries
+        st.session_state["view_entries_base"] = baseline
+
+    required_slugs = [
+        str(s) for s in (st.session_state.get("viewer_tag_filter") or []) if str(s).strip()
+    ]
+    if required_slugs:
+        from transcribe.tagging.kernel import constrain_entries
+
+        page_tags = _page_tags_for_entries(baseline)
+        entries = constrain_entries(baseline, page_tags, required_slugs)
+        if not entries:
+            st.info("No pages in this view have those tags.")
+            if st.button("Clear tag filter", key="pv_clear_tag_filter_empty"):
+                st.session_state["viewer_tag_filter"] = []
+                st.rerun()
+            return project
+
     st.session_state["view_entries"] = entries
     page_ids_flat = [e["page_id"] for e in entries]
     if page_id not in page_ids_flat:
@@ -618,6 +667,8 @@ def render_page_viewer(
             st.session_state.pop("view_page_id", None)
             st.session_state.pop("view_page_ids", None)
             st.session_state.pop("view_entries", None)
+            st.session_state.pop("view_entries_base", None)
+            st.session_state.pop("viewer_tag_filter", None)
             st.session_state.pop("view_highlight", None)
             st.session_state["show_page_viewer"] = False
             return_mode = st.session_state.pop("page_return_mode", None)
@@ -658,8 +709,57 @@ def render_page_viewer(
         st.rerun()
     top[5].caption(f"`{page.page_id[:8]}…`")
 
-    if page.tags:
-        st.caption("Tags: " + ", ".join(escape_markdown_plain(tag) for tag in page.tags))
+    from transcribe.services.tags import TagService
+    from transcribe.tagging.kernel import display_tag, normalize_slugs
+    from transcribe.ui.tag_pills import render_clickable_pills, render_tag_chips
+
+    tag_svc = TagService()
+    catalog = tag_svc.load_catalog()
+    if project.tags:
+        st.caption("Notebook")
+        render_tag_chips(project.tags, catalog)
+
+    required_slugs = [
+        str(s) for s in (st.session_state.get("viewer_tag_filter") or []) if str(s).strip()
+    ]
+    if required_slugs:
+        filt_cols = st.columns([6, 2])
+        with filt_cols[0]:
+            labels = ", ".join(display_tag(catalog, s).label for s in required_slugs)
+            st.caption(f"Showing pages tagged: {labels}")
+        if filt_cols[1].button("Clear tag filter", key="pv_clear_tag_filter"):
+            st.session_state["viewer_tag_filter"] = []
+            st.rerun()
+
+    page_tag_slugs = list(page.tags)
+    baseline_entries = st.session_state.get("view_entries_base") or entries
+    set_tags: list[str] = []
+    if isinstance(baseline_entries, list):
+        page_tags_map = _page_tags_for_entries(
+            [e for e in baseline_entries if isinstance(e, dict) and e.get("page_id")]
+        )
+        seen_set: set[str] = set()
+        for tags in page_tags_map.values():
+            for slug in tags:
+                if slug not in seen_set:
+                    seen_set.add(slug)
+                    set_tags.append(slug)
+    pill_source = page_tag_slugs or set_tags
+    extra = [s for s in required_slugs if s not in pill_source]
+    clicked = render_clickable_pills(
+        [*pill_source, *extra],
+        catalog=catalog,
+        selected=required_slugs,
+        key_prefix=f"pv_tag_{page.page_id[:8]}",
+    )
+    if clicked:
+        current = list(normalize_slugs(required_slugs))
+        if clicked in current:
+            current = [s for s in current if s != clicked]
+        else:
+            current.append(clicked)
+        st.session_state["viewer_tag_filter"] = current
+        st.rerun()
 
     if not read_only:
         try:
@@ -937,19 +1037,20 @@ def render_page_viewer(
                     st.caption(f"Suspicious date order: {preview}")
             else:
                 st.session_state.pop(f"pv_confirm_date_regressions_{page.page_id}", None)
-            tags_in = st.text_input(
-                "Tags (comma-separated)",
-                value=", ".join(page.tags),
-                key=f"tags_{page.page_id}",
+            from transcribe.ui.tag_pills import render_tag_assignment_editor
+
+            selected_tags, new_tag_raw = render_tag_assignment_editor(
+                current=page.tags,
+                catalog=catalog,
+                key_prefix=f"tags_{page.page_id}",
             )
             if st.button("Save metadata"):
                 try:
                     new_date = parse_date_input(date_in)
                     project, _date_changed = projects.approve_page_date(page.page_id, new_date)
-                    project = projects.update_page_metadata(
-                        page.page_id,
-                        tags=normalize_tags([t for t in tags_in.split(",")]),
-                    )
+                    combined = list(selected_tags)
+                    combined.extend(t for t in new_tag_raw.split(",") if t.strip())
+                    project = tag_svc.assign_page(projects, page.page_id, combined)
                     bump_archive_generation(build_runtime_paths())
                     st.success("Metadata saved")
                     st.rerun()
@@ -1021,6 +1122,8 @@ def open_page_context(
     st.session_state["view_page_id"] = page_id
     st.session_state["view_page_ids"] = [e["page_id"] for e in entries]
     st.session_state["view_entries"] = entries
+    st.session_state["view_entries_base"] = entries
+    st.session_state["viewer_tag_filter"] = []
     st.session_state["view_highlight"] = highlight
     st.session_state["show_page_viewer"] = True
     if return_mode:

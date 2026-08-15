@@ -76,10 +76,12 @@ Fix by moving the rule into the contract and replacing the original with a short
 | Corpus / import / doctor | corpus contracts |
 | Page-result / multipass / preference | page-result · ocr-multipass · ocr-preference |
 | Analysis / detection | analysis-* · detection-* · notebook-eligibility |
+| Tags / organisation catalog | [tag-catalog.md](../contracts/tag-catalog.md) |
 | Export / backup | notebook-export · workspace-backup · runtime guides |
 | CLI/UI entrypoints | public_surfaces + README links |
 | Ownership / shape | ARCHITECTURE |
 | Vision / roadmap | PRODUCT · ROADMAP · usability_wave_plan |
+
 
 Then skim guides for stale summaries.
 

@@ -183,6 +183,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_detect.add_argument("--force", action="store_true")
     p_detect.add_argument(
+        "--auto-tag",
+        action="store_true",
+        help="After publish, tag pages in findings with the detector finding type",
+    )
+    p_detect.add_argument(
         "--list",
         action="store_true",
         help="List available detectors and exit",
@@ -442,13 +447,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Notebook id or project root (repeatable)",
     )
     _add_bulk_analyse_flags(p_ba_nbs)
-    p_ba_status = bulk_ax_sub.add_parser(
-        "status", help="Show AnalysisBatchRun outcomes"
-    )
+    p_ba_status = bulk_ax_sub.add_parser("status", help="Show AnalysisBatchRun outcomes")
     p_ba_status.add_argument("analysis_batch_id")
-    p_ba_resume = bulk_ax_sub.add_parser(
-        "resume", help="Resume a non-terminal AnalysisBatchRun"
-    )
+    p_ba_resume = bulk_ax_sub.add_parser("resume", help="Resume a non-terminal AnalysisBatchRun")
     p_ba_resume.add_argument("analysis_batch_id")
 
     args = parser.parse_args(argv)
@@ -632,7 +633,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"{info.detector_id}\tv{info.version}\t{info.title}")
                 return 0
             svc = DetectionService(projects)
-            result = svc.run_detector(args.detector, force=args.force)
+            result = svc.run_detector(args.detector, force=args.force, auto_tag=args.auto_tag)
             findings = result.get("findings") or []
             print(
                 f"detector={args.detector} outcome={result.get('outcome')} "
@@ -1086,9 +1087,7 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
         selected = select_needing_analysis(candidates)
     elif args.bulk_analyse_cmd == "import-run":
         import_run_id = args.import_run_id
-        selected = select_from_import_run(
-            corpus, import_run_id, candidates, purpose="analyse"
-        )
+        selected = select_from_import_run(corpus, import_run_id, candidates, purpose="analyse")
     elif args.bulk_analyse_cmd == "notebooks":
         nids: list[str] = []
         for ref in args.notebooks:

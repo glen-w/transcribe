@@ -18,6 +18,27 @@ def render_detection_settings_panel() -> None:
     st.caption("Built-in and custom detectors. Run from View → Detect after selecting a notebook.")
 
     dets = list_all_detectors()
+    from transcribe.services.tags import TagService
+
+    tag_svc = TagService()
+    st.markdown("#### Auto-tag pages")
+    st.caption(
+        "When enabled, a successful Detect run (or Apply from findings) adds the "
+        "detector’s tag to matching pages. This does not change detection cache identity."
+    )
+    for d in dets:
+        key = f"detect_auto_tag_default_{d.detector_id.replace('/', '_')}"
+        current = tag_svc.auto_tag_enabled(d.detector_id)
+        checked = st.checkbox(
+            f"{d.title} (`{d.finding_type}`)",
+            value=current,
+            key=key,
+        )
+        if checked != current:
+            tag_svc.set_auto_tag(d.detector_id, checked)
+
+    st.divider()
+    st.markdown("#### Detectors")
     for d in dets:
         st.markdown(f"- **{d.title}** (`{d.detector_id}` v{d.version}) — {d.description[:120]}")
 
@@ -33,6 +54,11 @@ def render_detection_settings_panel() -> None:
         )
         scope = st.selectbox("Scope", ["notebook", "page"])
         adjacent = st.checkbox("Adjacent-page detection", value=True)
+        auto_tag_custom = st.checkbox(
+            "Auto-tag matching pages by default",
+            value=False,
+            help="After Detect runs this detector, tag spanned pages with the finding type.",
+        )
         model_mode = st.selectbox("Model mode", ["auto", "text", "vision"])
         threshold = st.slider("Confidence threshold", 0.0, 1.0, 0.7, 0.05)
         submitted = st.form_submit_button("Save custom detector", type="primary")
@@ -50,6 +76,8 @@ def render_detection_settings_panel() -> None:
                 st.error("Invalid custom detector (check instruction length).")
             else:
                 DetectionService.register_custom_detector(custom)
+                if auto_tag_custom:
+                    TagService().set_auto_tag(preview.detector_id, True)
                 st.success(f"Saved `{preview.detector_id}`")
                 st.json(
                     {

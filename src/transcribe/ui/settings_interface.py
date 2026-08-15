@@ -240,12 +240,13 @@ def render_interface_panel() -> None:
 
 
 # Chrome order: Configuration + Analysis first (TX), then Transcribe-native
-# Detection/Prompts, Interface before Models (TX), Profiles as a tab (not a
+# Detection/Tags/Prompts, Interface before Models (TX), Profiles as a tab (not a
 # System page), Export last.
 SETTINGS_TABS: tuple[str, ...] = (
     "Configuration",
     "Analysis",
     "Detection",
+    "Tags",
     "Prompts",
     "Interface",
     "Models",
@@ -265,6 +266,7 @@ def render_settings_page() -> None:
         render_profiles_panel,
     )
     from transcribe.ui.settings_prompts import render_prompts_panel
+    from transcribe.ui.settings_tags import render_tags_settings_panel
 
     tabs = st.tabs(list(SETTINGS_TABS))
     for tab, label in zip(tabs, SETTINGS_TABS):
@@ -275,6 +277,8 @@ def render_settings_page() -> None:
                 render_analysis_presets_panel()
             elif label == "Detection":
                 render_detection_settings_panel()
+            elif label == "Tags":
+                render_tags_settings_panel()
             elif label == "Prompts":
                 render_prompts_panel()
             elif label == "Interface":

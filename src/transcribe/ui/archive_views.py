@@ -29,10 +29,11 @@ from transcribe.ui.action_menus.catalog import help_for
 from transcribe.ui.action_menus.context import ActionContext
 from transcribe.ui.action_menus.ids import ActionId, NavStyle, ReturnMode, SectionId
 from transcribe.ui.action_menus.nav import load_live_notebook_context, navigate_open
-from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.ui.action_menus.render import render_configured_actions
 from transcribe.ui.activity_selection import BIN_SELECT, selected_bin_label
+from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.ui.page_viewer import open_page_context
+from transcribe.ui.tag_pills import render_tag_chips
 
 ARCHIVE_STRIP_SESSION_KEY = "archive_strip_n"
 
@@ -541,7 +542,9 @@ def _notebook_card(
         date_label = f"{a} → {b}"
     st.caption(escape_markdown_plain(nb.title))
     if nb.tags:
-        st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
+        from transcribe.services.tags import TagService
+
+        render_tag_chips(nb.tags, TagService().load_catalog())
     st.caption(date_label)
     rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
     st.caption(f"{nb.page_count} pages · {rate}")
@@ -609,7 +612,9 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
         with right:
             st.markdown(f"**{escape_markdown_plain(nb.title)}**")
             if nb.tags:
-                st.caption(" · ".join(f"`{tag}`" for tag in nb.tags))
+                from transcribe.services.tags import TagService
+
+                render_tag_chips(nb.tags, TagService().load_catalog())
             if nb.date_start or nb.date_end:
                 a = nb.date_start.format_display() if nb.date_start else "?"
                 b = nb.date_end.format_display() if nb.date_end else "?"
@@ -773,9 +778,11 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
         if hit.snippet:
             cols[0].caption(escape_markdown_plain(hit.snippet))
         if hit.tags:
-            cols[0].caption(
-                "Tags: " + ", ".join(escape_markdown_plain(tag) for tag in hit.tags)
-            )
+            from transcribe.services.tags import TagService
+            from transcribe.ui.tag_pills import render_tag_chips
+
+            with cols[0]:
+                render_tag_chips(hit.tags, TagService().load_catalog())
         if cols[1].button(
             "Open page",
             key=f"search_open_{hit.page_id}",

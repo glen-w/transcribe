@@ -28,6 +28,16 @@ Portable export rules: [contracts/notebook-export.md](contracts/notebook-export.
 - Portable `format: "transcribe.notebook"` interchange with page order, effective/raw/edited text, content fingerprints, provenance, and notebook `content_revision` when present
 - No required absolute filesystem paths in the export
 - Page-first domain (not timed speaker segments)
+- Organisation tags as `tags: string[]` slugs on notebook and page, plus an optional `tag_catalog` snapshot (`personal_corpus.tag-catalog` defs) so labels/colours survive interchange
+
+## Organisation tags (shared with TranscriptX Theme F)
+
+Both products should use the same catalog envelope and slug rules: [contracts/tag-catalog.md](contracts/tag-catalog.md).
+
+- Transcribe notebook tags → future TX **library** (transcript) tags
+- Transcribe page tags stay page-scoped (do not invent fake speakers or timestamps to carry them)
+- TX must not treat tags as Group membership
+- Copy `src/transcribe/tagging/kernel.py` and `colors.py` (relative imports); do not share a runtime package before TX 1.0
 
 ## Related
 

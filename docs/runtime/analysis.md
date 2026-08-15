@@ -45,10 +45,13 @@ Built-ins: poetry, to-do lists, lists, quotations, beer labels, plus custom dete
 
 ```bash
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
+./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry --auto-tag
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
 ```
 
-Manage prompts under **Settings → Prompts**; custom detectors under **Settings → Detection**.
+Check **Tag matching pages** (or **Apply tags from findings**) to union the detector’s tag onto span pages; rejected findings are skipped. `--auto-tag` / Detection auto-tag defaults do **not** enter detector cache identity. Catalogue contract: [tag-catalog](../contracts/tag-catalog.md).
+
+Manage prompts under **Settings → Prompts**; custom detectors and auto-tag defaults under **Settings → Detection**; labels/colours/merge under **Settings → Tags**.
 
 ## Batch Analyse
 

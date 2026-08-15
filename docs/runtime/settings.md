@@ -7,13 +7,14 @@ Where to change workspace behaviour in the UI and how overlays resolve. Authorit
 
 ## Where to start
 
-**Settings** tabs: Configuration · Analysis · Detection · Prompts · Interface · Models · Profiles · Export.
+**Settings** tabs: Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export.
 
 | Tab | Typical use |
 |-----|-------------|
 | **Configuration** | Folders, **Backup**, import / visual declutter, Archive paging, Overview cards |
 | **Analysis** | Preset policies (Quick / Balanced / Thorough; detectors for Thorough / Custom) |
-| **Detection** | Custom detectors |
+| **Detection** | Custom detectors and detection auto-tag defaults |
+| **Tags** | Workspace organisation catalogue (labels, colours, rename, merge/delete) — [tag-catalog](../contracts/tag-catalog.md) |
 | **Prompts** | Prompt Hub (OCR, cleanup, detection definitions) |
 | **Interface** | Action-menu prefs |
 | **Models** | Workspace Ollama URL, OCR preprocess seed, LLM budgets, Apply-OCR to open notebook |

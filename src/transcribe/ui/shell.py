@@ -115,7 +115,16 @@ def inject_global_styles() -> None:
     section[data-testid="stSidebar"] * {
         overflow-wrap: anywhere;
     }
-    /* Global left alignment for main content */
+    .tx-tag-pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.12rem 0.55rem;
+        margin: 0 0.2rem 0.2rem 0;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.45;
+        vertical-align: middle;
+    }
     section[data-testid="stAppViewContainer"] .block-container,
     section[data-testid="stAppViewContainer"] .element-container {
         text-align: left;
@@ -758,9 +767,7 @@ def render_mode_nav(
         spec = page_spec_for(mode)
         if spec is None:
             continue
-        enabled = nav_enabled(
-            spec, has_notebook=has_notebook, has_published=has_published
-        )
+        enabled = nav_enabled(spec, has_notebook=has_notebook, has_published=has_published)
         # Current page stays reachable even when the picker would disable it.
         disabled = (not enabled) and current != mode
         help_text = None

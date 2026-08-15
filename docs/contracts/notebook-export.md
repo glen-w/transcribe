@@ -62,6 +62,7 @@ JSON is emitted per notebook under `notebooks/<slug>/` plus
 - `schema_version` must be `1`
 - Includes `content_revision`, application version, project metadata, source summaries, and ordered pages
 - Per page: order (`global_index`), status, effective/raw/edited text, fingerprints, provenance, tags/dates as present
+- Optional additive `tag_catalog` snapshot (list of `{tag_id, slug, label, color, …}` for slugs used in the notebook). Legacy readers ignore it. Label/colour changes do **not** participate in `content_revision` (that hash uses page tag slugs only). Catalog contract: [tag-catalog.md](tag-catalog.md)
 - Page date fields are always emitted together: `date`, `date_approved`, `date_source` (canonical triples; undated ⇒ `date: null`, `date_approved: true`, `date_source: null`)
 - **Legacy readers** may ignore unknown keys (`date_approved`, `date_source`, `content_revision`) and continue to use `date` alone
 - **Must not require absolute filesystem paths** in the interchange payload

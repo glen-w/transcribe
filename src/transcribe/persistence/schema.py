@@ -25,6 +25,8 @@ SUPPORTED: dict[str, int] = {
     "transcribe.ocr-multipass-job": 1,
     "transcribe.finetune-export-manifest": 1,
     "transcribe.workspace-backup": 1,
+    "personal_corpus.tag-catalog": 1,
+    "transcribe.detection-auto-tag": 1,
 }
 
 
