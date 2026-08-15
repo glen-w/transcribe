@@ -18,8 +18,8 @@ def test_analysis_contract_files_exist():
         CONTRACTS / "notebook-eligibility.md",
         CONTRACTS / "project-on-disk.md",
         DOCS / "dev" / "analysis_port_pins.md",
-        DOCS / "analysis_wave1_plan.md",
-        DOCS / "analysis_wave1_hardening_plan.md",
+        DOCS / "archive" / "plans" / "analysis_wave1_plan.md",
+        DOCS / "archive" / "plans" / "analysis_wave1_hardening_plan.md",
     ]
     missing = [str(p.relative_to(DOCS.parent)) for p in required if not p.is_file()]
     assert not missing, f"missing contract/plan docs: {missing}"

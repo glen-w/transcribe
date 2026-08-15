@@ -1,5 +1,7 @@
 Type: PRODUCT
-Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity with Transcribe Batch). Does not define runtime schemas — those land in a new CONTRACT when implementation starts. Companion to [ROADMAP.md](ROADMAP.md) and the shipped OCR batch pattern ([contracts/ocr-batch-run.md](contracts/ocr-batch-run.md)).
+Authority: Delivery plan for multi-notebook Analyse batch (GUI Target parity with Transcribe Batch). Does not define runtime schemas — those land in a new CONTRACT when implementation starts. Companion to [ROADMAP.md](../../ROADMAP.md) and the shipped OCR batch pattern ([contracts/ocr-batch-run.md](../../contracts/ocr-batch-run.md)).
+
+> **Archived / superseded.** Bulk Analyse delivery plan (shipped). Runtime rules: analysis-batch-run contract. Current authority: [docs/contracts/analysis-batch-run.md](../../contracts/analysis-batch-run.md). Do not treat as live roadmap or support policy.
 
 # Bulk run analysis plan
 
@@ -138,7 +140,7 @@ Fingerprint / cache skip inside a notebook remains `AnalysisRunner` behavior —
 
 ## 4. Durable contract (`AnalysisBatchRun`)
 
-New CONTRACT: `docs/contracts/analysis-batch-run.md` (implementation PR). Pattern-match [ocr-batch-run.md](contracts/ocr-batch-run.md).
+New CONTRACT: `docs/contracts/analysis-batch-run.md` (implementation PR). Pattern-match [ocr-batch-run.md](../../contracts/ocr-batch-run.md).
 
 ### Storage
 
@@ -326,8 +328,8 @@ Implement in small PRs; each must stay rebase-clean vs `main` and keep the defau
 
 | Artifact | Role |
 |----------|------|
-| [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) | Pattern to clone for workspace batch runs |
-| [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) | Inner plan / publish / lock authority |
+| [contracts/ocr-batch-run.md](../../contracts/ocr-batch-run.md) | Pattern to clone for workspace batch runs |
+| [contracts/analysis-run-storage.md](../../contracts/analysis-run-storage.md) | Inner plan / publish / lock authority |
 | `src/transcribe/services/batch_ocr.py` | Coordinator + selection template |
 | `src/transcribe/ui/run_transcribe.py` | Target + `_render_batch_progress` template |
 | `src/transcribe/ui/components/progress_panel.py` | Shared dual-bar panel |

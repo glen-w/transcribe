@@ -1,13 +1,15 @@
 Type: PRODUCT
 Authority: Core analysis infrastructure hardening checklist (delivery). Does **not** redefine cache identity, outcomes, or storage atomics — those stay in CONTRACT docs. Companion to [analysis_wave1_plan.md](analysis_wave1_plan.md) §8/§10 residual exit work. Filename retains historical `wave1` as internal delivery id.
 
+> **Archived / superseded.** Post-ship analysis infra checklist (done). Do not reopen as live UI work. Current authority: [docs/ROADMAP.md](../../ROADMAP.md). Do not treat as live roadmap or support policy.
+
 # Analysis infrastructure hardening
 
 > **Internal companion** to the core-module delivery history. Product language: shipped **core modules**, not “Wave 1”.
 
 Close contract/exit gaps after core ports landed: parent freshness, UI/cache honesty, moments paragraph profile, eligibility/capability conformance, evidence freshness helper, and focused regression tests.
 
-**Governing contracts:** [analysis-document](contracts/analysis-document.md) · [analysis-result](contracts/analysis-result.md) · [analysis-run-storage](contracts/analysis-run-storage.md) · [notebook-eligibility](contracts/notebook-eligibility.md)
+**Governing contracts:** [analysis-document](../../contracts/analysis-document.md) · [analysis-result](../../contracts/analysis-result.md) · [analysis-run-storage](../../contracts/analysis-run-storage.md) · [notebook-eligibility](../../contracts/notebook-eligibility.md)
 
 ---
 
@@ -28,11 +30,11 @@ Close contract/exit gaps after core ports landed: parent freshness, UI/cache hon
 
 ## Explicit non-goals
 
-- New modules / deferred reinterpretation ports (`ocr_quality` included — **deferred** on [ROADMAP.md](ROADMAP.md); current focus is the **usability wave** — [usability_wave_plan.md](usability_wave_plan.md))
+- New modules / deferred reinterpretation ports (`ocr_quality` included — **deferred** on [ROADMAP.md](../../ROADMAP.md); current focus is the **usability wave** — [usability_wave_plan.md](../../usability_wave_plan.md))
 - Live Ollama / BERTopic / transformer installs
 - Shared `transcriptx-analysis` package
 - Filling pin-row sha256 for notebook-native `n/a` adaptations
-- Broad UI redesign beyond honest read-model / evidence gating (further Analyse UX lives under ROADMAP **Now — Usability wave** / [usability_wave_plan.md](usability_wave_plan.md) tracks **U0–U1**, not this checklist)
+- Broad UI redesign beyond honest read-model / evidence gating (further Analyse UX lives under ROADMAP **Now — Usability wave** / [usability_wave_plan.md](../../usability_wave_plan.md) tracks **U0–U1**, not this checklist)
 - Parallel module execution / performance work
 
 ## Exit

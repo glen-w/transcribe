@@ -3,29 +3,38 @@ Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODU
 
 # Terms
 
-| Term | Meaning (summary) | Authority |
-|------|-------------------|-----------|
-| Project | On-disk notebook directory with `project.json` | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
-| Page result | Per-page JSON of attempts + edits | [contracts/page-result.md](contracts/page-result.md) |
-| Effective text | Edit if present, else active raw OCR | [contracts/page-result.md](contracts/page-result.md) |
-| JobPlan | Frozen OCR execution inputs for one run | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| AnalysisRunPlan | Frozen Analyse batch inputs (modules, EffectiveConfig, text-model identity, plan_hash, preset identity) | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
-| plan_hash | SHA-256 bind of execution-significant AnalysisRunPlan fields | [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md) |
-| content_revision | SHA-256 of exportable notebook content (all pages) | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
-| Library | GUI cover gallery (legacy sidebar name `View`). Not a domain rename of the notebook corpus. | [public_surfaces.md](public_surfaces.md) |
-| AnalysisHealth | Derived Analyse freshness/health shared across View consume pages | [contracts/analysis-result.md](contracts/analysis-result.md) |
-| Fingerprint | Canonical hash of OCR inputs for skip/resume | [contracts/page-result.md](contracts/page-result.md) |
-| Ingest journal | Crash journal for multi-file import commit | [contracts/project-on-disk.md](contracts/project-on-disk.md) |
-| Archive index | Rebuildable SQLite FTS cache for the workspace | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| `transcribe.notebook` | Portable export JSON | [contracts/notebook-export.md](contracts/notebook-export.md) |
-| Doctor | Integrity check CLI | [public_surfaces.md](public_surfaces.md) |
-| Prompt Hub | Settings catalogue for OCR, cleanup, and detection prompts | [contracts/prompt-definition.md](contracts/prompt-definition.md) |
-| Visual declutter | Import-time (and Settings re-apply) scanner-border crop; not OCR preprocess | [contracts/source-asset.md](contracts/source-asset.md) |
-| Archive strip paging | `ui.archive_notebooks_initial` — cards before Show more (`0` = all) | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
-| Overview cards | `ui.overview_cards` — which Overview cards are visible (status strip always on) | [contracts/workspace-settings.md](contracts/workspace-settings.md) |
-| OcrBatchRun | Durable batch OCR across notebooks | [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md) |
-| AnalysisBatchRun | Durable bulk Analyse across notebooks (orchestration only) | [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md) |
-| `transcribe.workspace-backup` | Full-workspace ZIP (role roots); replace-only restore | [contracts/workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md) |
-| Role roots | Path-agnostic ZIP prefixes (`projects/`, `data/…`) remapped to current mounts on restore | [contracts/workspace-backup.md](contracts/workspace-backup.md) |
-| Detector | Prompt-backed scan for notebook phenomena (not a saved prompt alone) | [contracts/detection-definition.md](contracts/detection-definition.md) |
-| DetectionFinding | Derived span finding with provenance and review status | [contracts/detection-finding.md](contracts/detection-finding.md) |
+This document is an **index of terms only**. It aggregates terminology from authoritative CONTRACT documents and points back to them.
+
+- It **must not** introduce new semantics or rules.
+- If any wording here appears to conflict with a CONTRACT document, the **CONTRACT document wins**.
+
+## Terms and authorities
+
+- **Project** — On-disk notebook directory with `project.json`. See [contracts/project-on-disk.md](contracts/project-on-disk.md).
+- **Page result** — Per-page JSON of attempts + edits. See [contracts/page-result.md](contracts/page-result.md).
+- **Effective text** — Edit if present, else active raw OCR. See [contracts/page-result.md](contracts/page-result.md).
+- **Fingerprint** — Canonical hash of OCR inputs for skip/resume. See [contracts/page-result.md](contracts/page-result.md).
+- **JobPlan** — Frozen OCR execution inputs for one run (shape). See [ARCHITECTURE.md](ARCHITECTURE.md); persisted attempt rules in [page-result.md](contracts/page-result.md).
+- **OcrBatchRun** — Durable batch OCR across notebooks. See [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md).
+- **AnalysisRunPlan** — Frozen Analyse batch inputs (modules, EffectiveConfig, text-model identity, plan_hash, preset identity). See [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md).
+- **plan_hash** — SHA-256 bind of execution-significant AnalysisRunPlan fields. See [contracts/analysis-run-storage.md](contracts/analysis-run-storage.md).
+- **AnalysisBatchRun** — Durable bulk Analyse across notebooks (orchestration only). See [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md).
+- **AnalysisHealth** — Derived Analyse freshness/health shared across View consume pages. See [contracts/analysis-result.md](contracts/analysis-result.md).
+- **content_revision** — SHA-256 of exportable notebook content (all pages). See [contracts/project-on-disk.md](contracts/project-on-disk.md) · [notebook-export.md](contracts/notebook-export.md).
+- **`transcribe.notebook`** — Portable export JSON. See [contracts/notebook-export.md](contracts/notebook-export.md).
+- **Library** — GUI cover gallery (legacy sidebar name `View`). Not a domain rename of the notebook corpus. See [public_surfaces.md](public_surfaces.md).
+- **Ingest journal** — Crash journal for multi-file import commit. See [contracts/project-on-disk.md](contracts/project-on-disk.md).
+- **Archive index** — Rebuildable SQLite FTS cache for the workspace. See [ARCHITECTURE.md](ARCHITECTURE.md).
+- **Doctor** — Integrity check CLI / Diagnostics. See [public_surfaces.md](public_surfaces.md) · [corpus-integrity.md](contracts/corpus-integrity.md).
+- **Prompt Hub** — Settings catalogue for OCR, cleanup, and detection prompts. See [contracts/prompt-definition.md](contracts/prompt-definition.md).
+- **Detector / DetectionFinding** — Prompt-backed scan and derived span finding. See [detection-definition.md](contracts/detection-definition.md) · [detection-finding.md](contracts/detection-finding.md).
+- **Visual declutter** — Import-time (and Settings re-apply) scanner-border crop; not OCR preprocess. See [contracts/source-asset.md](contracts/source-asset.md).
+- **Archive strip paging** — `ui.archive_notebooks_initial` — cards before Show more (`0` = all). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
+- **Overview cards** — `ui.overview_cards` — which Overview cards are visible (status strip always on). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
+- **`transcribe.workspace-backup`** — Full-workspace ZIP (role roots); replace-only restore. See [workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md).
+- **Role roots** — Path-agnostic ZIP prefixes remapped to current mounts on restore. See [contracts/workspace-backup.md](contracts/workspace-backup.md).
+- **Install extras** (`[ui]` / `[dev]` / `[export]`) — Packaging profiles, not Analyse presets. See [runtime/installation.md](runtime/installation.md).
+- **Named settings profile** — Activation-pointer overlay under `data/config/profiles/<target>/`. See [workspace-settings.md](contracts/workspace-settings.md) · [runtime/settings.md](runtime/settings.md).
+- **Analyse UI preset** (Quick / Balanced / Thorough / Custom) — Module-set policies for Analyse. See [workspace-settings.md](contracts/workspace-settings.md) · [runtime/analysis.md](runtime/analysis.md).
+
+This index may grow as new terms appear in CONTRACT docs; each term here must **delegate meaning** rather than redefine it.

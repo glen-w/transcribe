@@ -65,7 +65,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 ./transcribe.sh cli backup verify "$TRANSCRIBE_EXPORT_DIR/backups/transcribe-workspace-….zip"
 ```
 
-More: [user guide](docs/user_guide.md) · [backup & restore](docs/backup_and_restore.md) · [public surfaces](docs/public_surfaces.md).
+More: [user guide](docs/user_guide.md) · [OCR](docs/runtime/ocr.md) · [analysis](docs/runtime/analysis.md) · [export](docs/runtime/export.md) · [settings](docs/runtime/settings.md) · [backup & restore](docs/backup_and_restore.md) · [public surfaces](docs/public_surfaces.md).
 
 ## What it does today
 
@@ -96,8 +96,8 @@ By default Transcribe talks to `http://localhost:11434` (native) or `http://host
 
 ## Links
 
-- [Product](docs/PRODUCT.md) · [User index](docs/USER_INDEX.md) · [Developer index](docs/DEV_INDEX.md) · [Contract index](docs/CONTRACT_INDEX.md)
-- [User guide](docs/user_guide.md) · [Developer quickstart](docs/developer_quickstart.md)
-- [Architecture](docs/ARCHITECTURE.md) · [Installation](docs/runtime/installation.md) · [Docker](docs/runtime/docker.md)
+- [Product](docs/PRODUCT.md) · [User index](docs/USER_INDEX.md) · [Developer index](docs/DEV_INDEX.md) · [Contract index](docs/CONTRACT_INDEX.md) · [Docs hub](docs/index.md)
+- [User guide](docs/user_guide.md) · [Developer quickstart](docs/developer_quickstart.md) · [Contributing](CONTRIBUTING.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Installation](docs/runtime/installation.md) · [Docker](docs/runtime/docker.md) · [Settings](docs/runtime/settings.md)
 - [Known limitations](docs/known_limitations.md) · [Roadmap](docs/ROADMAP.md) · [Usability wave](docs/usability_wave_plan.md) · [Terms](docs/TERMS.md)
-- License: MIT · Third-party: [NOTICE](NOTICE)
+- [Changelog](CHANGELOG.md) · [Security](SECURITY.md) · License: MIT · Third-party: [NOTICE](NOTICE)
