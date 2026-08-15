@@ -17,8 +17,6 @@ class PresetPolicyConfig:
     heavy_module_ids: tuple[str, ...] = ()
     include_excluded_from_default: bool = False
     module_ids: tuple[str, ...] | None = None
-    allow_detection: bool = False
-    detector_ids: tuple[str, ...] = ()
     content_version: int = 1
 
     def policy_body_dict(self) -> dict[str, Any]:
@@ -30,8 +28,6 @@ class PresetPolicyConfig:
             "heavy_module_ids": list(self.heavy_module_ids),
             "include_excluded_from_default": self.include_excluded_from_default,
             "module_ids": None if self.module_ids is None else list(self.module_ids),
-            "allow_detection": self.allow_detection,
-            "detector_ids": list(self.detector_ids),
         }
 
     def as_dict(self) -> dict[str, Any]:
@@ -58,8 +54,6 @@ class PresetPolicyConfig:
             heavy_module_ids=tuple(str(x) for x in (data.get("heavy_module_ids") or ())),
             include_excluded_from_default=bool(data.get("include_excluded_from_default", False)),
             module_ids=mid,
-            allow_detection=bool(data.get("allow_detection", False)),
-            detector_ids=tuple(str(x) for x in (data.get("detector_ids") or ())),
             content_version=content_version,
         )
 
@@ -71,7 +65,6 @@ class UiPresetsConfig:
             allow_llm=False,
             allow_heavy=False,
             include_excluded_from_default=False,
-            allow_detection=False,
         )
     )
     balanced: PresetPolicyConfig = field(
@@ -81,7 +74,6 @@ class UiPresetsConfig:
             allow_heavy=True,
             heavy_module_ids=("semantic_similarity",),
             include_excluded_from_default=False,
-            allow_detection=False,
         )
     )
     thorough: PresetPolicyConfig = field(
@@ -91,8 +83,6 @@ class UiPresetsConfig:
             allow_heavy=True,
             heavy_module_ids=(),
             include_excluded_from_default=True,
-            allow_detection=True,
-            detector_ids=(),
         )
     )
 

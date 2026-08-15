@@ -63,7 +63,6 @@ def _render_preset_editor(
     catalogue: list[str],
     llm_options: list[str],
     heavy_options: list[str],
-    detector_options: list[str],
     gen: int,
 ) -> None:
     title = _PRESET_TITLES[preset_key]
@@ -109,30 +108,6 @@ def _render_preset_editor(
         key=f"{prefix}_excl",
     )
 
-    draft["allow_detection"] = st.checkbox(
-        "Include Detect suite",
-        value=bool(draft.get("allow_detection")),
-        key=f"{prefix}_allow_detection",
-        help=widget_help(
-            "When enabled, Analyse runs selected detectors after modules "
-            "(publishes under detection/)."
-        ),
-    )
-    if draft["allow_detection"]:
-        from transcribe.ui.module_ui_groups import format_detector_label
-
-        draft["detector_ids"] = st.multiselect(
-            "Detector allowlist (empty = all detectors)",
-            options=detector_options,
-            default=[
-                d for d in (draft.get("detector_ids") or []) if d in detector_options
-            ],
-            format_func=format_detector_label,
-            key=f"{prefix}_detector_ids",
-        )
-    else:
-        draft["detector_ids"] = list(draft.get("detector_ids") or [])
-
     use_override = st.checkbox(
         "Override with explicit module list",
         value=draft.get("module_ids") is not None,
@@ -152,22 +127,18 @@ def _render_preset_editor(
         draft["module_ids"] = None
 
 
-@st.fragment
 def render_analysis_presets_panel() -> None:
     """Edit Quick / Balanced / Thorough policies; save to workspace settings."""
     st.subheader("Analysis presets")
     st.caption(
         "Defines what Quick, Balanced, and Thorough include when you launch analysis. "
         "Workflow → Analyse still chooses which preset to use. "
-        "Custom on that page remains a one-off module and detector picker."
+        "Custom on that page remains a one-off module picker."
     )
 
     catalogue = _catalogue()
     llm_options = _llm_ids(catalogue)
     heavy_options = _heavy_ids(catalogue)
-    from transcribe.analysis.presets import suitable_detector_ids
-
-    detector_options = list(suitable_detector_ids())
 
     if "settings_ui_presets_draft" not in st.session_state:
         st.session_state["settings_ui_presets_draft"] = _seed_draft()
@@ -200,7 +171,6 @@ def render_analysis_presets_panel() -> None:
                 catalogue=catalogue,
                 llm_options=llm_options,
                 heavy_options=heavy_options,
-                detector_options=detector_options,
                 gen=gen,
             )
 

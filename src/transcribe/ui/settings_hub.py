@@ -36,7 +36,6 @@ from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.components.info_tooltip import widget_help
 
 
-@st.fragment
 def render_configuration_panel() -> None:
     st.subheader("Configuration")
     view = get_config()
@@ -51,138 +50,6 @@ def render_configuration_panel() -> None:
     st.caption(f"Notebooks: `{runtime.projects_dir}`")
     st.caption(f"Inbox: `{runtime.inbox_dir}`")
     st.caption(f"Exports: `{runtime.export_dir}`")
-
-    st.divider()
-    st.markdown("#### Backup")
-    st.caption(
-        "Full-workspace ZIP (notebooks + corpus + config). "
-        "Writes under Exports → `backups/`. Restore **replaces** the current workspace. "
-        "Large archives: prefer CLI (`transcribe backup create` / `transcribe restore`). "
-        "Guide: docs/backup_and_restore.md."
-    )
-    include_inbox = st.checkbox(
-        "Include inbox",
-        value=False,
-        key="workspace_backup_include_inbox",
-        help="Also pack TRANSCRIBE_INBOX_DIR (scan dumps).",
-    )
-    include_exports = st.checkbox(
-        "Include exports",
-        value=False,
-        key="workspace_backup_include_exports",
-        help="Also pack TRANSCRIBE_EXPORT_DIR (skips the zip being written).",
-    )
-    if st.button("Create backup", key="workspace_backup_create"):
-        from transcribe.errors import BackupError
-        from transcribe.services.workspace_backup import (
-            BackupOptions,
-            WorkspaceBackupService,
-            default_backup_dest,
-        )
-
-        try:
-            dest = default_backup_dest(runtime)
-            result = WorkspaceBackupService().create_backup(
-                runtime,
-                dest,
-                BackupOptions(
-                    include_inbox=include_inbox,
-                    include_exports=include_exports,
-                ),
-            )
-            size = result.archive_path.stat().st_size if result.archive_path.is_file() else 0
-            st.success(
-                f"Wrote `{result.archive_path}` "
-                f"({result.notebook_count} notebooks, {result.file_count} files, {size} bytes on disk)."
-            )
-        except BackupError as exc:
-            st.error(str(exc))
-
-    st.markdown("##### Restore")
-    st.caption(
-        "Provide a path to a workspace backup ZIP on this machine. "
-        "Verify or dry-run first. A real restore writes a safety ZIP, then **replaces** "
-        "notebooks, corpus, and config. After restore, check System → Diagnostics."
-    )
-    restore_path = st.text_input(
-        "Backup archive path",
-        value="",
-        key="workspace_backup_restore_path",
-        placeholder=str(runtime.export_dir / "backups" / "transcribe-workspace-….zip"),
-    )
-    verify_col, dry_col = st.columns(2)
-    with verify_col:
-        if st.button("Verify archive", key="workspace_backup_verify"):
-            from transcribe.errors import BackupError
-            from transcribe.services.workspace_backup import WorkspaceBackupService
-
-            if not restore_path.strip():
-                st.error("Enter the path to a backup ZIP.")
-            else:
-                try:
-                    result = WorkspaceBackupService().verify_backup(Path(restore_path.strip()))
-                    counts = result.manifest.get("counts") or {}
-                    st.success(
-                        "Archive verified "
-                        f"(notebooks={counts.get('notebooks')}, files={counts.get('files')})."
-                    )
-                    for message in result.messages:
-                        st.caption(message)
-                except BackupError as exc:
-                    st.error(str(exc))
-    with dry_col:
-        if st.button("Dry-run restore", key="workspace_backup_dry_run"):
-            from transcribe.errors import BackupError
-            from transcribe.services.workspace_backup import WorkspaceBackupService
-
-            if not restore_path.strip():
-                st.error("Enter the path to a backup ZIP.")
-            else:
-                try:
-                    result = WorkspaceBackupService().restore_backup(
-                        runtime,
-                        Path(restore_path.strip()),
-                        safety=False,
-                        dry_run=True,
-                    )
-                    st.info("Dry-run complete — no changes written.")
-                    for message in result.messages:
-                        st.caption(message)
-                except BackupError as exc:
-                    st.error(str(exc))
-    restore_confirm = st.checkbox(
-        "I understand this replaces notebooks, corpus, and config",
-        value=False,
-        key="workspace_backup_restore_confirm",
-    )
-    if st.button("Restore from backup", key="workspace_backup_restore"):
-        from transcribe.errors import BackupError
-        from transcribe.services.workspace_backup import WorkspaceBackupService
-
-        if not restore_confirm:
-            st.error("Confirm the replace checkbox before restoring.")
-        elif not restore_path.strip():
-            st.error("Enter the path to a backup ZIP.")
-        else:
-            try:
-                result = WorkspaceBackupService().restore_backup(
-                    runtime,
-                    Path(restore_path.strip()),
-                    safety=True,
-                    dry_run=False,
-                )
-                for message in result.messages:
-                    st.caption(message)
-                if result.safety_archive is not None:
-                    st.info(f"Safety backup: `{result.safety_archive}`")
-                if result.ok:
-                    st.success("Restore finished. Open System → Diagnostics to review doctor output.")
-                    clear_config_cache()
-                    reload_config()
-                else:
-                    st.error("Restore finished with corpus-doctor errors — see messages above.")
-            except BackupError as exc:
-                st.error(str(exc))
 
     st.divider()
     st.markdown("#### Import")
@@ -377,7 +244,6 @@ def render_configuration_panel() -> None:
 _PREPROCESS_PROFILES = ("none", "gentle_contrast")
 
 
-@st.fragment
 def render_models_panel() -> None:
     st.subheader("Models & LLM budgets")
     view = get_config()
@@ -487,7 +353,6 @@ def render_models_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
 
-@st.fragment
 def render_profiles_panel() -> None:
     st.subheader("Profiles")
     st.caption(
