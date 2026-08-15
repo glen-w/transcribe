@@ -240,9 +240,13 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "From an import run" in batch
     assert "Pick notebooks" in batch
     assert "list_candidates_light" in batch
+    assert "Refresh list" in batch
+    assert "invalidate_batch_analyse_caches" in batch
+    assert "@st.fragment" in batch
     assert 'st.session_state["ax_batch_source"] = "pick"' in batch
     assert "Select notebooks" in batch
     assert "_render_batch_notebook_source" in batch
+    assert "_render_batch_preset_and_launch" in batch
     assert 'unit_label="notebooks"' in batch
     assert "modules in this notebook" in batch
     assert "Stop after current notebook" in batch
@@ -268,3 +272,11 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "notebook_has_published_analysis" in batch
     assert 'set_ui_mode("Overview")' not in batch
     assert 'set_ui_mode("Library")' in batch
+
+
+def test_run_analysis_polls_via_fragment_not_sleep_rerun():
+    assert "@st.fragment" in RUN
+    assert "run_every" in RUN
+    assert "time.sleep" not in RUN
+    assert "analysis_status_panel" in RUN
+    assert "config_fragment" in RUN

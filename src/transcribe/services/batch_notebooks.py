@@ -13,6 +13,24 @@ from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator
 from transcribe.services.archive import discover_project_roots
 from transcribe.services.project import ProjectService, open_project_paths
 
+# Mirror analysis.health degraded capabilities without importing the runner stack.
+_DEGRADED_CAPABILITIES = frozenset(
+    {
+        "unavailable_model",
+        "unavailable_extra",
+        "unavailable_dependency",
+        "insufficient_data",
+        "skipped_not_applicable",
+    }
+)
+_DEGRADED_OUTCOMES = frozenset(
+    {
+        "unavailable_dependency",
+        "insufficient_data",
+        "skipped_not_applicable",
+    }
+)
+
 
 @dataclass
 class NotebookCandidate:
@@ -40,26 +58,66 @@ def _managed_relpath(corpus: CorpusPaths, root: Path) -> str:
 
 def page_counts(projects: ProjectService, project) -> tuple[int, int, int]:
     """Return (total, pending_or_failed, failed) page counts."""
+    total, pending, failed, _with_text = page_stats(projects, project)
+    return total, pending, failed
+
+
+def pages_with_text_count(projects: ProjectService, project) -> int:
+    _total, _pending, _failed, with_text = page_stats(projects, project)
+    return with_text
+
+
+def page_stats(projects: ProjectService, project) -> tuple[int, int, int, int]:
+    """Single pass over page results → (total, pending_or_failed, failed, with_text)."""
     total = len(project.pages)
     pending = 0
     failed = 0
+    with_text = 0
     for page in project.pages:
         result = projects.load_page_result(page.page_id)
         if result is None or result.status != "succeeded":
             pending += 1
         if result is not None and result.status == "failed":
             failed += 1
-    return total, pending, failed
-
-
-def pages_with_text_count(projects: ProjectService, project) -> int:
-    count = 0
-    for page in project.pages:
-        result = projects.load_page_result(page.page_id)
         text = result.effective_text() if result else None
         if text and str(text).strip():
-            count += 1
-    return count
+            with_text += 1
+    return total, pending, failed, with_text
+
+
+def _fingerprint_for_module(
+    module_id: str,
+    *,
+    projects: ProjectService,
+    project,
+    page_fp: list[str | None],
+    para_fp: list[str | None],
+) -> str | None:
+    """Lazy page/paragraph content fingerprints for scan-time staleness."""
+    from transcribe.analysis.adapter import (
+        build_page_v1_document,
+        build_paragraph_v1_document,
+    )
+    from transcribe.analysis.document import (
+        AnalysisDocumentError,
+        content_fingerprint,
+    )
+    from transcribe.analysis.runner import PARAGRAPH_PREFERRED
+
+    try:
+        if module_id in PARAGRAPH_PREFERRED:
+            if para_fp[0] is None:
+                try:
+                    doc = build_paragraph_v1_document(project, projects)
+                except AnalysisDocumentError:
+                    doc = build_page_v1_document(project, projects)
+                para_fp[0] = content_fingerprint(doc)
+            return para_fp[0]
+        if page_fp[0] is None:
+            page_fp[0] = content_fingerprint(build_page_v1_document(project, projects))
+        return page_fp[0]
+    except AnalysisDocumentError:
+        return None
 
 
 def analysis_aggregate_for_project(
@@ -67,38 +125,106 @@ def analysis_aggregate_for_project(
     *,
     clock: Clock | None = None,
     ids: IdGenerator | None = None,
+    project=None,
 ) -> str:
-    """Lightweight aggregate health for candidate captions / pending filter."""
-    from transcribe.analysis.health import derive_analysis_health
-    from transcribe.analysis.runner import AnalysisRunner
-    from transcribe.analysis.storage import AnalysisStorage
+    """Corpus-scan aggregate for candidate captions / needing-analysis filter.
 
-    clock = clock or SystemClock()
-    ids = ids or UuidGenerator()
+    Avoids ``planned_cache_identity`` and Ollama binding (those make batch
+    discovery hang when many notebooks have published LLM modules). Uses
+    published envelopes + content fingerprints + registered module versions.
+    View status strips still use full ``derive_analysis_health``.
+    """
+    _ = clock
+    _ = ids
+    from transcribe.analysis.modules import get_registered_modules
+    from transcribe.analysis.storage import AnalysisStorage, RUNS_DIR_NAME
+    from transcribe.persistence.locks import analysis_lock_held
+
     analysis_dir = projects.paths.analysis_dir
     if not analysis_dir.is_dir():
         return "missing"
+
+    if analysis_lock_held(projects.paths.analysis_lock):
+        return "running"
+
     module_ids = sorted(
         p.name
         for p in analysis_dir.iterdir()
         if p.is_dir()
-        and p.name != "runs"
+        and p.name != RUNS_DIR_NAME
         and (p / "published.json").is_file()
     )
     if not module_ids:
         return "missing"
+
     storage = AnalysisStorage(projects.paths)
-    runner = AnalysisRunner(projects, clock=clock, ids=ids)
-    try:
-        health = derive_analysis_health(
-            storage=storage,
-            runner=runner,
-            module_ids=module_ids,
-            content_revision=projects.content_revision(),
+    # Interrupted outer runs (reconcile may not have run yet on scan path).
+    runs_dir = storage.runs_dir()
+    if runs_dir.is_dir():
+        for path in runs_dir.glob("*.json"):
+            try:
+                from transcribe.persistence.atomic import read_json
+
+                payload = read_json(path)
+            except (OSError, ValueError, TypeError):
+                continue
+            status = str(payload.get("status") or "")
+            if status == "interrupted":
+                return "interrupted"
+            if status == "running":
+                return "running"
+
+    if project is None:
+        try:
+            project = projects.load(reconcile=False)
+        except (TranscribeError, OSError, ValueError, KeyError):
+            return "missing"
+
+    registered = get_registered_modules()
+    page_fp: list[str | None] = [None]
+    para_fp: list[str | None] = [None]
+    saw_ok = False
+    saw_failed = False
+    saw_degraded = False
+    saw_stale = False
+
+    for mid in module_ids:
+        published = storage.read_published(mid)
+        if published is None:
+            continue
+        module = registered.get(mid)
+        if module is not None and published.get("module_version") != module.module_version:
+            saw_stale = True
+            continue
+        expected_fp = _fingerprint_for_module(
+            mid,
+            projects=projects,
+            project=project,
+            page_fp=page_fp,
+            para_fp=para_fp,
         )
-    except (OSError, ValueError, KeyError, TypeError, TranscribeError):
+        if expected_fp is None or published.get("content_fingerprint") != expected_fp:
+            saw_stale = True
+            continue
+        outcome = str(published.get("outcome") or "")
+        capability = str(published.get("capability") or "")
+        if outcome == "failed" or capability == "failed":
+            saw_failed = True
+            continue
+        if capability in _DEGRADED_CAPABILITIES or outcome in _DEGRADED_OUTCOMES:
+            saw_degraded = True
+            continue
+        saw_ok = True
+
+    if saw_stale:
+        return "stale"
+    if saw_failed:
+        return "failed"
+    if not saw_ok and not saw_degraded:
         return "missing"
-    return str(health.aggregate)
+    if saw_degraded:
+        return "degraded"
+    return "healthy"
 
 
 def resolve_notebook_root(corpus: CorpusPaths, notebook_id: str) -> Path:
@@ -176,15 +302,18 @@ def list_candidates(
         pending = failed = with_text = 0
         aggregate = "missing"
         if include_page_stats:
-            total, pending, failed = page_counts(projects, project)
-            with_text = pages_with_text_count(projects, project)
+            total, pending, failed, with_text = page_stats(projects, project)
         if include_analysis:
-            try:
-                aggregate = analysis_aggregate_for_project(
-                    projects, clock=clock, ids=ids
-                )
-            except (OSError, ValueError, KeyError, TypeError, TranscribeError):
+            # Empty-text notebooks never enter needing-analysis; skip health I/O.
+            if with_text == 0 and include_page_stats:
                 aggregate = "missing"
+            else:
+                try:
+                    aggregate = analysis_aggregate_for_project(
+                        projects, clock=clock, ids=ids, project=project
+                    )
+                except (OSError, ValueError, KeyError, TypeError, TranscribeError):
+                    aggregate = "missing"
         out.append(
             NotebookCandidate(
                 notebook_id=project.id,

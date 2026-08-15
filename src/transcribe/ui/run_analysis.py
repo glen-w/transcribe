@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Sequence
 
 import streamlit as st
@@ -235,6 +236,12 @@ def _finalize_run(coord: AnalysisCoordinator, progress: AnalysisProgress) -> Non
     st.session_state[_IN_PROGRESS_KEY] = False
     st.session_state.pop(_PENDING_LAUNCH_KEY, None)
     st.session_state.pop(_ACTIVE_RUN_ID_KEY, None)
+    try:
+        from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+
+        invalidate_batch_analyse_caches()
+    except Exception:  # noqa: BLE001
+        pass
     if progress.status == "failed":
         # Keep error visible on the snapshot.
         pass
@@ -500,7 +507,6 @@ def render_run_analysis_form(
     if running and isinstance(pending, dict):
         summary = pending.get("footer_summary") or "Running analysis…"
         st.markdown(summary)
-        progress_slot = st.empty()
 
         # Phase 1: clear form widgets via rerun before starting the thread.
         if not pending.get("form_cleared"):
@@ -508,8 +514,7 @@ def render_run_analysis_form(
             st.session_state[_PENDING_LAUNCH_KEY] = pending
             snapshot = st.session_state.get(SNAPSHOT_KEY)
             if snapshot is not None:
-                with progress_slot.container():
-                    render_progress_panel(snapshot)
+                render_progress_panel(snapshot)
             st.rerun()
             return True
 
@@ -517,51 +522,63 @@ def render_run_analysis_form(
         if not pending.get("started"):
             _start_coordinator_run(pending, projects=projects, coord=coord)
             progress = _sync_snapshot_from_coord(coord)
-            with progress_slot.container():
-                render_progress_panel(st.session_state[SNAPSHOT_KEY])
+            render_progress_panel(st.session_state[SNAPSHOT_KEY])
             if progress.status in ("failed",) and not coord.is_running():
                 _finalize_run(coord, progress)
             st.rerun()
             return True
 
-        # Phase 3: poll coordinator progress across Streamlit reruns.
-        progress = _sync_snapshot_from_coord(coord)
-        with progress_slot.container():
-            render_progress_panel(st.session_state[SNAPSHOT_KEY])
-        if st.button("Cancel analysis", key="run_analysis_cancel"):
-            coord.cancel()
-            st.rerun()
-        if coord.is_running() or progress.status == "running":
-            import time
+        # Phase 3: fragment poll — avoids full-app grey-out sleep/rerun loops.
+        poll = timedelta(milliseconds=400)
 
-            time.sleep(0.35)
+        @st.fragment(run_every=poll)
+        def analysis_status_panel() -> None:
+            progress = _sync_snapshot_from_coord(coord)
+            render_progress_panel(st.session_state[SNAPSHOT_KEY])
+            if st.button("Cancel analysis", key="run_analysis_cancel"):
+                coord.cancel()
+                st.rerun()
+            if coord.is_running() or progress.status == "running":
+                return
+            _finalize_run(coord, progress)
             st.rerun()
-            return True
-        _finalize_run(coord, progress)
-        st.rerun()
+
+        analysis_status_panel()
         return True
 
     # Coordinator still running after session flags cleared (e.g. navigation).
     if coord.is_running():
         st.session_state[_IN_PROGRESS_KEY] = True
-        progress = _sync_snapshot_from_coord(coord)
-        st.markdown(progress.message or "Running analysis…")
-        render_progress_panel(st.session_state[SNAPSHOT_KEY])
-        if st.button("Cancel analysis", key="run_analysis_cancel_orphan"):
-            coord.cancel()
-        import time
+        st.markdown("Running analysis…")
+        poll = timedelta(milliseconds=400)
 
-        time.sleep(0.35)
-        st.rerun()
+        @st.fragment(run_every=poll)
+        def orphan_status_panel() -> None:
+            progress = _sync_snapshot_from_coord(coord)
+            st.markdown(progress.message or "Running analysis…")
+            render_progress_panel(st.session_state[SNAPSHOT_KEY])
+            if st.button("Cancel analysis", key="run_analysis_cancel_orphan"):
+                coord.cancel()
+                st.rerun()
+            if coord.is_running() or progress.status == "running":
+                return
+            _finalize_run(coord, progress)
+            st.rerun()
+
+        orphan_status_panel()
         return True
 
-    # Idle: show last progress + form.
+    # Idle: show last progress + form (fragment isolates preset/module clicks).
     last_snapshot = st.session_state.get(SNAPSHOT_KEY)
     if last_snapshot and last_snapshot.get("status") in ("completed", "failed"):
         with st.expander("Last run progress", expanded=False):
             render_progress_panel(last_snapshot)
 
-    _render_config_and_launch(projects=projects, project=project, coord=coord)
+    @st.fragment
+    def config_fragment() -> None:
+        _render_config_and_launch(projects=projects, project=project, coord=coord)
+
+    config_fragment()
 
     last = st.session_state.get(_LAST_RESULTS_KEY)
     if isinstance(last, dict) and last:
