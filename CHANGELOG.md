@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-08-16
+
+### Fixed
+
+- Restore Detect knobs on analysis UI presets (`allow_detection`, `detector_ids`) so the Docker UI can import again. Thorough still includes detectors by default.
+
 ## [0.6.2] - 2026-08-16
 
 ### Added

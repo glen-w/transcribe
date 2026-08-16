@@ -87,8 +87,10 @@ Each named preset policy (`quick` / `balanced` / `thorough`) carries:
 
 | Field | Role |
 |-------|------|
-| policy knobs | `allow_llm`, allowlists, `include_excluded_from_default`, optional `module_ids` override |
+| policy knobs | `allow_llm`, allowlists, `include_excluded_from_default`, optional `module_ids` override, `allow_detection`, `detector_ids` (empty allowlist = all detectors) |
 | `content_version` | integer content generation; builtins default to `1`; missing on load → `1` |
+
+Builtin defaults: Quick and Balanced have `allow_detection=false`; Thorough has `allow_detection=true` and an empty detector allowlist. Missing detection keys on load default to off / empty (legacy bodies still parse).
 
 `PRESET_POLICY_VERSION` is schema/shape only. **Content identity** is `content_version` plus the policy body fingerprint (SHA-256 of knobs **excluding** `content_version`).
 

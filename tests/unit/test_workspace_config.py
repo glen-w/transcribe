@@ -31,6 +31,7 @@ from transcribe.config.knobs import module_knob_dict
 from transcribe.config.models import (
     EffectiveConfig,
     IngestConfig,
+    PresetPolicyConfig,
     ProfileActivations,
     UiConfig,
 )
@@ -79,6 +80,9 @@ def test_defaults_parity_matches_shipped_presets(runtime: RuntimePaths) -> None:
     assert policies.balanced.llm_module_ids == ("llm_summary",)
     assert policies.balanced.heavy_module_ids == ("semantic_similarity",)
     assert policies.thorough.include_excluded_from_default is True
+    assert policies.quick.allow_detection is False
+    assert policies.balanced.allow_detection is False
+    assert policies.thorough.allow_detection is True
     assert view.effective.analysis.keyphrases.top_n == 25
     assert view.effective.analysis.highlights.top_n == 12
     assert view.effective.analysis.moments.top_n == 10
@@ -89,6 +93,23 @@ def test_defaults_parity_matches_shipped_presets(runtime: RuntimePaths) -> None:
     assert view.effective.llm.num_predict == 1024
     assert view.effective.ingest.render_dpi == 200
     assert BUILTIN_PRESET_POLICIES["balanced"].llm_module_ids == ("llm_summary",)
+
+
+def test_preset_policy_from_dict_accepts_legacy_body_without_detection() -> None:
+    legacy = PresetPolicyConfig.from_dict(
+        {
+            "allow_llm": True,
+            "llm_module_ids": ["llm_summary"],
+            "allow_heavy": True,
+            "heavy_module_ids": ["semantic_similarity"],
+            "include_excluded_from_default": False,
+            "content_version": 3,
+        }
+    )
+    assert legacy.allow_detection is False
+    assert legacy.detector_ids == ()
+    assert "allow_detection" in legacy.as_dict()
+    assert "detector_ids" in legacy.as_dict()
 
 
 def test_resolve_preset_uses_effective_config(runtime: RuntimePaths) -> None:
