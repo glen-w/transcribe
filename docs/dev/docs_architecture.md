@@ -3,7 +3,7 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 
 # Documentation architecture
 
-**Status:** Markdown authority model live; archive hygiene + runtime guide depth landed; Sphinx / hosted guide / workflow walkthroughs deferred.
+**Status:** Markdown authority model live; archive hygiene + runtime guide depth landed; Sphinx / hosted guide / workflow walkthroughs planned under the [0.9 infrastructure wave](../infrastructure_wave_0_9_plan.md) (tracks **I4–I5**).
 
 ## Surfaces
 
@@ -28,8 +28,11 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 
 ## Hosted docs
 
-- [ ] Sphinx / Read the Docs / GitHub Pages guide (deferred — Markdown in-repo is the corpus)
-- [ ] Workflow walkthroughs with screenshots (deferred)
+Owned by infrastructure-wave **I4–I5** ([infrastructure_wave_0_9_plan.md](../infrastructure_wave_0_9_plan.md)) — flip checkboxes when landed:
+
+- [ ] Sphinx / Read the Docs scaffold / CI docs job (**I4** — Markdown in-repo remains the corpus; Sphinx builds it)
+- [ ] Modest `website/` + GitHub Pages assemble (**I5**)
+- [ ] Workflow walkthroughs with screenshots (**I5**, optional after Pages)
 
 Keep entry surfaces concise; detail stays in contracts / runtime / dev. Archive is discoverable via `ARCHIVE_INDEX` only — not listed as live product docs in `USER_INDEX`.
 

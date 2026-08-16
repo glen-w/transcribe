@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-16
+
+### Added
+
+- Planned **0.9 infrastructure wave** ([docs/infrastructure_wave_0_9_plan.md](docs/infrastructure_wave_0_9_plan.md)): CI, test lanes, release hygiene, and hosted docs, patterned on TranscriptX maintainer infra. Package stays **0.6.x** until that programme lands; then **user testing** toward **1.0**.
+
+### Changed
+
+- Roadmap points at archived delivery-history plans under `docs/archive/plans/` and `docs/dev/analysis_module_porting.md`.
+
 ## [0.6.1] - 2026-08-16
 
 ### Fixed

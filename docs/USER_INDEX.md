@@ -28,7 +28,7 @@ Curated entry points for people using Transcribe (not repository historians).
 | [Public surfaces](public_surfaces.md) | Supported CLI / UI / scripts |
 | [Terminology](TERMS.md) | Non-authoritative glossary → contracts |
 | [Fine-tune export](finetune_export.md) | Product outline for external training |
-| [Roadmap](ROADMAP.md) | Product priorities (usability wave now) |
+| [Roadmap](ROADMAP.md) | Product priorities (usability wave now; 0.9 infra parallel → user testing → 1.0) |
 | [Usability wave](usability_wave_plan.md) | Active product focus: U0–U4 |
 
 ## Contracts (rules, not tutorials)

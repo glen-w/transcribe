@@ -57,6 +57,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | [analysis_wave1_hardening_plan.md](archive/plans/analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
 | Detection wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6)) | **Shipped** parallel track; coordinate only where Prompt Hub / page-viewer findings share chrome |
 | Corpus contracts | **U4** acceptance gate green; bulk-import UI/CLI supported; Inbox polish may continue |
+| [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | Parallel **0.9** maintainer-infra programme (CI/docs/release hygiene). Does not own U2 product content; do not serialize U2 behind it |
 
 **Dependency rule:** U1 consumes `AnalysisHealth` / `content_revision` from U0 (both landed). Do not invent a second freshness model.
 

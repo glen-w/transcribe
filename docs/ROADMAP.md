@@ -4,9 +4,10 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 # Transcribe roadmap
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
-**Usability wave (active focus):** [usability_wave_plan.md](usability_wave_plan.md)  
-**Analysis porting map:** [analysis_module_porting.md](analysis_module_porting.md)  
-**Core delivery history (internal):** [analysis_wave1_plan.md](analysis_wave1_plan.md)  
+**Usability wave (active product focus):** [usability_wave_plan.md](usability_wave_plan.md)  
+**0.9 infrastructure wave (planned):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
+**Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
+**Core delivery history (internal):** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
 **Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
@@ -14,19 +15,21 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) and daily workbench (**U3**) are **done**; remaining focus is first-run operability (**U2**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) and daily workbench (**U3**) are **done**; remaining focus is first-run operability (**U2**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](archive/plans/analysis_wave1_plan.md#9-implementation-gate).
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
+
+**Package is 0.6.x.** A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity — that is the path to **0.9**, then **user testing** to **1.0**. It does not schedule more analysis modules and does not serialize **U2**.
 
 ---
 
 ## Now — Usability wave — [~] active
 
-Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](detection_wave2_plan.md); not this wave’s definition of done — avoid calling Detection the product “Wave 2” in usability docs).
+Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](archive/plans/detection_wave2_plan.md); not this wave’s definition of done — avoid calling Detection the product “Wave 2” in usability docs).
 
 ### U0–U1 — Product hardening (embedded) — [x] done
 
-Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
+Phased checklist (see [product hardening plan](archive/plans/product_hardening_plan.md)): **#10 → #3/#4 → #1/#2 → #5/#6 → #11/#12 → #13 → #7–9**.
 
 | Phase | Status | Outcome | Wave track |
 |-------|--------|---------|------------|
@@ -44,7 +47,7 @@ Phased checklist (see [product hardening plan](product_hardening_plan.md)): **#1
 | **Payload polish** | People & places map tab shipped (NER read-model + opt-in geocode). Patterns tab and deliberate keyphrase enrichment for wordclouds/topics remain optional polish — not a back door for deferred reinterpretations |
 | **OCR text quality** | Prefer existing **second-pass LLM OCR cleanup / verification** (and review edits) over a separate `ocr_quality` analysis module |
 
-Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
+Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.md](archive/plans/analysis_wave1_hardening_plan.md). Further work stays deepen-in-place on shipped surfaces and contracts.
 
 **Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
@@ -144,7 +147,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. Model-information expander follows live Transcribe picker selection. | **U3** (done) |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
 | **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
-| **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels` + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
+| **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels` + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done) |
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
@@ -165,11 +168,31 @@ Upgrades / data longevity remain paired with the lifecycle candidates below.
 
 ---
 
+## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)
+
+Bring Transcribe’s **testing lanes, GitHub Actions CI, release hygiene, coverage/pre-commit, and hosted docs** up to TranscriptX maintainer-infrastructure parity. Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). **Does not** schedule product features; **does not** replace U2 first-run content. After this wave: **user testing** toward **1.0**.
+
+| Track | Status | Intent |
+|-------|--------|--------|
+| **I0** Developer lanes & inventory | [ ] | `Makefile` + `tests/README.md` lane vocabulary; marker policy; light docs/script inventory |
+| **I1** PR CI honesty gate | [ ] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
+| **I2** Release hygiene + governance | [ ] | `scripts/release/*`, secrets/denylist, `release_governance.md`, dependency audit log |
+| **I3** Quality gates | [ ] | Coverage fail-under, pre-commit, partial CI `release-checks` |
+| **I4** Hosted docs | [ ] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
+| **I5** Public landing | [ ] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
+| **I6** Sustaining lanes | [ ] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
+
+**Exit gate (summary):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
+
+**Already landed (do not rebuild in this wave):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback trust docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs that already *expect* the missing scripts.
+
+---
+
 ## Next — Bulk run analysis (GUI) — [x] done
 
 Multi-notebook **Analyse → Batch**: same Target / selection modes as Transcribe Batch (`pending` | `import_run` | `pick`), one frozen Analyse plan applied sequentially per notebook. Orchestration only — not cross-notebook synthesis.
 
-Delivery plan: [bulk_run_analysis_plan.md](bulk_run_analysis_plan.md). Contract: [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md). Distinct from ROADMAP “Corpus-level Analyse” below.
+Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.md). Contract: [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md). Distinct from ROADMAP “Corpus-level Analyse” below.
 | Slice | Status | Outcome |
 |-------|--------|---------|
 | **A0** Plan + pointers | [x] | Delivery plan (selection, dual-bar progress, test matrix, docs checklist) |
@@ -204,7 +227,7 @@ Worth recording without scheduling:
 | **Synthesis** | highlights, summary, insights |
 | **Optional local LLM** | summary, action items, Ask notebook, narrative summary |
 
-Exact module IDs, dependency history, slices 1.1–1e.2, TX pins, and implementation gates: [analysis_wave1_plan.md](analysis_wave1_plan.md). Disposition and notebook reinterpret notes: [analysis_module_porting.md](analysis_module_porting.md).
+Exact module IDs, dependency history, slices 1.1–1e.2, TX pins, and implementation gates: [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md). Disposition and notebook reinterpret notes: [analysis_module_porting.md](dev/analysis_module_porting.md).
 
 LLM modules are optional at runtime (local text Ollama); deterministic `highlights` → `summary` → `insights` work offline.
 
@@ -245,7 +268,7 @@ Worth considering only after hardening and any deliberate reopen of deferred row
 
 ## Explicit non-goals / do-not-port
 
-Intrinsically transcript-, speaker-, or audio-specific. Documented so they are not accidentally scheduled. Exhaustive module list: [analysis_module_porting.md](analysis_module_porting.md).
+Intrinsically transcript-, speaker-, or audio-specific. Documented so they are not accidentally scheduled. Exhaustive module list: [analysis_module_porting.md](dev/analysis_module_porting.md).
 
 | Family | Examples |
 |--------|----------|
@@ -268,6 +291,7 @@ Summary:
 - **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX
 - **Longevity** — **workspace backup/restore shipped**; upgrade/migration story and archive-readable-without-Transcribe remain candidates
 - **Operability** — model/runtime management UX; release/onboarding/diagnostics; prompt management; local quality/evaluation loop (thumbs + fixtures)
+- **Maintainer infrastructure** — CI, release hygiene, hosted docs — [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (0.9 wave → user testing → 1.0)
 - **Export** — notebook readability and sharing (`transcribe.notebook`)
 - **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
 - **Future TranscriptX import adapter** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
