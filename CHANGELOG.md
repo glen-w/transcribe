@@ -10,9 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-16
+
+### Fixed
+
+- Restore **Settings → Configuration → Backup** (create / verify / dry-run / restore via on-disk paths) and document workspace backup/restore as shipped. CLI `backup` / `restore` was never removed.
+
+## [0.6.0] - 2026-08-15
+
+### Added
+
+- Organisation tagging (workspace catalogue, viewer filter, detection auto-tag).
+
 ### Changed
 
-- Documentation organisation brought toward TranscriptX maturity: `docs/archive/` for shipped delivery plans, sectioned user/dev indexes, `docs/dev/docs_architecture.md`, deeper `docs/runtime/` task guides (settings / OCR / analysis / export), root `CONTRIBUTING.md` / `SECURITY.md` / this changelog. No workflow walkthroughs or Sphinx hosting in this pass.
+- Documentation organisation brought toward TranscriptX maturity: `docs/archive/` for shipped delivery plans, sectioned user/dev indexes, `docs/dev/docs_architecture.md`, deeper `docs/runtime/` task guides, root `CONTRIBUTING.md` / `SECURITY.md` / changelog.
 
 ## [0.5.0] - 2026-08
 

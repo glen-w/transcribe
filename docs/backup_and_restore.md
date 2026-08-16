@@ -5,7 +5,7 @@ Authority: user flows and examples — summarizes [contracts/workspace-backup.md
 
 Full-workspace ZIP archives let you copy notebooks, corpus metadata, and config between machines or recover after a bad change. Transcribe never uploads these files.
 
-Operator quick commands also live in [user_guide.md](user_guide.md) §7b. Normative rules: [contracts/workspace-backup.md](contracts/workspace-backup.md). Limits: [known_limitations.md](known_limitations.md).
+Operator quick commands also live in [user_guide.md](user_guide.md) §8. Normative rules: [contracts/workspace-backup.md](contracts/workspace-backup.md). Limits: [known_limitations.md](known_limitations.md).
 
 ## What is packed
 

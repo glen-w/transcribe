@@ -79,7 +79,7 @@ After pages have text (OCR and/or edits), open **Workflow → Analyse**:
 3. Run analysis. This-notebook complete opens **View → Overview**. Inspect published results under **View**: Overview / Themes / Mood / Summaries. Themes includes **People**; Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current. Each page shows module-appropriate charts and lists (not raw JSON). **Word themes** can be **Basic** or **Advanced** (interactive filters). Overview and Mood include **Compare with corpus / period** for numeric metrics vs other notebooks. On **Mood → Moments**, **Jump to page** (and page-series chart clicks on Overview / Themes / Mood) opens that page in **Reading**. Themes → People adds **entity tone** when that module has run. Technical module details live under **Advanced**. Use **Places** in the primary nav for a map of places mentioned across all notebooks (opt-in OpenStreetMap geocoding; results cached locally).
 4. Open **View → Detect** to scan for poetry, to-do lists, other lists, quotations, and beer labels (or custom detectors). Review findings, jump to source pages, and approve/reject. Detectors can auto-apply page tags when configured ([runtime/analysis.md](runtime/analysis.md); catalogue under **Settings → Tags** · [tag-catalog](contracts/tag-catalog.md)).
 
-Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. **Settings** tabs: Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export. Configuration holds import/declutter, Archive paging, and Overview cards. Models holds the workspace Ollama URL, OCR preprocess seed (`none` / `gentle_contrast`), LLM budgets, and Apply-OCR to the open notebook. Profiles activates named overlays (`workflow` / `ocr` / `llm` / `export`). Interface customises action menus. Export shows read-only typography defaults (`readable` / `compact` / `large_print`); change them on **Workflow → Export** or by activating an export profile.
+Edit what each preset includes under **Settings → Analysis**. Manage prompts under **Settings → Prompts** and custom detectors under **Settings → Detection**. **Settings** tabs: Configuration · Analysis · Detection · Tags · Prompts · Interface · Models · Profiles · Export. Configuration holds **Backup**, import/declutter, Archive paging, and Overview cards. Models holds the workspace Ollama URL, OCR preprocess seed (`none` / `gentle_contrast`), LLM budgets, and Apply-OCR to the open notebook. Profiles activates named overlays (`workflow` / `ocr` / `llm` / `export`). Interface customises action menus. Export shows read-only typography defaults (`readable` / `compact` / `large_print`); change them on **Workflow → Export** or by activating an export profile.
 
 | Preset | Modules |
 |--------|---------|
@@ -125,7 +125,19 @@ Settings → Profiles (target **export**). Contract:
 
 In the UI: **System → Diagnostics** (workspace doctor always; notebook doctor when a notebook is selected).
 
-## 8. Bulk import, batch OCR, and bulk Analyse
+## 8. Workspace backup / restore
+
+Pack notebooks + corpus + config into a ZIP, then replace-restore onto current mounts. Operator guide: [backup_and_restore.md](backup_and_restore.md).
+
+```bash
+./transcribe.sh cli backup create
+./transcribe.sh cli backup verify /path/to/workspace.zip
+./transcribe.sh cli restore /path/to/workspace.zip --yes
+```
+
+**UI:** **Settings → Configuration → Backup** (create / verify / dry-run / restore via on-disk paths; no browser ZIP transfer).
+
+## 9. Bulk import, batch OCR, and bulk Analyse
 
 Corpus bulk import is **supported** ([contracts/corpus-integrity.md](contracts/corpus-integrity.md) acceptance gate green). Single-file import (§2) remains the everyday path for one notebook at a time.
 
