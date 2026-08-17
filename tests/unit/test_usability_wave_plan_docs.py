@@ -93,6 +93,28 @@ def test_roadmap_after_1_0_autobiography_is_gated():
     assert "usability_wave_plan.md" in product
 
 
+def test_roadmap_path_to_0_9_foundation():
+    text = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
+    assert "## Path to 0.9.0 / 0.9-1 / 1.0" in text
+    assert "0.9.0" in text
+    assert "0.9-1" in text
+    assert "Foundation readiness" in text or "Foundation readiness checklist" in text or "Track C" in text
+    assert "Notebook core freeze" in text
+    assert "U2.2 Sample notebook" in text or "U2.2" in text
+    assert "U2.4" in text
+    assert "user_testing_0_9.md" in text
+    protocol = DOCS / "dev" / "user_testing_0_9.md"
+    assert protocol.is_file()
+    proto = protocol.read_text(encoding="utf-8")
+    assert "Type: GUIDE" in proto
+    assert "0.9-1" in proto
+    assert "autobiography" in proto.lower()
+    assert "Explicitly out of script" in proto or "out of script" in proto.lower()
+    infra = (DOCS / "infrastructure_wave_0_9_plan.md").read_text(encoding="utf-8")
+    assert "0.9-1" in infra
+    assert "not an I7" in infra or "not I7" in infra
+
+
 def test_detection_contract_documents_midrun_reconcile_rule():
     text = (DOCS / "contracts" / "detection-run-storage.md").read_text(encoding="utf-8")
     assert "reconcile=False" in text

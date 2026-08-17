@@ -27,6 +27,17 @@ Archives use format `transcribe.workspace-backup` (schema v1). Members are **rol
 5. Treat ZIP contents as sensitive: page images plus OCR/analysis text, unencrypted.
 6. Create a backup before major workspace changes (bulk overwrite imports, host moves, Transcribe upgrades you care about rolling back).
 
+### Before upgrading Transcribe (0.9 path longevity minimum)
+
+For unfamiliar testers and maintainers cutting toward **1.0**:
+
+1. `transcribe backup create` (or Settings → Configuration → Backup) while the workspace is idle.
+2. `transcribe backup verify <archive.zip>`.
+3. After installing a newer Transcribe build, open the workspace and run Diagnostics / `corpus-doctor` (and notebook doctor when a notebook is selected).
+4. If something is wrong, restore from the pre-upgrade ZIP (`restore --dry-run` then `--yes`) rather than hand-editing `project.json`.
+
+Schema bumps that Transcribe cannot load must **refuse** with a clear message (existing format/schema registry behaviour) — recover via backup, not silent migration. Broader “archive readable without Transcribe” remains a ROADMAP candidate. Foundation checklist: [ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned).
+
 ## Create a backup
 
 **CLI**

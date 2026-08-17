@@ -67,7 +67,7 @@ Fix by moving the rule into the contract and replacing the original with a short
 1. Confirm CLI / UI examples in README and [public_surfaces.md](../public_surfaces.md) match code
 2. Confirm [runtime/docker.md](../runtime/docker.md) matches `docker-compose.yml` mounts and ports
 3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README Direction
-4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan. Do not present [ROADMAP.md](../ROADMAP.md) **After 1.0** as current core while U2 / 0.9 remain the path to 1.0.
+4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan. Keep [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10----planned) and [After 1.0](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) distinct — do not present After 1.0 as current core while U2 / I0–I6 remain open.
 
 ### 4. When code changes (quick map)
 
@@ -80,7 +80,7 @@ Fix by moving the rule into the contract and replacing the original with a short
 | Export / backup | notebook-export · workspace-backup · runtime guides |
 | CLI/UI entrypoints | public_surfaces + README links |
 | Ownership / shape | ARCHITECTURE |
-| Vision / roadmap | PRODUCT · ROADMAP (through 1.0 + After 1.0) · usability_wave_plan |
+| Vision / roadmap | PRODUCT · ROADMAP (0.9.0 / 0.9-1 / 1.0 + After 1.0) · usability_wave_plan · user_testing_0_9 |
 
 
 Then skim guides for stale summaries.

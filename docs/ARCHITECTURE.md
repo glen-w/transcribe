@@ -67,5 +67,6 @@ CLI ──────────────────┘              │
 - Introducing a task queue or multi-process worker fleet for v1
 - Coupling to TranscriptX libraries
 - Making a post-1.0 context corpus (photos, chats, Slices) part of v1 — sequenced on [ROADMAP.md](ROADMAP.md) **After 1.0**; that programme must not make SQLite the system of record
+- Creating `data/context/` or context locks before **1.0** — absence of context trees remains a valid workspace; future lock order is **corpus → context → notebook** (documented for After 1.0; not implemented)
 
-Shipped core analysis + deferred / future / out-of-scope dispositions: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).
+Shipped core analysis + deferred / future / out-of-scope dispositions: [ROADMAP.md](ROADMAP.md). Path to 0.9.0 / 0.9-1 / 1.0: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).

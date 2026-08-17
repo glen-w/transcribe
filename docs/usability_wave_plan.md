@@ -5,6 +5,8 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 **Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home and Diagnostics shipped; sample notebook and first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split) is **shipped** — not a new wave track.
 
+**0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned)). After 0.9.0: **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0**.
+
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
 ```text
@@ -57,7 +59,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | [analysis_wave1_hardening_plan.md](archive/plans/analysis_wave1_hardening_plan.md) | Done infra; do not reopen as UI work |
 | Detection wave 2 ([PR #6](https://github.com/glen-w/transcribe/pull/6)) | **Shipped** parallel track; coordinate only where Prompt Hub / page-viewer findings share chrome |
 | Corpus contracts | **U4** acceptance gate green; bulk-import UI/CLI supported; Inbox polish may continue |
-| [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | Parallel **0.9** maintainer-infra programme (CI/docs/release hygiene). Does not own U2 product content; do not serialize U2 behind it |
+| [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | Parallel **0.9** maintainer-infra programme (CI/docs/release hygiene). Together with U2 enables **0.9.0** cut. Does not own U2 product content; do not serialize U2 behind it. Unfamiliar testing is **0.9-1**, not this wave |
 
 **Dependency rule:** U1 consumes `AnalysisHealth` / `content_revision` from U0 (both landed). Do not invent a second freshness model.
 
@@ -231,6 +233,8 @@ Speaker-profile repair is out of scope.
 - [ ] Sample notebook path works offline for import → (optional OCR skip if pre-seeded text) → Analyse Quick → Export.
 - [x] Doctor results visible in System → Diagnostics with workspace always / notebook when selected.
 - [ ] README / user guide point at the first-run install path; no contract reading required for the happy path.
+
+**U2 close enables the 0.9.0 cut** (with I0–I6). Next product phase after 0.9.0: [0.9-1 unfamiliar testing](dev/user_testing_0_9.md) — not more usability-wave tracks.
 
 ### Key files
 

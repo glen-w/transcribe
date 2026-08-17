@@ -11,7 +11,7 @@ Local-first handwritten notebook OCR workbench. Start with the product definitio
 | Contributors | [DEV_INDEX.md](DEV_INDEX.md) → [developer_quickstart.md](developer_quickstart.md) |
 | Schemas / invariants | [CONTRACT_INDEX.md](CONTRACT_INDEX.md) |
 | System shape | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Product / roadmap | [PRODUCT.md](PRODUCT.md) · [ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md) (active focus; After 1.0 on ROADMAP) |
+| Product / roadmap | [PRODUCT.md](PRODUCT.md) · [ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md) (active; Path to 0.9.0 / After 1.0 on ROADMAP) |
 
 ## Indexes
 
