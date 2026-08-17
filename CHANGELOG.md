@@ -10,6 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-17
+
+### Added
+
+- Maintainer **I2–I3**: release hygiene kit (`scripts/secrets_check.sh`, `scripts/release/*`), [docs/dev/release_governance.md](docs/dev/release_governance.md) tag checklist, [docs/dev/dependency_audit.md](docs/dev/dependency_audit.md), coverage gate (`.coveragerc` `fail_under = 70`, UI omitted), root `.pre-commit-config.yaml`, CI `release-checks` (secrets, tracked-data, stale refs, compose bind, wheel import).
+
+### Changed
+
+- EPUB missing-dependency hint now recommends `pip install -e '.[export]'` (no published PyPI package).
+- Settings Profiles / Models panels run in `@st.fragment`; creating a notebook invalidates listing caches instead of `st.cache_resource.clear()` (keeps live OCR/Analyse coordinators).
+
+## [0.7.0] - 2026-08-17
+
+### Added
+
+- Maintainer **I0–I1** lanes: root `Makefile` (`test-smoke` / `test-fast` / `test-contracts` / `test-acceptance` / `docker-smoke`), [tests/README.md](tests/README.md), GitHub Actions CI (ruff critical + offline smoke/default suite on Python 3.10–3.12), compose loopback bind assert (`scripts/release/assert_compose_bind.sh`).
+- Post-1.0 **autobiography workbench** sequencing on [docs/ROADMAP.md](docs/ROADMAP.md) (releases 1.1–2.0): notebook-anchored contextual evidence, Slices, cited reconstruction. Gated on 1.0. Not shipped behaviour.
+- Path to **0.9.0** / **0.9-1** / **1.0** on the roadmap: U2 + I0–I6 → 0.9.0 cut → unfamiliar-user testing ([docs/dev/user_testing_0_9.md](docs/dev/user_testing_0_9.md)) → 1.0 freeze with foundation checklist for After 1.0.
+
+### Changed
+
+- `.[dev]` extras include pytest-cov, pytest-timeout, and ruff so CI and later coverage gates share one install.
+
 ## [0.6.5] - 2026-08-16
 
 ### Fixed

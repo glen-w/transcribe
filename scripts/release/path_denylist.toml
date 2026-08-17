@@ -1,0 +1,33 @@
+# Unified path + secrets denylist for CI, pre-release, and secrets_check.
+# Patterns are matched against repo-relative paths (posix) unless noted.
+
+[tracked_forbidden]
+# Must never be tracked in git.
+globs = [
+  ".env",
+  ".env.local",
+  ".env.*.local",
+  "docker-compose.override.yml",
+  "projects/**",
+  "exports/**",
+  "data/cache/**",
+  "data/config/**",
+]
+
+[untracked_forbidden]
+# Non-ignored paths that must not appear as untracked (??) in git status.
+globs = []
+
+[ignored_forbidden]
+# Gitignored local-output paths. Soft-warn unless TRANSCRIBE_STRICT_IGNORED_FORBIDDEN=1.
+globs = [
+  "data/cache/**",
+]
+
+[secret_patterns]
+# Applied via git grep -E on tracked files (Python re / POSIX ERE).
+patterns = [
+  "hf_[A-Za-z0-9]{20,}",
+  "AKIA[0-9A-Z]{16}",
+  "-----BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY-----",
+]

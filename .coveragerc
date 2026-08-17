@@ -1,0 +1,14 @@
+[run]
+omit =
+    */.venv/*
+    */venv/*
+    */site-packages/*
+    */transcribe/ui/*
+
+[report]
+# Floor under current ~85% (UI omitted). Raise deliberately; do not chase 100%.
+fail_under = 70
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError

@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+
+jobs:
+  compose-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert canonical Compose bind
+        run: bash scripts/release/assert_compose_bind.sh
+
+  # High-signal lint only. Full black --check waits until formatting drift is acceptable.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff
+        run: |
+          python -m pip install -U pip
+          pip install "ruff>=0.1.6,<1"
+      - name: Ruff (critical + unused)
+        run: |
+          # E9/F63/F7/F82: syntax / undefined-name class failures
+          # F401/F841: unused imports and locals in packaged source
+          ruff check src/transcribe --select E9,F63,F7,F82,F401,F841
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package + test deps
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+          command -v pytest
+          python -m pytest --version
+      - name: Isolate temp roots
+        run: |
+          mkdir -p "$RUNNER_TEMP/tr-data" "$RUNNER_TEMP/tr-projects" "$RUNNER_TEMP/tr-inbox" "$RUNNER_TEMP/tr-export"
+          echo "TRANSCRIBE_DATA_DIR=$RUNNER_TEMP/tr-data" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_PROJECTS_DIR=$RUNNER_TEMP/tr-projects" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_INBOX_DIR=$RUNNER_TEMP/tr-inbox" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_EXPORT_DIR=$RUNNER_TEMP/tr-export" >> "$GITHUB_ENV"
+      - name: Smoke
+        run: make test-smoke
+      - name: Fast (default offline)
+        if: matrix.python-version != '3.11'
+        run: make test-fast
+      - name: Coverage (default offline)
+        if: matrix.python-version == '3.11'
+        run: make test-coverage
+
+  release-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [compose-config, lint, tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package + build tools
+        run: |
+          python -m pip install -U pip build
+          pip install -e ".[dev]"
+      - name: Tracked data allowlist
+        run: python3 scripts/release/check_tracked_data.py
+      - name: Denylist / secrets
+        run: bash scripts/secrets_check.sh
+      - name: Stale refs + TODO gate
+        run: bash scripts/release/stale_refs.sh
+      - name: "Repo hygiene (strict subset: root allowlist + archive banners)"
+        run: python3 scripts/release/repo_hygiene_audit.py --strict --checks root_md,archive_banners
+      - name: Repo hygiene audit (full warn mode)
+        continue-on-error: true
+        run: python3 scripts/release/repo_hygiene_audit.py
+      - name: Canonical Compose asserts
+        env:
+          TRANSCRIBE_STRICT_COMPOSE: "1"
+        run: bash scripts/release/assert_compose_bind.sh
+      - name: Package build + wheel import smoke
+        run: |
+          python -m build --wheel
+          WHEEL=$(ls -1 dist/transcribe-*.whl | tail -n 1)
+          python - <<PY
+          import subprocess, sys
+          wheel = """$WHEEL"""
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-deps", wheel])
+          import transcribe
+          print("import ok", transcribe.__version__)
+          PY

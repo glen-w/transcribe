@@ -7,7 +7,7 @@ Transcribe is a **local-first, single-user** handwritten notebook OCR workbench.
 
 ## Reporting a vulnerability
 
-Prefer private disclosure to the repository maintainer. Do **not** open a public Issue for sensitive vulnerability details. Public Issues are appropriate only for **non-sensitive** security questions (for example clarifying local trust-domain assumptions).
+Prefer private disclosure. Use GitHub **privately reported vulnerabilities** ([Report a vulnerability](https://github.com/glen-w/transcribe/security/advisories/new)) when the repository has that feature enabled. Do **not** open a public Issue for sensitive vulnerability details. Public Issues are appropriate only for **non-sensitive** security questions (for example clarifying local trust-domain assumptions).
 
 ## Trust model (summary)
 

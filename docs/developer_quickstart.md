@@ -17,7 +17,7 @@ Shape: [ARCHITECTURE.md](ARCHITECTURE.md). Rules: [CONTRACT_INDEX.md](CONTRACT_I
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev]'      # pytest; use '.[ui]' for Streamlit
+pip install -e '.[dev]'      # pytest, ruff, coverage extras; use '.[ui]' for Streamlit only
 cp .env.example .env         # optional
 ```
 
@@ -25,22 +25,24 @@ Or `./transcribe.sh install-dev`.
 
 ## Tests
 
+Named lanes match CI. Full marker policy: [tests/README.md](../tests/README.md).
+
 ```bash
-pytest -q                 # default offline suite
-pytest -q -m smoke         # pre-release critical-path subset
+make test-smoke           # critical-path smoke marker
+make test-fast            # default offline suite (same as pytest -q)
+make test-contracts       # tests/contracts/
+make test-acceptance      # hardening + corpus + OCR lifecycle
+make lint                 # ruff critical selects (CI lint job)
+make docker-smoke         # Compose loopback bind assert
+make test-coverage        # default suite + coverage fail-under
+make release-hygiene      # secrets / tracked-data / stale-refs / root docs
 ```
 
 Default suite is **offline** (fake vision provider / recorded LLM doubles). Do not require a live Ollama daemon for PR confidence. Optional live probes belong in deep-test / local scripts under `.test_outputs/`.
 
 ### Markers
 
-Configured in `pyproject.toml`. Default `addopts` **excludes** `quarantined`, `requires_ollama`, `requires_docker`, `requires_network`, `slow`, and `integration`.
-
-| Marker | Meaning |
-|--------|---------|
-| `smoke` | Fast critical-path gate used by `# pre-release` |
-| `integration` | **Live** local Ollama (or other live dependency) only |
-| `quarantined` | Pytest exclusion — unrelated to corpus/journal quarantine |
+Configured in `pyproject.toml`. Default `addopts` **excludes** `quarantined`, `requires_ollama`, `requires_docker`, `requires_network`, `slow`, `integration`, and `release_only`. See [tests/README.md](../tests/README.md).
 
 Offline multi-component detector tests belong under `tests/services/` (or `tests/unit/`) and must **not** use `@pytest.mark.integration`, or they would be deselected by default.
 
@@ -76,7 +78,7 @@ ruff check src tests     # same line-length / py310
 ruff check --fix src tests
 ```
 
-Do not run `black .` at repo root (can touch `.venv`). Prefer `.[dev]` extras for pytest; install `black` / `ruff` on the host or in the venv when formatting.
+Do not run `black .` at repo root (can touch `.venv`). `.[dev]` includes pytest, pytest-cov, pytest-timeout, and ruff. Install `black` / `pre-commit` on the host or in the venv when formatting. CI gates ruff **critical** selects only (not full `black --check`). Optional: `pre-commit install` using `.pre-commit-config.yaml`.
 
 ## Docs when you change behaviour
 

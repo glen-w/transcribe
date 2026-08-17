@@ -39,9 +39,24 @@ Both products should use the same catalog envelope and slug rules: [contracts/ta
 - TX must not treat tags as Group membership
 - Copy `src/transcribe/tagging/kernel.py` and `colors.py` (relative imports); do not share a runtime package before TX 1.0
 
+## Reverse import (Transcribe 1.6 — not shipped)
+
+After **Transcribe 1.0**, ROADMAP **1.6** may import TranscriptX **export files** (transcript + optional audio + summary + speaker strings) as contextual evidence around notebooks. That is a file adapter, not a runtime dependency either way, and it does **not** replace this export seam.
+
+```text
+TranscriptX export bundle (files)
+        ↓
+future Transcribe context-import adapter (1.6)
+        ↓
+ContextCollection / ContextRecord (evidence around notebook pages)
+```
+
+Do not call TranscriptX APIs. Do not re-run ASR. Do not port speaker/audio analysis modules. Pin the TX export contract when TX 1.0 exists; a frozen fixture is allowed if that contract is late. Sequencing: [ROADMAP.md](ROADMAP.md) After 1.0 § 1.6.
+
 ## Related
 
 - Product boundaries: [PRODUCT.md](PRODUCT.md)
 - Analysis port planning: [ROADMAP.md](ROADMAP.md) · [analysis_module_porting.md](dev/analysis_module_porting.md) · [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)
+- Post-1.0 autobiography (includes 1.6 TX file import): [ROADMAP.md](ROADMAP.md) **After 1.0**
 
-Note: analysis ports use a **canonical `AnalysisDocument`** inside Transcribe ([contracts/analysis-document.md](contracts/analysis-document.md)). That is separate from this future *export* handoff into TranscriptX.
+Note: analysis ports use a **canonical `AnalysisDocument`** inside Transcribe ([contracts/analysis-document.md](contracts/analysis-document.md)). That is separate from this future *export* handoff into TranscriptX, and from 1.6 context import the other way.

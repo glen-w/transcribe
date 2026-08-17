@@ -1,0 +1,33 @@
+# Authoritative allowlist of tracked data-like / binary paths.
+# `git ls-files data/**` plus tracked png/jpg/jpeg/pdf/zip (etc.) must equal this set.
+# Owner + purpose required for each entry.
+
+[[paths]]
+path = "tests/fixtures/mini_multipage.pdf"
+owner = "tests"
+purpose = "Tiny multi-page PDF fixture for ingest/OCR lifecycle tests"
+
+[[paths]]
+path = "tests/fixtures/mini_notebook.pdf"
+owner = "tests"
+purpose = "Tiny PDF notebook fixture"
+
+[[paths]]
+path = "tests/fixtures/mini_page.jpg"
+owner = "tests"
+purpose = "Tiny JPEG page fixture"
+
+[[paths]]
+path = "tests/fixtures/mini_page.png"
+owner = "tests"
+purpose = "Tiny PNG page fixture"
+
+[[paths]]
+path = "src/transcribe/ui/assets/favicon.png"
+owner = "ui"
+purpose = "Streamlit / browser favicon"
+
+[[paths]]
+path = "src/transcribe/ui/assets/logo.png"
+owner = "ui"
+purpose = "Product logo asset"

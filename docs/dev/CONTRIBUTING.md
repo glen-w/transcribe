@@ -67,7 +67,7 @@ Fix by moving the rule into the contract and replacing the original with a short
 1. Confirm CLI / UI examples in README and [public_surfaces.md](../public_surfaces.md) match code
 2. Confirm [runtime/docker.md](../runtime/docker.md) matches `docker-compose.yml` mounts and ports
 3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README Direction
-4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan
+4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan. Keep [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10) and [After 1.0](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) distinct — do not present After 1.0 as current core while U2 / I0–I6 remain open.
 
 ### 4. When code changes (quick map)
 
@@ -80,19 +80,21 @@ Fix by moving the rule into the contract and replacing the original with a short
 | Export / backup | notebook-export · workspace-backup · runtime guides |
 | CLI/UI entrypoints | public_surfaces + README links |
 | Ownership / shape | ARCHITECTURE |
-| Vision / roadmap | PRODUCT · ROADMAP · usability_wave_plan |
+| Vision / roadmap | PRODUCT · ROADMAP (0.9.0 / 0.9-1 / 1.0 + After 1.0) · usability_wave_plan · user_testing_0_9 |
 
 
 Then skim guides for stale summaries.
 
 ## Formatting
 
-`pyproject.toml` pins **Black** and **Ruff** to line-length **100** and **py310**. Before opening a PR that touches Python:
+`pyproject.toml` pins **Black** and **Ruff** to line-length **100** and **py310**. Named test lanes: root `Makefile` and [tests/README.md](../../tests/README.md). Tag checklist: [release_governance.md](release_governance.md). Before opening a PR that touches Python:
 
 ```bash
-black src tests
+make lint                 # ruff critical (CI)
+make test-smoke && make test-fast
+pre-commit install        # once; hooks in .pre-commit-config.yaml (I3)
+black src tests           # optional local format; not a PR CI gate yet
 ruff check --fix src tests
-black --check src tests && ruff check src tests
 ```
 
 ## Code orientation

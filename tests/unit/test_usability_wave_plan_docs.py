@@ -78,6 +78,53 @@ def test_roadmap_now_is_usability_wave():
     assert "[x] done" in text  # hardening embedded done
 
 
+def test_roadmap_after_1_0_autobiography_is_gated():
+    text = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
+    assert "## After 1.0 — Notebook-anchored autobiography workbench" in text
+    assert "gated on 1.0" in text
+    for release in ("1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "2.0"):
+        assert release in text, f"ROADMAP missing post-1.0 release {release}"
+    assert "SourceDocument" in text
+    assert "sibling context corpus" in text
+    assert "ReconstructionBundle" in text
+    assert "Mood → Moments" in text
+    product = (DOCS / "PRODUCT.md").read_text(encoding="utf-8")
+    assert "After 1.0" in product
+    assert "usability_wave_plan.md" in product
+
+
+def test_roadmap_path_to_0_9_foundation():
+    text = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
+    assert "## Path to 0.9.0 / 0.9-1 / 1.0" in text
+    assert "0.7.0" in text
+    assert "0.9.0" in text
+    assert "0.9-1" in text
+    assert "Foundation readiness" in text or "Foundation readiness checklist" in text or "Track C" in text
+    assert "Notebook core freeze" in text
+    assert "U2.2 Sample notebook" in text or "U2.2" in text
+    assert "U2.4" in text
+    i0 = next(line for line in text.splitlines() if line.startswith("| **I0**"))
+    i1 = next(line for line in text.splitlines() if line.startswith("| **I1**"))
+    i2 = next(line for line in text.splitlines() if line.startswith("| **I2**"))
+    i3 = next(line for line in text.splitlines() if line.startswith("| **I3**"))
+    assert "| [x] |" in i0
+    assert "| [x] |" in i1
+    assert "| [x] |" in i2
+    assert "| [x] |" in i3
+    assert "0.8.0" in text
+    assert "user_testing_0_9.md" in text
+    protocol = DOCS / "dev" / "user_testing_0_9.md"
+    assert protocol.is_file()
+    proto = protocol.read_text(encoding="utf-8")
+    assert "Type: GUIDE" in proto
+    assert "0.9-1" in proto
+    assert "autobiography" in proto.lower()
+    assert "Explicitly out of script" in proto or "out of script" in proto.lower()
+    infra = (DOCS / "infrastructure_wave_0_9_plan.md").read_text(encoding="utf-8")
+    assert "0.9-1" in infra
+    assert "not an I7" in infra or "not I7" in infra
+
+
 def test_detection_contract_documents_midrun_reconcile_rule():
     text = (DOCS / "contracts" / "detection-run-storage.md").read_text(encoding="utf-8")
     assert "reconcile=False" in text
