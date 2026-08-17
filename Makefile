@@ -10,7 +10,7 @@ PYTHON ?= .venv/bin/python
 endif
 PYTEST ?= $(PYTHON) -m pytest
 
-.PHONY: help lint test-smoke test-fast test-contracts test-acceptance test-coverage docker-smoke docs docs-clean
+.PHONY: help lint test-smoke test-fast test-contracts test-acceptance test-coverage docker-smoke docs docs-clean release-hygiene
 
 help:
 	@echo "Transcribe Makefile"
@@ -25,6 +25,7 @@ help:
 	@echo "Quality:"
 	@echo "  lint              Ruff critical selects on src/transcribe (CI lint job)"
 	@echo "  docker-smoke      Compose loopback bind (+ docker compose config when Docker exists)"
+	@echo "  release-hygiene   Secrets, tracked-data, stale-refs, strict root/archive hygiene"
 	@echo ""
 	@echo "Docs (stubs until I4):"
 	@echo "  docs              Point at the Markdown corpus (Sphinx lands in I4)"
@@ -53,12 +54,19 @@ test-acceptance:
 	@$(PYTEST) -q tests/acceptance -m "not quarantined and not requires_ollama and not requires_docker and not requires_network and not slow and not integration"
 
 test-coverage:
-	@echo "Default offline suite with coverage..."
-	@$(PYTEST) -q --cov=src/transcribe --cov-report=term-missing
+	@echo "Default offline suite with coverage (see .coveragerc fail_under)..."
+	@$(PYTEST) -q --cov=src/transcribe --cov-config=.coveragerc --cov-report=term-missing --cov-report=xml:coverage.xml
 
 docker-smoke:
 	@echo "Compose bind honesty..."
 	@bash scripts/release/assert_compose_bind.sh
+
+release-hygiene:
+	@echo "Release hygiene (I2)..."
+	@bash scripts/secrets_check.sh
+	@$(PYTHON) scripts/release/check_tracked_data.py
+	@bash scripts/release/stale_refs.sh
+	@$(PYTHON) scripts/release/repo_hygiene_audit.py --strict --checks root_md,archive_banners
 
 docs:
 	@echo "Markdown corpus is docs/ (indexes: docs/index.md)."

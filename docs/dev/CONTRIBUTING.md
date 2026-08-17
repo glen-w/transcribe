@@ -87,10 +87,12 @@ Then skim guides for stale summaries.
 
 ## Formatting
 
-`pyproject.toml` pins **Black** and **Ruff** to line-length **100** and **py310**. Named test lanes: root `Makefile` and [tests/README.md](../../tests/README.md). Before opening a PR that touches Python:
+`pyproject.toml` pins **Black** and **Ruff** to line-length **100** and **py310**. Named test lanes: root `Makefile` and [tests/README.md](../../tests/README.md). Tag checklist: [release_governance.md](release_governance.md). Before opening a PR that touches Python:
 
 ```bash
 make lint                 # ruff critical (CI)
+make test-smoke && make test-fast
+pre-commit install        # once; hooks in .pre-commit-config.yaml (I3)
 black src tests           # optional local format; not a PR CI gate yet
 ruff check --fix src tests
 ```

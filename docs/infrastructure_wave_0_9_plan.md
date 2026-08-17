@@ -3,11 +3,11 @@ Authority: 0.9 infrastructure-wave delivery plan (CI, tests, docs hosting, relea
 
 # 0.9 Infrastructure wave plan
 
-**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I1** landed in package **0.7.0**.
+**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I3** landed in packages **0.7.0** / **0.8.0**. Remaining: **I4–I6**.
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.7.0** (I0–I1). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1 (landed); **0.8** = I2+I3 (next). **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.8.0** (I0–I3). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed). **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -56,16 +56,16 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 | Area | TranscriptX | Transcribe today | Wave track |
 |------|-------------|------------------|------------|
-| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast) | Landed **I1** (0.7.0). Docs / release-checks / nightly still **I3–I6** | **I1**, **I3**, **I4**, **I6** |
+| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** (0.7–0.8). Docs / nightly / Docker image still **I4–I6** | **I1**, **I3**, **I4**, **I6** |
 | **Nightly** | `nightly.yml` → `make test-integration-core` | None | **I6** |
 | **Pages** | `pages.yml` → website + Sphinx assemble | None | **I5** |
 | **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); Sphinx/pages targets stub until I4 | **I0** |
 | **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
 | **Markers** | smoke / contract / integration(_core|_extended) / heavy / gui_* / release_only / quarantined / requires_* | smoke / unit / integration / slow / requires_* / quarantined | **I0**, **I3** |
-| **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | No coverage gate | **I3** |
-| **Pre-commit** | `config/.pre-commit-config.yaml` (hooks + black/ruff/mypy) | Tool configs in `pyproject.toml` only | **I3** |
-| **Release kit** | `scripts/release/*` + `scripts/secrets_check.sh` | `# pre-release` *expects* scripts; most missing | **I2** |
-| **Release governance** | `docs/dev/release_governance.md` + severity/ops docs | Pointed at by `# pre-release`; file absent | **I2** |
+| **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | Landed **I3** (modest `fail_under`; UI omitted) | **I3** |
+| **Pre-commit** | `config/.pre-commit-config.yaml` (hooks + black/ruff/mypy) | Root `.pre-commit-config.yaml` (**I3**; ruff critical + file hygiene; black/mypy still optional) | **I3** |
+| **Release kit** | `scripts/release/*` + `scripts/secrets_check.sh` | Landed **I2** | **I2** |
+| **Release governance** | `docs/dev/release_governance.md` + severity/ops docs | Landed **I2** (tag checklist; `# pre-release` stays local confidence) | **I2** |
 | **Sphinx / RTD** | `docs/conf.py`, `.readthedocs.yml`, `.[docs]`, CI docs job | Markdown-only; hosting deferred in [docs_architecture.md](dev/docs_architecture.md) | **I4** |
 | **Website** | `website/` + Pages | None | **I5** |
 | **Workflow media** | `docs/workflows/` + `_static/workflows/` | Deferred | **I5** (optional after Pages) |
@@ -111,7 +111,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Green CI required on `main` PRs; README badge optional.
 
-### I2 — Release hygiene kit + governance — [ ] planned
+### I2 — Release hygiene kit + governance — [x] done
 
 **Intent:** Make `# pre-release` script-backed and give tags an authoritative checklist.
 
@@ -128,7 +128,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Governance doc exists; local evidence runbook can be executed; `# pre-release` prefers real scripts over inline fallbacks.
 
-### I3 — Quality gates (coverage, pre-commit, CI deepen) — [ ] planned
+### I3 — Quality gates (coverage, pre-commit, CI deepen) — [x] done
 
 | Deliverable | Notes |
 |-------------|--------|

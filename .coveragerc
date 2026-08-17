@@ -1,0 +1,14 @@
+[run]
+omit =
+    */.venv/*
+    */venv/*
+    */site-packages/*
+    */transcribe/ui/*
+
+[report]
+# Modest floor (I3). Raise deliberately; UI chrome is omitted.
+fail_under = 45
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError

@@ -74,4 +74,49 @@ jobs:
       - name: Smoke
         run: make test-smoke
       - name: Fast (default offline)
+        if: matrix.python-version != '3.11'
         run: make test-fast
+      - name: Coverage (default offline)
+        if: matrix.python-version == '3.11'
+        run: make test-coverage
+
+  release-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [compose-config, lint, tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package + build tools
+        run: |
+          python -m pip install -U pip build
+          pip install -e ".[dev]"
+      - name: Tracked data allowlist
+        run: python3 scripts/release/check_tracked_data.py
+      - name: Denylist / secrets
+        run: bash scripts/secrets_check.sh
+      - name: Stale refs + TODO gate
+        run: bash scripts/release/stale_refs.sh
+      - name: "Repo hygiene (strict subset: root allowlist + archive banners)"
+        run: python3 scripts/release/repo_hygiene_audit.py --strict --checks root_md,archive_banners
+      - name: Repo hygiene audit (full warn mode)
+        continue-on-error: true
+        run: python3 scripts/release/repo_hygiene_audit.py
+      - name: Canonical Compose asserts
+        env:
+          TRANSCRIBE_STRICT_COMPOSE: "1"
+        run: bash scripts/release/assert_compose_bind.sh
+      - name: Package build + wheel import smoke
+        run: |
+          python -m build --wheel
+          WHEEL=$(ls -1 dist/transcribe-*.whl | tail -n 1)
+          python - <<PY
+          import subprocess, sys
+          wheel = """$WHEEL"""
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-deps", wheel])
+          import transcribe
+          print("import ok", transcribe.__version__)
+          PY

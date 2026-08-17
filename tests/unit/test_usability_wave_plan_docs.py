@@ -105,8 +105,13 @@ def test_roadmap_path_to_0_9_foundation():
     assert "U2.4" in text
     i0 = next(line for line in text.splitlines() if line.startswith("| **I0**"))
     i1 = next(line for line in text.splitlines() if line.startswith("| **I1**"))
+    i2 = next(line for line in text.splitlines() if line.startswith("| **I2**"))
+    i3 = next(line for line in text.splitlines() if line.startswith("| **I3**"))
     assert "| [x] |" in i0
     assert "| [x] |" in i1
+    assert "| [x] |" in i2
+    assert "| [x] |" in i3
+    assert "0.8.0" in text
     assert "user_testing_0_9.md" in text
     protocol = DOCS / "dev" / "user_testing_0_9.md"
     assert protocol.is_file()

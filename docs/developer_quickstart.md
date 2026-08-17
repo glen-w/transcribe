@@ -34,6 +34,8 @@ make test-contracts       # tests/contracts/
 make test-acceptance      # hardening + corpus + OCR lifecycle
 make lint                 # ruff critical selects (CI lint job)
 make docker-smoke         # Compose loopback bind assert
+make test-coverage        # default suite + coverage fail-under
+make release-hygiene      # secrets / tracked-data / stale-refs / root docs
 ```
 
 Default suite is **offline** (fake vision provider / recorded LLM doubles). Do not require a live Ollama daemon for PR confidence. Optional live probes belong in deep-test / local scripts under `.test_outputs/`.
@@ -76,7 +78,7 @@ ruff check src tests     # same line-length / py310
 ruff check --fix src tests
 ```
 
-Do not run `black .` at repo root (can touch `.venv`). `.[dev]` includes pytest, pytest-cov, pytest-timeout, and ruff. Install `black` on the host or in the venv when formatting. CI gates ruff **critical** selects only (not full `black --check`).
+Do not run `black .` at repo root (can touch `.venv`). `.[dev]` includes pytest, pytest-cov, pytest-timeout, and ruff. Install `black` / `pre-commit` on the host or in the venv when formatting. CI gates ruff **critical** selects only (not full `black --check`). Optional: `pre-commit install` using `.pre-commit-config.yaml`.
 
 ## Docs when you change behaviour
 

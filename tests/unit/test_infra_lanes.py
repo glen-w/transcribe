@@ -21,6 +21,7 @@ def test_makefile_exposes_named_lanes():
         "docker-smoke",
         "docs",
         "docs-clean",
+        "release-hygiene",
     ):
         assert re.search(rf"^{re.escape(target)}:", text, re.M), f"Makefile missing {target}"
 
@@ -41,8 +42,12 @@ def test_ci_workflow_runs_python_matrix_and_compose():
         assert version in text
     assert "make test-smoke" in text
     assert "make test-fast" in text
+    assert "make test-coverage" in text
     assert "assert_compose_bind.sh" in text
     assert "ruff check src/transcribe" in text
+    assert "release-checks:" in text
+    assert "check_tracked_data.py" in text
+    assert "secrets_check.sh" in text
 
 
 def test_package_version_matches_pyproject():
@@ -52,3 +57,30 @@ def test_package_version_matches_pyproject():
     proj_ver = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
     assert init_ver and proj_ver
     assert init_ver.group(1) == proj_ver.group(1)
+    assert init_ver.group(1) == "0.8.0"
+
+
+def test_i2_i3_release_kit_files_exist():
+    for rel in (
+        "scripts/secrets_check.sh",
+        "scripts/release/check_denylist.py",
+        "scripts/release/path_denylist.toml",
+        "scripts/release/stale_refs.sh",
+        "scripts/release/check_tracked_data.py",
+        "scripts/release/tracked_data_allowlist.toml",
+        "scripts/release/repo_hygiene_audit.py",
+        "scripts/release/root_docs_allowlist.toml",
+        "scripts/release/assert_compose_bind.sh",
+        "docs/dev/release_governance.md",
+        "docs/dev/dependency_audit.md",
+        ".coveragerc",
+        ".pre-commit-config.yaml",
+    ):
+        path = ROOT / rel
+        assert path.is_file(), f"missing {rel}"
+    cover = (ROOT / ".coveragerc").read_text(encoding="utf-8")
+    assert "fail_under" in cover
+    assert "transcribe/ui" in cover
+    gov = (ROOT / "docs" / "dev" / "release_governance.md").read_text(encoding="utf-8")
+    assert "Type: GUIDE" in gov
+    assert "authoritative release gate" in gov.lower() or "authoritative" in gov.lower()

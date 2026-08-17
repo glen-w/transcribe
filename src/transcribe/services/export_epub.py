@@ -19,7 +19,7 @@ def _require_ebooklib():
         from ebooklib import epub
     except ImportError as exc:  # pragma: no cover - env dependent
         raise EpubDependencyError(
-            "EPUB export requires ebooklib. Install with: pip install transcribe[export]"
+            "EPUB export requires ebooklib. Install with: pip install -e '.[export]'"
         ) from exc
     return ebooklib, epub
 

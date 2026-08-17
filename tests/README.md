@@ -20,7 +20,7 @@ Lane names here match the root `Makefile` and `.github/workflows/ci.yml`. Defaul
 
 **PR order (0.7 / I1):** Compose bind → Ruff critical → Smoke → default offline suite on Python **3.10 / 3.11 / 3.12**.
 
-**PR add-ons (0.8 / I3):** `release-checks` (secrets, tracked-data, compose assert, package build/import). Coverage on the default suite via `make test-coverage`.
+**PR add-ons (0.8 / I3):** `release-checks` (secrets, tracked-data, stale refs, compose assert, package build/import). Coverage on Python 3.11 via `make test-coverage`.
 
 **Not in PR CI yet (I4–I6):** Sphinx docs job, GitHub Pages, nightly heavier acceptance, full `docker compose build` image smoke.
 
@@ -64,7 +64,8 @@ Configured in `pyproject.toml`. Default `addopts` **excludes** `quarantined`, `r
 | `tests/contracts/` | Persistence/shape contracts |
 | `tests/acceptance/` | Product exit gates (hardening, corpus, OCR lifecycle) |
 | `tests/ingest/` · `tests/export/` · `tests/providers/` · `tests/persistence/` | Focused packages |
-| `tests/fixtures/` | Tiny tracked binaries (allowlisted in I2) |
+| `tests/fixtures/` | Tiny tracked binaries (allowlisted) |
+| `tests/release/` | Hygiene script smoke (I2) |
 
 ## Environment
 
@@ -76,4 +77,4 @@ Live OCR probes belong in deep-test / local scripts under `.test_outputs/`, not 
 
 Root Markdown allowlist intent (enforced in I2 `repo_hygiene_audit.py`): `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`. New root `*.md` files belong under `docs/`.
 
-Release kit under `scripts/release/` (I2): secrets/denylist, tracked-data allowlist, stale refs, repo hygiene, this compose-bind script. `# pre-release` prefers those scripts when present.
+Release kit under `scripts/release/` (**I2**, 0.8.0): secrets/denylist, tracked-data allowlist, stale refs, repo hygiene, compose-bind. `# pre-release` prefers those scripts. Tag authority: [docs/dev/release_governance.md](../docs/dev/release_governance.md).

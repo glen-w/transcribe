@@ -1,0 +1,18 @@
+# Authoritative allowlist of root-level Markdown files.
+# New root *.md files should live under docs/ — see repo_hygiene_audit.py.
+
+[[paths]]
+path = "README.md"
+purpose = "Product landing / quickstart"
+
+[[paths]]
+path = "CHANGELOG.md"
+purpose = "Release changelog"
+
+[[paths]]
+path = "CONTRIBUTING.md"
+purpose = "Pointer to docs/dev/CONTRIBUTING.md"
+
+[[paths]]
+path = "SECURITY.md"
+purpose = "Security policy"
