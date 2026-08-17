@@ -41,7 +41,7 @@ from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.run_import import render_run_import
-from transcribe.ui.run_transcribe import render_run_transcribe
+from transcribe.ui.run_transcribe import invalidate_batch_ocr_caches, render_run_transcribe
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
@@ -465,7 +465,10 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
             ).create(title=cleaned)
             bump_archive_generation(runtime)
             archive.ensure_index()
-            st.cache_resource.clear()
+            invalidate_batch_ocr_caches()
+            from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+
+            invalidate_batch_analyse_caches()
             st.session_state["root"] = str(paths.root)
             sync_notebook_selector(str(paths.root))
             st.session_state.pop("new_notebook_title", None)

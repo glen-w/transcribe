@@ -377,6 +377,7 @@ def render_configuration_panel() -> None:
 _PREPROCESS_PROFILES = ("none", "gentle_contrast")
 
 
+@st.fragment
 def render_models_panel() -> None:
     st.subheader("Models & LLM budgets")
     view = get_config()
@@ -486,6 +487,7 @@ def render_models_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
 
+@st.fragment
 def render_profiles_panel() -> None:
     st.subheader("Profiles")
     st.caption(

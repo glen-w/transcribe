@@ -16,7 +16,7 @@ check_absent() {
   local label="$1"
   local pattern="$2"
   local hits
-  hits="$(git grep -n -E "$pattern" -- ':!CHANGELOG.md' ':!docs/archive' src docs README.md scripts Makefile 2>/dev/null || true)"
+  hits="$(git grep -n -E "$pattern" -- ':!CHANGELOG.md' ':!docs/archive' ':!scripts/release' src docs README.md Makefile 2>/dev/null || true)"
   if [[ -n "$hits" ]]; then
     echo "ERROR: stale ref ($label) still present:"
     echo "$hits"
@@ -51,7 +51,7 @@ if [[ -n "${version_check:-}" && "$fail" -eq 0 ]]; then
   echo "OK: package version ${version_check}"
 fi
 
-hits_pip="$(git_grep 'pip install transcribe([^\[]|$)' -- ':!CHANGELOG.md' ':!docs/archive')"
+hits_pip="$(git_grep 'pip install transcribe([^\[]|$)' -- ':!CHANGELOG.md' ':!docs/archive' ':!scripts/release')"
 if [[ -n "$hits_pip" ]]; then
   filtered="$(echo "$hits_pip" | grep -viE 'not on PyPI|pip install -e|editable|from (git|source)|matrix' || true)"
   if [[ -n "$filtered" ]]; then
@@ -65,7 +65,7 @@ else
   echo "OK: no bare pip install transcribe hits"
 fi
 
-hits_extra="$(git_grep "pip install ['\"]?transcribe\[" -- ':!CHANGELOG.md' ':!docs/archive')"
+hits_extra="$(git_grep "pip install ['\"]?transcribe\[" -- ':!CHANGELOG.md' ':!docs/archive' ':!scripts/release')"
 if [[ -n "$hits_extra" ]]; then
   filtered_extra="$(echo "$hits_extra" | grep -viE 'not on PyPI|pip install -e|editable|from a Transcribe git checkout|matrix|Not supported' || true)"
   if [[ -n "$filtered_extra" ]]; then

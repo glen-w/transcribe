@@ -14,11 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Maintainer **I2–I3**: release hygiene kit (`scripts/secrets_check.sh`, `scripts/release/*`), [docs/dev/release_governance.md](docs/dev/release_governance.md) tag checklist, [docs/dev/dependency_audit.md](docs/dev/dependency_audit.md), coverage gate (`.coveragerc`), root `.pre-commit-config.yaml`, CI `release-checks` (secrets, tracked-data, stale refs, compose bind, wheel import).
+- Maintainer **I2–I3**: release hygiene kit (`scripts/secrets_check.sh`, `scripts/release/*`), [docs/dev/release_governance.md](docs/dev/release_governance.md) tag checklist, [docs/dev/dependency_audit.md](docs/dev/dependency_audit.md), coverage gate (`.coveragerc` `fail_under = 70`, UI omitted), root `.pre-commit-config.yaml`, CI `release-checks` (secrets, tracked-data, stale refs, compose bind, wheel import).
 
 ### Changed
 
 - EPUB missing-dependency hint now recommends `pip install -e '.[export]'` (no published PyPI package).
+- Settings Profiles / Models panels run in `@st.fragment`; creating a notebook invalidates listing caches instead of `st.cache_resource.clear()` (keeps live OCR/Analyse coordinators).
 
 ## [0.7.0] - 2026-08-17
 

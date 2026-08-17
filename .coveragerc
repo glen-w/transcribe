@@ -6,8 +6,8 @@ omit =
     */transcribe/ui/*
 
 [report]
-# Modest floor (I3). Raise deliberately; UI chrome is omitted.
-fail_under = 45
+# Floor under current ~85% (UI omitted). Raise deliberately; do not chase 100%.
+fail_under = 70
 exclude_lines =
     pragma: no cover
     def __repr__

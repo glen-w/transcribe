@@ -62,7 +62,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 | **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); Sphinx/pages targets stub until I4 | **I0** |
 | **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
 | **Markers** | smoke / contract / integration(_core|_extended) / heavy / gui_* / release_only / quarantined / requires_* | smoke / unit / integration / slow / requires_* / quarantined | **I0**, **I3** |
-| **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | Landed **I3** (modest `fail_under`; UI omitted) | **I3** |
+| **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | Landed **I3** (`fail_under = 70`; UI omitted; current suite ~85%) | **I3** |
 | **Pre-commit** | `config/.pre-commit-config.yaml` (hooks + black/ruff/mypy) | Root `.pre-commit-config.yaml` (**I3**; ruff critical + file hygiene; black/mypy still optional) | **I3** |
 | **Release kit** | `scripts/release/*` + `scripts/secrets_check.sh` | Landed **I2** | **I2** |
 | **Release governance** | `docs/dev/release_governance.md` + severity/ops docs | Landed **I2** (tag checklist; `# pre-release` stays local confidence) | **I2** |
