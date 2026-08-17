@@ -46,7 +46,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Core notebook analysis modules and Analyse (optional local text Ollama for LLM modules)
 - Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability (**U2** open except Home/Diagnostics from GUI alignment), daily workbench (**U3** done); OCR fail-fast, Analyse corpus-compare, Moments/chart jump → Reading, and Analyse/View split are shipped deepen-in-place ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
 
-**Path to 1.0:** package **0.6.x** → **U2** + infrastructure **I0–I6** → cut **0.9.0** → **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)) → **1.0** freeze. Detail: [ROADMAP.md](ROADMAP.md) Path to 0.9.0.
+**Path to 1.0:** package **0.7.0** (I0–I1 landed) → **0.8** (I2–I3) → remaining **U2** + **I4–I6** → cut **0.9.0** → **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)) → **1.0** freeze. Detail: [ROADMAP.md](ROADMAP.md) Path to 0.9.0.
 
 **Out of scope for current core**
 
@@ -59,7 +59,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 
 ## After 1.0 (planned)
 
-**1.0 remains** this notebook/OCR/analysis workbench. Reach it via **0.9.0** (U2 + infra) then **0.9-1** unfamiliar testing ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned)). After that gate, Transcribe may grow into a **local-first augmented autobiography workbench**: handwritten notebooks stay the irreplaceable primary source; photographs, messages, transcripts, and mood records become evidence around them — never a replacement for the page.
+**1.0 remains** this notebook/OCR/analysis workbench. Reach it via **0.9.0** (U2 + infra) then **0.9-1** unfamiliar testing ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10)). After that gate, Transcribe may grow into a **local-first augmented autobiography workbench**: handwritten notebooks stay the irreplaceable primary source; photographs, messages, transcripts, and mood records become evidence around them — never a replacement for the page.
 
 Sequencing and architecture intent: [ROADMAP.md](ROADMAP.md) **After 1.0** (releases 1.1–2.0). This is not shipped behaviour and does not change v1 contracts. Foundation checklist (core freeze, ClaimStatus vocabulary, rebuildability, optional context trees) must be signed off at 1.0 before autobiography implementation.
 

@@ -88,7 +88,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** — **U0–U1** and **U3** done; open track **U2** first-run operability; **U4** corpus gate green — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Path to **0.9.0** (U2 + infra) then **0.9-1** unfamiliar testing then **1.0**; After 1.0 autobiography is planned and gated. Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** — **U0–U1** and **U3** done; open track **U2** first-run operability; **U4** corpus gate green — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Package **0.7.0** landed maintainer CI (I0–I1); **0.8** is the next infra cut; then **0.9.0** (U2 + remaining I4–I6) → **0.9-1** unfamiliar testing → **1.0**. After 1.0 autobiography is planned and gated. Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

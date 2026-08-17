@@ -96,12 +96,17 @@ def test_roadmap_after_1_0_autobiography_is_gated():
 def test_roadmap_path_to_0_9_foundation():
     text = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
     assert "## Path to 0.9.0 / 0.9-1 / 1.0" in text
+    assert "0.7.0" in text
     assert "0.9.0" in text
     assert "0.9-1" in text
     assert "Foundation readiness" in text or "Foundation readiness checklist" in text or "Track C" in text
     assert "Notebook core freeze" in text
     assert "U2.2 Sample notebook" in text or "U2.2" in text
     assert "U2.4" in text
+    i0 = next(line for line in text.splitlines() if line.startswith("| **I0**"))
+    i1 = next(line for line in text.splitlines() if line.startswith("| **I1**"))
+    assert "| [x] |" in i0
+    assert "| [x] |" in i1
     assert "user_testing_0_9.md" in text
     protocol = DOCS / "dev" / "user_testing_0_9.md"
     assert protocol.is_file()

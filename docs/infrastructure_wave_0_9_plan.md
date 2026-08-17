@@ -3,11 +3,11 @@ Authority: 0.9 infrastructure-wave delivery plan (CI, tests, docs hosting, relea
 
 # 0.9 Infrastructure wave plan
 
-**Status:** [ ] planned — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**.
+**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I1** landed in package **0.7.0**.
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is currently **0.6.x**. The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation), not a promise that every infra merge bumps `pyproject.toml` to `0.9.0`. Cut package versions around coherent, tested increments when releasing. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.7.0** (I0–I1). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1 (landed); **0.8** = I2+I3 (next). **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -56,11 +56,11 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 | Area | TranscriptX | Transcribe today | Wave track |
 |------|-------------|------------------|------------|
-| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → contracts → fast), docs build, release-checks, (TX-only NLP/workspaces) | No `.github/` workflows | **I1**, **I3**, **I4**, **I6** |
+| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast) | Landed **I1** (0.7.0). Docs / release-checks / nightly still **I3–I6** | **I1**, **I3**, **I4**, **I6** |
 | **Nightly** | `nightly.yml` → `make test-integration-core` | None | **I6** |
 | **Pages** | `pages.yml` → website + Sphinx assemble | None | **I5** |
-| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | No Makefile; `pytest` / `transcribe.sh` only | **I0** |
-| **Test docs** | `tests/README.md` lane budgets + marker policy | Scattered in `developer_quickstart.md` | **I0** |
+| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); Sphinx/pages targets stub until I4 | **I0** |
+| **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
 | **Markers** | smoke / contract / integration(_core|_extended) / heavy / gui_* / release_only / quarantined / requires_* | smoke / unit / integration / slow / requires_* / quarantined | **I0**, **I3** |
 | **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | No coverage gate | **I3** |
 | **Pre-commit** | `config/.pre-commit-config.yaml` (hooks + black/ruff/mypy) | Tool configs in `pyproject.toml` only | **I3** |
@@ -82,7 +82,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting releases: land **I0–I1** before claiming CI honesty; land **I2** before the next public tag; land **I4–I5** before advertising a hosted guide.
 
-### I0 — Developer lanes & inventory — [ ] planned
+### I0 — Developer lanes & inventory — [x] done
 
 **Intent:** Single source of truth for how maintainers run tests/docs locally, matching what CI will call.
 
@@ -96,7 +96,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** A new contributor can run the same named lanes CI will use; `developer_quickstart.md` links `tests/README.md`.
 
-### I1 — PR CI (honesty gate) — [ ] planned
+### I1 — PR CI (honesty gate) — [x] done
 
 **Intent:** Every push/PR gets a TranscriptX-shaped minimum gate.
 
@@ -216,7 +216,7 @@ The 0.9 infrastructure wave is **done** when all are true:
 5. **Coverage** and **secrets/denylist** gates are enforced (coverage threshold may still be modest).
 6. **Nightly** (or documented equivalent) exercises acceptance / heavier offline suites without live Ollama.
 
-Product **0.9.0** requires this wave’s exit gate **and** usability **U2**. Unfamiliar testing is **0.9-1** ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0**. Foundation readiness checklist: [ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned) Track C. The [After 1.0](ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) autobiography programme must not start until **1.0**.
+Product **0.9.0** requires this wave’s exit gate **and** usability **U2**. Unfamiliar testing is **0.9-1** ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0**. Foundation readiness checklist: [ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) Track C. The [After 1.0](ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) autobiography programme must not start until **1.0**.
 
 ---
 

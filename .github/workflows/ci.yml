@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+
+jobs:
+  compose-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert canonical Compose bind
+        run: bash scripts/release/assert_compose_bind.sh
+
+  # High-signal lint only. Full black --check waits until formatting drift is acceptable.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff
+        run: |
+          python -m pip install -U pip
+          pip install "ruff>=0.1.6,<1"
+      - name: Ruff (critical + unused)
+        run: |
+          # E9/F63/F7/F82: syntax / undefined-name class failures
+          # F401/F841: unused imports and locals in packaged source
+          ruff check src/transcribe --select E9,F63,F7,F82,F401,F841
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package + test deps
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+          command -v pytest
+          python -m pytest --version
+      - name: Isolate temp roots
+        run: |
+          mkdir -p "$RUNNER_TEMP/tr-data" "$RUNNER_TEMP/tr-projects" "$RUNNER_TEMP/tr-inbox" "$RUNNER_TEMP/tr-export"
+          echo "TRANSCRIBE_DATA_DIR=$RUNNER_TEMP/tr-data" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_PROJECTS_DIR=$RUNNER_TEMP/tr-projects" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_INBOX_DIR=$RUNNER_TEMP/tr-inbox" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_EXPORT_DIR=$RUNNER_TEMP/tr-export" >> "$GITHUB_ENV"
+      - name: Smoke
+        run: make test-smoke
+      - name: Fast (default offline)
+        run: make test-fast

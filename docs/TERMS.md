@@ -38,6 +38,6 @@ This document is an **index of terms only**. It aggregates terminology from auth
 - **Analyse UI preset** (Quick / Balanced / Thorough / Custom) — Module-set policies for Analyse. See [workspace-settings.md](contracts/workspace-settings.md) · [runtime/analysis.md](runtime/analysis.md).
 - **Slice / ContextCollection / Person store / Reconstruction** — Planned post-1.0 autobiography concepts; **not shipped**. Sequencing only: [ROADMAP.md](ROADMAP.md) After 1.0. No contract yet. Not the Mood → Moments analysis module.
 - **ClaimStatus** — Vocabulary map (Evidence / Extraction / Confirmation / Interpretation layers) onto existing `date_approved`, detection `review_status`, and `edited_text`. Documented for the 1.0 foundation checklist; runtime schema waits for After 1.0 contracts. See [ROADMAP.md](ROADMAP.md) Path to 0.9.0 Track C · After 1.0 ClaimStatus table.
-- **0.9.0 / 0.9-1** — Package cut (U2 + I0–I6) then unfamiliar-user testing before **1.0**. See [ROADMAP.md](ROADMAP.md) Path to 0.9.0 · [dev/user_testing_0_9.md](dev/user_testing_0_9.md).
+- **0.9.0 / 0.9-1** — Package cut (U2 + I0–I6) then unfamiliar-user testing before **1.0**. Intermediate infra cuts: **0.7.0** (I0–I1), **0.8** (I2–I3). See [ROADMAP.md](ROADMAP.md) Path to 0.9.0 · [dev/user_testing_0_9.md](dev/user_testing_0_9.md).
 
 This index may grow as new terms appear in CONTRACT docs; each term here must **delegate meaning** rather than redefine it.

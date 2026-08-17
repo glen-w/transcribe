@@ -36,7 +36,7 @@ For unfamiliar testers and maintainers cutting toward **1.0**:
 3. After installing a newer Transcribe build, open the workspace and run Diagnostics / `corpus-doctor` (and notebook doctor when a notebook is selected).
 4. If something is wrong, restore from the pre-upgrade ZIP (`restore --dry-run` then `--yes`) rather than hand-editing `project.json`.
 
-Schema bumps that Transcribe cannot load must **refuse** with a clear message (existing format/schema registry behaviour) — recover via backup, not silent migration. Broader “archive readable without Transcribe” remains a ROADMAP candidate. Foundation checklist: [ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned).
+Schema bumps that Transcribe cannot load must **refuse** with a clear message (existing format/schema registry behaviour) — recover via backup, not silent migration. Broader “archive readable without Transcribe” remains a ROADMAP candidate. Foundation checklist: [ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10).
 
 ## Create a backup
 

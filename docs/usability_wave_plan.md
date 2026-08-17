@@ -5,7 +5,7 @@ Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria
 
 **Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home and Diagnostics shipped; sample notebook and first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split) is **shipped** — not a new wave track.
 
-**0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10----planned)). After 0.9.0: **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0**.
+**0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10)). After 0.9.0: **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0**.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 

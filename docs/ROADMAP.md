@@ -5,8 +5,8 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Usability wave (active product focus):** [usability_wave_plan.md](usability_wave_plan.md)  
-**0.9 infrastructure wave (planned):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
-**Path to 0.9 / 1.0:** [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10----planned)  
+**0.9 infrastructure wave (in progress):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
+**Path to 0.9 / 1.0:** [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10)  
 **0.9-1 unfamiliar testing (planned):** [dev/user_testing_0_9.md](dev/user_testing_0_9.md)  
 **After 1.0 (planned):** notebook-anchored autobiography workbench (1.1–2.0) — gated on 1.0; see [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned)  
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
@@ -22,21 +22,23 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.6.x.** Version ladder to autobiography:
+**Package is 0.7.0.** Version ladder to autobiography:
 
 ```text
-0.6.x (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-   U2 + I0–I6      tag + hosted docs      findings → fixes         freeze     autobiography
+0.6.x  →  0.7.0 (now)  →  0.8 (I2–I3)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
+              I0–I1                         U2 + I4–I6     tag + hosted docs      findings → fixes         freeze     autobiography
 ```
 
 | Label | Meaning |
 |-------|---------|
+| **0.7.0** | Developer lanes + PR CI honesty gate (**I0–I1**). Makefile, `tests/README.md`, GitHub Actions matrix 3.10–3.12, compose-bind assert. |
+| **0.8** | Next infra cut: release hygiene + quality gates (**I2–I3**). |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
 | **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
 | **After 1.0** | Autobiography programme (1.1–2.0) — [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned). |
 
-A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10----planned).
+A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10).
 
 **After 1.0** is planned, not started. Do not schedule context importers, Slices, People-as-identity, reconstruction, or page time-of-day while U2 / I0–I6 / 0.9-1 remain the path to 1.0.
 
@@ -162,7 +164,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
 | **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** (done) |
 | **Backup / restore / portability** | Full-workspace ZIP (`transcribe.workspace-backup` v1): create/verify/restore via CLI + Settings → Configuration → Backup; replace-only restore with automatic safety ZIP; corpus-doctor after restore. Contract: [workspace-backup.md](contracts/workspace-backup.md). | **[x] done** |
-| **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | **0.9 path (thin):** pre-upgrade backup + restore verify in first-run/backup docs — [Path to 0.9.0](#path-to-090--09-1--10----planned) foundation checklist. Full “archive readable without Transcribe” remains candidate |
+| **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | **0.9 path (thin):** pre-upgrade backup + restore verify in first-run/backup docs — [Path to 0.9.0](#path-to-090--09-1--10) foundation checklist. Full “archive readable without Transcribe” remains candidate |
 | **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. Model-information expander follows live Transcribe picker selection. | **U3** (done) |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
 | **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
@@ -178,7 +180,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 
 ## Next — Release / onboarding / operability — [ ] planned (via U2)
 
-Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut** ([Path to 0.9.0](#path-to-090--09-1--10----planned)):
+Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut** ([Path to 0.9.0](#path-to-090--09-1--10)):
 
 - **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
 - Remaining: first-run install docs path (U2.4), sample notebook (U2.2)
@@ -187,9 +189,9 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ---
 
-## Path to 0.9.0 / 0.9-1 / 1.0 — [ ] planned
+## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** planned — authoritative sequencing from package **0.6.x** to a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.7.0** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
 **Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
 
@@ -216,15 +218,15 @@ Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.
 
 | Track | Status | Intent |
 |-------|--------|--------|
-| **I0** Developer lanes & inventory | [ ] | `Makefile` + `tests/README.md` lane vocabulary; marker policy; light docs/script inventory |
-| **I1** PR CI honesty gate | [ ] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
+| **I0** Developer lanes & inventory | [x] | `Makefile` + `tests/README.md` lane vocabulary; marker policy; light docs/script inventory |
+| **I1** PR CI honesty gate | [x] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
 | **I2** Release hygiene + governance | [ ] | `scripts/release/*`, secrets/denylist, `release_governance.md`, dependency audit log |
 | **I3** Quality gates | [ ] | Coverage fail-under, pre-commit, partial CI `release-checks` |
 | **I4** Hosted docs | [ ] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
 | **I5** Public landing | [ ] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
 | **I6** Sustaining lanes | [ ] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
 
-Suggested cut order: **I0+I1** → **I2** → **I3** → **I4+I5** → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
+Suggested cut order: **I0+I1** (0.7.0, landed) → **I2** → **I3** → **I4+I5** → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
 
 **Infra exit gate (summary):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
 
@@ -248,7 +250,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Coherent intermediate package bumps on the 0.6.x line remain allowed before that cut ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) version note).
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts: **0.7.0** = I0+I1 (landed); **0.8** = I2+I3 (next).
 
 ### 0.9-1 — Unfamiliar user testing
 
@@ -270,7 +272,7 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 ## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)
 
-Detail lives in [Path to 0.9.0](#path-to-090--09-1--10----planned) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut; unfamiliar testing is **0.9-1**, not an I7 track.
+Detail lives in [Path to 0.9.0](#path-to-090--09-1--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut; unfamiliar testing is **0.9-1**, not an I7 track.
 
 ---
 
@@ -289,7 +291,7 @@ Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.
 
 ## After 1.0 — Notebook-anchored autobiography workbench — [ ] planned
 
-**Status:** planned; **gated on 1.0**. Authority for post-1.0 product sequencing and architecture intent. Does not define shipped schemas — contracts land with each release. Do not implement this programme while [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10----planned) remains open (U2, I0–I6, unfamiliar testing).
+**Status:** planned; **gated on 1.0**. Authority for post-1.0 product sequencing and architecture intent. Does not define shipped schemas — contracts land with each release. Do not implement this programme while [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10) remains open (U2, I0–I6, unfamiliar testing).
 
 **Thesis:** Handwritten notebooks are the primary source material. Everything else becomes evidence, context, and memory around them. The system helps reconstruct a life from surviving evidence while preserving a clear distinction between what was actually recorded, what was extracted, and what the machine infers.
 
@@ -307,7 +309,7 @@ relationships / Slices
 autobiographical interpretation (cited, never a substitute for the page)
 ```
 
-**1.0 stays notebook-first.** Finish the [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10----planned) (U2, I0–I6, unfamiliar testing, foundation checklist). No WhatsApp, photo libraries, Slices, reconstruction, or time-of-day storage in 1.0.
+**1.0 stays notebook-first.** Finish the [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10) (U2, I0–I6, unfamiliar testing, foundation checklist). No WhatsApp, photo libraries, Slices, reconstruction, or time-of-day storage in 1.0.
 
 ### What to preserve
 
@@ -454,7 +456,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **UX:** Finish U2 (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)). Inbox polish optional.
 
-**Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--09-1--10----planned) signed off.
+**Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--09-1--10) signed off.
 
 **Risks:** Starting autobiography before the gate. Do not sneak WhatsApp into 1.0.
 
@@ -654,7 +656,7 @@ No live WhatsApp/Telegram/Ollama in default CI. Doctor deep-hash originals. Back
 
 ### Implementation order
 
-1. Finish **1.0** via [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10----planned). Freeze notebook core.
+1. Finish **1.0** via [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10). Freeze notebook core.
 2. Contracts for ClaimStatus + TemporalClaim + context-index **before** photo code (1.1–1.2).
 3. **1.1** related pages → **1.2** photos → **1.3** people → **1.4** WhatsApp → **1.5** CSV/mood → **1.6** Telegram + TX → **1.7** Slices → **1.8** evidence panel → **1.9** Autobiography → **2.0** reconstruction (LLM last).
 

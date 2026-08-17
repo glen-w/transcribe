@@ -3,7 +3,7 @@ Authority: 0.9-1 unfamiliar-user testing protocol — does not own product seque
 
 # 0.9-1 unfamiliar user testing
 
-**Status:** planned — runs **after** the **0.9.0** package cut (U2 + I0–I6). Sequencing: [ROADMAP.md](../ROADMAP.md) [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10----planned).
+**Status:** planned — runs **after** the **0.9.0** package cut (U2 + I0–I6). Sequencing: [ROADMAP.md](../ROADMAP.md) [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10).
 
 **Purpose:** Strangers (or deliberately unfamiliar testers) complete a first successful notebook using only hosted/README docs — not contracts — so findings can harden Transcribe before **1.0** and leave an additive-ready foundation for After 1.0 autobiography work.
 
@@ -72,7 +72,7 @@ Also note anything that would later block “life around a page” (Reading cent
 | Issue list + severity | Tester / maintainer |
 | Fix train on **0.9.x** | Maintainers |
 | Go/no-go note for **1.0** | Maintainer |
-| Foundation checklist sign-off | [ROADMAP Path to 0.9.0](../ROADMAP.md#path-to-090--09-1--10----planned) Track C |
+| Foundation checklist sign-off | [ROADMAP Path to 0.9.0](../ROADMAP.md#path-to-090--09-1--10) Track C |
 
 **0.9-1 → 1.0 exit:** critical install/OCR/review/export/backup issues closed or accepted in [known_limitations.md](../known_limitations.md); foundation checklist complete; [PRODUCT.md](../PRODUCT.md) still page-first.
 

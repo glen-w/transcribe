@@ -9,7 +9,7 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 
 | Doc | Purpose |
 |-----|---------|
-| [developer_quickstart.md](developer_quickstart.md) | Mental model, venv, tests, extension points |
+| [developer_quickstart.md](developer_quickstart.md) | Mental model, venv, Makefile test lanes, extension points |
 | [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md) | Docs authority model and sync checklist |
 | [dev/docs_architecture.md](dev/docs_architecture.md) | Docs surfaces map |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System shape and ownership boundaries |
@@ -22,7 +22,7 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 |-----|---------|
 | [ROADMAP.md](ROADMAP.md) | Product roadmap: Path to 0.9.0 / 0.9-1 / 1.0; After 1.0 autobiography (planned, gated) |
 | [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (active; U2 open; required for 0.9.0) |
-| [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: CI, test lanes, release hygiene, hosted docs (planned; required for 0.9.0) |
+| [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: CI, test lanes, release hygiene, hosted docs (**I0–I1** landed in 0.7; I2–I6 remain; required for 0.9.0) |
 | [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | 0.9-1 unfamiliar-user testing protocol (after 0.9.0 cut) |
 | [public_surfaces.md](public_surfaces.md) | GUI IA and supported entrypoints |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |

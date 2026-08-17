@@ -38,7 +38,7 @@ from transcribe.services.batch_notebooks import (
 )
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
-from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.services.project import ProjectService
 
 _log = logging.getLogger(__name__)
 
