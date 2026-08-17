@@ -8,6 +8,30 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from typing import Any
 
+_ANALYSE_PICKER_STATUS = {
+    "missing": "no analysis",
+    "degraded": "existing degraded analysis",
+    "failed": "existing failed analysis",
+    "stale": "existing out-of-date analysis",
+    "healthy": "existing analysis",
+    "interrupted": "interrupted analysis",
+    "running": "analysis running",
+}
+
+
+def analyse_picker_status_phrase(analysis_aggregate: str) -> str:
+    """Ordinary-language status for Analyse → Batch pick labels."""
+    key = (analysis_aggregate or "").strip() or "missing"
+    if key in _ANALYSE_PICKER_STATUS:
+        return _ANALYSE_PICKER_STATUS[key]
+    return key.replace("_", " ")
+
+
+def format_analyse_picker_label(title: str, analysis_aggregate: str) -> str:
+    """``{title} ({status})`` for the Pick notebooks multiselect."""
+    name = (title or "").strip() or "Untitled"
+    return f"{name} ({analyse_picker_status_phrase(analysis_aggregate)})"
+
 
 def unit_series(
     units: list[Any],

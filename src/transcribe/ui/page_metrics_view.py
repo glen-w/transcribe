@@ -72,7 +72,8 @@ def render_overview_page_metrics(
     st.markdown("#### Page ink & blankness")
     st.caption(
         "Visual metrics from active page renders (Pillow). "
-        "Independent of text Analyse modules — refreshes when page images change."
+        "Independent of text Analyse modules — refreshes when page images change. "
+        "The notebook cover page (when set) is excluded."
     )
     published = ensure_page_metrics(projects, project)
     cols = st.columns([1, 1, 1, 1.2])

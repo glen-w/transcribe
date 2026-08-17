@@ -7,7 +7,7 @@ Authority: 0.9 infrastructure-wave delivery plan (CI, tests, docs hosting, relea
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.0** (I0–I3). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed). **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.8.5** (I0–I3 plus product patch). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence

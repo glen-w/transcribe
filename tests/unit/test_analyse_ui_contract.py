@@ -243,6 +243,9 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "From an import run" in batch
     assert "Pick notebooks" in batch
     assert "list_candidates_light" in batch
+    assert "list_analyse_picker_candidates" in batch
+    assert "format_analyse_picker_label" in batch
+    assert "no analysis" in batch
     assert "Refresh list" in batch
     assert "invalidate_batch_analyse_caches" in batch
     assert "@st.fragment" in batch

@@ -92,7 +92,7 @@ Bulk-import generation is **runtime-normative**; the [acceptance gate](contracts
 | CLI `bulk-analyse status\|resume <id>` | `transcribe bulk-analyse status\|resume …` | Inspect or resume an AnalysisBatchRun |
 | UI **Workflow → Import → Batch** | Streamlit Import Target=Batch | Single-folder or parent-of-folders ImportRun; skip/overwrite with typed `OVERWRITE ALL`; recovery outcomes; live progress. Legacy Inbox aliases here. |
 | UI **Workflow → Transcribe → Batch** | Streamlit Transcribe Target=Batch | Single-model or multipass Compare models × N notebooks; pending / import-run / pick; resume; live progress |
-| UI **Workflow → Analyse → Batch** | Streamlit Analyse Target=Batch | Same Analyse plan × N notebooks; pick (default) / needing-analysis / import-run; batch text-model freeze when LLM modules included; dual-bar live progress |
+| UI **Workflow → Analyse → Batch** | Streamlit Analyse Target=Batch | Same Analyse plan × N notebooks; pick (default, labels show published status) / needing-analysis / import-run; batch text-model freeze when LLM modules included; dual-bar live progress |
 | CLI `backup create\|verify` / `restore` | `transcribe backup …` / `transcribe restore …` | Full-workspace ZIP; replace-only restore with safety ZIP; see [workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md) |
 | UI **Settings → Configuration → Backup** | Streamlit Configuration | Path-based create / verify / dry-run / restore (no browser zip transfer) |
 

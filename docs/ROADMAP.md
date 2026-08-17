@@ -22,17 +22,18 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.0.** Version ladder to autobiography:
+**Package is 0.8.5.** Version ladder to autobiography:
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-              I0–I1     I2–I3          U2 + I4–I6     tag + hosted docs      findings → fixes         freeze     autobiography
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
+              I0–I1     I2–I3     product     U2 + I4–I6     tag + hosted docs      findings → fixes         freeze     autobiography
 ```
 
 | Label | Meaning |
 |-------|---------|
 | **0.7.0** | Developer lanes + PR CI honesty gate (**I0–I1**). Makefile, `tests/README.md`, GitHub Actions matrix 3.10–3.12, compose-bind assert. |
 | **0.8.0** | Release hygiene + quality gates (**I2–I3**). `scripts/release/*`, `release_governance.md`, coverage fail-under, pre-commit, CI `release-checks`. |
+| **0.8.5** | Product patch on 0.8.0: cover-page skip in ink metrics; Analyse batch pick labels show published status. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
 | **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
@@ -191,7 +192,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.0** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.5** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
 **Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
 
@@ -250,7 +251,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3. Remaining infra: **I4–I6**.
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch. Remaining infra: **I4–I6**.
 
 ### 0.9-1 — Unfamiliar user testing
 

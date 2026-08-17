@@ -29,6 +29,7 @@ from transcribe.services.batch_analysis import (
     BatchAnalysisCoordinator,
     BatchAnalysisProgress,
     list_analysis_candidates,
+    list_analyse_picker_candidates,
     list_candidates_light,
     select_by_ids,
     select_from_import_run,
@@ -36,6 +37,10 @@ from transcribe.services.batch_analysis import (
 )
 from transcribe.services.batch_notebooks import NotebookCandidate
 from transcribe.services.project import ProjectService
+from transcribe.ui.analysis_display_helpers import (
+    analyse_picker_status_phrase,
+    format_analyse_picker_label,
+)
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import render_progress_panel
 from transcribe.ui.corpus_listing_cache import (
@@ -96,7 +101,7 @@ def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
         cache_key=_LIGHT_PICKER_KEY,
         token_key=_LIGHT_PICKER_TOKEN_KEY,
         token=corpus_listing_token(corpus),
-        loader=lambda: list_candidates_light(corpus),
+        loader=lambda: list_analyse_picker_candidates(corpus),
     )
 
 
@@ -182,9 +187,7 @@ def batch_analysis_progress_to_snapshot(progress: BatchAnalysisProgress) -> dict
     }
 
 
-def render_batch_analysis_progress(
-    coord: BatchAnalysisCoordinator, runtime: RuntimePaths
-) -> bool:
+def render_batch_analysis_progress(coord: BatchAnalysisCoordinator, runtime: RuntimePaths) -> bool:
     """Return True when the page should skip the settings form."""
     live = coord.get_progress()
     st.session_state[_BATCH_WAS_RUNNING_KEY] = live.status == "running"
@@ -209,10 +212,7 @@ def render_batch_analysis_progress(
                 unit_label="notebooks",
                 current_label="Current notebook",
             )
-            if (
-                st.session_state.get(_BATCH_WAS_RUNNING_KEY)
-                and progress.status != "running"
-            ):
+            if st.session_state.get(_BATCH_WAS_RUNNING_KEY) and progress.status != "running":
                 st.session_state[_BATCH_WAS_RUNNING_KEY] = False
                 st.session_state[_BATCH_POST_RUN_KEY] = progress.analysis_batch_id
                 invalidate_batch_analyse_caches()
@@ -221,9 +221,7 @@ def render_batch_analysis_progress(
         batch_status_panel()
         if st.button("Stop after current notebook", key="batch_analysis_stop"):
             coord.request_cancel()
-            st.info(
-                "Stopping after current notebook; remaining notebooks will not start."
-            )
+            st.info("Stopping after current notebook; remaining notebooks will not start.")
         return True
 
     render_progress_panel(
@@ -244,11 +242,7 @@ def _render_batch_complete_actions(
         run = coord.store.load(progress.analysis_batch_id)
     except TranscribeError:
         run = None
-    retry_ids = [
-        item.notebook_id
-        for item in (run.items if run else [])
-        if item.state == "failed"
-    ]
+    retry_ids = [item.notebook_id for item in (run.items if run else []) if item.state == "failed"]
     cols = st.columns(3, gap="small")
     with cols[0]:
         if render_action_link(
@@ -276,9 +270,7 @@ def _render_batch_complete_actions(
                     preset_label=run.preset_label if run else None,
                     preset_key=run.preset_key if run else None,
                     preset_content_version=run.preset_content_version if run else None,
-                    preset_policy_fingerprint=(
-                        run.preset_policy_fingerprint if run else None
-                    ),
+                    preset_policy_fingerprint=(run.preset_policy_fingerprint if run else None),
                     import_run_id=run.import_run_id if run else None,
                 )
                 invalidate_batch_analyse_caches()
@@ -358,8 +350,7 @@ def _render_batch_notebook_source(
         key="ax_batch_source",
         horizontal=True,
         help=(
-            "Pick notebooks to choose a list. "
-            "Needing analysis scans for missing or stale results."
+            "Pick notebooks to choose a list. Needing analysis scans for missing or stale results."
         ),
     )
     selected: list = []
@@ -383,12 +374,11 @@ def _render_batch_notebook_source(
                 for cand in selected:
                     st.caption(
                         f"- {cand.title} ({cand.pages_with_text} with text · "
-                        f"{cand.analysis_aggregate})"
+                        f"{analyse_picker_status_phrase(cand.analysis_aggregate)})"
                     )
         else:
             st.info(
-                "Nothing currently needs analysis. "
-                "Use Pick notebooks to choose notebooks anyway."
+                "Nothing currently needs analysis. Use Pick notebooks to choose notebooks anyway."
             )
     elif source == "import_run":
         runs = _cached_import_runs(corpus)
@@ -423,14 +413,22 @@ def _render_batch_notebook_source(
                             expanded=len(selected) <= 12,
                         ):
                             for cand in selected:
-                                st.caption(f"- {cand.title}")
+                                st.caption(
+                                    "- "
+                                    + format_analyse_picker_label(
+                                        cand.title, cand.analysis_aggregate
+                                    )
+                                )
                 except (TranscribeError, ValidationError) as exc:
                     st.error(str(exc))
     else:
         picker = _cached_light_picker(corpus)
         queued_ids = st.session_state.pop(ANALYSE_BATCH_NOTEBOOK_IDS_KEY, None)
         options = [c.notebook_id for c in picker]
-        labels = {c.notebook_id: c.title for c in picker}
+        labels = {
+            c.notebook_id: format_analyse_picker_label(c.title, c.analysis_aggregate)
+            for c in picker
+        }
         default = [nid for nid in (queued_ids or []) if nid in options]
         if default and "ax_batch_pick" not in st.session_state:
             st.session_state["ax_batch_pick"] = default
@@ -452,6 +450,11 @@ def _render_batch_notebook_source(
                 format_func=lambda nid: labels.get(nid, nid),
                 placeholder="Choose notebooks to analyse",
                 key="ax_batch_pick",
+                help=(
+                    "Each name shows whether published analysis exists yet "
+                    "(no analysis, existing analysis, degraded, failed, …). "
+                    "Out-of-date results are listed under Notebooks needing analysis."
+                ),
             )
             if picked:
                 try:
@@ -512,9 +515,7 @@ def _render_batch_preset_and_launch(
     custom_detectors: list[str] = []
     if preset == "custom":
         if _CUSTOM_WIDGET_KEY not in st.session_state:
-            st.session_state[_CUSTOM_WIDGET_KEY] = [
-                m for m in stored_custom if m in suitable
-            ]
+            st.session_state[_CUSTOM_WIDGET_KEY] = [m for m in stored_custom if m in suitable]
         selected = st.multiselect(
             "Select modules",
             options=suitable,
@@ -543,9 +544,7 @@ def _render_batch_preset_and_launch(
         custom_detectors=custom_detectors,
     )
     if _QA_ENABLE_WIDGET_KEY not in st.session_state:
-        st.session_state[_QA_ENABLE_WIDGET_KEY] = bool(
-            st.session_state.get(_QA_ENABLE_KEY, False)
-        )
+        st.session_state[_QA_ENABLE_WIDGET_KEY] = bool(st.session_state.get(_QA_ENABLE_KEY, False))
     qa_enabled = st.checkbox(
         "Include Ask notebook question",
         key=_QA_ENABLE_WIDGET_KEY,
@@ -592,8 +591,10 @@ def _render_batch_preset_and_launch(
 
         cfg = get_config()
         base_url = (
-            (project.settings.base_url if project is not None else "") or ""
-        ).strip() or (cfg.ocr.base_url or "").strip() or default_ollama_base_url()
+            ((project.settings.base_url if project is not None else "") or "").strip()
+            or (cfg.ocr.base_url or "").strip()
+            or default_ollama_base_url()
+        )
         default_name = resolve_text_model_name(
             getattr(project.settings, "text_model_name", None) if project else None
         )
@@ -603,9 +604,7 @@ def _render_batch_preset_and_launch(
             "workspace default under Settings → Models."
         )
         provider = OllamaVisionProvider(base_url)
-        refresh_models = st.button(
-            "Refresh models", key="batch_analysis_refresh_models"
-        )
+        refresh_models = st.button("Refresh models", key="batch_analysis_refresh_models")
         if refresh_models:
             invalidate_discovery_cache(base_url)
         discovery = provider.list_models(refresh=refresh_models)
@@ -646,15 +645,12 @@ def _render_batch_preset_and_launch(
             for run in recent:
                 ok = sum(1 for i in run.items if i.state == "completed")
                 st.caption(
-                    f"`{run.analysis_batch_id}` · {run.status} · "
-                    f"{ok}/{len(run.items)} notebooks"
+                    f"`{run.analysis_batch_id}` · {run.status} · {ok}/{len(run.items)} notebooks"
                 )
                 if run.status in {"pending", "running"} or any(
                     i.state in {"pending", "running"} for i in run.items
                 ):
-                    if st.button(
-                        "Resume", key=f"batch_analysis_resume_{run.analysis_batch_id}"
-                    ):
+                    if st.button("Resume", key=f"batch_analysis_resume_{run.analysis_batch_id}"):
                         try:
                             invalidate_batch_analyse_caches()
                             batch_coord.start(run.analysis_batch_id)
@@ -695,9 +691,7 @@ def _render_batch_preset_and_launch(
                     preset_policy_fingerprint=resolved.policy_fingerprint,
                     import_run_id=import_run_id,
                     seed_project=projects,
-                    text_model_name=(
-                        (batch_text_model or "").strip() if needs_llm else None
-                    ),
+                    text_model_name=((batch_text_model or "").strip() if needs_llm else None),
                 )
                 invalidate_batch_analyse_caches()
                 batch_coord.start(new_run.analysis_batch_id)

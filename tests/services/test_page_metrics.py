@@ -109,3 +109,38 @@ def test_force_recompute_updates_timestamp(tmp_path: Path) -> None:
     b = svc.ensure_fresh(project, force=True)
     assert a.cache_identity == b.cache_identity
     assert a.computed_at != b.computed_at
+
+
+def test_explicit_cover_excluded_from_metrics(tmp_path: Path) -> None:
+    _paths, projects, project, clock = _project_with_pages(tmp_path, n=2, blank=False)
+    cover_id = project.pages[0].page_id
+    other_id = project.pages[1].page_id
+    project = projects.update_notebook_metadata(cover_page_id=cover_id)
+    svc = PageMetricsService(projects, clock=clock)
+    doc = svc.recompute(project)
+    assert doc.outcome == "success"
+    assert len(doc.pages) == 1
+    assert doc.pages[0].page_id == other_id
+    assert doc.rollup.page_count == 1
+    assert doc.row_for_page(cover_id) is None
+
+
+def test_explicit_cover_only_is_insufficient_data(tmp_path: Path) -> None:
+    _paths, projects, project, clock = _project_with_pages(tmp_path, n=1, blank=False)
+    cover_id = project.pages[0].page_id
+    project = projects.update_notebook_metadata(cover_page_id=cover_id)
+    svc = PageMetricsService(projects, clock=clock)
+    doc = svc.recompute(project)
+    assert doc.outcome == "insufficient_data"
+    assert doc.pages == ()
+    assert doc.rollup.page_count == 0
+
+
+def test_unset_cover_still_measures_first_page(tmp_path: Path) -> None:
+    _paths, projects, project, clock = _project_with_pages(tmp_path, n=2, blank=False)
+    assert project.cover_page_id is None
+    svc = PageMetricsService(projects, clock=clock)
+    doc = svc.recompute(project)
+    assert doc.outcome == "success"
+    assert len(doc.pages) == 2
+    assert {p.page_id for p in doc.pages} == {p.page_id for p in project.pages}

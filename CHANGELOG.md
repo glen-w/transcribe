@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-08-18
+
+### Added
+
+- Analyse → Batch **Pick notebooks** labels show published status in brackets (`BMO (no analysis)`, `Jake (existing degraded analysis)`, …). Content freshness stays on **Notebooks needing analysis**.
+
+### Changed
+
+- Page ink / blankness metrics skip the notebook’s explicit cover page (`cover_page_id`): Reader no longer shows page-used / ink / paper under the cover scan, and Overview rollups/charts omit that page.
+
 ## [0.8.0] - 2026-08-17
 
 ### Added

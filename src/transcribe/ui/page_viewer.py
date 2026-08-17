@@ -808,6 +808,9 @@ def render_page_viewer(
 
     def _render_scan_and_metrics(*, image_width: int | str) -> None:
         st.image(str(img_path), width=image_width)
+        # Explicit cover pages are outside page-metrics (service omits them).
+        if project.cover_page_id is not None and page.page_id == project.cover_page_id:
+            return
         try:
             from transcribe.ui.page_metrics_view import (
                 ensure_page_metrics,

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from transcribe.ui.analysis_display_helpers import (
     aggregate_entity_sentiment,
+    analyse_picker_status_phrase,
     contextual_label_counts,
     emotion_label_totals,
+    format_analyse_picker_label,
     group_action_items,
     motif_rows,
     topic_weight_rows,
@@ -110,3 +112,14 @@ def test_group_action_items_and_motifs():
         }
     )
     assert motifs[0]["similarity"] == 0.9
+
+
+def test_analyse_picker_labels_name_published_status():
+    assert format_analyse_picker_label("BMO", "missing") == "BMO (no analysis)"
+    assert format_analyse_picker_label("Jake", "degraded") == "Jake (existing degraded analysis)"
+    assert format_analyse_picker_label("Hamragardar", "healthy") == (
+        "Hamragardar (existing analysis)"
+    )
+    assert analyse_picker_status_phrase("failed") == "existing failed analysis"
+    assert analyse_picker_status_phrase("stale") == "existing out-of-date analysis"
+    assert analyse_picker_status_phrase("") == "no analysis"

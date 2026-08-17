@@ -77,16 +77,17 @@ Hex SHA-256 of canonical JSON:
 }
 ```
 
-- `pages` follows **project page order** (all pages with a resolvable active render).
+- `pages` follows **project page order** among measurable pages (resolvable active render).
+- The notebook’s explicit `cover_page_id` (when set) is **omitted** from identity, `pages`, and rollups — covers are not treated as ink/paper content. Unset `cover_page_id` does **not** imply first-page exclusion (display/Open may still fall back to the first page).
 - Pages whose active render file is missing are omitted from identity and from `pages` (service may warn); identity still reflects only successfully measured pages.
-- Changing algorithm version, page set, order, or any active render SHA invalidates the published artifact.
+- Changing algorithm version, page set (including cover designation), order, or any active render SHA invalidates the published artifact.
 
 ## Outcomes
 
 | Situation | `outcome` |
 |-----------|-----------|
-| At least one page measured | `success` |
-| Project has no pages / no measurable renders | `insufficient_data` (`pages` empty, rollup zeros/nulls) |
+| At least one non-cover page measured | `success` |
+| Project has no pages / no measurable renders / only the explicit cover is measurable | `insufficient_data` (`pages` empty, rollup zeros/nulls) |
 
 ## Atomicity
 

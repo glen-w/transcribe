@@ -110,9 +110,7 @@ def enrich_page_stats(
         try:
             projects = ProjectService(open_project_paths(cand.root), clock=clock, ids=ids)
             project = projects.load(reconcile=False)
-            total, pending, failed, with_text, _results = collect_page_stats(
-                projects, project
-            )
+            total, pending, failed, with_text, _results = collect_page_stats(projects, project)
         except (TranscribeError, OSError, ValueError, KeyError):
             out.append(cand)
             continue
@@ -152,9 +150,7 @@ def _fingerprint_for_module(
         if module_id in PARAGRAPH_PREFERRED:
             if para_fp[0] is None:
                 try:
-                    doc = build_paragraph_v1_document(
-                        project, projects, results=results
-                    )
+                    doc = build_paragraph_v1_document(project, projects, results=results)
                 except AnalysisDocumentError:
                     doc = build_page_v1_document(project, projects, results=results)
                 para_fp[0] = content_fingerprint(doc)
@@ -196,6 +192,81 @@ def _latest_run_status(runs_dir) -> str | None:
     return status or None
 
 
+def _published_scan_prelude(
+    projects: ProjectService,
+) -> tuple[str | None, list[str], Any]:
+    """Lock / published-module listing before envelope reads.
+
+    Returns ``(early_status, module_ids, storage)``. ``early_status`` is set for
+    missing / running / interrupted so callers can return without reading
+    envelopes.
+    """
+    from transcribe.analysis.storage import AnalysisStorage, RUNS_DIR_NAME
+    from transcribe.persistence.locks import analysis_lock_held
+
+    analysis_dir = projects.paths.analysis_dir
+    if not analysis_dir.is_dir():
+        return "missing", [], None
+    if analysis_lock_held(projects.paths.analysis_lock):
+        return "running", [], None
+    try:
+        module_ids = sorted(
+            p.name
+            for p in analysis_dir.iterdir()
+            if p.is_dir() and p.name != RUNS_DIR_NAME and (p / "published.json").is_file()
+        )
+    except OSError:
+        return "missing", [], None
+    if not module_ids:
+        return "missing", [], None
+    storage = AnalysisStorage(projects.paths)
+    latest_status = _latest_run_status(storage.runs_dir())
+    if latest_status in {"interrupted", "running"}:
+        return latest_status, module_ids, storage
+    return None, module_ids, storage
+
+
+def _aggregate_published_outcomes(envelopes: list[dict[str, Any]]) -> str:
+    saw_ok = False
+    saw_failed = False
+    saw_degraded = False
+    for published in envelopes:
+        outcome = str(published.get("outcome") or "")
+        capability = str(published.get("capability") or "")
+        if outcome == "failed" or capability == "failed":
+            saw_failed = True
+            continue
+        if capability in _DEGRADED_CAPABILITIES or outcome in _DEGRADED_OUTCOMES:
+            saw_degraded = True
+            continue
+        saw_ok = True
+    if saw_failed:
+        return "failed"
+    if not saw_ok and not saw_degraded:
+        return "missing"
+    if saw_degraded:
+        return "degraded"
+    return "healthy"
+
+
+def published_analysis_status(projects: ProjectService) -> str:
+    """Picker-grade aggregate from published envelopes + lock/run only.
+
+    No page-result or content-fingerprint I/O. Distinguishes missing / running /
+    interrupted / failed / degraded / healthy. Content freshness (stale) stays
+    on the needing-analysis scan.
+    """
+    early, module_ids, storage = _published_scan_prelude(projects)
+    if early is not None:
+        return early
+    envelopes: list[dict[str, Any]] = []
+    for mid in module_ids:
+        published = storage.read_published(mid)
+        if published is not None:
+            envelopes.append(published)
+    return _aggregate_published_outcomes(envelopes)
+
+
 def analysis_aggregate_for_project(
     projects: ProjectService,
     *,
@@ -215,32 +286,10 @@ def analysis_aggregate_for_project(
     _ = clock
     _ = ids
     from transcribe.analysis.modules import get_registered_modules
-    from transcribe.analysis.storage import AnalysisStorage, RUNS_DIR_NAME
-    from transcribe.persistence.locks import analysis_lock_held
 
-    analysis_dir = projects.paths.analysis_dir
-    if not analysis_dir.is_dir():
-        return "missing"
-
-    if analysis_lock_held(projects.paths.analysis_lock):
-        return "running"
-
-    module_ids = sorted(
-        p.name
-        for p in analysis_dir.iterdir()
-        if p.is_dir()
-        and p.name != RUNS_DIR_NAME
-        and (p / "published.json").is_file()
-    )
-    if not module_ids:
-        return "missing"
-
-    storage = AnalysisStorage(projects.paths)
-    latest_status = _latest_run_status(storage.runs_dir())
-    if latest_status == "interrupted":
-        return "interrupted"
-    if latest_status == "running":
-        return "running"
+    early, module_ids, storage = _published_scan_prelude(projects)
+    if early is not None:
+        return early
 
     if project is None:
         try:
@@ -251,9 +300,7 @@ def analysis_aggregate_for_project(
     modules = registered if registered is not None else get_registered_modules()
     page_fp: list[str | None] = [None]
     para_fp: list[str | None] = [None]
-    saw_ok = False
-    saw_failed = False
-    saw_degraded = False
+    envelopes: list[dict[str, Any]] = []
 
     for mid in module_ids:
         published = storage.read_published(mid)
@@ -272,23 +319,9 @@ def analysis_aggregate_for_project(
         )
         if expected_fp is None or published.get("content_fingerprint") != expected_fp:
             return "stale"
-        outcome = str(published.get("outcome") or "")
-        capability = str(published.get("capability") or "")
-        if outcome == "failed" or capability == "failed":
-            saw_failed = True
-            continue
-        if capability in _DEGRADED_CAPABILITIES or outcome in _DEGRADED_OUTCOMES:
-            saw_degraded = True
-            continue
-        saw_ok = True
+        envelopes.append(published)
 
-    if saw_failed:
-        return "failed"
-    if not saw_ok and not saw_degraded:
-        return "missing"
-    if saw_degraded:
-        return "degraded"
-    return "healthy"
+    return _aggregate_published_outcomes(envelopes)
 
 
 def resolve_notebook_root(corpus: CorpusPaths, notebook_id: str) -> Path:
@@ -352,6 +385,7 @@ def list_candidates(
     ids: IdGenerator | None = None,
     include_analysis: bool = False,
     include_page_stats: bool = True,
+    include_published_status: bool = False,
 ) -> list[NotebookCandidate]:
     clock = clock or SystemClock()
     ids = ids or UuidGenerator()
@@ -372,9 +406,7 @@ def list_candidates(
         aggregate = "missing"
         results_map: dict[str, Any] | None = None
         if include_page_stats:
-            total, pending, failed, with_text, results_map = collect_page_stats(
-                projects, project
-            )
+            total, pending, failed, with_text, results_map = collect_page_stats(projects, project)
         if include_analysis:
             # Empty-text notebooks never enter needing-analysis; skip health I/O.
             if with_text == 0 and include_page_stats:
@@ -391,6 +423,11 @@ def list_candidates(
                     )
                 except (OSError, ValueError, KeyError, TypeError, TranscribeError):
                     aggregate = "missing"
+        elif include_published_status:
+            try:
+                aggregate = published_analysis_status(projects)
+            except (OSError, ValueError, KeyError, TypeError, TranscribeError):
+                aggregate = "missing"
         out.append(
             NotebookCandidate(
                 notebook_id=project.id,
@@ -423,14 +460,32 @@ def list_candidates_light(
     )
 
 
+def list_analyse_picker_candidates(
+    corpus: CorpusPaths,
+    *,
+    clock: Clock | None = None,
+    ids: IdGenerator | None = None,
+) -> list[NotebookCandidate]:
+    """Identity + title + cheap published status for Analyse pick labels.
+
+    Skips page-result and content-fingerprint I/O.
+    """
+    return list_candidates(
+        corpus,
+        clock=clock,
+        ids=ids,
+        include_analysis=False,
+        include_page_stats=False,
+        include_published_status=True,
+    )
+
+
 def select_pending(candidates: list[NotebookCandidate]) -> list[NotebookCandidate]:
     """OCR pending: notebooks with untranscribed or failed pages."""
     return [c for c in candidates if c.pages_pending > 0]
 
 
-_NEEDS_ANALYSIS = frozenset(
-    {"missing", "stale", "failed", "interrupted", "degraded"}
-)
+_NEEDS_ANALYSIS = frozenset({"missing", "stale", "failed", "interrupted", "degraded"})
 
 
 def select_needing_analysis(
@@ -438,9 +493,7 @@ def select_needing_analysis(
 ) -> list[NotebookCandidate]:
     """Analyse pending: has effective text and non-healthy aggregate."""
     return [
-        c
-        for c in candidates
-        if c.pages_with_text > 0 and c.analysis_aggregate in _NEEDS_ANALYSIS
+        c for c in candidates if c.pages_with_text > 0 and c.analysis_aggregate in _NEEDS_ANALYSIS
     ]
 
 
@@ -465,7 +518,5 @@ def select_from_import_run(
     run = ImportRunStore(corpus).load(import_run_id)
     nids = committed_notebook_ids(run)
     if not nids:
-        raise ValidationError(
-            f"import run {import_run_id} has no committed notebooks to {purpose}"
-        )
+        raise ValidationError(f"import run {import_run_id} has no committed notebooks to {purpose}")
     return select_by_ids(candidates, nids)

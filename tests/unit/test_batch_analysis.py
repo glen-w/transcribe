@@ -52,10 +52,14 @@ def _make_notebook(
     projects = ProjectService(open_project_paths(root), clock=clock, ids=ids)
     projects.create(name)
     ingest = IngestService(open_project_paths(root), clock=clock, ids=ids)
-    page_texts = texts if texts is not None else [
-        f"Enough notebook text for analysis in {name}. "
-        "Stats and lexical diversity need a few sentences of content."
-    ]
+    page_texts = (
+        texts
+        if texts is not None
+        else [
+            f"Enough notebook text for analysis in {name}. "
+            "Stats and lexical diversity need a few sentences of content."
+        ]
+    )
     for i, text in enumerate(page_texts):
         ingest.import_bytes(f"{name}-{i}.png", _png_bytes(color=(i + 1, 40, 50)))
     project = projects.load()
@@ -133,9 +137,7 @@ def test_select_from_import_run_and_by_ids(tmp_path: Path) -> None:
         ],
     )
     ImportRunStore(corpus).save(run)
-    selected = select_from_import_run(
-        corpus, "imprun-ax", candidates, purpose="analyse"
-    )
+    selected = select_from_import_run(corpus, "imprun-ax", candidates, purpose="analyse")
     assert [c.title for c in selected] == ["kept"]
     ordered = select_by_ids(
         candidates,
@@ -152,9 +154,7 @@ def test_batch_analysis_runs_two_notebooks(tmp_path: Path) -> None:
     _make_notebook(corpus, "alpha", clock=clock, ids=ids)
     _make_notebook(corpus, "beta", clock=clock, ids=ids)
     coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
-    selected = select_needing_analysis(
-        list_analysis_candidates(corpus, clock=clock, ids=ids)
-    )
+    selected = select_needing_analysis(list_analysis_candidates(corpus, clock=clock, ids=ids))
     run = coord.create_run(selected, module_ids=["stats", "lexical_diversity"])
     progress = coord.run_blocking(run.analysis_batch_id)
     assert progress.status == "completed"
@@ -205,9 +205,7 @@ def test_one_notebook_fails_continues_partial(tmp_path: Path) -> None:
     _make_notebook(corpus, "bad", clock=clock, ids=ids)
     _make_notebook(corpus, "good", clock=clock, ids=ids)
     coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
-    selected = select_needing_analysis(
-        list_analysis_candidates(corpus, clock=clock, ids=ids)
-    )
+    selected = select_needing_analysis(list_analysis_candidates(corpus, clock=clock, ids=ids))
     # Stable discover order: bad, good
     run = coord.create_run(selected, module_ids=["stats"])
 
@@ -243,9 +241,7 @@ def test_batch_analysis_cancel_does_not_start_next(tmp_path: Path) -> None:
     _make_notebook(corpus, "second", clock=clock, ids=ids)
 
     coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
-    selected = select_needing_analysis(
-        list_analysis_candidates(corpus, clock=clock, ids=ids)
-    )
+    selected = select_needing_analysis(list_analysis_candidates(corpus, clock=clock, ids=ids))
     run = coord.create_run(selected, module_ids=["stats", "lexical_diversity"])
 
     orig = AnalysisCoordinator.run_blocking
@@ -327,9 +323,7 @@ def test_create_run_freezes_explicit_text_model_for_batch(tmp_path: Path) -> Non
 
     coord = BatchAnalysisCoordinator(corpus, clock=clock, ids=ids)
     selected = list_analysis_candidates(corpus, clock=clock, ids=ids)
-    set_text_llm_client(
-        RecordedDoubleClient(responses={"default": "{}"}, digest="batch-digest")
-    )
+    set_text_llm_client(RecordedDoubleClient(responses={"default": "{}"}, digest="batch-digest"))
     try:
         run = coord.create_run(
             selected,
@@ -410,9 +404,7 @@ def test_job_conflict_on_second_start(tmp_path: Path) -> None:
         (("running", "pending"), "running"),
     ],
 )
-def test_finalize_status_matrix(
-    states: tuple[str, ...], expected: str
-) -> None:
+def test_finalize_status_matrix(states: tuple[str, ...], expected: str) -> None:
     run = AnalysisBatchRun(
         analysis_batch_id="r1",
         created_at="t",
@@ -420,8 +412,7 @@ def test_finalize_status_matrix(
         status="running",
         module_ids=["stats"],
         items=[
-            AnalysisBatchItem(notebook_id=f"n{i}", state=state)
-            for i, state in enumerate(states)
+            AnalysisBatchItem(notebook_id=f"n{i}", state=state) for i, state in enumerate(states)
         ],
     )
     assert finalize_analysis_batch_status(run) == expected
@@ -543,9 +534,7 @@ def test_live_progress_forwards_module_ticks(tmp_path: Path) -> None:
     def recording(self, plan, *, on_progress=None):
         def wrapped(progress: AnalysisProgress) -> None:
             live = coord.get_progress()
-            seen.append(
-                (live.current_item, live.current_module_id, live.modules_total)
-            )
+            seen.append((live.current_item, live.current_module_id, live.modules_total))
             if on_progress is not None:
                 on_progress(progress)
 
@@ -594,6 +583,54 @@ def test_list_candidates_light_skips_page_and_analysis_io(tmp_path: Path) -> Non
     full = list_analysis_candidates(corpus, clock=clock, ids=ids)
     assert full[0].pages_with_text == 1
     assert full[0].analysis_aggregate == "missing"
+
+
+def test_list_analyse_picker_candidates_uses_published_status_not_page_io(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    from transcribe.services.batch_notebooks import (
+        list_analyse_picker_candidates,
+        published_analysis_status,
+    )
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("pickst")
+    missing_root = _make_notebook(corpus, "no-ax", clock=clock, ids=ids)
+    degraded_root = _make_notebook(corpus, "degraded-ax", clock=clock, ids=ids)
+    pub = degraded_root / "analysis" / "stats" / "published.json"
+    pub.parent.mkdir(parents=True, exist_ok=True)
+    pub.write_text(
+        json.dumps(
+            {
+                "format": "transcribe.analysis-result",
+                "schema_version": 1,
+                "outcome": "insufficient_data",
+                "capability": "insufficient_data",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    original = ProjectService.load_page_result
+    calls = {"n": 0}
+
+    def _counted(self, page_id):  # noqa: ANN001
+        calls["n"] += 1
+        return original(self, page_id)
+
+    monkeypatch.setattr(ProjectService, "load_page_result", _counted)
+    picker = list_analyse_picker_candidates(corpus, clock=clock, ids=ids)
+    assert calls["n"] == 0
+    by_title = {c.title: c.analysis_aggregate for c in picker}
+    assert by_title["no-ax"] == "missing"
+    assert by_title["degraded-ax"] == "degraded"
+
+    missing_projects = ProjectService(open_project_paths(missing_root), clock=clock, ids=ids)
+    degraded_projects = ProjectService(open_project_paths(degraded_root), clock=clock, ids=ids)
+    assert published_analysis_status(missing_projects) == "missing"
+    assert published_analysis_status(degraded_projects) == "degraded"
 
 
 def test_page_stats_single_pass_matches_legacy_helpers(tmp_path: Path) -> None:
@@ -663,9 +700,7 @@ def test_list_analysis_candidates_loads_each_page_result_once(
     monkeypatch.setattr(ProjectService, "load_page_result", _counted)
     listed = list_analysis_candidates(corpus, clock=clock, ids=ids)
     assert listed[0].analysis_aggregate == "healthy"
-    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(
-        reconcile=False
-    )
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(reconcile=False)
     assert calls["n"] == len(project.pages)
 
 
@@ -717,8 +752,6 @@ def test_analysis_aggregate_marks_stale_on_module_version_mismatch(
         _boom,
     )
     assert bn.analysis_aggregate_for_project(projects, clock=clock, ids=ids) == "stale"
-    needing = select_needing_analysis(
-        list_analysis_candidates(corpus, clock=clock, ids=ids)
-    )
+    needing = select_needing_analysis(list_analysis_candidates(corpus, clock=clock, ids=ids))
     assert {c.title for c in needing} == {"nb"}
     assert needing[0].analysis_aggregate == "stale"

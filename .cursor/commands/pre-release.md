@@ -28,6 +28,7 @@ When present under `scripts/release/` or `scripts/`, prefer them. If missing on 
 
 | Check | Script (when present) |
 |-------|------------------------|
+| Compose loopback bind | `make docker-smoke` / `bash scripts/release/assert_compose_bind.sh` |
 | Denylist / secrets | `bash scripts/secrets_check.sh` |
 | Tracked data allowlist | `python3 scripts/release/check_tracked_data.py` |
 | Stale refs + TODO gate | `bash scripts/release/stale_refs.sh` |
@@ -53,8 +54,8 @@ If the user has not already run `# backup` in this session, recommend running it
 
 - Interpreter gate: `python --version` must satisfy `requires-python` in `pyproject.toml`.
 - Run in order (use Makefile targets when present; otherwise):
-  1. `pytest -q -m smoke` if smoke marker exists, else skip with reason
-  2. `pytest -q` (default suite; must stay fast/offline)
+  1. `make test-smoke` (or `pytest -q -m smoke`) if smoke marker exists, else skip with reason
+  2. `make test-fast` (or `pytest -q`) — default suite; must stay fast/offline
 - Failures → **failure**. Unavailable pytest/env → **skipped** with reason.
 - Do not require a live Ollama daemon for the default suite.
 
@@ -71,7 +72,8 @@ If the user has not already run `# backup` in this session, recommend running it
 ## 4. Compose + Docker (optional)
 
 - Only if `docker-compose.yml` / `Dockerfile` exists.
-- When Docker available: build and a minimal smoke if documented.
+- Always run `make docker-smoke` / `scripts/release/assert_compose_bind.sh` when present (source-level check does not need a daemon).
+- When Docker available: build and a minimal image smoke if documented (full image smoke is I6).
 - Docker unavailable or no packaging → **skipped** — never pretend pass.
 - Ollama need not run inside the image.
 

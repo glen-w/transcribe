@@ -91,9 +91,16 @@ class PageMetricsService:
         self.storage = PageMetricsStorage(self.paths)
 
     def _measurable_pairs(self, project: Project) -> list[tuple[str, str, str, object]]:
-        """Return (page_id, render_id, render_sha256, image_path) for measurable pages."""
+        """Return (page_id, render_id, render_sha256, image_path) for measurable pages.
+
+        Explicit ``cover_page_id`` pages are omitted (covers are not ink/paper
+        content). First-page fallback when cover is unset still measures.
+        """
         out: list[tuple[str, str, str, object]] = []
+        cover_id = project.cover_page_id
         for page in project.pages:
+            if cover_id is not None and page.page_id == cover_id:
+                continue
             render = project.renders.get(page.active_render_id)
             if render is None:
                 continue

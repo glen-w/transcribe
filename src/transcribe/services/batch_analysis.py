@@ -33,6 +33,7 @@ from transcribe.errors import JobConflictError, TranscribeError, ValidationError
 from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator, to_iso
 from transcribe.services.batch_notebooks import (
     NotebookCandidate,
+    list_analyse_picker_candidates,
     list_candidates,
     list_candidates_light,
     pages_with_text_count,
@@ -51,6 +52,7 @@ __all__ = [
     "NotebookCandidate",
     "build_batch_analysis_coordinator",
     "list_analysis_candidates",
+    "list_analyse_picker_candidates",
     "list_candidates_light",
     "plan_template_hash",
     "select_by_ids",
@@ -148,9 +150,7 @@ def list_analysis_candidates(
     clock: Clock | None = None,
     ids: IdGenerator | None = None,
 ) -> list[NotebookCandidate]:
-    return list_candidates(
-        corpus, clock=clock, ids=ids, include_analysis=True
-    )
+    return list_candidates(corpus, clock=clock, ids=ids, include_analysis=True)
 
 
 class BatchAnalysisCoordinator:
@@ -216,9 +216,7 @@ class BatchAnalysisCoordinator:
         ordered = list(batch_module_order(list(expand_with_hard_parents(list(module_ids)))))
         detectors = list(dict.fromkeys(str(d).strip() for d in detector_ids if str(d).strip()))
         if not ordered and not detectors:
-            raise ValidationError(
-                "analysis batch requires at least one module or detector"
-            )
+            raise ValidationError("analysis batch requires at least one module or detector")
 
         # Freeze template from the first candidate (or an explicit seed project).
         if seed_project is not None:
@@ -245,8 +243,7 @@ class BatchAnalysisCoordinator:
         )
         if override and template_plan.needs_llm() and template_plan.text_model is None:
             raise ValidationError(
-                f"could not resolve text model `{override}` "
-                "(needs a reachable text Ollama model)"
+                f"could not resolve text model `{override}` (needs a reachable text Ollama model)"
             )
         # Template fingerprint ignores project_id; recompute hash without it.
         tmpl_hash = plan_template_hash(
@@ -291,9 +288,7 @@ class BatchAnalysisCoordinator:
             question_text=template_plan.question_text,
             effective_config=template_plan.effective_config.as_dict(),
             config_fingerprint=cfg_fp,
-            text_model=(
-                template_plan.text_model.as_dict() if template_plan.text_model else None
-            ),
+            text_model=(template_plan.text_model.as_dict() if template_plan.text_model else None),
             plan_template_hash=tmpl_hash,
             preset_label=template_plan.preset_label,
             preset_key=template_plan.preset_key,
@@ -307,11 +302,7 @@ class BatchAnalysisCoordinator:
 
     def start(self, analysis_batch_id: str) -> str:
         with self._lock:
-            if (
-                self._state is not None
-                and self._state.thread
-                and self._state.thread.is_alive()
-            ):
+            if self._state is not None and self._state.thread and self._state.thread.is_alive():
                 raise JobConflictError("a batch analysis job is already running")
             run = self.store.load(analysis_batch_id)
             progress = BatchAnalysisProgress(
@@ -346,11 +337,7 @@ class BatchAnalysisCoordinator:
 
     def run_blocking(self, analysis_batch_id: str) -> BatchAnalysisProgress:
         with self._lock:
-            if (
-                self._state is not None
-                and self._state.thread
-                and self._state.thread.is_alive()
-            ):
+            if self._state is not None and self._state.thread and self._state.thread.is_alive():
                 raise JobConflictError("a batch analysis job is already running")
             run = self.store.load(analysis_batch_id)
             progress = BatchAnalysisProgress(
@@ -410,9 +397,7 @@ class BatchAnalysisCoordinator:
 
             try:
                 root = self._root_for_item(item)
-                projects = ProjectService(
-                    open_project_paths(root), clock=self.clock, ids=self.ids
-                )
+                projects = ProjectService(open_project_paths(root), clock=self.clock, ids=self.ids)
                 project = projects.load(reconcile=True)
                 if pages_with_text_count(projects, project) == 0:
                     item.state = "skipped"
@@ -425,15 +410,11 @@ class BatchAnalysisCoordinator:
                 item.modules_total = plan.step_total()
                 self.store.save(run)
 
-                coord = AnalysisCoordinator(
-                    projects, clock=self.clock, ids=self.ids
-                )
+                coord = AnalysisCoordinator(projects, clock=self.clock, ids=self.ids)
                 with self._lock:
                     state.inner = coord
 
-                def on_progress(
-                    progress: AnalysisProgress, *, _label=label, _item=item
-                ) -> None:
+                def on_progress(progress: AnalysisProgress, *, _label=label, _item=item) -> None:
                     if state.cancel_event.is_set():
                         coord.cancel()
                     with self._lock:
@@ -468,9 +449,7 @@ class BatchAnalysisCoordinator:
                 else:
                     item.state = "completed"
                     if inner.failed:
-                        item.error_message = (
-                            inner.message or f"{inner.failed} module(s) failed"
-                        )
+                        item.error_message = inner.message or f"{inner.failed} module(s) failed"
             except (
                 JobConflictError,
                 PlanHashMismatchError,
@@ -507,9 +486,7 @@ class BatchAnalysisCoordinator:
             state.progress.current_item = ""
             state.progress.current_module_id = ""
             state.progress.message = f"Batch {run.status}"
-            state.progress.completed = sum(
-                1 for i in run.items if i.state == "completed"
-            )
+            state.progress.completed = sum(1 for i in run.items if i.state == "completed")
             state.progress.failed = sum(1 for i in run.items if i.state == "failed")
             state.progress.skipped = sum(1 for i in run.items if i.state == "skipped")
             snap = _snapshot(state.progress)
@@ -522,9 +499,7 @@ class BatchAnalysisCoordinator:
         project: Any,
     ) -> AnalysisRunPlan:
         """Build a per-notebook plan from the frozen batch template."""
-        batch_frozen = (
-            FrozenTextModel.from_dict(run.text_model) if run.text_model else None
-        )
+        batch_frozen = FrozenTextModel.from_dict(run.text_model) if run.text_model else None
         return build_analysis_run_plan(
             project_service=projects,
             module_ids=list(run.module_ids),
