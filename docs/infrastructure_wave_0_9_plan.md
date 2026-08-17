@@ -31,6 +31,7 @@ Developer lanes     →     PR CI honesty     →     Release evidence
 | Out of scope | Why |
 |--------------|-----|
 | New analysis modules / deferred reinterpretations | ROADMAP deferral stands |
+| After 1.0 autobiography (context corpus, Slices, reconstruction) | Owned by [ROADMAP.md](ROADMAP.md) After 1.0; gated on 1.0 — this wave does not schedule it |
 | Usability **U2** product copy (sample notebook, first-run docs path) | Owned by [usability_wave_plan.md](usability_wave_plan.md) — this wave may *host* docs, not write U2 content |
 | TranscriptX Theme C workspaces / Vitest / Playwright browser packs | Different product surface |
 | spaCy / `[nlp]` CI matrix lane | Transcribe has no spaCy install profile |

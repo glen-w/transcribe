@@ -6,9 +6,10 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Usability wave (active product focus):** [usability_wave_plan.md](usability_wave_plan.md)  
 **0.9 infrastructure wave (planned):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
+**After 1.0 (planned):** notebook-anchored autobiography workbench (1.1–2.0) — gated on 1.0; see [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned)  
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
 **Core delivery history (internal):** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
-**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency)  
+**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency). Reverse file-import of TX exports is Transcribe **1.6**, not this seam.  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
 
 > **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred · [?] candidate (uncommitted)
@@ -20,6 +21,8 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
 **Package is 0.6.x.** A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity — that is the path to **0.9**, then **user testing** to **1.0**. It does not schedule more analysis modules and does not serialize **U2**.
+
+**After 1.0** is planned, not started. 1.0 stays a hardened notebook/OCR/analysis workbench. Do not schedule context importers, Slices, People-as-identity, or reconstruction while U2 / 0.9 / user testing remain the path to 1.0. Sequencing: [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned).
 
 ---
 
@@ -137,7 +140,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 
 | Outcome | Intent | Wave |
 |---------|--------|------|
-| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity/saved searches still candidate |
+| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity filters → After 1.0 **1.1/1.3**; saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Archive strip paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. Workspace tag catalogue (labels, colours, rename/merge) + viewer click-to-filter + detection auto-tag: [tag-catalog.md](contracts/tag-catalog.md). | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped as deepen-in-place; collections/archive-state candidate |
 | **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
@@ -153,7 +156,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Summaries / Ask against real use. People/Moments/Ask are in-page sections (not extra sidebar items). Corpus/period compare + Moments/chart jump → Reading, and Analyse launcher vs View consume split, landed as deepen-in-place. | **U1** (done) + GUI alignment |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
-| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. | Places shipped; Patterns optional |
+| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. First-class Person identity is **After 1.0 / 1.3**, not this lifecycle row. | Places shipped; Patterns optional |
 
 ---
 
@@ -186,6 +189,8 @@ Bring Transcribe’s **testing lanes, GitHub Actions CI, release hygiene, covera
 
 **Already landed (do not rebuild in this wave):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback trust docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs that already *expect* the missing scripts.
 
+Product **1.0** still requires usability **U2** and **user testing**. The [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) autobiography programme must not start until that gate.
+
 ---
 
 ## Next — Bulk run analysis (GUI) — [x] done
@@ -201,12 +206,402 @@ Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.
 | **A3** Handoffs + CLI + docs | [x] | CLI `bulk-analyse`; public surfaces / user guide / limitations |
 ---
 
+## After 1.0 — Notebook-anchored autobiography workbench — [ ] planned
+
+**Status:** planned; **gated on 1.0**. Authority for post-1.0 product sequencing and architecture intent. Does not define shipped schemas — contracts land with each release. Do not implement this programme while the usability wave’s open track (**U2**) and the **0.9 infrastructure wave** remain the path to 1.0.
+
+**Thesis:** Handwritten notebooks are the primary source material. Everything else becomes evidence, context, and memory around them. The system helps reconstruct a life from surviving evidence while preserving a clear distinction between what was actually recorded, what was extracted, and what the machine infers.
+
+This is **not** a generic note-taking app, PKM system, or AI journal. The core object remains the scanned handwritten notebook page. The ambition is a **local-first augmented autobiography workbench** around that primary source.
+
+```text
+Primary sources (notebooks / pages)
+        ↓
+contextual sources (photos, chats, audio, mood, text)
+        ↓
+extracted knowledge (dates, NER, EXIF, people/places)
+        ↓
+relationships / Slices
+        ↓
+autobiographical interpretation (cited, never a substitute for the page)
+```
+
+**1.0 stays notebook-first.** Finish U2, 0.9 infra, and user testing. No WhatsApp, photo libraries, Slices, or reconstruction in 1.0.
+
+### What to preserve
+
+The current architecture is the right core. Post-1.0 **extends** it; it does not replace it.
+
+- File-shaped system of record: `project.json`, managed `sources/`, renders, `results/<page_id>.json`. SQLite (`archive.sqlite`) stays a **disposable FTS cache** ([ARCHITECTURE.md](ARCHITECTURE.md), `ArchiveService`).
+- UUID identities; never reconstruct IDs from paths ([notebook-corpus.md](contracts/notebook-corpus.md)).
+- Import copies bytes; external path is provenance only ([source-asset.md](contracts/source-asset.md)).
+- OCR attempts append-only; `edited_text` is user-owned ([page-result.md](contracts/page-result.md)).
+- `ApproximateDate` plus `date_source` `extracted|inherited` vs `date_approved` ([domain dates](../src/transcribe/domain/dates.py)); human metadata protection in [notebook-corpus.md](contracts/notebook-corpus.md).
+- Analysis evidence `{unit_id, quote, source_ref, content_fingerprint}` and stale-citation rules ([analysis-result.md](contracts/analysis-result.md)).
+- Frozen `AnalysisDocument` v1 `source_ref` kinds `{page, page_span}` only ([analysis-document.md](contracts/analysis-document.md)). **Do not bump this schema to cite chats.**
+- Detection `review_status` `unreviewed|approved|rejected` and review carry-forward ([detection-finding.md](contracts/detection-finding.md)).
+- ImportRun `scan → plan → validate → commit` ([import-run.md](contracts/import-run.md)).
+- Workspace backup packs authority, excludes `data/cache/` ([workspace-backup.md](contracts/workspace-backup.md)).
+- Ask notebook (`llm_custom_qa`): grounded chunks, citations, **abstain** if unsupported.
+- Streamlit IA and jump-to-Reading. Grow Reading / Archive / Search; do not assume a new frontend.
+
+**Derived today, not durable domain objects:** People and Places are NER surface-form read-models (`PlacesService`). Mood → **Moments** is the `moments` salience module (quoted pages) — **not** autobiographical episodes. Analysis delivery “slices” in module registry are unrelated. Do not reuse those names for Slices / Person.
+
+### Architectural constraints (do not violate)
+
+- **Do not** extend `SourceDocument` / `PageIndex` to messages, CSV rows, or photos-as-pages. Contextual imports are a **sibling context corpus**, not notebooks.
+- **Do not** make SQLite the system of record. Extend `archive.sqlite` as a rebuildable projection over notebooks **and** context records.
+- **Do not** introduce a Personal Knowledge Graph database, a vector DB as default retrieval, live messenger APIs, or a generic “document” type.
+- **Do not** change `AnalysisDocument` v1. Multi-source reconstruction uses a new `ReconstructionBundle` (name TBD).
+- **Do not** rename Mood → Moments. Product **Slice** = confirmed life episode.
+- **Do not** call into TranscriptX libraries. 1.6 imports TX **export files** only ([INTEGRATION_SEAM.md](INTEGRATION_SEAM.md)).
+- Scale: one JSON file per WhatsApp message is the wrong shape (10^5 messages). Use collection manifests + JSONL shards + FTS. Photos stay file-per-original (like `sources/`).
+
+### Domain model (intent — contracts later)
+
+Absence of all new types remains a valid 1.0 workspace. `transcribe.project` schema_version **1** stays loadable without a context index (same rule as corpus index).
+
+| Concept | Role |
+|---------|------|
+| **Notebook / Page / SourceAsset / OCRAttempt** | Unchanged primary-source stack |
+| **ContextCollection** | One imported bundle (WhatsApp chat, Telegram JSON, photo folder, TX export, CSV). Stable `collection_id`. Not a notebook |
+| **ContextRecord** | One message, photo, transcript segment, mood row, or journal entry. Stable `record_id`. Kind-specific raw payload; participants start as **strings** |
+| **TemporalClaim** | Wraps `ApproximateDate`; adds instants, ranges, optional time-of-day. Do not replace page `ApproximateDate` |
+| **Entity** | Durable Person (then Place): aliases, mentions, merge/split history, privacy. NER remains extracted until confirmed |
+| **EvidenceLink** | `{from_ref, to_ref, relation, status, provenance}`. Relations start small: `same_day`, `near_date`, `depicts`, `participant`, `mentions`, `part_of_slice`, `same_bytes`. JSON/JSONL + rebuildable index — not a graph DB |
+| **Slice** | User-owned (or user-confirmed) episode with heterogeneous members. Suggested slices never auto-promote |
+| **ReconstructionBundle** | Run-scoped pack of cited records for a question. Not stored as autobiography |
+
+**ClaimStatus** (internal; generalizes existing `date_approved` / detection review / `edited_text` — not a new six-layer ontology):
+
+| Status | Existing analogue | Meaning |
+|--------|-------------------|---------|
+| `recorded` | SourceAsset bytes, export line, EXIF, CSV cell | Directly present in an artefact |
+| `transcribed` | OCR `raw_text`, imported transcript | Machine or human rendering into text |
+| `corrected` | `edited_text`, human-set dates | User-owned correction |
+| `extracted` | NER, EXIF, `date_source: extracted` | Derived metadata |
+| `suggested` | unapproved date, unreviewed detection | Machine proposal |
+| `confirmed` | `date_approved`, detection `approved` | Explicit user confirmation |
+| `rejected` | detection `rejected`, date ignore | Explicit user rejection |
+| `interpreted` | LLM insights, reconstruction answers | Model narrative with citations |
+| `speculative` | weak support / abstain-adjacent | Interpreted with weak evidence |
+
+**Product chrome uses four layers:** Evidence · Extraction · Confirmation · Interpretation. Never show an interpretation as if it were a notebook page.
+
+Identity: machine may **suggest** that “Anna” and “Anna W” match; only the user **confirms**. Support split after merge. Conflicting claims: store both; UI shows conflict; user may supersede without erasing. Exports are snapshots — re-import is a new collection version, not live sync.
+
+User copy: say **notebook page** vs **imported evidence**. Avoid “Source” in new APIs (`SourceDocument` stays notebook originals).
+
+### Ingestion architecture
+
+Two families share the ImportRun **lifecycle**, not the notebook page schema:
+
+```text
+scan → plan → validate → commit
+```
+
+- **Family A — Notebook import** (existing): JPEG/PNG/PDF → SourceAsset → pages → renders → OCR.
+- **Family B — Context import** (new from 1.2): adapters emit `ContextCollection` + `ContextRecord[]`. Preallocate IDs. Copy originals. Hash. Crash journal. Duplicate taxonomy by bytes (and platform+chat+native id when present).
+
+Adapters land **one family per release**, not a plugin framework in 1.1:
+
+| Adapter | Release | Notes |
+|---------|---------|-------|
+| `photo_folder` | 1.2 | EXIF dates; SHA-256 vs notebook sources (`same_bytes` link, not merge). No face recognition. Do not OCR via `JobCoordinator` |
+| `whatsapp_export` | 1.4 | `_chat.txt` / zip; one collection per conversation; JSONL (+ monthly shards). **No chat-app UI** |
+| `tabular_csv` / `plaintext_journal` | 1.5 | User column mapping; no Daylio schema |
+| `telegram_json` | 1.6 | Native fields in raw payload. **Do not** coerce to WhatsApp shape. Shared **index projection** only (`kind, t, participants[], text, collection_id`) |
+| `transcriptx_bundle` | 1.6 | TX export files: transcript required; audio optional; summary if present; speakers as strings. No ASR re-run, no TX package |
+
+On-disk sketch (absence valid). Recommend bulky originals in `TRANSCRIBE_CONTEXT_DIR` (sibling of projects); indexes under `data/context/`; both packed in backup; cache still excluded:
+
+```text
+{TRANSCRIBE_CONTEXT_DIR}/<collection_id>/
+  collection.json
+  originals/
+  records.jsonl          # or monthly shards
+data/context/
+  context-index.json
+  entities/people/
+  entities/places/
+  slices/
+  links.jsonl
+data/cache/archive.sqlite   # disposable; new records tables
+```
+
+Lock order: **corpus → context → notebook**. Never invert. `context-doctor` analogue of corpus-doctor.
+
+### Retrieval (do not ship “chat with your journal”)
+
+1. Structured filters (date window, notebook, collection kind, entity, Slice, tags) — extend `ArchiveFilters`
+2. FTS on page effective text **and** record text (`record_kind` discriminator)
+3. Link traversal (confirmed, then suggested `near_date`)
+4. Deterministic aggregations (first/last mention, gaps, mood series)
+5. Grounded LLM **only** on a ReconstructionBundle from (1–4); same abstain/citation contract as Ask notebook
+
+Embeddings / vector DBs are **not** a 1.x dependency. In-notebook `semantic_similarity` is TF-IDF BoW — not corpus semantic search. Compute `near_date` through 1.6; persist only user-confirmed links and Slice membership.
+
+### Killer UX and Autobiography view
+
+**1.8 — Life around a page:** Reading stays page-central (scan + effective text). A **Related evidence** panel lists same-day / nearby chats, photos, audio, mood, people, places, Slices, other pages. Wander: page → evidence → Slice → person → place → another page. Not a messaging UI. Cap lists (“14 messages” + sample 3). Empty state if no context imported.
+
+**1.9 — Autobiography:** years → months → weeks → days → pages → evidence. Distinct from Archive (Archive remains the **notebook** diary timeline): show **gaps** (chats/photos without a notebook page, or the reverse); notebook activity as the spine; Slices as labeled bands, not calendar events; Evidence vs Interpretation layers. Not a streak calendar.
+
+Stay on Streamlit `PageSpec`s. If density becomes a wall, a narrow HTML component is allowed; a SPA is **post-2.0**.
+
+### Releases (1.1–2.0)
+
+Each release has one product purpose. Do not dump “2.0 everything.”
+
+| Release | Purpose | Status |
+|---------|---------|--------|
+| **1.0** | Harden notebook/OCR/analysis (U2 + 0.9 + user testing). No context corpus | [ ] path (current) |
+| **1.1** | Time around a page — related notebook pages by date window | [ ] planned |
+| **1.2** | Photographs as contextual evidence (proves sibling corpus) | [ ] planned |
+| **1.3** | People as confirmed identities (aliases, merge/split, privacy) | [ ] planned |
+| **1.4** | WhatsApp export as high-volume context | [ ] planned |
+| **1.5** | Mood / flexible CSV / plaintext journals | [ ] planned |
+| **1.6** | Telegram JSON + TranscriptX file import | [ ] planned |
+| **1.7** | Slices (user objects first; suggestions off by default) | [ ] planned |
+| **1.8** | Related-evidence panel on Reading (killer UX) | [ ] planned |
+| **1.9** | Autobiography view (grains + gaps) | [ ] planned |
+| **2.0** | Historical reconstruction — cited answers over a retrieved bundle | [ ] planned |
+
+#### 1.0 — Harden the notebook workbench (gate, not this programme)
+
+**Product goal:** A trustworthy local notebook/OCR/analysis product a non-expert can install, transcribe, review, search, analyse, export, and back up.
+
+**UX:** Finish U2 (sample notebook, first-run install path). 0.9 infra. User testing. Inbox polish optional.
+
+**Architecture:** No new domain entities. Time-of-day waits for **1.1**.
+
+**Risks:** Starting autobiography before the gate. Do not sneak WhatsApp into 1.0.
+
+**Exit:** U2 acceptance; 0.9 wave exit; user-testing notes; PRODUCT still page-first; corpus/hardening gates green.
+
+#### 1.1 — Time around a page (notebook-only)
+
+**Product goal:** Answer “what else in my notebooks belongs with this page?” without new importers.
+
+**UX:** Reading shows other pages in a date window (this notebook + corpus). Search/Archive: tighter range; optional exclude unapproved dates. Page **time-of-day** from diary stamps (`YYMMDD HHMM`) stored alongside `ApproximateDate`. Entity filters on Search only if a cheap NER join exists; otherwise wait for 1.3.
+
+**Architecture:** Additive page time on `PageIndex` (legacy = null). `ArchiveService.related_pages(page_id, window)`. Document ClaimStatus vocabulary in contracts (map existing date/detection/edit states). No `ContextCollection` yet. Relatedness is **computed**, not persisted links.
+
+**Reuse:** `ApproximateDate`, ArchiveService, Reading, `view_jumps`.
+
+**AI:** None. No LLM for relatedness.
+
+**Storage / migration:** Additive `project.json` fields; AnalysisDocument dates stay `YYYY-MM-DD` (do not break fingerprints). Archive indexes rebuildable.
+
+**Risks:** Turning Archive into a calendar. Over-linking inherited dates. Presenting unapproved dates as confirmed.
+
+**Exit:** Related-pages panel; window/precision tests; unapproved dates visually distinct; no context schema shipped.
+
+#### 1.2 — Photographs as contextual evidence
+
+**Product goal:** Dated photographs sit **beside** notebooks, not inside them.
+
+**UX:** Import a photo folder (Workflow → Import Context, or a clearly named sibling — not “new notebook”). Reading: photos on/near the page date (EXIF or filename). Open original. Duplicate notice if SHA matches a notebook source. Copy that scans belong in notebook Import.
+
+**Architecture:** `ContextCollection` + `ContextRecord` kind `photo`. `context-index.json`. EXIF → TemporalClaim `extracted`. EvidenceLink `same_bytes` / computed `near_date`. Archive `records` table. Backup packs context. Context lock; order corpus → context → notebook.
+
+**Reuse:** ImportRun lifecycle, SourceAsset copy/hash/duplicate taxonomy.
+
+**AI:** Deterministic EXIF. Optional on-demand VLM caption = `interpreted`. No auto face ID.
+
+**Migration:** Workspaces without `data/context/` remain valid. Old backup ZIPs restore; new members additive.
+
+**Risks:** Dumping notebook scans here. Fake pages. Running photo OCR through JobCoordinator.
+
+**Exit:** Import/roundtrip/doctor; related photos on a dated page; SHA dedup vs notebooks; backup/restore with photos; 1.0 notebooks untouched.
+
+#### 1.3 — People as confirmed identities
+
+**Product goal:** “Anna” in a notebook can become a Person the user owns, without pretending NER was identity.
+
+**UX:** Person profile: mentions, pages, dates, later photos/chats. Confirm/reject suggestions. Aliases. Merge/split. Privacy hide. Keep Themes → People as the **extracted mention** layer. Place confirmation if it fits this release; otherwise Person-only and Place later.
+
+**Architecture:** `data/context/entities/people/<id>.json`. Mentions → `page_id` / `record_id` + quote + fingerprint. NER rerun carry-forward (detection-review pattern). Suggested matches `status=suggested`.
+
+**Reuse:** `PersonMention`, NER evidence, `entity_sentiment` as extracted tone, tag merge UX.
+
+**AI:** Optional similarity suggestions. Deterministic exact-alias. User confirms. Never silent merge.
+
+**Risks:** Auto-merge; social-graph product; contact sync; treating FAC as people.
+
+**Exit:** Create person from mention; alias; refuse silent merge; profile → Reading; NER rerun preserves confirmations. Empty entity store = today’s Themes People.
+
+#### 1.4 — WhatsApp as high-volume context
+
+**Product goal:** Imported chats become dated evidence around notebook pages, not a messaging app.
+
+**UX:** Import WhatsApp zip/folder; pick chats. Evidence counts (“14 messages with X, 11–13 Sep”). Open a **record card** (timestamp, sender, text, attachment name), not a bubble thread. Link senders to People as suggestions.
+
+**Architecture:** `whatsapp_export` adapter. Collection per conversation. `records.jsonl` (+ monthly shards). Shared index projection for future Telegram. Participants as strings until linked.
+
+**Provenance:** source file + byte/line range. Re-import = new snapshot. No live API.
+
+**Storage:** JSONL + FTS. Original zip preserved. Missing attachments are gaps. Scale test: 100k synthetic messages, doctor, FTS rebuild budget.
+
+**Risks:** Chat UI gravity; unifying with Telegram too early; importing into notebooks; backup size (document sensitivity like page images).
+
+**Exit:** Parse fixture; evidence counts; jump to record; FTS; no thread view as primary.
+
+#### 1.5 — Mood, CSV, and miscellaneous personal records
+
+**Product goal:** Longitudinal mood and other dated text become context without a vendor lock-in.
+
+**UX:** CSV import with column mapping (date/time, mood, notes, extras). Optional plaintext journal. Mood sparkline on the evidence panel. Generic records searchable.
+
+**Architecture:** `tabular_csv` + `plaintext_journal`. Mapping stored on the collection; re-parse from original file + mapping. Do **not** auto-Analyse CSV as a notebook. Do not invent mood from handwriting modules here.
+
+**Risks:** Quantified-self product; universal importer framework — these two adapters only.
+
+**Exit:** Mapped CSV roundtrip; mood near a page; bad headers fail validate; original CSV preserved.
+
+#### 1.6 — Telegram and TranscriptX imports
+
+**Product goal:** Second messenger + spoken-life artefacts; adapters may differ internally.
+
+**UX:** Telegram Desktop JSON (selected chats). TranscriptX bundle: transcript required; audio optional; summary if present. Evidence: “Audio, 13 Sep” → transcript card → optional audio file — not a TX clone.
+
+**Architecture:** `telegram.message` keeps native ids, edits, service messages. `transcriptx.segment` (or document + cues). Speakers as strings → Person suggestions. Still no TX runtime. If TX 1.0 export contract is late, pin a frozen fixture adapter.
+
+**AI:** Do not re-transcribe. Optional on-demand summary only if TX summary absent — labeled `interpreted`.
+
+**Risks:** Porting TX speaker/audio modules; audio-first drift; dual-write with live TX.
+
+**Exit:** Telegram fixture ≠ WhatsApp schema; TX import without TX package; speakers suggest people; audio optional; doctor.
+
+#### 1.7 — Slices
+
+**Product goal:** Name a period of life and hang heterogeneous evidence on it.
+
+**UX:** Create Slice “Moving to Paris”; add pages 143–157, chats, photos, people. Slice view = member timeline. From a page: “Add to Slice.” Machine suggestions off by default; never auto-create.
+
+**Architecture:** One JSON per slice under `data/context/slices/`. Links `part_of_slice`. Suggestion job frozen like Analyse; cannot publish without confirm. Do **not** run the 25 notebook modules on a Slice as a fake project.
+
+**Risks:** Auto-biography chapters; PKM maps; renaming Mood → Moments.
+
+**Exit:** CRUD Slice; mixed-kind members; Reading shows Slice chips; suggestions cannot publish without confirm.
+
+#### 1.8 — Life around a page (killer UX)
+
+**Product goal:** Wander a life from a handwritten page using everything ingested so far.
+
+**UX:** Page image + text central; Related evidence beside/under. Honest empty states. Distinguish confirmed vs suggested vs interpreted.
+
+**Architecture:** `EvidencePanelService` read-model over Archive + links. Precomputed `near_date` index in sqlite; bump `archive.generation`. No new system of record.
+
+**AI:** None required. Optional panel summary waits for 2.0.
+
+**Risks:** Clutter; Streamlit rerun lag; replacing the scan.
+
+**Exit:** Fixture workspace (notebook + photos + WhatsApp); jumps work; layer honesty.
+
+#### 1.9 — Autobiography view
+
+**Product goal:** Navigate life at year/month/week/day with the notebook as spine, including gaps.
+
+**UX:** New primary nav **Autobiography**. Not an Archive clone. Settings for which layers show.
+
+**Architecture:** Aggregations over archive sqlite. Gap = interval with context but no dated notebook page (or vice versa).
+
+**AI:** None on the canvas. Optional interpreted captions behind a toggle, cited.
+
+**Risks:** Calendar product; streak gamification; hiding notebooks behind chats.
+
+**Exit:** Grain navigation; gap visibility; click to page/Slice/person; notebooks-only still works (other layers empty).
+
+#### 2.0 — Historical reconstruction
+
+**Product goal:** Ask reconstruction questions and get **cited** answers that lead back to pages, messages, photos, transcripts, mood rows.
+
+**UX:** **Reconstruct** (name TBD) — does **not** replace Ask notebook (single-notebook grounded QA). Question → retrieved bundle → answer with layer tags and clickable citations. Abstain if weak. Show conflicting sources.
+
+Example questions (retrieve evidence, then optionally interpret): What was happening around this entry? When did I first think about moving to Paris? What did I repeatedly worry about? How did my relationship with X change? What themes recur? What changed between 2018 and 2024?
+
+**Architecture:** ReconstructionBundle builder (filters + FTS + links + Slice). LLM answers **only from the bundle**; JSON claims `{text, refs[], status}`. New coordinator; do not clobber notebooks; **do not** change `AnalysisDocument` v1. Hard cap bundle size. No tool-calling over the whole disk.
+
+**Reuse:** `llm_custom_qa` abstain/cite, chunking, AnalysisCoordinator, `OllamaTextClient`.
+
+**Storage:** Reconstruction runs are derived. Default backup: user-confirmed notes only, not raw runs.
+
+**Risks:** Chatbot gravity; hallucinated life; embeddings-as-magic; prompt-stuffing the corpus.
+
+**Exit:** Gold citation fixtures; abstain test; conflict display; Ask notebook still works; AnalysisDocument v1 unchanged; PRODUCT thesis still true.
+
+### Cross-cutting infrastructure
+
+- Format registry: add formats in `src/transcribe/persistence/schema.py` when each release ships
+- CLI: `context-import`, `context-doctor`; UI and CLI share services; core still must not import Streamlit
+- Privacy: remote-Ollama ack unchanged; geocode stays opt-in; reconstruction sends **retrieved text** to local LLM only; backups containing chats/photos are sensitive (same honesty as page images)
+- Reprocessing: parse frozen in collection; re-parse explicit; entity/Slice confirmations carry forward
+- IDs: UUID hex; never path-derived
+- Export `transcribe.notebook` stays **notebook-only** through 2.0 unless a separate autobiography export is designed later
+- Streamlit IA: add `PageSpec`s slowly; stay-don’t-bounce preserved
+
+### Testing strategy
+
+Contracts first, then unit parsers, then acceptance (mirror [tests/acceptance/corpus/](../tests/acceptance/corpus/)).
+
+- **1.1:** date window / precision / unapproved honesty
+- **1.2–1.6:** synthetic fixtures (WhatsApp, Telegram JSON, CSV, photo EXIF, fake TX bundle); plan/commit/idempotency/crash
+- **Scale:** 100k-message FTS rebuild budget, offline
+- **1.3:** merge/split/carry-forward (mirror detection review tests)
+- **1.7:** Slice membership; suggestions cannot publish
+- **1.8–1.9:** UI contract tests (copy, jumps)
+- **2.0:** gold citations + abstain; fake Ollama; stale fingerprint citations
+
+No live WhatsApp/Telegram/Ollama in default CI. Doctor deep-hash originals. Backup gate extended.
+
+### Explicitly not to build yet
+
+- Universal PKM / Zettelkasten / knowledge-graph DB
+- Live WhatsApp / Telegram / email APIs or scrapers
+- Chat-with-your-life as the home screen
+- Face recognition / biometric identity / automatic identity merge
+- Vector DB as default retrieval; SQLite as authority; task-queue worker fleet
+- React / Gradio rewrite
+- Treating photos/chats as notebook pages
+- Porting TX speaker/audio modules (`interactions`, `pauses`, `voice_*`)
+- Cloud OCR/sync; multi-user social graph
+- Calendar or quantified-self dashboards as the product
+- Deferred analysis ports (`politeness`, `echoes`, …) disguised as autobiography
+- Universal plugin importer before three adapters exist
+- Schema bump of `AnalysisDocument` v1 for messages
+
+### Implementation order
+
+1. Finish **1.0** (U2 + 0.9 + testing). Freeze notebook core.
+2. Contracts for ClaimStatus + TemporalClaim + context-index **before** photo code (1.1–1.2).
+3. **1.1** related pages → **1.2** photos → **1.3** people → **1.4** WhatsApp → **1.5** CSV/mood → **1.6** Telegram + TX → **1.7** Slices → **1.8** evidence panel → **1.9** Autobiography → **2.0** reconstruction (LLM last).
+
+Do not parallelize 1.2 schema with 1.4 parsers until context-index / doctor / backup exist.
+
+### Open architectural questions
+
+Defaults for implementers; revisit with evidence:
+
+1. Context binaries in `TRANSCRIBE_CONTEXT_DIR` vs under `data/` — recommend sibling + `data/context/` index.
+2. Persist `near_date` links vs compute-only — compute through 1.6.
+3. Place entities in 1.3 vs later — Person in 1.3; Place if it fits.
+4. Thread view — never primary; optional debug expander.
+5. Reconstruction runs in backup — confirmed notes only.
+6. TX export pin — frozen fixture if TX 1.0 is late.
+7. Time-of-day in 1.0 vs 1.1 — **1.1**.
+8. Streamlit density at 1.8 — HTML island allowed; SPA not.
+9. Conflicts — show both; supersede, don’t erase.
+10. If users dump notebook scans as “photos,” offer **promote photo → notebook page** rather than collapsing models.
+
+---
+
 ## Later candidates — uncommitted — [?]
 
-Worth recording without scheduling:
+Worth recording without scheduling. Rows pulled into [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) are marked.
 
-- Cross-notebook links / related pages
-- Corpus-level Analyse / search (cross-notebook products — **not** Bulk Analyse orchestration above)
+- Cross-notebook links / related pages — **scheduled 1.1** (notebook date windows; computed, not a graph)
+- Corpus-level Analyse / search (cross-notebook products — **not** Bulk Analyse orchestration above). **2.0 reconstruction** is retrieved-evidence QA, not a cross-notebook Analyse runner; a corpus Analyse product remains uncommitted
 - Bookmarks / favourites
 - Annotations distinct from OCR corrections
 - Batch metadata editing
@@ -281,7 +676,7 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 ## Product scope beyond analysis modules
 
-Still the more central product surface than speculative analysis work. Detail and sequencing live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above.
+Still the more central product surface than speculative analysis work. Detail and sequencing for **through 1.0** live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above. Post-1.0 autobiography sequencing lives in [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned).
 
 Summary:
 
@@ -294,10 +689,11 @@ Summary:
 - **Maintainer infrastructure** — CI, release hygiene, hosted docs — [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (0.9 wave → user testing → 1.0)
 - **Export** — notebook readability and sharing (`transcribe.notebook`)
 - **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
-- **Future TranscriptX import adapter** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
+- **Future TranscriptX export handoff** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
+- **After 1.0 autobiography workbench** — contextual evidence around notebooks, Slices, cited reconstruction — [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) (gated on 1.0; not current core)
 
 ---
 
 ## Future metadata
 
-- Page **time-of-day** metadata (from diary stamps like `YYMMDD HHMM` / similar): storage alongside `ApproximateDate`, UI, archive indexing, and analysis policy TBD. Date auto-extraction currently ignores time.
+- Page **time-of-day** metadata (from diary stamps like `YYMMDD HHMM` / similar): **scheduled 1.1** (not 1.0). Storage alongside `ApproximateDate`, UI, archive indexing, and analysis policy. Date auto-extraction currently ignores time. AnalysisDocument unit `date` stays `YYYY-MM-DD` so fingerprints do not break.

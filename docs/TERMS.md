@@ -36,5 +36,6 @@ This document is an **index of terms only**. It aggregates terminology from auth
 - **Install extras** (`[ui]` / `[dev]` / `[export]`) — Packaging profiles, not Analyse presets. See [runtime/installation.md](runtime/installation.md).
 - **Named settings profile** — Activation-pointer overlay under `data/config/profiles/<target>/`. See [workspace-settings.md](contracts/workspace-settings.md) · [runtime/settings.md](runtime/settings.md).
 - **Analyse UI preset** (Quick / Balanced / Thorough / Custom) — Module-set policies for Analyse. See [workspace-settings.md](contracts/workspace-settings.md) · [runtime/analysis.md](runtime/analysis.md).
+- **Slice / ContextCollection / Person store / Reconstruction** — Planned post-1.0 autobiography concepts; **not shipped**. Sequencing only: [ROADMAP.md](ROADMAP.md) After 1.0. No contract yet. Not the Mood → Moments analysis module.
 
 This index may grow as new terms appear in CONTRACT docs; each term here must **delegate meaning** rather than redefine it.

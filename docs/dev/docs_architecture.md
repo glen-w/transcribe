@@ -11,7 +11,7 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 |---------|------|-----------|
 | README | Entry + quickstart | Summarizes; links PRODUCT |
 | [PRODUCT.md](../PRODUCT.md) | Product definition | Self |
-| [ROADMAP.md](../ROADMAP.md) | Product priorities + sequencing | Self |
+| [ROADMAP.md](../ROADMAP.md) | Product priorities + sequencing (through 1.0 and After 1.0 autobiography) | Self |
 | [usability_wave_plan.md](../usability_wave_plan.md) | Active usability-wave delivery plan | Self (while U2 open) |
 | Contracts + [CONTRACT_INDEX.md](../CONTRACT_INDEX.md) | Behavioural invariants | Contracts |
 | `docs/runtime/` | Task-oriented user guides | GUIDE (link contracts) |

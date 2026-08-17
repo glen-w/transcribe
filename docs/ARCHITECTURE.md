@@ -66,5 +66,6 @@ CLI ──────────────────┘              │
 - Making SQLite the system of record
 - Introducing a task queue or multi-process worker fleet for v1
 - Coupling to TranscriptX libraries
+- Making a post-1.0 context corpus (photos, chats, Slices) part of v1 — sequenced on [ROADMAP.md](ROADMAP.md) **After 1.0**; that programme must not make SQLite the system of record
 
 Shipped core analysis + deferred / future / out-of-scope dispositions: [ROADMAP.md](ROADMAP.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md).

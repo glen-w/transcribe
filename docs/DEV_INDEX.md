@@ -20,7 +20,7 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 
 | Doc | Purpose |
 |-----|---------|
-| [ROADMAP.md](ROADMAP.md) | Product roadmap: usability wave, corpus, shipped capabilities |
+| [ROADMAP.md](ROADMAP.md) | Product roadmap: usability wave now; 0.9 → 1.0; After 1.0 autobiography (planned, gated) |
 | [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (active; U2 open) |
 | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: CI, test lanes, release hygiene, hosted docs (planned) |
 | [public_surfaces.md](public_surfaces.md) | GUI IA and supported entrypoints |

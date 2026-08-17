@@ -36,7 +36,7 @@ Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wav
 | Cloud OCR providers | Product boundary |
 | Treating Detection Wave 2 as this wave’s definition of done | Parallel track (shipped) |
 | Shipping supported bulk-import UI/CLI before the [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) | Contracts-first rule (gate now green; keep suite green) |
-| Corpus-level Analyse / cross-notebook links / bookmarks | Later candidates — light **this vs corpus/period average** charts on Overview/Mood are shipped as product read-models over published metrics ([dev/analysis_visual_compare.md](dev/analysis_visual_compare.md)); not a corpus Analyse runner |
+| Corpus-level Analyse / cross-notebook links / bookmarks | Later candidates — light **this vs corpus/period average** charts on Overview/Mood are shipped as product read-models over published metrics ([dev/analysis_visual_compare.md](dev/analysis_visual_compare.md)); not a corpus Analyse runner. Related pages / Slices / reconstruction are **After 1.0** on [ROADMAP.md](ROADMAP.md), gated on 1.0 — not this wave |
 
 ### Naming
 

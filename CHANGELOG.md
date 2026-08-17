@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Post-1.0 **autobiography workbench** sequencing on [docs/ROADMAP.md](docs/ROADMAP.md) (releases 1.1–2.0): notebook-anchored contextual evidence, Slices, cited reconstruction. Gated on 1.0 (U2 + 0.9 infra + user testing). Not shipped behaviour.
+
 ## [0.6.5] - 2026-08-16
 
 ### Fixed
