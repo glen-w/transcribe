@@ -13,6 +13,7 @@ from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.corpus_doctor import CorpusDoctorService
 from transcribe.services.doctor import DoctorService
 from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.ui import icons as ic
 from transcribe.ui.home import ollama_health_line
 
 
@@ -33,7 +34,7 @@ def _render_findings(findings) -> None:
 def render_diagnostics(runtime: RuntimePaths, *, root: str | None) -> None:
     st.caption(ollama_health_line())
     deep = st.checkbox("Deep hashing (slower)", value=False, key="diagnostics_deep")
-    if st.button("Run diagnostics", type="primary", key="diagnostics_run"):
+    if st.button("Run diagnostics", type="primary", key="diagnostics_run", icon=ic.RUN):
         st.session_state["diagnostics_ran"] = True
         st.session_state["diagnostics_deep_used"] = bool(deep)
 

@@ -26,6 +26,7 @@ from transcribe.services.project import (
     allocate_notebook_root,
     open_project_paths,
 )
+from transcribe.ui import icons as ic
 from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
 from transcribe.ui.components.context_bar import render_context_bar
 from transcribe.ui.home import render_home
@@ -136,18 +137,17 @@ def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
         and st.session_state.get("view_page_id")
     ):
         from transcribe.ui.action_menus.nav import viewer_page_ids
+        from transcribe.ui.review_workbench import render_review_page
 
         page_ids = st.session_state.get("view_page_ids") or viewer_page_ids(project)
-        render_page_viewer(
+        view_entries = st.session_state.get("view_entries")
+        render_review_page(
             paths=paths,
             projects=projects,
             project=project,
             page_id=st.session_state["view_page_id"],
             page_ids=page_ids,
-            view_entries=st.session_state.get("view_entries"),
-            highlight_query=st.session_state.get("view_highlight", ""),
-            back_label=f"Back to {section}",
-            presentation="edit",
+            view_entries=view_entries,
         )
         return
 
@@ -235,13 +235,12 @@ def render_analyse_workspace(
 
 
 def _render_review_workbench(runtime, paths, projects, project) -> None:
-    from transcribe.domain.dates import format_approve_all_dates_help
     from transcribe.ui.action_menus.nav import viewer_page_ids
     from transcribe.ui.review_queue import (
-        REVIEW_FILTER_LABELS,
         ReviewFilter,
+        available_review_filters,
         filter_review_page_ids,
-        unapproved_date_page_ids,
+        format_review_filter_label,
     )
 
     if not project.pages:
@@ -253,67 +252,29 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
         "Time-of-day stamps are ignored until Future metadata lands."
     )
 
-    filter_options: list[ReviewFilter] = [
-        "all",
-        "needs_date",
-        "no_text",
-        "failed_ocr",
-    ]
+    base_ids = viewer_page_ids(project)
+    filter_options_with_counts = available_review_filters(
+        project,
+        base_page_ids=base_ids,
+        load_page_result=projects.load_page_result,
+    )
+    filter_options = [key for key, _ in filter_options_with_counts]
+    filter_counts = dict(filter_options_with_counts)
+    current_filter = st.session_state.get("review_needs_filter")
+    if current_filter not in filter_options and filter_options:
+        st.session_state["review_needs_filter"] = filter_options[0]
     filter_key: ReviewFilter = st.selectbox(
-        "Needs attention",
+        "Queue",
         filter_options,
-        format_func=lambda key: REVIEW_FILTER_LABELS[key],
+        format_func=lambda key: format_review_filter_label(key, filter_counts[key]),
         key="review_needs_filter",
     )
-    base_ids = viewer_page_ids(project)
     page_ids = filter_review_page_ids(
         project,
         filter_key=filter_key,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
     )
-
-    pending_dates = unapproved_date_page_ids(project)
-    if pending_dates:
-        regressions = projects.list_date_regressions(project)
-        help_text = format_approve_all_dates_help(regressions)
-        b1, b2 = st.columns(2)
-        with b1:
-            if st.button(
-                f"Approve all suggested dates ({len(pending_dates)})",
-                key="review_approve_all_dates",
-                help=help_text,
-                width="stretch",
-            ):
-                confirm = bool(st.session_state.get("review_confirm_date_regressions"))
-                if regressions and not confirm:
-                    st.session_state["review_confirm_date_regressions"] = True
-                    st.warning(
-                        f"{len(regressions)} date regression"
-                        f"{'s' if len(regressions) != 1 else ''} look suspicious. "
-                        "Click again to approve anyway."
-                    )
-                else:
-                    project, count, _regs = projects.approve_all_suggested_dates(
-                        confirm_regressions=True
-                    )
-                    bump_archive_generation(runtime)
-                    st.session_state.pop("review_confirm_date_regressions", None)
-                    st.toast(f"Approved {count} date{'s' if count != 1 else ''}")
-                    st.rerun()
-        with b2:
-            if st.button(
-                f"Ignore all suggested dates ({len(pending_dates)})",
-                key="review_ignore_all_dates",
-                help="Clear every unapproved suggested date in this notebook.",
-                width="stretch",
-            ):
-                project, count = projects.ignore_all_suggested_dates()
-                bump_archive_generation(runtime)
-                st.toast(f"Ignored {count} suggestion{'s' if count != 1 else ''}")
-                st.rerun()
-    else:
-        st.session_state.pop("review_confirm_date_regressions", None)
 
     if not page_ids:
         if filter_key == "all":
@@ -330,16 +291,15 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
     st.caption(f"Showing {len(page_ids)} of {len(base_ids)} pages")
-    render_page_viewer(
+    from transcribe.ui.review_workbench import render_review_page
+
+    render_review_page(
         paths=paths,
         projects=projects,
         project=project,
         page_id=default_id,
         page_ids=page_ids,
         view_entries=view_entries,
-        highlight_query="",
-        show_back=False,
-        presentation="edit",
     )
 
 
@@ -452,7 +412,7 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
         key="new_notebook_title",
         help="Display title. A folder name is derived automatically.",
     )
-    if st.button("Create notebook", type="primary", key="new_notebook_create"):
+    if st.button("Create notebook", type="primary", key="new_notebook_create", icon=ic.CREATE):
         cleaned = (title_in or "").strip() or "Untitled notebook"
         try:
             root = allocate_notebook_root(runtime.projects_dir, cleaned)
@@ -609,6 +569,7 @@ def main() -> None:
             _render_workflow(runtime, root, section=mode)
             return
         from transcribe.ui.notebook_views import (
+            render_view_ask,
             render_view_detect,
             render_view_mood,
             render_view_overview,
@@ -631,6 +592,8 @@ def main() -> None:
             render_view_mood(**kwargs)
         elif mode == "Summaries":
             render_view_summaries(**kwargs)
+        elif mode == "Ask":
+            render_view_ask(**kwargs)
         elif mode == "Detect":
             render_view_detect(
                 projects=projects, project=project, project_root=str(paths.root)

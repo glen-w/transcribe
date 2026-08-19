@@ -3,11 +3,11 @@ Authority: 0.9 infrastructure-wave delivery plan (CI, tests, docs hosting, relea
 
 # 0.9 Infrastructure wave plan
 
-**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I3** landed in packages **0.7.0** / **0.8.0**. Remaining: **I4–I6**.
+**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I4** landed (0.7.0 / 0.8.0 / Sphinx). Remaining: **I5–I6**.
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.5** (I0–I3 plus product patch). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.8.6** (I0–I4 plus post-U3 product cut). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -56,17 +56,17 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 | Area | TranscriptX | Transcribe today | Wave track |
 |------|-------------|------------------|------------|
-| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** (0.7–0.8). Docs / nightly / Docker image still **I4–I6** | **I1**, **I3**, **I4**, **I6** |
+| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** + **I4** docs job (0.7–0.8). Nightly / Docker image still **I6**; Pages **I5** | **I1**, **I3**, **I4**, **I6** |
 | **Nightly** | `nightly.yml` → `make test-integration-core` | None | **I6** |
 | **Pages** | `pages.yml` → website + Sphinx assemble | None | **I5** |
-| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); Sphinx/pages targets stub until I4 | **I0** |
+| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); `make docs` / `docs-clean` via `build_docs.sh` (**I4**); pages-site waits for I5 | **I0** |
 | **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
 | **Markers** | smoke / contract / integration(_core|_extended) / heavy / gui_* / release_only / quarantined / requires_* | smoke / unit / integration / slow / requires_* / quarantined | **I0**, **I3** |
 | **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | Landed **I3** (`fail_under = 70`; UI omitted; current suite ~85%) | **I3** |
 | **Pre-commit** | `config/.pre-commit-config.yaml` (hooks + black/ruff/mypy) | Root `.pre-commit-config.yaml` (**I3**; ruff critical + file hygiene; black/mypy still optional) | **I3** |
 | **Release kit** | `scripts/release/*` + `scripts/secrets_check.sh` | Landed **I2** | **I2** |
 | **Release governance** | `docs/dev/release_governance.md` + severity/ops docs | Landed **I2** (tag checklist; `# pre-release` stays local confidence) | **I2** |
-| **Sphinx / RTD** | `docs/conf.py`, `.readthedocs.yml`, `.[docs]`, CI docs job | Markdown-only; hosting deferred in [docs_architecture.md](dev/docs_architecture.md) | **I4** |
+| **Sphinx / RTD** | `docs/conf.py`, `.readthedocs.yml`, `.[docs]`, CI docs job | Landed **I4** (MyST over `docs/`; RTD hostname go-live still owner-gated) | **I4** |
 | **Website** | `website/` + Pages | None | **I5** |
 | **Workflow media** | `docs/workflows/` + `_static/workflows/` | Deferred | **I5** (optional after Pages) |
 | **Issue templates** | bug / feature + config | None | **I6** |
@@ -80,7 +80,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 ## 3. Tracks (I0–I6)
 
-Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting releases: land **I0–I1** before claiming CI honesty; land **I2** before the next public tag; land **I4–I5** before advertising a hosted guide.
+Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting releases: land **I0–I1** before claiming CI honesty; land **I2** before the next public tag; land **I4–I5** before advertising a hosted guide. **I4** Sphinx/CI is landed; **I5** Pages still required before advertising a public landing.
 
 ### I0 — Developer lanes & inventory — [x] done
 
@@ -88,7 +88,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 | Deliverable | Notes |
 |-------------|--------|
-| `Makefile` | At least: `help`, `test-smoke`, `test-fast` (default offline), `test-contracts` (if/when `tests/contracts` is the contract lane), `test-acceptance` (hardening + corpus gates), `docker-smoke`, `docs` / `docs-clean` stubs that grow in I4 |
+| `Makefile` | Named test lanes plus `docs` / `docs-clean` (Sphinx via `build_docs.sh`, I4) |
 | `tests/README.md` | Lane order, time budgets, marker policy matrix (TX `tests/README.md` shape, Transcribe markers) |
 | Marker policy pass | Document when to use `smoke` vs default; keep `integration` = live Ollama only; optionally add `contract` / `release_only` markers without mass-retagging day one |
 | Docs/script inventory | Light Phase-0A style: confirm root allowlist intent; list missing `scripts/release/*` as I2 backlog (do not invent a second docs tree) |
@@ -139,7 +139,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Coverage gate enforced locally and in CI; pre-commit documented in CONTRIBUTING / quickstart.
 
-### I4 — Hosted docs (Sphinx + RTD scaffold) — [ ] planned
+### I4 — Hosted docs (Sphinx + RTD scaffold) — [x] done
 
 | Deliverable | Notes |
 |-------------|--------|
@@ -150,7 +150,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 | CI `docs` job | Install docs extra; Sphinx HTML; fail on warning only when corpus is clean enough |
 | Update [docs_architecture.md](dev/docs_architecture.md) | Flip hosted-docs checkboxes as they land |
 
-**Exit:** `make docs` produces HTML from the Markdown corpus; CI proves the build.
+**Exit:** `make docs` produces HTML from the Markdown corpus; CI `docs` job proves the build. Glob toctrees (`contracts/`, `dev/`) plus `tests/unit/test_sphinx_docs.py` keep the hosted tree aligned with live `docs/**/*.md`. RTD hostname go-live: [dev/rtd_go_live_checklist.md](dev/rtd_go_live_checklist.md).
 
 ### I5 — Public landing + workflow media — [ ] planned
 

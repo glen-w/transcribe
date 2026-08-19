@@ -11,7 +11,7 @@ Distribution (v1): versioned git tags; local install via `pip install -e .` / `.
 
 ## Checklist
 
-1. **Green CI** on the exact intended release commit: jobs `compose-config`, `lint`, `tests` (Python **3.10–3.12**), and `release-checks`. Failed or cancelled matrix members block.
+1. **Green CI** on the exact intended release commit: jobs `compose-config`, `lint`, `tests` (Python **3.10–3.12**), `docs`, and `release-checks`. Failed or cancelled matrix members block.
 2. `pyproject.toml` version matches `transcribe.__version__` and the intended tag (`v` prefix aside).
 3. Dated Keep-a-Changelog section for that version in `CHANGELOG.md`.
 4. Clean worktree (`git status --porcelain=v1 --untracked-files=all` empty of unexpected paths).
@@ -19,7 +19,7 @@ Distribution (v1): versioned git tags; local install via `pip install -e .` / `.
 6. Fixable CVEs cleared **or** exceptional waiver filled in [dependency_audit.md](dependency_audit.md).
 7. No denylist violations; `scripts/secrets_check.sh` green.
 8. Compose default bind remains loopback (`scripts/release/assert_compose_bind.sh`).
-9. **I4–I6 not yet required for 0.8 tags:** Sphinx/Pages, nightly, and full Docker image audit wait for **0.9.0**. When those land, they join this checklist.
+9. **I5–I6 not yet required for 0.8 tags:** GitHub Pages, nightly, and full Docker image audit wait for **0.9.0**. Sphinx/CI docs (**I4**) is required on the intended SHA. When I5–I6 land, they join this checklist.
 
 Humans (or an explicit user instruction outside the pre-release command) perform tag/push after this checklist is satisfied.
 
@@ -76,7 +76,7 @@ Expected: `pass`, or `skipped (Docker not available)` until I6 makes image smoke
 
 ### F. CI on exact commit
 
-Confirm GitHub Actions on the intended SHA: `tests` (3.10–3.12), `compose-config`, `lint`, `release-checks` are green.
+Confirm GitHub Actions on the intended SHA: `tests` (3.10–3.12), `compose-config`, `lint`, `docs`, `release-checks` are green.
 
 ## Relationship to `# pre-release`
 

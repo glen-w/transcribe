@@ -1,5 +1,5 @@
 # Transcribe maintainer lanes. CI and `# pre-release` call these names.
-# Sphinx / Pages / full Docker image smoke grow in I4–I6.
+# Pages assemble / full Docker image smoke grow in I5–I6.
 
 .DEFAULT_GOAL := help
 
@@ -27,11 +27,12 @@ help:
 	@echo "  docker-smoke      Compose loopback bind (+ docker compose config when Docker exists)"
 	@echo "  release-hygiene   Secrets, tracked-data, stale-refs, strict root/archive hygiene"
 	@echo ""
-	@echo "Docs (stubs until I4):"
-	@echo "  docs              Point at the Markdown corpus (Sphinx lands in I4)"
-	@echo "  docs-clean        No-op until Sphinx artifacts exist"
+	@echo "Docs:"
+	@echo "  docs              Build Sphinx HTML into docs/_build/html (requires .[docs])"
+	@echo "  docs-clean        Remove Sphinx build artifacts"
 	@echo ""
 	@echo "Usage: make test-smoke && make test-fast"
+	@echo "       make docs   # Sphinx HTML (pip install -e '.[docs]')"
 
 lint:
 	@echo "Ruff critical + unused on src/transcribe..."
@@ -69,9 +70,9 @@ release-hygiene:
 	@$(PYTHON) scripts/release/repo_hygiene_audit.py --strict --checks root_md,archive_banners
 
 docs:
-	@echo "Markdown corpus is docs/ (indexes: docs/index.md)."
-	@echo "Sphinx HTML build lands in infrastructure track I4."
-	@echo "See docs/dev/docs_architecture.md"
+	@bash scripts/release/build_docs.sh
 
 docs-clean:
-	@echo "No Sphinx build artifacts yet (I4). Nothing to clean."
+	@echo "Cleaning Sphinx build artifacts..."
+	@rm -rf docs/_build
+	@echo "Documentation build cleaned."

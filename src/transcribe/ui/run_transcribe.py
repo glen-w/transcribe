@@ -43,6 +43,7 @@ from transcribe.services.batch_notebooks import (
 from transcribe.services.job import JobCoordinator, JobProgress, build_coordinator
 from transcribe.services.multipass import MultiPassCoordinator, MultiPassProgress
 from transcribe.services.project import ProjectService
+from transcribe.ui import icons as ic
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.model_info import (
     render_model_information,
@@ -330,7 +331,7 @@ def _render_transcribe_complete_actions(
     if render_action_link(
         "Retry failed",
         key="tx_done_retry",
-        icon=":material/replay:",
+        icon=ic.REPLAY,
         help="Re-run OCR on pages whose last attempt failed.",
         disabled=not failed_ids,
     ):
@@ -349,7 +350,7 @@ def _render_transcribe_complete_actions(
     if render_action_link(
         "Change settings",
         key="tx_done_settings",
-        icon=":material/settings:",
+        icon=ic.SETTINGS,
         help="Return to model and OCR settings for another run.",
     ):
         st.session_state.pop("_transcribe_post_job_id", None)
@@ -441,7 +442,7 @@ def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) ->
                 st.rerun()
 
         batch_status_panel()
-        if st.button("Stop after current page", key="batch_ocr_stop"):
+        if st.button("Stop after current page", key="batch_ocr_stop", icon=ic.STOP):
             coord.request_cancel()
             st.info("Stopping after current page; remaining notebooks will not start.")
         return True
@@ -472,7 +473,7 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
         if render_action_link(
             "Library",
             key="tx_batch_done_view",
-            icon=":material/menu_book:",
+            icon=ic.MENU_BOOK,
             help="Open the notebook list.",
         ):
             set_ui_mode("Library")
@@ -480,7 +481,7 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
         if render_action_link(
             "Retry failed",
             key="tx_batch_done_retry",
-            icon=":material/replay:",
+            icon=ic.REPLAY,
             help="Re-run OCR on notebooks that failed or have failed pages.",
             disabled=not retry_ids,
         ):
@@ -505,7 +506,7 @@ def _render_batch_complete_actions(coord: BatchOcrCoordinator, progress: BatchOc
         if render_action_link(
             "Change settings",
             key="tx_batch_done_settings",
-            icon=":material/settings:",
+            icon=ic.SETTINGS,
             help="Return to batch OCR settings.",
         ):
             st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -654,7 +655,7 @@ def _render_this_notebook_live(
                 st.rerun()
 
         job_status_panel()
-        if st.button("Stop after current page", key="transcribe_stop_running"):
+        if st.button("Stop after current page", key="transcribe_stop_running", icon=ic.STOP):
             multi.request_cancel()
             coord.request_cancel()
             st.info("Stopping after current page…")
@@ -684,12 +685,12 @@ def _render_this_notebook_launch(
     form: dict[str, Any],
 ) -> None:
     coord = get_coordinator(str(root))
-    if st.button("Save settings"):
+    if st.button("Save settings", icon=ic.SAVE):
         project = _apply_form_settings(projects, project, form)
         coord.provider = OllamaVisionProvider(form["normalized"])
         st.success("Settings saved")
 
-    if st.button("Start transcription"):
+    if st.button("Start transcription", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
             st.error("Enable the remote-host acknowledgement first.")
         else:
@@ -742,7 +743,7 @@ def _render_this_notebook_launch(
         value=not bool(project.settings.auto_activate_composite),
         key="tx_this_no_auto_comp",
     )
-    if st.button("Start multipass compare", key="tx_this_start_multipass"):
+    if st.button("Start multipass compare", key="tx_this_start_multipass", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
             st.error("Enable the remote-host acknowledgement first.")
         elif len(multi_models) < 2:
@@ -816,6 +817,7 @@ def _render_batch_notebook_source(
             "Refresh list",
             key="tx_batch_pending_refresh",
             help="Re-scan the corpus for notebooks with untranscribed or failed pages.",
+            icon=ic.REFRESH,
         )
         candidates = _cached_ocr_candidates(corpus, force=refresh)
         selected = select_pending(candidates)
@@ -898,7 +900,7 @@ def _render_batch_launch_actions(
                 if run.status in {"pending", "running"} or any(
                     i.state in {"pending", "running"} for i in run.items
                 ):
-                    if st.button("Resume", key=f"batch_ocr_resume_{run.ocr_run_id}"):
+                    if st.button("Resume", key=f"batch_ocr_resume_{run.ocr_run_id}", icon=ic.REPLAY):
                         try:
                             invalidate_batch_ocr_caches()
                             batch_coord.start(run.ocr_run_id)
@@ -908,7 +910,7 @@ def _render_batch_launch_actions(
                         except (JobConflictError, TranscribeError) as exc:
                             st.error(str(exc))
 
-    if st.button("Start batch transcription", type="primary", key="tx_batch_start"):
+    if st.button("Start batch transcription", type="primary", key="tx_batch_start", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
             st.error("Enable the remote-host acknowledgement first.")
         elif not selected:
@@ -968,7 +970,7 @@ def _render_batch_launch_actions(
         value=not bool(seed.auto_activate_composite),
         key="tx_batch_no_auto_comp",
     )
-    if st.button("Start batch multipass compare", key="tx_batch_start_multipass"):
+    if st.button("Start batch multipass compare", key="tx_batch_start_multipass", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
             st.error("Enable the remote-host acknowledgement first.")
         elif not selected:

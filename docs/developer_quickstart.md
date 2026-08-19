@@ -34,6 +34,7 @@ make test-contracts       # tests/contracts/
 make test-acceptance      # hardening + corpus + OCR lifecycle
 make lint                 # ruff critical selects (CI lint job)
 make docker-smoke         # Compose loopback bind assert
+make docs                 # Sphinx HTML (requires pip install -e '.[docs]')
 make test-coverage        # default suite + coverage fail-under
 make release-hygiene      # secrets / tracked-data / stale-refs / root docs
 ```
@@ -82,4 +83,4 @@ Do not run `black .` at repo root (can touch `.venv`). `.[dev]` includes pytest,
 
 ## Docs when you change behaviour
 
-Follow [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md): update the owning CONTRACT (or PRODUCT/ARCHITECTURE) rather than inventing rules in guides. Docs surfaces: [dev/docs_architecture.md](dev/docs_architecture.md).
+Follow [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md): update the owning CONTRACT (or PRODUCT/ARCHITECTURE) rather than inventing rules in guides. Docs surfaces: [dev/docs_architecture.md](dev/docs_architecture.md). Hosted HTML is the same Markdown (`make docs`); new `docs/contracts/` and `docs/dev/` pages are picked up by glob toctrees. Optional live rebuild: `sphinx-autobuild docs docs/_build/html` after `pip install -e '.[docs]'`.

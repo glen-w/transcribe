@@ -122,6 +122,7 @@ def build_envelope(
     resolved_model_digest: str | None = None,
     llm: dict[str, Any] | None = None,
     evidence: list[dict[str, Any]] | None = None,
+    recorded_at: str | None = None,
 ) -> dict[str, Any]:
     if attempt_state not in ATTEMPT_STATES:
         raise ValueError(f"invalid attempt_state: {attempt_state}")
@@ -163,4 +164,6 @@ def build_envelope(
         env["llm"] = llm
     if evidence is not None:
         env["evidence"] = evidence
+    if recorded_at is not None:
+        env["recorded_at"] = recorded_at
     return require_format(env, "transcribe.analysis-result")

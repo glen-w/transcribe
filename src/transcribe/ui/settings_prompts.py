@@ -19,6 +19,7 @@ from transcribe.prompt_engine.definition import (
 from transcribe.prompt_engine.execute import execute_prompt
 from transcribe.prompt_engine.hub import list_catalogue
 from transcribe.prompt_engine.render import PromptRenderer
+from transcribe.ui import icons as ic
 from transcribe.prompt_engine.store import (
     delete_custom_prompt,
     delete_override,
@@ -76,7 +77,7 @@ def render_prompts_panel() -> None:
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        if st.button("Save override / version bump", type="primary"):
+        if st.button("Save override / version bump", type="primary", icon=ic.SAVE):
             new_ver = _bump_version(defn.version)
             updated = PromptDefinition(
                 prompt_id=defn.prompt_id,
@@ -107,12 +108,12 @@ def render_prompts_panel() -> None:
                 except ValueError as exc:
                     st.error(str(exc))
     with c2:
-        if entry.source == "override" and st.button("Restore built-in"):
+        if entry.source == "override" and st.button("Restore built-in", icon=ic.RESTORE):
             delete_override(defn.prompt_id)
             st.success("Override removed.")
             st.rerun()
     with c3:
-        if entry.source == "custom" and st.button("Delete custom"):
+        if entry.source == "custom" and st.button("Delete custom", icon=ic.DELETE):
             delete_custom_prompt(defn.prompt_id)
             st.success("Deleted.")
             st.rerun()
@@ -127,7 +128,7 @@ def render_prompts_panel() -> None:
             "User template",
             value="Find the phenomenon.\n\n{{content}}\n\nReturn JSON matching the schema.",
         )
-        if st.form_submit_button("Create"):
+        if st.form_submit_button("Create", icon=ic.ADD):
             created = PromptDefinition(
                 prompt_id=cid.strip(),
                 version="1",
@@ -152,7 +153,7 @@ def render_prompts_panel() -> None:
     st.divider()
     st.markdown("#### Test dry-run")
     sample = st.text_area("Sample notebook text", height=100, key="prompt_hub_sample")
-    if st.button("Run dry-run (recorded double)"):
+    if st.button("Run dry-run (recorded double)", icon=ic.RUN):
         if not sample.strip():
             st.warning("Paste sample text first.")
         else:

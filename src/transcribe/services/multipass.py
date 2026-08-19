@@ -21,6 +21,7 @@ from transcribe.persistence.locks import JobLock
 from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.services.job import JobCoordinator
 from transcribe.services.ocr_compare import run_composite, run_rank
+from transcribe.services.ocr_composite_state import current_composite_attempt
 from transcribe.services.ocr_preference_stats import append_preference_event
 from transcribe.services.project import ProjectService
 
@@ -361,13 +362,7 @@ class MultiPassCoordinator:
                     existing and existing.comparison and existing.comparison.pass_id == plan.pass_id
                 )
                 has_composite = bool(
-                    existing
-                    and any(
-                        (a.attempt_kind or "") == "composite"
-                        and a.pass_id == plan.pass_id
-                        and a.status == "succeeded"
-                        for a in existing.attempts
-                    )
+                    existing and current_composite_attempt(existing) is not None
                 )
                 if has_comparison and (has_composite or not plan.auto_activate_composite):
                     if has_comparison:
@@ -451,11 +446,17 @@ class MultiPassCoordinator:
             return
 
         created = to_iso(self.clock.now())
+        ranker_digest = None
+        if self.text_client is not None:
+            try:
+                ranker_digest = self.text_client.model_digest(plan.ranker_model_name)
+            except Exception:  # noqa: BLE001 — provenance best-effort
+                ranker_digest = None
         rank = run_rank(
             attempts=pass_attempts,
             pass_id=plan.pass_id,
             model_name=plan.ranker_model_name,
-            model_digest=None,
+            model_digest=ranker_digest,
             created_at=created,
             base_url=plan.base_url,
             client=self.text_client,
@@ -486,12 +487,12 @@ class MultiPassCoordinator:
                 raw_text=comp.text,
                 provenance=AttemptProvenance(
                     model_name=plan.ranker_model_name,
-                    model_digest=None,
-                    model_identity_verified=False,
+                    model_digest=comp.model_digest or ranker_digest,
+                    model_identity_verified=bool(comp.model_digest or ranker_digest),
                     prompt_id=comp.prompt_id or "ocr_composite",
                     prompt_version=comp.prompt_version or "1",
                     prompt_sha256=comp.prompt_sha256 or "",
-                    prompt_text="",
+                    prompt_text=comp.prompt_text or "",
                     input_sha256="",
                     preprocess_profile="none",
                     preprocess_version=0,
@@ -531,7 +532,7 @@ class MultiPassCoordinator:
                         page_id=page_id,
                         attempt_id=attempt_id,
                         model_name=plan.ranker_model_name,
-                        model_digest=None,
+                        model_digest=comp.model_digest or ranker_digest,
                         attempt_kind="composite",
                         action="auto_composite",
                         pass_id=plan.pass_id,

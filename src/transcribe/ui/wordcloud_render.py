@@ -436,7 +436,6 @@ def render_wordcloud_section(
 ) -> None:
     """Streamlit product control: Basic static cloud vs Advanced TX explorer."""
     import streamlit as st
-    import streamlit.components.v1 as components
 
     from transcribe.ui.analysis_display_helpers import wordcloud_rows
 
@@ -445,17 +444,24 @@ def render_wordcloud_section(
         st.info("Word themes: no tokens yet.")
         return
 
-    mode = st.radio(
-        "Word cloud mode",
-        ("Basic", "Advanced"),
-        horizontal=True,
-        key=f"{key_prefix}_mode",
-        help=(
-            "Basic: static frequency cloud (TranscriptX PNG path). "
-            "Advanced: interactive explorer with search, top N, min value, "
-            "sort, and CSV export (TranscriptX wordcloud explorer)."
-        ),
-    )
+    basic_ok = wordcloud_available()
+    advanced_ok = wordcloud2_js_available()
+    if basic_ok and advanced_ok:
+        mode = st.radio(
+            "Word cloud mode",
+            ("Basic", "Advanced"),
+            horizontal=True,
+            key=f"{key_prefix}_mode",
+            help=(
+                "Basic: static frequency cloud (TranscriptX PNG path). "
+                "Advanced: interactive explorer with search, top N, min value, "
+                "sort, and CSV export (TranscriptX wordcloud explorer)."
+            ),
+        )
+    elif advanced_ok:
+        mode = "Advanced"
+    else:
+        mode = "Basic"
 
     if mode == "Advanced":
         if not wordcloud2_js_available():
@@ -467,7 +473,7 @@ def render_wordcloud_section(
         else:
             terms_payload = terms_payload_from_analysis(payload, title="Word themes")
             explorer = build_wordcloud_explorer_html("Word themes", terms_payload)
-            components.html(explorer, height=720, scrolling=True)
+            st.iframe(explorer, height=720)
             st.caption(
                 "Advanced explorer runs locally (vendored wordcloud2.js) — "
                 "adjust filters above the cloud; copy or download CSV of the filtered terms."

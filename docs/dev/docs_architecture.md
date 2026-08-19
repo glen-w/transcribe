@@ -3,7 +3,7 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 
 # Documentation architecture
 
-**Status:** Markdown authority model live; archive hygiene + runtime guide depth landed; Sphinx / hosted guide / workflow walkthroughs planned under the [0.9 infrastructure wave](../infrastructure_wave_0_9_plan.md) (tracks **I4–I5**).
+**Status:** Markdown authority model live; archive hygiene + runtime guide depth landed; Sphinx hosted guide (**I4**) builds this Markdown tree; GitHub Pages landing is **I5**.
 
 ## Surfaces
 
@@ -16,7 +16,9 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 | Contracts + [CONTRACT_INDEX.md](../CONTRACT_INDEX.md) | Behavioural invariants | Contracts |
 | `docs/runtime/` | Task-oriented user guides | GUIDE (link contracts) |
 | `docs/dev/` | Developer / programme / alignment notes | Developer |
+| `docs/reviews/` | Product and module reviews (critique; not contracts) | Product / GUIDE index |
 | `docs/archive/` | Historical (banners) | Historical |
+| Sphinx HTML (`make docs`) | Hosted view of the same Markdown | [docs_architecture.md](docs_architecture.md) |
 | Root `CHANGELOG.md` / `SECURITY.md` / `CONTRIBUTING.md` | Release notes, trust domain, pointer | Self / `docs/dev/CONTRIBUTING.md` |
 
 ## Indexes
@@ -25,14 +27,17 @@ Authority: self — documentation surfaces map for Transcribe; does not own prod
 - Developer: [DEV_INDEX.md](../DEV_INDEX.md)
 - Contracts: [CONTRACT_INDEX.md](../CONTRACT_INDEX.md)
 - Archive: [ARCHIVE_INDEX.md](../archive/ARCHIVE_INDEX.md)
+- Reviews: [reviews/README.md](../reviews/README.md)
 
 ## Hosted docs
 
 Owned by infrastructure-wave **I4–I5** ([infrastructure_wave_0_9_plan.md](../infrastructure_wave_0_9_plan.md)) — flip checkboxes when landed:
 
-- [ ] Sphinx / Read the Docs scaffold / CI docs job (**I4** — Markdown in-repo remains the corpus; Sphinx builds it)
+- [x] Sphinx / Read the Docs scaffold / CI docs job (**I4** — Markdown in-repo remains the corpus; Sphinx builds it; [rtd_go_live_checklist.md](rtd_go_live_checklist.md) for owner hostname go-live)
 - [ ] Modest `website/` + GitHub Pages assemble (**I5**)
 - [ ] Workflow walkthroughs with screenshots (**I5**, optional after Pages)
+
+**Content parity:** Sphinx has no separate doc corpus — it builds the Markdown under `docs/` directly. `docs/index.md` uses glob toctrees for `contracts/` and `dev/` so new pages in those trees appear in the hosted nav; `tests/unit/test_sphinx_docs.py` fails if any live `.md` file is missing from that nav. Archive is excluded (`exclude_patterns`). `make docs` → [scripts/release/build_docs.sh](../../scripts/release/build_docs.sh). CI `docs` job uploads HTML. Do not publish a live Read the Docs hostname until the owner checklist is flipped.
 
 Keep entry surfaces concise; detail stays in contracts / runtime / dev. Archive is discoverable via `ARCHIVE_INDEX` only — not listed as live product docs in `USER_INDEX`.
 

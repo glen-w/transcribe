@@ -28,8 +28,11 @@ from transcribe.errors import TranscribeError, ValidationError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import bump_archive_generation
+from transcribe.services.batch_notebooks import resolve_notebook_root
+from transcribe.ui import icons as ic
 from transcribe.ui.components.action_links import render_action_link
-from transcribe.ui.shell import set_ui_mode
+from transcribe.ui.navigation import notebook_has_published_analysis
+from transcribe.ui.shell import set_ui_mode, sync_notebook_selector
 from transcribe.ui.targets import (
     PENDING_TRANSCRIBE_TARGET_KEY,
     TARGET_BATCH,
@@ -255,6 +258,7 @@ def _render_parent_folders(
         type="primary",
         key="import_inbox_run_folders",
         disabled=run_disabled,
+        icon=ic.UPLOAD,
     ):
         if parent is None:
             st.error("Enter a parent folder path.")
@@ -347,7 +351,7 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
             if render_action_link(
                 "Transcribe imported notebooks",
                 key="import_done_transcribe",
-                icon=":material/document_scanner:",
+                icon=ic.DOCUMENT_SCANNER,
                 help="Open Transcribe → Batch with notebooks from this import.",
             ):
                 queue_transcribe_imported(flashed)
@@ -374,14 +378,32 @@ def render_import_inbox(runtime: RuntimePaths) -> None:
                     bits.append(item.error_message)
                 st.write(f"- `{item.item_id}` · " + " · ".join(bits))
             nids = committed_notebook_ids(run)
+            view_root = None
+            for nid in nids:
+                try:
+                    root = resolve_notebook_root(corpus, nid)
+                except Exception:  # noqa: BLE001 — notebook discovery is best-effort
+                    continue
+                if notebook_has_published_analysis(root):
+                    view_root = root
+                    break
             if nids:
                 if st.button(
                     "Transcribe imported notebooks",
                     key=f"tx_imported_{run.import_run_id}",
+                    icon=ic.DOCUMENT_SCANNER,
                 ):
                     queue_transcribe_imported(run)
+            if view_root is not None:
+                if st.button(
+                    "View analysis",
+                    key=f"view_analysis_{run.import_run_id}",
+                    icon=ic.VISIBILITY,
+                ):
+                    sync_notebook_selector(str(view_root))
+                    set_ui_mode("Overview")
             if run.status not in TERMINAL_STATUSES or pending:
-                if st.button("Resume", key=f"resume_{run.import_run_id}"):
+                if st.button("Resume", key=f"resume_{run.import_run_id}", icon=ic.REPLAY):
                     try:
                         completed = _commit_run_with_progress(
                             orchestrator, run.import_run_id, runtime

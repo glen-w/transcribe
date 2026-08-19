@@ -41,6 +41,7 @@ from transcribe.ui.analysis_display_helpers import (
     analyse_picker_status_phrase,
     format_analyse_picker_label,
 )
+from transcribe.ui import icons as ic
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import render_progress_panel
 from transcribe.ui.corpus_listing_cache import (
@@ -219,7 +220,7 @@ def render_batch_analysis_progress(coord: BatchAnalysisCoordinator, runtime: Run
                 st.rerun()
 
         batch_status_panel()
-        if st.button("Stop after current notebook", key="batch_analysis_stop"):
+        if st.button("Stop after current notebook", key="batch_analysis_stop", icon=ic.STOP):
             coord.request_cancel()
             st.info("Stopping after current notebook; remaining notebooks will not start.")
         return True
@@ -248,7 +249,7 @@ def _render_batch_complete_actions(
         if render_action_link(
             "Library",
             key="ax_batch_done_view",
-            icon=":material/menu_book:",
+            icon=ic.MENU_BOOK,
             help="Open the notebook list.",
         ):
             set_ui_mode("Library")
@@ -256,7 +257,7 @@ def _render_batch_complete_actions(
         if render_action_link(
             "Retry failed",
             key="ax_batch_done_retry",
-            icon=":material/replay:",
+            icon=ic.REPLAY,
             help="Re-run analysis on notebooks that failed.",
             disabled=not retry_ids,
         ):
@@ -284,7 +285,7 @@ def _render_batch_complete_actions(
         if render_action_link(
             "Change settings",
             key="ax_batch_done_settings",
-            icon=":material/settings:",
+            icon=ic.SETTINGS,
             help="Return to batch analysis settings.",
         ):
             st.session_state.pop(_BATCH_POST_RUN_KEY, None)
@@ -305,6 +306,7 @@ def _render_batch_complete_actions(
             if st.button(
                 "Open",
                 key=f"ax_batch_open_{item.notebook_id}",
+                icon=ic.FOLDER_OPEN,
             ):
                 from transcribe.ui.navigation import (
                     notebook_has_published_analysis,
@@ -360,6 +362,7 @@ def _render_batch_notebook_source(
             "Refresh list",
             key="ax_batch_pending_refresh",
             help="Re-scan the corpus for notebooks that need analysis.",
+            icon=ic.REFRESH,
         )
         selected = _cached_needing_analysis(corpus, force=refresh)
         st.caption(
@@ -604,7 +607,7 @@ def _render_batch_preset_and_launch(
             "workspace default under Settings → Models."
         )
         provider = OllamaVisionProvider(base_url)
-        refresh_models = st.button("Refresh models", key="batch_analysis_refresh_models")
+        refresh_models = st.button("Refresh models", key="batch_analysis_refresh_models", icon=ic.REFRESH)
         if refresh_models:
             invalidate_discovery_cache(base_url)
         discovery = provider.list_models(refresh=refresh_models)
@@ -650,7 +653,7 @@ def _render_batch_preset_and_launch(
                 if run.status in {"pending", "running"} or any(
                     i.state in {"pending", "running"} for i in run.items
                 ):
-                    if st.button("Resume", key=f"batch_analysis_resume_{run.analysis_batch_id}"):
+                    if st.button("Resume", key=f"batch_analysis_resume_{run.analysis_batch_id}", icon=ic.REPLAY):
                         try:
                             invalidate_batch_analyse_caches()
                             batch_coord.start(run.analysis_batch_id)
@@ -659,6 +662,33 @@ def _render_batch_preset_and_launch(
                             st.rerun()
                         except (JobConflictError, TranscribeError) as exc:
                             st.error(str(exc))
+                # Offer “View analysis” when any notebook from this batch has
+                # published analysis on disk.
+                view_root = None
+                from transcribe.services.batch_notebooks import resolve_notebook_root
+                from transcribe.ui.navigation import notebook_has_published_analysis
+                for item in run.items:
+                    try:
+                        item_root = resolve_notebook_root(corpus, item.notebook_id)
+                    except Exception:  # noqa: BLE001 — discovery is best-effort
+                        continue
+                    if notebook_has_published_analysis(item_root):
+                        view_root = item_root
+                        break
+                if view_root is not None:
+                    if render_action_link(
+                        "View analysis",
+                        key=f"ax_batch_analyse_recent_view_{run.analysis_batch_id}",
+                        icon=ic.VISIBILITY,
+                        help="Open Overview for the first notebook with published analysis.",
+                    ):
+                        from transcribe.ui.navigation import normalize_ui_mode
+                        from transcribe.ui.shell import sync_notebook_selector
+
+                        st.session_state["root"] = str(view_root)
+                        sync_notebook_selector(str(view_root))
+                        st.session_state["ui_mode"] = normalize_ui_mode("Overview")
+                        st.rerun()
 
     launch_ids = batch_module_order(list(expand_with_hard_parents(plan.module_ids)))
     launch_detectors = list(plan.detector_ids)
@@ -672,6 +702,7 @@ def _render_batch_preset_and_launch(
         type="primary",
         key="ax_batch_start",
         disabled=start_disabled,
+        icon=ic.PLAY,
     ):
         if not batch_selected:
             st.error("Select at least one notebook.")

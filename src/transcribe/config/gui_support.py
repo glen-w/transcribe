@@ -23,6 +23,11 @@ COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
         "Overview",
         "Visible Overview cards",
     ),
+    CommonSettingField(
+        "ui.view_show_advanced",
+        "Overview",
+        "Show Advanced JSON expanders on View pages",
+    ),
     CommonSettingField("ingest.render_dpi", "Import", "PDF render DPI"),
     CommonSettingField(
         "ingest.visual_declutter_enabled",

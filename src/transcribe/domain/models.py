@@ -426,12 +426,14 @@ class PageIndex:
     date_source: str | None = None
     tags: list[str] = field(default_factory=list)
     analysis_excluded: bool = False
+    ignored: bool = False
+    review_status: str = "unreviewed"
 
     def as_dict(self) -> dict[str, Any]:
         date, approved, source = canonicalize_page_date_state(
             self.date, self.date_approved, self.date_source
         )
-        return {
+        payload = {
             "page_id": self.page_id,
             "source_id": self.source_id,
             "page_index": self.page_index,
@@ -444,10 +446,19 @@ class PageIndex:
             "tags": list(self.tags),
             "analysis_excluded": bool(self.analysis_excluded),
         }
+        if self.ignored:
+            payload["ignored"] = True
+        status = self.review_status or "unreviewed"
+        if status != "unreviewed":
+            payload["review_status"] = status
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PageIndex:
         date, approved, source = page_date_fields_from_dict(data)
+        status = str(data.get("review_status") or "unreviewed")
+        if status not in REVIEW_STATUSES:
+            status = "unreviewed"
         return cls(
             page_id=data["page_id"],
             source_id=data["source_id"],
@@ -460,6 +471,8 @@ class PageIndex:
             date_source=source,
             tags=normalize_tags(data.get("tags")),
             analysis_excluded=bool(data.get("analysis_excluded", False)),
+            ignored=bool(data.get("ignored", False)),
+            review_status=status,
         )
 
     def set_date_state(
@@ -554,6 +567,35 @@ class Project:
 
 
 ATTEMPT_STATUSES = frozenset({"running", "succeeded", "failed", "cancelled", "interrupted"})
+REVIEW_STATUSES = frozenset({"unreviewed", "needs_attention", "reviewed", "skipped"})
+EFFECTIVE_TEXT_ORIGINS = frozenset(
+    {"ocr_attempt", "composite", "human_selected", "human_corrected"}
+)
+
+
+def _optional_origin(value: Any) -> str | None:
+    if not value:
+        return None
+    text = str(value)
+    return text if text in EFFECTIVE_TEXT_ORIGINS else None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass
@@ -766,6 +808,11 @@ class PageResult:
     updated_at: str = ""
     format: str = "transcribe.page-result"
     schema_version: int = 1
+    effective_text_origin: str | None = None
+    reviewed_text_fingerprint: str | None = None
+    reviewed_evidence_fingerprint: str | None = None
+    source_disagreement_count: int | None = None
+    agreement_ratio: float | None = None
 
     @property
     def status(self) -> str:
@@ -819,6 +866,16 @@ class PageResult:
             payload["preferred_attempt_id"] = self.preferred_attempt_id
         if self.comparison is not None:
             payload["comparison"] = self.comparison.as_dict()
+        if self.effective_text_origin:
+            payload["effective_text_origin"] = self.effective_text_origin
+        if self.reviewed_text_fingerprint:
+            payload["reviewed_text_fingerprint"] = self.reviewed_text_fingerprint
+        if self.reviewed_evidence_fingerprint:
+            payload["reviewed_evidence_fingerprint"] = self.reviewed_evidence_fingerprint
+        if self.source_disagreement_count is not None:
+            payload["source_disagreement_count"] = int(self.source_disagreement_count)
+        if self.agreement_ratio is not None:
+            payload["agreement_ratio"] = float(self.agreement_ratio)
         return payload
 
     @classmethod
@@ -833,6 +890,11 @@ class PageResult:
             updated_at=data.get("updated_at", ""),
             format=str(data.get("format", "transcribe.page-result")),
             schema_version=int(data.get("schema_version", 1)),
+            effective_text_origin=_optional_origin(data.get("effective_text_origin")),
+            reviewed_text_fingerprint=data.get("reviewed_text_fingerprint"),
+            reviewed_evidence_fingerprint=data.get("reviewed_evidence_fingerprint"),
+            source_disagreement_count=_optional_int(data.get("source_disagreement_count")),
+            agreement_ratio=_optional_float(data.get("agreement_ratio")),
         )
         # Derived status must match active attempt when present.
         _ = result.status

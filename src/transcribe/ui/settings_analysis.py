@@ -23,6 +23,7 @@ from transcribe.config.persistence import (
     load_workspace_settings,
     save_workspace_settings,
 )
+from transcribe.ui import icons as ic
 from transcribe.ui.components.info_tooltip import widget_help
 from transcribe.config.reset import reset_subtree
 
@@ -211,9 +212,10 @@ def render_analysis_presets_panel() -> None:
             type="primary",
             key="settings_ui_presets_save",
             disabled=view.readonly_recovery,
+            icon=ic.SAVE,
         )
     with col_reset:
-        reset = st.button("Reset presets subtree", key="settings_ui_presets_reset")
+        reset = st.button("Reset presets subtree", key="settings_ui_presets_reset", icon=ic.RESET)
 
     if reset:
         try:

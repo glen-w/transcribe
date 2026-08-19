@@ -137,7 +137,9 @@ def test_section_defaults() -> None:
     ]
     assert list(section_default_actions(SectionId.VIEW_NOTEBOOK)) == [
         ActionId.OPEN,
+        ActionId.OVERVIEW,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
@@ -150,7 +152,9 @@ def test_section_defaults() -> None:
     ]
     assert configured_actions_for_section(prefs, SectionId.VIEW_NOTEBOOK) == [
         ActionId.OPEN,
+        ActionId.OVERVIEW,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
@@ -159,8 +163,8 @@ def test_section_defaults() -> None:
     assert list(section_default_actions(SectionId.TRANSCRIBE_COMPLETE)) == [ActionId.REVIEW]
     assert list(section_default_actions(SectionId.ANALYSE_COMPLETE)) == [
         ActionId.OVERVIEW,
-        ActionId.EXPORT,
         ActionId.OPEN,
+        ActionId.EXPORT,
     ]
     assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — notebook row"
     assert "Reading" in help_for(ActionId.OPEN)
@@ -610,11 +614,15 @@ def test_empty_notebook_open_unavailable(tmp_path: Path) -> None:
 
 def test_catalog_helpers_and_unknown_section_fallback() -> None:
     assert label_for(ActionId.RENAME) == ACTIONS_BY_ID[ActionId.RENAME].label
+    assert label_for(ActionId.OVERVIEW, SectionId.VIEW_NOTEBOOK) == "View analysis"
+    assert label_for(ActionId.OVERVIEW) == "Overview"
     assert icon_for(ActionId.DELETE) == ACTIONS_BY_ID[ActionId.DELETE].icon
     assert help_for(ActionId.OPEN) == ACTIONS_BY_ID[ActionId.OPEN].help
     assert section_default_actions(SectionId.VIEW_NOTEBOOK) == (
         ActionId.OPEN,
+        ActionId.OVERVIEW,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
@@ -638,7 +646,9 @@ def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> 
     prefs = built_in_prefs()
     assert resolve_section_actions(SectionId.VIEW_NOTEBOOK, ctx, prefs=prefs) == [
         ActionId.OPEN,
+        ActionId.OVERVIEW,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.RENAME,
         ActionId.DELETE,
@@ -755,6 +765,8 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
     assert "st-key-tr_al_" in shell
     assert "st-key-tx_cover_" in shell
+    assert "st-key-rw_jump_go" in shell
+    assert "white-space: nowrap" in shell
     # Cover hover/hit-target must require a direct-child cover key (not any ancestor).
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
     # Action-strip flex overrides must exclude ancestor Archive notebook grids.

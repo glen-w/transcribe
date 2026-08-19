@@ -22,10 +22,12 @@ from transcribe.domain.models import (
     ComparisonRecord,
     DEFAULT_PREFER_MODE,
     EDIT_GATE_CHOICES,
+    EFFECTIVE_TEXT_ORIGINS,
     MAX_ATTEMPTS_RETAINED,
     OCRAttempt,
     OCRSettings,
     PREFER_MODES,
+    REVIEW_STATUSES,
     PageIndex,
     PageResult,
     Project,
@@ -71,6 +73,51 @@ def _seed_ocr_settings() -> OCRSettings:
 
 
 _UNSET = object()
+
+
+def _origin_from_active(result: PageResult) -> str | None:
+    from transcribe.services.ocr_composite_state import current_composite_attempt
+
+    if result.edited_text is not None:
+        return result.effective_text_origin
+    active = result.active_attempt()
+    if active is None:
+        return None
+    current = current_composite_attempt(result)
+    if current is not None and active.attempt_id == current.attempt_id:
+        return "composite"
+    if (active.attempt_kind or "vision") == "composite":
+        return "composite"
+    return "ocr_attempt"
+
+
+def _review_fingerprints_match(result: PageResult | None) -> bool:
+    from transcribe.services.ocr_composite_state import (
+        evidence_fingerprint,
+        reviewed_text_fingerprint,
+    )
+
+    if result is None:
+        return False
+    if not result.reviewed_text_fingerprint or not result.reviewed_evidence_fingerprint:
+        return False
+    text = result.effective_text() or ""
+    return (
+        result.reviewed_text_fingerprint == reviewed_text_fingerprint(text)
+        and result.reviewed_evidence_fingerprint == evidence_fingerprint(result)
+    )
+
+
+def _review_should_invalidate(before: PageResult | None, after: PageResult) -> bool:
+    from transcribe.services.ocr_composite_state import evidence_fingerprint
+
+    if before is None:
+        return True
+    if (before.effective_text() or "") != (after.effective_text() or ""):
+        return True
+    if before.active_attempt_id != after.active_attempt_id:
+        return True
+    return evidence_fingerprint(before) != evidence_fingerprint(after)
 
 
 @dataclass
@@ -640,6 +687,7 @@ class ProjectService:
     ) -> PageResult:
         with mutation_lock(self.paths.mutation_lock):
             existing = self._load_page_result_unlocked(page_id) or PageResult(page_id=page_id)
+            before = PageResult.from_dict(existing.as_dict())
             # Replace same attempt_id if updating running→terminal; else append.
             replaced = False
             for i, old in enumerate(existing.attempts):
@@ -658,8 +706,11 @@ class ProjectService:
                     preferred_attempt_id=existing.preferred_attempt_id,
                 )
             existing.updated_at = to_iso(self.clock.now())
+            if attempt.status == "succeeded" and existing.edited_text is None:
+                existing.effective_text_origin = _origin_from_active(existing)
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            self._invalidate_review_unlocked(page_id, before=before, after=existing)
             return existing
 
     def set_active_attempt(
@@ -677,10 +728,14 @@ class ProjectService:
                 raise ProjectError(
                     f"only succeeded attempts can be activated (status={attempt.status})"
                 )
+            before = PageResult.from_dict(existing.as_dict())
             existing.active_attempt_id = attempt_id
+            if existing.edited_text is None:
+                existing.effective_text_origin = _origin_from_active(existing)
             existing.updated_at = to_iso(self.clock.now())
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            self._invalidate_review_unlocked(page_id, before=before, after=existing)
             result = existing
             attempt_snap = attempt
         if record_ledger:
@@ -734,11 +789,15 @@ class ProjectService:
                     promote = True
                 else:
                     promote = True
+            before = PageResult.from_dict(existing.as_dict())
             if promote:
                 existing.active_attempt_id = attempt_id
+            if existing.edited_text is None:
+                existing.effective_text_origin = _origin_from_active(existing)
             existing.updated_at = to_iso(self.clock.now())
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            self._invalidate_review_unlocked(page_id, before=before, after=existing)
             result = existing
         if record_ledger:
             self._append_preference_event(
@@ -792,20 +851,117 @@ class ProjectService:
             # Ledger is best-effort; page mutation already committed.
             return
 
-    def save_user_edit(self, page_id: str, edited_text: str | None) -> PageResult:
+    def save_user_edit(
+        self,
+        page_id: str,
+        edited_text: str | None,
+        *,
+        origin: str | None = None,
+        mark_reviewed: bool = False,
+    ) -> PageResult:
+        if origin is not None and origin not in EFFECTIVE_TEXT_ORIGINS:
+            raise ProjectError(f"unsupported effective_text_origin: {origin!r}")
         with mutation_lock(self.paths.mutation_lock):
             existing = self._load_page_result_unlocked(page_id)
             if existing is None:
                 existing = PageResult(page_id=page_id)
+            before = PageResult.from_dict(existing.as_dict())
             existing.edited_text = edited_text
+            if origin is not None:
+                existing.effective_text_origin = origin
+            elif edited_text is None:
+                existing.effective_text_origin = _origin_from_active(existing)
             existing.updated_at = to_iso(self.clock.now())
+            if mark_reviewed:
+                from transcribe.services.ocr_composite_state import (
+                    evidence_fingerprint,
+                    reviewed_text_fingerprint,
+                )
+
+                text = existing.effective_text() or ""
+                existing.reviewed_text_fingerprint = reviewed_text_fingerprint(text)
+                existing.reviewed_evidence_fingerprint = evidence_fingerprint(existing)
             validate_page_result(existing, expected_page_id=page_id)
             write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            if mark_reviewed:
+                self._write_review_status_unlocked(page_id, "reviewed")
+            else:
+                self._invalidate_review_unlocked(page_id, before=before, after=existing)
             return existing
 
     def adopt_raw_as_edit(self, page_id: str) -> PageResult:
         """Clear edited_text so effective text becomes active raw."""
         return self.save_user_edit(page_id, None)
+
+    def set_page_review_status(self, page_id: str, status: str) -> Project:
+        """Set PageIndex.review_status. ``reviewed`` must go through save_user_edit."""
+        if status not in REVIEW_STATUSES:
+            raise ProjectError(f"unsupported review_status: {status!r}")
+        if status == "reviewed":
+            raise ProjectError("mark reviewed via save_user_edit(..., mark_reviewed=True)")
+        with mutation_lock(self.paths.mutation_lock):
+            return self._write_review_status_unlocked(page_id, status)
+
+    def repair_review_validity(self, page_id: str) -> str:
+        """If status is reviewed but fingerprints mismatch, move to needs_attention."""
+        with mutation_lock(self.paths.mutation_lock):
+            project = Project.from_dict(
+                require_format(read_json(self.paths.manifest), "transcribe.project")
+            )
+            page = self._require_page(project, page_id)
+            status = page.review_status or "unreviewed"
+            result = self._load_page_result_unlocked(page_id)
+            if status == "reviewed" and not _review_fingerprints_match(result):
+                self._write_review_status_unlocked(page_id, "needs_attention")
+                return "needs_attention"
+            return status
+
+    def _invalidate_review_unlocked(
+        self,
+        page_id: str,
+        *,
+        before: PageResult | None,
+        after: PageResult,
+    ) -> None:
+        if not after.reviewed_text_fingerprint and not (
+            before and before.reviewed_text_fingerprint
+        ):
+            return
+        payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+        project = Project.from_dict(payload)
+        page = next((p for p in project.pages if p.page_id == page_id), None)
+        if page is None or (page.review_status or "unreviewed") != "reviewed":
+            return
+        if _review_should_invalidate(before, after):
+            self._write_review_status_unlocked(page_id, "needs_attention")
+
+    def _write_review_status_unlocked(self, page_id: str, status: str) -> Project:
+        payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+        current = Project.from_dict(payload)
+        page = self._require_page(current, page_id)
+        page.review_status = status
+        current.updated_at = to_iso(self.clock.now())
+        validate_project(current)
+        write_json_atomic(self.paths.manifest, current.as_dict())
+        return current
+
+    def cache_alignment_signals(
+        self,
+        page_id: str,
+        *,
+        source_disagreement_count: int,
+        agreement_ratio: float,
+    ) -> PageResult:
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                existing = PageResult(page_id=page_id)
+            existing.source_disagreement_count = int(source_disagreement_count)
+            existing.agreement_ratio = float(agreement_ratio)
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            return existing
 
     def reapply_visual_declutter(
         self,

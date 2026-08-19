@@ -404,16 +404,73 @@ def sanitise_overview_cards(raw: Any) -> tuple[str, ...]:
 
 
 @dataclass(frozen=True)
+class ChartColorsConfig:
+    """Workspace chart colour overrides for View analysis bar charts."""
+
+    sentiment: dict[str, str] = field(default_factory=dict)
+    emotion: dict[str, str] = field(default_factory=dict)
+
+    def resolved(self) -> dict[str, dict[str, str]]:
+        from transcribe.ui.chart_colors import sanitise_chart_colors
+
+        return sanitise_chart_colors(
+            {"sentiment": self.sentiment, "emotion": self.emotion}
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        if self.sentiment:
+            out["sentiment"] = dict(self.sentiment)
+        if self.emotion:
+            out["emotion"] = dict(self.emotion)
+        return out
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> ChartColorsConfig:
+        from transcribe.tagging.colors import parse_hex_color
+        from transcribe.ui.chart_colors import DEFAULT_EMOTION_COLORS, DEFAULT_SENTIMENT_COLORS
+
+        data = data or {}
+        sentiment: dict[str, str] = {}
+        emotion: dict[str, str] = {}
+        raw_sent = data.get("sentiment")
+        if isinstance(raw_sent, Mapping):
+            for key, value in raw_sent.items():
+                label = str(key).strip().casefold()
+                if label not in DEFAULT_SENTIMENT_COLORS:
+                    continue
+                try:
+                    sentiment[label] = parse_hex_color(str(value))
+                except ValueError:
+                    continue
+        raw_emo = data.get("emotion")
+        if isinstance(raw_emo, Mapping):
+            for key, value in raw_emo.items():
+                label = str(key).strip().casefold()
+                if label not in DEFAULT_EMOTION_COLORS:
+                    continue
+                try:
+                    emotion[label] = parse_hex_color(str(value))
+                except ValueError:
+                    continue
+        return cls(sentiment=sentiment, emotion=emotion)
+
+
+@dataclass(frozen=True)
 class UiConfig:
     """Workspace UI defaults (archive browsing, Overview cards). Does not fingerprint."""
 
     archive_notebooks_initial: int = 0
     overview_cards: tuple[str, ...] = OVERVIEW_CARD_IDS
+    view_show_advanced: bool = False
+    chart_colors: ChartColorsConfig = field(default_factory=ChartColorsConfig)
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "archive_notebooks_initial": self.archive_notebooks_initial,
             "overview_cards": list(self.overview_cards),
+            "view_show_advanced": self.view_show_advanced,
+            "chart_colors": self.chart_colors.as_dict(),
         }
 
     @classmethod
@@ -427,7 +484,15 @@ class UiConfig:
         if initial < 0:
             initial = 0
         cards = sanitise_overview_cards(data.get("overview_cards"))
-        return cls(archive_notebooks_initial=initial, overview_cards=cards)
+        show_advanced = bool(
+            data.get("view_show_advanced", data.get("overview_show_advanced", False))
+        )
+        return cls(
+            archive_notebooks_initial=initial,
+            overview_cards=cards,
+            view_show_advanced=show_advanced,
+            chart_colors=ChartColorsConfig.from_dict(data.get("chart_colors")),
+        )
 
 
 @dataclass(frozen=True)

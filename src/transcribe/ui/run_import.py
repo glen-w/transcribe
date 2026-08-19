@@ -8,6 +8,7 @@ from transcribe.config.facade import get_config
 from transcribe.errors import TranscribeError
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import bump_archive_generation
+from transcribe.ui import icons as ic
 from transcribe.ui.import_inbox import render_import_inbox
 from transcribe.ui.targets import (
     IMPORT_TARGET_KEY,
@@ -82,7 +83,7 @@ def render_run_import(
         f"**{'on' if declutter else 'off'}** "
         "(Settings → Configuration)"
     )
-    if st.button("Import files") and uploaded:
+    if st.button("Import files", icon=ic.UPLOAD) and uploaded:
         total = len(uploaded)
         bar = st.progress(0.0, text=f"Importing 0/{total}")
         status = st.empty()
@@ -117,7 +118,7 @@ def render_run_import(
         key=title_key,
         help="Display title for this notebook. The notebook folder path is unchanged.",
     )
-    if st.button("Save notebook name"):
+    if st.button("Save notebook name", icon=ic.SAVE):
         cleaned = title_in.strip()
         if not cleaned:
             st.error("Notebook name cannot be empty.")
@@ -137,7 +138,7 @@ def render_run_import(
         catalog=catalog,
         key_prefix=f"nb_tags_{project.id}",
     )
-    if st.button("Save notebook tags"):
+    if st.button("Save notebook tags", icon=ic.SAVE):
         combined = list(selected_tags)
         combined.extend(t for t in new_tag_raw.split(",") if t.strip())
         project = tag_svc.assign_notebook(projects, combined)

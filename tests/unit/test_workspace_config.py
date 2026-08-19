@@ -235,7 +235,71 @@ def test_overview_cards_sanitise_default_and_round_trip(runtime: RuntimePaths) -
     )
     base = analysis_fingerprint_base(slim)
     assert "overview_cards" not in base
+    assert "view_show_advanced" not in base
     assert "ui" not in base
+
+
+def test_view_show_advanced_round_trip(runtime: RuntimePaths) -> None:
+    from transcribe.config.models import UiConfig
+
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.view_show_advanced is False
+
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {},
+            "ui": {"view_show_advanced": True},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.view_show_advanced is True
+    assert view.provenance["ui.view_show_advanced"] == "workspace"
+
+    assert UiConfig.from_dict({}).view_show_advanced is False
+    assert UiConfig.from_dict({"view_show_advanced": 1}).view_show_advanced is True
+    assert UiConfig.from_dict({"overview_show_advanced": True}).view_show_advanced is True
+
+
+def test_chart_colors_round_trip(runtime: RuntimePaths) -> None:
+    from transcribe.config.models import ChartColorsConfig, UiConfig
+    from transcribe.ui.chart_colors import DEFAULT_EMOTION_COLORS, DEFAULT_SENTIMENT_COLORS
+
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.chart_colors.resolved()["sentiment"] == DEFAULT_SENTIMENT_COLORS
+
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {},
+            "ui": {
+                "chart_colors": {
+                    "sentiment": {"negative": "#aa0000"},
+                    "emotion": {"joy": "#00aa00", "anger": "not-a-color"},
+                }
+            },
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    resolved = view.effective.ui.chart_colors.resolved()
+    assert resolved["sentiment"]["negative"] == "#aa0000"
+    assert resolved["sentiment"]["positive"] == DEFAULT_SENTIMENT_COLORS["positive"]
+    assert resolved["emotion"]["joy"] == "#00aa00"
+    assert resolved["emotion"]["anger"] == DEFAULT_EMOTION_COLORS["anger"]
+    assert view.provenance["ui.chart_colors.sentiment.negative"] == "workspace"
+
+    assert UiConfig.from_dict({}).chart_colors == ChartColorsConfig()
+    assert ChartColorsConfig.from_dict(None).as_dict() == {}
 
 
 def test_visual_declutter_workspace_round_trip(runtime: RuntimePaths) -> None:

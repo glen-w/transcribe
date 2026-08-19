@@ -137,4 +137,48 @@ def render_overview_page_metrics(
         labels = list(rollup.hue_counts.keys())
         counts = [rollup.hue_counts[k] for k in labels]
         st.caption("Dominant ink hue (pages)")
+        _render_hue_counts_chart(labels, counts)
+
+
+def _render_hue_counts_chart(labels: list[str], counts: list[int]) -> None:
+    """Bar chart with bars and hue labels colored to match ink names."""
+    try:
+        import altair as alt
+        import pandas as pd
+
+        df = pd.DataFrame({"hue": labels, "pages": counts})
+        color_scale = alt.Scale(
+            domain=labels,
+            range=[_HUE_SWATCH.get(h, "#888888") for h in labels],
+        )
+        max_pages = max(counts) if counts else 1
+        label_pad = max(max_pages * 0.08, 1)
+        y_scale = alt.Scale(domain=[-label_pad, max_pages], nice=True)
+
+        bars = (
+            alt.Chart(df)
+            .mark_bar()
+            .encode(
+                x=alt.X("hue:N", title="hue", axis=alt.Axis(labels=False)),
+                y=alt.Y("pages:Q", title="pages", scale=y_scale),
+                color=alt.Color("hue:N", scale=color_scale, legend=None),
+                tooltip=[
+                    alt.Tooltip("hue:N", title="Hue"),
+                    alt.Tooltip("pages:Q", title="Pages"),
+                ],
+            )
+        )
+        hue_labels = (
+            alt.Chart(df.assign(label_y=-label_pad * 0.55))
+            .mark_text(baseline="top")
+            .encode(
+                x="hue:N",
+                y=alt.Y("label_y:Q", axis=None, scale=y_scale),
+                text="hue:N",
+                color=alt.Color("hue:N", scale=color_scale, legend=None),
+            )
+        )
+        chart = (bars + hue_labels).properties(height=220)
+        st.altair_chart(chart, width="stretch")
+    except Exception:
         st.bar_chart({"hue": labels, "pages": counts}, x="hue", y="pages")

@@ -270,3 +270,205 @@ def test_finetune_export(tmp_path: Path) -> None:
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["format"] == "transcribe.finetune-export-manifest"
     assert manifest["sample_count"] == 1
+
+
+def test_composite_stale_when_new_source_attempt_arrives() -> None:
+    from transcribe.services.ocr_composite_state import (
+        current_composite_attempt,
+        is_composite_current,
+        stale_composite_attempts,
+    )
+
+    a1 = _attempt("a1", text="one", model="m1")
+    a2 = _attempt("a2", text="two", model="m2", started="2020-01-02T00:00:00+00:00")
+    comp = _attempt(
+        "c1",
+        text="one two",
+        model="merger",
+        kind="composite",
+        started="2020-01-03T00:00:00+00:00",
+        pass_id="p1",
+        sources=["a1", "a2"],
+    )
+    result = PageResult(page_id="p", active_attempt_id="c1", attempts=[a1, a2, comp])
+    assert is_composite_current(comp, result)
+    assert current_composite_attempt(result) is comp
+    a3 = _attempt("a3", text="three", model="m1", started="2020-01-04T00:00:00+00:00")
+    result.attempts.append(a3)
+    assert not is_composite_current(comp, result)
+    assert current_composite_attempt(result) is None
+    stale = stale_composite_attempts(result)
+    assert [a.attempt_id for a in stale] == ["c1"]
+
+
+def test_save_mark_reviewed_and_invalidation(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    a1 = _attempt("a1", text="hello world")
+    projects.record_generation(page_id, a1, activate=True)
+    saved = projects.save_user_edit(page_id, None, mark_reviewed=True)
+    assert saved.reviewed_text_fingerprint
+    assert saved.reviewed_evidence_fingerprint
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "reviewed"
+
+    projects.save_user_edit(page_id, "hello worlds", origin="human_corrected")
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+
+    projects.save_user_edit(page_id, "hello worlds", origin="human_corrected", mark_reviewed=True)
+    a2 = _attempt("a2", text="hello world from b", model="m2", started="2020-01-02T00:00:00+00:00")
+    projects.record_generation(page_id, a2, activate=False)
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+
+    projects.save_user_edit(page_id, "hello worlds", origin="human_corrected", mark_reviewed=True)
+    projects.set_active_attempt(page_id, "a2")
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+
+    projects.save_user_edit(page_id, None, mark_reviewed=True)
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "reviewed"
+    projects.save_user_edit(page_id, "just save")
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+
+
+def test_save_alone_does_not_mark_reviewed(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    a1 = _attempt("a1", text="hello")
+    projects.record_generation(page_id, a1, activate=True)
+    projects.save_user_edit(page_id, "hello there", origin="human_corrected")
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert (page.review_status or "unreviewed") == "unreviewed"
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    assert result.edited_text == "hello there"
+    assert not result.reviewed_text_fingerprint
+
+
+def test_cannot_set_reviewed_without_fingerprint_path(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    with pytest.raises(ProjectError, match="mark reviewed"):
+        projects.set_page_review_status(page_id, "reviewed")
+
+
+def test_seed_editor_text_prefers_edited_overlay() -> None:
+    from transcribe.services.ocr_composite_state import seed_editor_text
+
+    a1 = _attempt("a1", text="vision text")
+    result = PageResult(page_id="p", active_attempt_id="a1", attempts=[a1], edited_text="human")
+    assert seed_editor_text(result) == "human"
+
+
+def test_seed_editor_text_uses_current_composite_when_active() -> None:
+    from transcribe.services.ocr_composite_state import seed_editor_text
+
+    a1 = _attempt("a1", text="one", model="m1")
+    a2 = _attempt("a2", text="two", model="m2", started="2020-01-02T00:00:00+00:00")
+    comp = _attempt(
+        "c1",
+        text="merged draft",
+        model="merger",
+        kind="composite",
+        started="2020-01-03T00:00:00+00:00",
+        pass_id="p1",
+        sources=["a1", "a2"],
+    )
+    result = PageResult(page_id="p", active_attempt_id="c1", attempts=[a1, a2, comp])
+    assert seed_editor_text(result) == "merged draft"
+
+
+def test_seed_editor_text_falls_back_from_stale_composite() -> None:
+    from transcribe.services.ocr_composite_state import seed_editor_text
+
+    a1 = _attempt("a1", text="old vision", model="m1")
+    a2 = _attempt("a2", text="other vision", model="m2", started="2020-01-02T00:00:00+00:00")
+    stale = _attempt(
+        "c1",
+        text="stale merge",
+        model="merger",
+        kind="composite",
+        started="2020-01-03T00:00:00+00:00",
+        pass_id="p1",
+        sources=["a1", "a2"],
+    )
+    a3 = _attempt("a3", text="new vision", model="m1", started="2020-01-04T00:00:00+00:00")
+    result = PageResult(page_id="p", active_attempt_id="c1", attempts=[a1, a2, stale, a3])
+    assert seed_editor_text(result) == "new vision"
+
+
+def test_repair_review_validity_downgrades_stale_review(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    a1 = _attempt("a1", text="hello")
+    projects.record_generation(page_id, a1, activate=True)
+    projects.save_user_edit(page_id, None, mark_reviewed=True)
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "reviewed"
+
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    result.reviewed_text_fingerprint = "corrupt"
+    from transcribe.persistence.atomic import write_json_atomic
+
+    write_json_atomic(projects.paths.result_path(page_id), result.as_dict())
+
+    status = projects.repair_review_validity(page_id)
+    assert status == "needs_attention"
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+
+
+def test_cache_alignment_signals_persists_counts(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    a1 = _attempt("a1", text="hello")
+    projects.record_generation(page_id, a1, activate=True)
+    saved = projects.cache_alignment_signals(
+        page_id, source_disagreement_count=4, agreement_ratio=0.75
+    )
+    assert saved.source_disagreement_count == 4
+    assert saved.agreement_ratio == 0.75
+    reloaded = projects.load_page_result(page_id)
+    assert reloaded is not None
+    assert reloaded.source_disagreement_count == 4
+    assert reloaded.agreement_ratio == 0.75
+
+
+def test_new_current_composite_invalidates_review(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    a1 = _attempt("a1", text="one", model="m1")
+    a2 = _attempt("a2", text="two", model="m2", started="2020-01-02T00:00:00+00:00")
+    c1 = _attempt(
+        "c1",
+        text="one two",
+        model="merger",
+        kind="composite",
+        started="2020-01-03T00:00:00+00:00",
+        pass_id="p1",
+        sources=["a1", "a2"],
+    )
+    projects.record_generation(page_id, a1, activate=False)
+    projects.record_generation(page_id, a2, activate=False)
+    projects.record_generation(page_id, c1, activate=True)
+    projects.save_user_edit(page_id, None, mark_reviewed=True)
+    c2 = _attempt(
+        "c2",
+        text="one two merged",
+        model="merger",
+        kind="composite",
+        started="2020-01-05T00:00:00+00:00",
+        pass_id="p1",
+        sources=["a1", "a2"],
+    )
+    projects.record_generation(page_id, c2, activate=True)
+    page = next(p for p in projects.load(reconcile=False).pages if p.page_id == page_id)
+    assert page.review_status == "needs_attention"
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    from transcribe.services.ocr_composite_state import current_composite_attempt, stale_composite_attempts
+
+    current = current_composite_attempt(result)
+    assert current is not None and current.attempt_id == "c2"
+    assert any(a.attempt_id == "c1" for a in stale_composite_attempts(result))
+
+

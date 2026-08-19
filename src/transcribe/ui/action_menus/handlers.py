@@ -18,6 +18,7 @@ from transcribe.services.project import (
     delete_managed_notebook,
     open_project_paths,
 )
+from transcribe.ui import icons as ic
 from transcribe.ui.action_menus.catalog import ACTIONS, help_for, icon_for, label_for
 from transcribe.ui.action_menus.context import ActionContext, ContextCapabilities
 from transcribe.ui.action_menus.ids import ActionId, NavStyle, SectionId, WorkflowMode
@@ -242,7 +243,7 @@ def _delete_notebook_dialog(
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Cancel", key=f"am_del_cancel__{project_id}", width="stretch"):
+        if st.button("Cancel", key=f"am_del_cancel__{project_id}", width="stretch", icon=ic.CANCEL):
             st.rerun()
     with c2:
         if st.button(
@@ -250,6 +251,7 @@ def _delete_notebook_dialog(
             key=f"am_del_ok__{project_id}",
             type="primary",
             width="stretch",
+            icon=ic.DELETE,
         ):
             try:
                 deleted = delete_managed_notebook(
@@ -324,7 +326,7 @@ def _rename_notebook_dialog(
     )
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Cancel", key=f"am_rename_cancel__{project_id}", width="stretch"):
+        if st.button("Cancel", key=f"am_rename_cancel__{project_id}", width="stretch", icon=ic.CANCEL):
             st.rerun()
     with c2:
         if st.button(
@@ -332,6 +334,7 @@ def _rename_notebook_dialog(
             key=f"am_rename_ok__{project_id}",
             type="primary",
             width="stretch",
+            icon=ic.SAVE,
         ):
             cleaned = (new_title or "").strip()
             if not cleaned:

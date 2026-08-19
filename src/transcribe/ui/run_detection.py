@@ -8,6 +8,8 @@ from transcribe.detection.api import DetectionService
 from transcribe.detection.registry import list_all_detectors
 from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.project import ProjectService
+from transcribe.ui import icons as ic
+from transcribe.ui.detection_tag_review import render_finding_tag_actions
 from transcribe.ui.page_viewer import open_page_context
 from transcribe.ui.shell import render_page_shell
 
@@ -89,7 +91,7 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
     progress = st.empty()
     status = st.empty()
 
-    if st.button("Run detection", type="primary", width="stretch", key=f"detect_run_{project_id}"):
+    if st.button("Run detection", type="primary", width="stretch", key=f"detect_run_{project_id}", icon=ic.SEARCH_CHECK):
         if not selected_labels:
             st.warning("Select at least one detector.")
             return
@@ -133,6 +135,99 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
         st.caption(f"`{d.detector_id}`: **{fresh}**{note}")
 
 
+def _page_label(page_id: str, page_order: dict[str, int]) -> str:
+    idx = page_order.get(page_id)
+    if isinstance(idx, int):
+        return f"Page {idx + 1}"
+    return f"Page {page_id[:8]}…"
+
+
+def _render_page_scan_and_text(
+    projects: ProjectService,
+    project,
+    page_id: str,
+    *,
+    label: str,
+    key_prefix: str,
+) -> None:
+    page = next((p for p in project.pages if p.page_id == page_id), None)
+    if page is None:
+        st.caption(f"{label} — page not found")
+        return
+    render = project.renders.get(page.active_render_id)
+    if render is None:
+        st.caption(f"{label} — no scan")
+        return
+    img_path = projects.paths.resolve_contained(render.image_relpath)
+    result = projects.load_page_result(page_id)
+    ocr_text = (result.effective_text() if result else None) or ""
+    img_col, text_col = st.columns([1, 1])
+    with img_col:
+        st.caption(label)
+        if img_path.is_file():
+            st.image(str(img_path), width="stretch")
+        else:
+            st.caption("Scan image unavailable")
+    with text_col:
+        st.caption("OCR text")
+        if ocr_text.strip():
+            st.text_area(
+                "OCR text",
+                value=ocr_text,
+                height=360,
+                disabled=True,
+                key=f"{key_prefix}_ocr_{page_id}",
+                label_visibility="collapsed",
+            )
+        else:
+            st.caption("No OCR text yet — run Transcribe first.")
+
+
+def _render_finding_page_context(
+    projects: ProjectService,
+    project,
+    page_ids: list[str],
+    *,
+    page_order: dict[str, int],
+    key_prefix: str,
+) -> None:
+    if not page_ids:
+        return
+    st.markdown(
+        """
+<style>
+div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
+    max-height: 45vh;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("**Page context**")
+    if len(page_ids) == 1:
+        _render_page_scan_and_text(
+            projects,
+            project,
+            page_ids[0],
+            label=_page_label(page_ids[0], page_order),
+            key_prefix=key_prefix,
+        )
+        return
+    tabs = st.tabs([_page_label(pid, page_order) for pid in page_ids])
+    for tab, page_id in zip(tabs, page_ids):
+        with tab:
+            _render_page_scan_and_text(
+                projects,
+                project,
+                page_id,
+                label=_page_label(page_id, page_order),
+                key_prefix=f"{key_prefix}_{page_id}",
+            )
+
+
 def _render_findings(projects: ProjectService, project_root: str, *, project_id: str) -> None:
     svc = DetectionService(projects)
     project = projects.load()
@@ -163,12 +258,27 @@ def _render_findings(projects: ProjectService, project_root: str, *, project_id:
             )
             with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
                 st.write(escape_markdown_plain(str(f.evidence.get("reason") or "")))
+                span_page_ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
+                _render_finding_page_context(
+                    projects,
+                    project,
+                    span_page_ids,
+                    page_order=page_order,
+                    key_prefix=f"find_{project_id}_{f.finding_id}",
+                )
                 if f.detector_data:
-                    st.json(f.detector_data)
+                    with st.expander("Detector details"):
+                        st.json(f.detector_data)
                 st.caption(
                     f"prompt={f.prompt_provenance} model={f.model_provenance.get('model_name')}"
                 )
-                c1, c2, c3, c4 = st.columns(4)
+                render_finding_tag_actions(
+                    det_svc=svc,
+                    detector_id=info.detector_id,
+                    finding=f,
+                    key_prefix=f"find_{project_id}",
+                )
+                c1, c2 = st.columns(2)
                 if c1.button("Open pages", key=f"open_{project_id}_{f.finding_id}"):
                     ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
                     open_page_context(
@@ -182,12 +292,6 @@ def _render_findings(projects: ProjectService, project_root: str, *, project_id:
                     )
                     st.session_state["ui_mode"] = "Detect"
                     st.rerun()
-                if c2.button("Approve", key=f"ap_{project_id}_{f.finding_id}"):
-                    svc.set_review_status(info.detector_id, f.finding_id, "approved")
-                    st.rerun()
-                if c3.button("Reject", key=f"rj_{project_id}_{f.finding_id}"):
-                    svc.set_review_status(info.detector_id, f.finding_id, "rejected")
-                    st.rerun()
-                if c4.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
+                if c2.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
                     svc.run_detector(info.detector_id, force=True)
                     st.rerun()

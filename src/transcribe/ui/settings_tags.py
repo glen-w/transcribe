@@ -7,6 +7,7 @@ import streamlit as st
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.tags import TagService
 from transcribe.tagging.kernel import TagError, default_color_for_slug, parse_hex_color
+from transcribe.ui import icons as ic
 from transcribe.ui.tag_pills import render_tag_chips
 
 
@@ -110,7 +111,7 @@ def render_tags_settings_panel() -> None:
                     options=list(merge_choices.keys()),
                     key=f"tag_merge_{tag.tag_id}",
                 )
-                if st.button("Merge", key=f"tag_merge_go_{tag.tag_id}"):
+                if st.button("Merge", key=f"tag_merge_go_{tag.tag_id}", icon=ic.MERGE):
                     try:
                         _, result = svc.merge(tag.tag_id, merge_choices[str(merge_label)])
                         st.success(f"Merged. Updated {result.updated_notebooks} notebook(s).")

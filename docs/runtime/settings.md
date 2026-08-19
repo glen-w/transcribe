@@ -47,7 +47,8 @@ Builtin export profiles: `default`, `readable`, `compact`, `large_print`. Editin
 | Archive strip paging | Configuration → Archive | `ui.archive_notebooks_initial` (`0` = show all) |
 | Overview cards | Configuration → Overview | Visibility only; status strip always on |
 | OCR preprocess seed | Models | `none` \| `gentle_contrast` for **new** notebooks |
-| Prefer mode | Models / Review Compare | Prefer / promote semantics — [page-result](../contracts/page-result.md) |
+| When setting a notebook default | Review → **Other** · Compare OCR attempts · Transcribe Advanced | `prefer_is_promote` (default) \| `prefer_only` \| `prefer_promote_with_edit_gate` — [ocr.md](ocr.md#when-setting-a-notebook-default) |
+| Seed transcription from merged draft after multipass | Review → **Other** · Compare OCR attempts · Transcribe Advanced | `auto_activate_composite` (default **on**) — [ocr.md](ocr.md#seed-transcription-from-merged-draft-after-multipass) |
 | Full-workspace backup | Configuration → Backup | [backup_and_restore.md](../backup_and_restore.md) |
 
 ## Env overrides

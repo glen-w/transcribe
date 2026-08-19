@@ -25,6 +25,7 @@ from transcribe.services.archive import (
 )
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
+from transcribe.ui import icons as ic
 from transcribe.ui.action_menus.catalog import help_for
 from transcribe.ui.action_menus.context import ActionContext
 from transcribe.ui.action_menus.ids import ActionId, NavStyle, ReturnMode, SectionId
@@ -98,6 +99,7 @@ def _render_clickable_cover(
             width="stretch",
             disabled=not can_open,
             help=widget_help(help_for(ActionId.OPEN) if can_open else "No pages to open."),
+            icon=ic.FOLDER_OPEN,
         ):
             if navigate_open(ctx, rerun=False):
                 st.rerun()
@@ -481,11 +483,11 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 return_mode=ReturnMode.ARCHIVE,
             )
     if show_n < total:
-        if st.button(f"Show more notebooks ({total - show_n} remaining)"):
+        if st.button(f"Show more notebooks ({total - show_n} remaining)", icon=ic.SHOW_MORE):
             st.session_state[ARCHIVE_STRIP_SESSION_KEY] = show_n + page_size
             st.rerun()
     elif page_size < total and show_n > page_size:
-        if st.button("Show fewer"):
+        if st.button("Show fewer", icon=ic.SHOW_LESS):
             st.session_state[ARCHIVE_STRIP_SESSION_KEY] = page_size
             st.rerun()
 
@@ -786,7 +788,7 @@ def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:
         if cols[1].button(
             "Open page",
             key=f"search_open_{hit.page_id}",
-            help="Open this page with Prev/Next across matching hits.",
+            help="Open this page with Prev/Next across matching hits or this notebook.",
             width="stretch",
         ):
             # Build full matched nav list (capped) so Prev/Next crosses all hits,

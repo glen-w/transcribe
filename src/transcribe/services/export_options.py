@@ -14,22 +14,234 @@ EXPORT_FORMATS: tuple[ExportFormat, ...] = (
     "epub",
     "pdf",
 )
-BodyFont = Literal["serif", "sans", "mono"]
+PdfBaseFamily = Literal["serif", "sans", "mono"]
 PageBreakMode = Literal["per_page", "continuous"]
 
-# PyMuPDF Base-14 font names for PDF output.
-PDF_FONT_BY_BODY: dict[BodyFont, str] = {
+# PyMuPDF Base-14 font names for PDF output (named fonts map to nearest base).
+PDF_FONT_BY_BASE: dict[PdfBaseFamily, str] = {
     "serif": "times-roman",
     "sans": "helv",
     "mono": "cour",
 }
 
-# CSS generic families for HTML/EPUB.
-CSS_FONT_BY_BODY: dict[BodyFont, str] = {
-    "serif": 'Georgia, "Times New Roman", Times, serif',
-    "sans": 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    "mono": '"SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+
+@dataclass(frozen=True)
+class BodyFontSpec:
+    """One selectable export body font."""
+
+    key: str
+    label: str
+    css_stack: str
+    pdf_base: PdfBaseFamily
+    google_family: str | None = None
+
+
+def _spec(
+    key: str,
+    label: str,
+    css_stack: str,
+    pdf_base: PdfBaseFamily,
+    *,
+    google_family: str | None = None,
+) -> BodyFontSpec:
+    return BodyFontSpec(
+        key=key,
+        label=label,
+        css_stack=css_stack,
+        pdf_base=pdf_base,
+        google_family=google_family,
+    )
+
+
+# Curated free / system fonts for HTML, EPUB, and PDF (PDF uses nearest Base-14).
+BODY_FONT_CATALOG: dict[str, BodyFontSpec] = {
+    spec.key: spec
+    for spec in (
+        _spec(
+            "serif",
+            "System serif",
+            'Georgia, "Times New Roman", Times, serif',
+            "serif",
+        ),
+        _spec(
+            "georgia",
+            "Georgia",
+            'Georgia, "Times New Roman", Times, serif',
+            "serif",
+        ),
+        _spec(
+            "times_new_roman",
+            "Times New Roman",
+            '"Times New Roman", Times, Georgia, serif',
+            "serif",
+        ),
+        _spec(
+            "garamond",
+            "Garamond",
+            'Garamond, "Times New Roman", Georgia, serif',
+            "serif",
+        ),
+        _spec(
+            "merriweather",
+            "Merriweather",
+            '"Merriweather", Georgia, "Times New Roman", serif',
+            "serif",
+            google_family="Merriweather",
+        ),
+        _spec(
+            "lora",
+            "Lora",
+            '"Lora", Georgia, "Times New Roman", serif',
+            "serif",
+            google_family="Lora",
+        ),
+        _spec(
+            "libre_baskerville",
+            "Libre Baskerville",
+            '"Libre Baskerville", Georgia, "Times New Roman", serif',
+            "serif",
+            google_family="Libre Baskerville",
+        ),
+        _spec(
+            "crimson_text",
+            "Crimson Text",
+            '"Crimson Text", Georgia, "Times New Roman", serif',
+            "serif",
+            google_family="Crimson Text",
+        ),
+        _spec(
+            "source_serif_pro",
+            "Source Serif Pro",
+            '"Source Serif Pro", Georgia, "Times New Roman", serif',
+            "serif",
+            google_family="Source Serif Pro",
+        ),
+        _spec(
+            "sans",
+            "System sans",
+            'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            "sans",
+        ),
+        _spec(
+            "arial",
+            "Arial",
+            'Arial, Helvetica, "Segoe UI", sans-serif',
+            "sans",
+        ),
+        _spec(
+            "verdana",
+            "Verdana",
+            'Verdana, Geneva, "Segoe UI", sans-serif',
+            "sans",
+        ),
+        _spec(
+            "trebuchet",
+            "Trebuchet MS",
+            '"Trebuchet MS", "Segoe UI", Helvetica, sans-serif',
+            "sans",
+        ),
+        _spec(
+            "open_sans",
+            "Open Sans",
+            '"Open Sans", system-ui, "Segoe UI", sans-serif',
+            "sans",
+            google_family="Open Sans",
+        ),
+        _spec(
+            "roboto",
+            "Roboto",
+            'Roboto, system-ui, "Segoe UI", Helvetica, sans-serif',
+            "sans",
+            google_family="Roboto",
+        ),
+        _spec(
+            "lato",
+            "Lato",
+            'Lato, system-ui, "Segoe UI", Helvetica, sans-serif',
+            "sans",
+            google_family="Lato",
+        ),
+        _spec(
+            "inter",
+            "Inter",
+            'Inter, system-ui, "Segoe UI", Helvetica, sans-serif',
+            "sans",
+            google_family="Inter",
+        ),
+        _spec(
+            "nunito",
+            "Nunito",
+            'Nunito, system-ui, "Segoe UI", Helvetica, sans-serif',
+            "sans",
+            google_family="Nunito",
+        ),
+        _spec(
+            "source_sans_pro",
+            "Source Sans Pro",
+            '"Source Sans Pro", system-ui, "Segoe UI", sans-serif',
+            "sans",
+            google_family="Source Sans Pro",
+        ),
+        _spec(
+            "mono",
+            "System mono",
+            '"SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+            "mono",
+        ),
+        _spec(
+            "courier_new",
+            "Courier New",
+            '"Courier New", Courier, "Liberation Mono", monospace',
+            "mono",
+        ),
+        _spec(
+            "consolas",
+            "Consolas",
+            'Consolas, "SF Mono", "Liberation Mono", Menlo, monospace',
+            "mono",
+        ),
+        _spec(
+            "source_code_pro",
+            "Source Code Pro",
+            '"Source Code Pro", Consolas, "SF Mono", monospace',
+            "mono",
+            google_family="Source Code Pro",
+        ),
+        _spec(
+            "ibm_plex_mono",
+            "IBM Plex Mono",
+            '"IBM Plex Mono", Consolas, "SF Mono", monospace',
+            "mono",
+            google_family="IBM Plex Mono",
+        ),
+        _spec(
+            "jetbrains_mono",
+            "JetBrains Mono",
+            '"JetBrains Mono", Consolas, "SF Mono", monospace',
+            "mono",
+            google_family="JetBrains Mono",
+        ),
+    )
 }
+
+BODY_FONT_CHOICES: tuple[str, ...] = tuple(BODY_FONT_CATALOG.keys())
+DEFAULT_BODY_FONT = "serif"
+BodyFont = str
+
+
+def normalize_body_font(value: str | None) -> str:
+    key = str(value or DEFAULT_BODY_FONT).lower().strip()
+    if key in BODY_FONT_CATALOG:
+        return key
+    return DEFAULT_BODY_FONT
+
+
+def body_font_spec(key: str) -> BodyFontSpec:
+    return BODY_FONT_CATALOG[normalize_body_font(key)]
+
+
+def body_font_label(key: str) -> str:
+    return body_font_spec(key).label
 
 DEFAULT_FORMATS: frozenset[ExportFormat] = frozenset(
     {"json", "markdown", "text", "html", "epub", "pdf"}
@@ -58,9 +270,7 @@ class ExportTypography:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> ExportTypography:
         data = data or {}
-        font = str(data.get("body_font") or "serif").lower()
-        if font not in ("serif", "sans", "mono"):
-            font = "serif"
+        font = normalize_body_font(str(data.get("body_font") or DEFAULT_BODY_FONT))
         size = float(data.get("body_size_pt", 11.0))
         size = max(8.0, min(28.0, size))
         line_height = float(data.get("line_height", 1.45))
@@ -81,12 +291,27 @@ class ExportTypography:
         )
 
     @property
+    def font_spec(self) -> BodyFontSpec:
+        return body_font_spec(self.body_font)
+
+    @property
     def pdf_fontname(self) -> str:
-        return PDF_FONT_BY_BODY[self.body_font]
+        return PDF_FONT_BY_BASE[self.font_spec.pdf_base]
 
     @property
     def css_font_family(self) -> str:
-        return CSS_FONT_BY_BODY[self.body_font]
+        return self.font_spec.css_stack
+
+    @property
+    def google_fonts_css_import(self) -> str:
+        family = self.font_spec.google_family
+        if not family:
+            return ""
+        query = family.replace(" ", "+")
+        return (
+            f"@import url('https://fonts.googleapis.com/css2?"
+            f"family={query}&display=swap');"
+        )
 
 
 @dataclass(frozen=True)
@@ -95,7 +320,9 @@ class ExportOptions:
     page_breaks: PageBreakMode = "per_page"
     include_dates: bool = True
     include_blank_pages: bool = True
+    exclude_ignored_pages: bool = True
     title_page: bool = True
+    cover_image: bool = True
     typography: ExportTypography = field(default_factory=ExportTypography)
 
     def as_dict(self) -> dict[str, Any]:
@@ -104,7 +331,9 @@ class ExportOptions:
             "page_breaks": self.page_breaks,
             "include_dates": self.include_dates,
             "include_blank_pages": self.include_blank_pages,
+            "exclude_ignored_pages": self.exclude_ignored_pages,
             "title_page": self.title_page,
+            "cover_image": self.cover_image,
             "typography": self.typography.as_dict(),
         }
 
@@ -129,7 +358,9 @@ class ExportOptions:
             page_breaks=breaks,  # type: ignore[arg-type]
             include_dates=bool(data.get("include_dates", True)),
             include_blank_pages=bool(data.get("include_blank_pages", True)),
+            exclude_ignored_pages=bool(data.get("exclude_ignored_pages", True)),
             title_page=bool(data.get("title_page", True)),
+            cover_image=bool(data.get("cover_image", True)),
             typography=ExportTypography.from_dict(data.get("typography")),
         )
 
@@ -145,7 +376,9 @@ class ExportConfig:
     page_breaks: PageBreakMode = "per_page"
     include_dates: bool = True
     include_blank_pages: bool = True
+    exclude_ignored_pages: bool = True
     title_page: bool = True
+    cover_image: bool = True
     typography: ExportTypography = field(default_factory=ExportTypography)
 
     def as_dict(self) -> dict[str, Any]:
@@ -154,7 +387,9 @@ class ExportConfig:
             "page_breaks": self.page_breaks,
             "include_dates": self.include_dates,
             "include_blank_pages": self.include_blank_pages,
+            "exclude_ignored_pages": self.exclude_ignored_pages,
             "title_page": self.title_page,
+            "cover_image": self.cover_image,
             "typography": self.typography.as_dict(),
         }
 
@@ -166,7 +401,9 @@ class ExportConfig:
             page_breaks=opts.page_breaks,
             include_dates=opts.include_dates,
             include_blank_pages=opts.include_blank_pages,
+            exclude_ignored_pages=opts.exclude_ignored_pages,
             title_page=opts.title_page,
+            cover_image=opts.cover_image,
             typography=opts.typography,
         )
 

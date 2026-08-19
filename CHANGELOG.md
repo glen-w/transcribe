@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-08-19
+
+### Added
+
+- Maintainer **I4:** Sphinx hosted docs over the existing Markdown corpus (`docs/conf.py` + MyST + Furo, `.[docs]`, `make docs` → `scripts/release/build_docs.sh`, `.readthedocs.yml` scaffold, CI `docs` job). Glob toctrees keep contracts/runtime/dev pages in the hosted tree. Read the Docs public hostname remains owner-gated.
+- **OCR Review workbench** (Workflow → Review): two-pane scan + tabbed review lanes (Transcription / Date / Tags / Other), source-only disagreement review, merged draft as recommendation, `review_status` + fingerprints so “reviewed” means the current transcription.
+- **Ask history** on View → Ask: browse prior `llm_custom_qa` attempts for the open notebook.
+- **Export readability:** 25 curated body fonts, optional notebook cover image in HTML/EPUB/PDF, and **Exclude ignored pages** (default on) for reading formats.
+- **Settings → Configuration → Overview:** chart colour overrides for sentiment/emotion bar charts; **Show Advanced expanders** (`ui.view_show_advanced`) gates raw JSON on View pages.
+- **Detection tag approval** rows (✓ / ✓✓ / ✕) on Detect findings and the page viewer.
+- Shared **icons** module and page-scan **lightbox** in Reading / Review.
+
+### Changed
+
+- **Review workbench** right pane is tabbed (**Transcription** · **Date** · **Tags** · **Other**) so date and tag review no longer sit below the fold; lane-specific **💾 Save date** / **💾 Save tags** buttons.
+- **Detect** moves to **Workflow** (primary nav View order: Read · Overview · Summaries · Ask · Themes · Mood).
+- Multipass treats a composite as stale when source OCR evidence changes; rank/composite re-runs until a current merged draft exists. Stale composites are retained.
+- Per-notebook OCR settings relabelled (**When setting a notebook default**, **Seed transcription from merged draft after multipass**); project overrides writable from Review → Other.
+
 ## [0.8.5] - 2026-08-18
 
 ### Added

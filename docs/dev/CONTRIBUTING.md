@@ -92,6 +92,7 @@ Then skim guides for stale summaries.
 ```bash
 make lint                 # ruff critical (CI)
 make test-smoke && make test-fast
+make docs                 # Sphinx HTML; pip install -e '.[docs]'
 pre-commit install        # once; hooks in .pre-commit-config.yaml (I3)
 black src tests           # optional local format; not a PR CI gate yet
 ruff check --fix src tests

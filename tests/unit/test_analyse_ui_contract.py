@@ -63,6 +63,17 @@ def test_phase6_shared_status_strip_is_sole_default_health_chrome():
     assert "render_module_health_banner(" not in VIEWS
 
 
+def test_view_advanced_payload_gated_by_show_advanced():
+    product = Path("src/transcribe/ui/analysis_product_views.py").read_text(encoding="utf-8")
+    views = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
+    places = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
+    assert "show_advanced: bool = False" in product
+    assert product.count("if show_advanced:") >= 6
+    assert "_view_show_advanced" in views
+    assert "show_advanced=show_advanced" in views
+    assert "show_advanced: bool = False" in places
+
+
 def test_phase6_product_views_live_on_view_pages():
     assert "render_overview_product" in VIEWS
     assert "render_themes_product" in VIEWS
@@ -70,6 +81,7 @@ def test_phase6_product_views_live_on_view_pages():
     assert "render_moments_product" in VIEWS
     assert "render_summaries_product" in VIEWS
     assert "render_ask_product" in VIEWS
+    assert "render_ask_history" in VIEWS
     assert "analysis_product_views" in VIEWS
     assert "render_notebook_view_page" in VIEWS
     assert 'f"{mid} payload"' not in APP
@@ -149,6 +161,16 @@ def test_moments_jump_opens_reading_via_page_viewer():
     assert '["review_page_id"]' not in APP
     assert '["nav_section"]' not in APP
     assert "_page_id_for_moment" in PRODUCT
+
+
+def test_reader_review_button_jumps_via_shared_helper():
+    """Reading page viewer exposes Review and uses jump_to_review."""
+    viewer = Path("src/transcribe/ui/page_viewer.py").read_text(encoding="utf-8")
+    assert "jump_to_review" in JUMPS
+    assert "jump_to_review" in viewer
+    assert 'key=f"pv_to_review_{page.page_id}"' in viewer
+    assert 'apply_destination_to_session(st.session_state, "Review")' in JUMPS
+    assert 'st.session_state["review_needs_filter"] = "all"' in JUMPS
 
 
 def test_page_series_charts_are_clickable_and_wired_to_jump():

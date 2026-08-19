@@ -96,7 +96,8 @@ def test_settings_interface_lists_additive_sections() -> None:
     assert ActionId.REVIEW.value == "review"
     assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — notebook row"
     assert "overview_cards" in hub
-    assert "Save overview cards" in hub
+    assert "view_show_advanced" in hub
+    assert "Save overview settings" in hub
 
 
 def test_settings_hub_tab_labels_and_order() -> None:
@@ -150,10 +151,14 @@ def test_detect_viewer_returns_to_detect() -> None:
 def test_search_and_library_open_reading() -> None:
     archive = (UI_ROOT / "archive_views.py").read_text(encoding="utf-8")
     nav = (UI_ROOT / "action_menus" / "nav.py").read_text(encoding="utf-8")
+    page_viewer = (UI_ROOT / "page_viewer.py").read_text(encoding="utf-8")
     assert 'st.session_state["ui_mode"] = "Reading"' in archive
     assert 'return_mode="Search"' in archive
     assert 'state["ui_mode"] = "Reading"' in nav
     assert "listing_return_mode" in nav
+    assert "viewer_nav_scope" in page_viewer
+    assert "Search results" in page_viewer
+    assert "This notebook" in page_viewer
 
 
 def test_this_notebook_analyse_goes_overview_batch_stays() -> None:
@@ -200,11 +205,11 @@ def test_published_view_pages_use_analyse_cta_when_unpublished() -> None:
         "render_view_themes",
         "render_view_mood",
         "render_view_summaries",
+        "render_view_ask",
     ):
         assert f"def {name}" in views
     assert "def render_view_moments" not in views
     assert "def render_view_people" not in views
-    assert "def render_view_ask" not in views
     assert views.count("show_analyse_cta=not published") == 2
     assert "render_analyse_cta" in views
     assert "select_view_panel" in views
@@ -249,5 +254,6 @@ def test_docs_have_no_stale_ia_copy() -> None:
                     "Reading" in line or "not Review" in line
                 ), f"{path}:{i} still sends Jump to page to Review"
     surfaces = Path("docs/public_surfaces.md").read_text(encoding="utf-8")
-    assert "Reading · Overview · Themes · Mood · Summaries · Detect" in surfaces
+    assert "Read · Overview · Summaries · Ask · Themes · Mood" in surfaces
+    assert "Review · Analyse · Detect · Export" in surfaces
     assert "Themes · Mood · Moments · People · Summaries · Ask · Detect" not in surfaces

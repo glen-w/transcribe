@@ -23,7 +23,8 @@ from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation, highlight_terms
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
-from transcribe.ui.action_menus.nav import clear_page_viewer_state
+from transcribe.ui import icons as ic
+from transcribe.ui.action_menus.nav import clear_page_viewer_state, notebook_view_entries
 from transcribe.ui.components.info_tooltip import render_caption_with_info
 
 # User-facing implications for each cleanup mode (matches cleanup prompts + validator).
@@ -107,6 +108,11 @@ def _escape_markdown_plain(text: str) -> str:
     return escape_markdown_plain(text)
 
 
+def _render_transcription_plain(text: str) -> None:
+    """Show OCR / user transcription without interpreting markdown syntax."""
+    st.markdown(_escape_markdown_plain(text))
+
+
 def _ocr_compare_preview(raw_text: str | None, *, limit: int = 120) -> str:
     """One-line plain preview for Compare OCR attempts (safe for st.caption)."""
     preview = " ".join((raw_text or "").split())
@@ -127,6 +133,11 @@ def _shows_compare_attempts(result: Any) -> bool:
     if len(succeeded) >= 2:
         return True
     return any((a.attempt_kind or "vision") == "composite" for a in succeeded)
+
+
+def _reader_cover_page_id(project: Project) -> str | None:
+    """Cover page used by Reader semantics, falling back to the first page."""
+    return project.cover_page_id or (project.pages[0].page_id if project.pages else None)
 
 
 # Cap page-scan width in multi-model compare so Prefer/Promote stays primary.
@@ -172,7 +183,7 @@ def _render_attempt_compare(
             key=f"auto_comp_{page_id}",
         )
         if new_mode != prefer_mode or auto_comp != settings.auto_activate_composite:
-            if st.button("Save compare settings", key=f"save_cmp_{page_id}"):
+            if st.button("Save compare settings", key=f"save_cmp_{page_id}", icon=ic.SAVE):
                 settings.prefer_mode = new_mode
                 settings.auto_activate_composite = bool(auto_comp)
                 projects.save_settings(project, settings)
@@ -278,7 +289,7 @@ def _render_attempt_card(
     # would otherwise render those as huge headings or list items.
     st.caption(_ocr_compare_preview(attempt.raw_text))
     b1, b2, b3 = st.columns(3)
-    if b1.button("Prefer", key=f"pref_{band}_{attempt.attempt_id}"):
+    if b1.button("Prefer", key=f"pref_{band}_{attempt.attempt_id}", icon=ic.PREFER):
         try:
             edit_choice = None
             if prefer_mode == "prefer_promote_with_edit_gate" and result.edited_text is not None:
@@ -297,7 +308,7 @@ def _render_attempt_card(
                 st.session_state[f"need_edit_gate_{page_id}"] = attempt.attempt_id
             else:
                 st.error(str(exc))
-    if b2.button("Promote", key=f"prom_{band}_{attempt.attempt_id}"):
+    if b2.button("Promote", key=f"prom_{band}_{attempt.attempt_id}", icon=ic.PROMOTE):
         try:
             projects.set_active_attempt(page_id, attempt.attempt_id)
             bump_archive_generation(build_runtime_paths())
@@ -316,7 +327,7 @@ def _render_attempt_card(
             ),
             key=f"edit_gate_{page_id}",
         )
-        if st.button("Confirm Prefer", key=f"confirm_pref_{attempt.attempt_id}"):
+        if st.button("Confirm Prefer", key=f"confirm_pref_{attempt.attempt_id}", icon=ic.CHECK):
             try:
                 projects.set_preferred_attempt(
                     page_id,
@@ -329,6 +340,112 @@ def _render_attempt_card(
                 st.rerun()
             except TranscribeError as exc:
                 st.error(str(exc))
+
+
+_NAV_SCOPE_SEARCH = "search"
+_NAV_SCOPE_NOTEBOOK = "notebook"
+_NAV_SCOPE_LABELS = ("Search results", "This notebook")
+_NAV_SCOPE_BY_LABEL = {
+    "Search results": _NAV_SCOPE_SEARCH,
+    "This notebook": _NAV_SCOPE_NOTEBOOK,
+}
+_NAV_LABEL_BY_SCOPE = {value: label for label, value in _NAV_SCOPE_BY_LABEL.items()}
+
+
+def _is_search_reading_context(*, read_only: bool) -> bool:
+    return read_only and st.session_state.get("page_return_mode") == "Search"
+
+
+def _snap_page_to_search_scope(
+    page_id: str | None,
+    search_entries: list[dict[str, str]],
+    notebook_root: str | Path | None,
+) -> str | None:
+    """Keep current page if it is a hit; else first hit in notebook; else first overall."""
+    if not search_entries:
+        return page_id
+    if page_id and any(entry["page_id"] == page_id for entry in search_entries):
+        return page_id
+    if notebook_root:
+        try:
+            root_key = str(Path(notebook_root).expanduser().resolve())
+        except OSError:
+            root_key = str(notebook_root)
+        for entry in search_entries:
+            try:
+                same_root = str(Path(entry["project_root"]).expanduser().resolve()) == root_key
+            except OSError:
+                same_root = str(entry["project_root"]) == str(notebook_root)
+            if same_root:
+                return entry["page_id"]
+    return search_entries[0]["page_id"]
+
+
+def _search_hit_entries(
+    *,
+    view_entries: list[dict[str, Any]] | None,
+    page_ids: list[str] | None,
+    project_root: str | Path | None,
+) -> list[dict[str, str]]:
+    """Preserve or rebuild the Search Prev/Next hit list."""
+    existing_base = st.session_state.get("view_entries_base")
+    if isinstance(existing_base, list) and existing_base:
+        return _normalize_entries(
+            page_ids=page_ids,
+            project_root=project_root,
+            view_entries=existing_base,
+        )
+    if view_entries is not None:
+        hits = _normalize_entries(
+            page_ids=page_ids,
+            project_root=project_root,
+            view_entries=view_entries,
+        )
+        if hits:
+            st.session_state["view_entries_base"] = hits
+        return hits
+    hits = _resolve_view_entries(
+        page_ids=page_ids,
+        project_root=project_root,
+        view_entries=None,
+        prefer_session_entries=True,
+    )
+    if hits:
+        st.session_state["view_entries_base"] = hits
+    return hits
+
+
+def _render_search_nav_scope_control(*, notebook_root: str | Path) -> str:
+    """Segmented control for Search-result vs notebook-local Prev/Next."""
+    current_scope = st.session_state.get("viewer_nav_scope", _NAV_SCOPE_SEARCH)
+    default_label = _NAV_LABEL_BY_SCOPE.get(current_scope, _NAV_SCOPE_LABELS[0])
+    choice = st.segmented_control(
+        "Navigate",
+        options=list(_NAV_SCOPE_LABELS),
+        default=default_label,
+        key="viewer_nav_scope_control",
+        help=(
+            "Search results: Prev/Next across matching hits. "
+            "This notebook: Prev/Next through all pages in chronological order."
+        ),
+    )
+    selected_label = choice or default_label
+    new_scope = _NAV_SCOPE_BY_LABEL.get(selected_label, _NAV_SCOPE_SEARCH)
+    if new_scope != current_scope:
+        st.session_state["viewer_nav_scope"] = new_scope
+        st.session_state["viewer_tag_filter"] = []
+        if new_scope == _NAV_SCOPE_SEARCH:
+            search_entries = st.session_state.get("view_entries_base") or []
+            if isinstance(search_entries, list):
+                snapped = _snap_page_to_search_scope(
+                    st.session_state.get("view_page_id"),
+                    search_entries,
+                    notebook_root,
+                )
+                if snapped:
+                    st.session_state["view_page_id"] = snapped
+        st.rerun()
+    return new_scope
 
 
 def _page_number_to_index(page_number: int, total: int) -> int | None:
@@ -420,7 +537,9 @@ def _delete_page_dialog(
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Cancel", key=f"pv_del_cancel__{page_id}", width="stretch"):
+        if st.button(
+            "Cancel", key=f"pv_del_cancel__{page_id}", width="stretch", icon=ic.CANCEL
+        ):
             st.rerun()
     with c2:
         if st.button(
@@ -428,6 +547,7 @@ def _delete_page_dialog(
             key=f"pv_del_ok__{page_id}",
             type="primary",
             width="stretch",
+            icon=ic.DELETE,
         ):
             try:
                 projects.delete_page(page_id)
@@ -577,18 +697,54 @@ def render_page_viewer(
     ``presentation="read"`` hides mutating controls (Reading mode).
     """
     read_only = presentation == "read"
+    search_context = _is_search_reading_context(read_only=read_only)
+    nav_scope = (
+        st.session_state.get("viewer_nav_scope", _NAV_SCOPE_SEARCH)
+        if search_context
+        else _NAV_SCOPE_SEARCH
+    )
     active_root = str(paths.root) if paths is not None else str(st.session_state.get("root") or "")
+
+    search_hits: list[dict[str, str]] | None = None
+    scoped_view_entries: list[dict[str, Any]] | None = view_entries
+    if search_context:
+        search_hits = _search_hit_entries(
+            view_entries=view_entries,
+            page_ids=page_ids,
+            project_root=active_root,
+        )
+        if nav_scope == _NAV_SCOPE_NOTEBOOK:
+            bootstrap_root = st.session_state.get("root") or active_root
+            if bootstrap_root:
+                bootstrap_paths = open_project_paths(Path(bootstrap_root))
+                bootstrap_projects = ProjectService(
+                    bootstrap_paths, clock=SystemClock(), ids=UuidGenerator()
+                )
+                bootstrap_project = bootstrap_projects.load(reconcile=False)
+                scoped_view_entries = notebook_view_entries(bootstrap_project, bootstrap_root)
+                paths = bootstrap_paths
+                projects = bootstrap_projects
+                project = bootstrap_project
+        else:
+            scoped_view_entries = search_hits
+
     entries = _resolve_view_entries(
-        page_ids=page_ids,
+        page_ids=page_ids if not search_context else None,
         project_root=active_root,
-        view_entries=view_entries,
-        prefer_session_entries=True,
+        view_entries=scoped_view_entries if search_context else view_entries,
+        prefer_session_entries=not search_context,
     )
     if not entries:
         st.info("No pages in this context.")
         return project
 
-    if view_entries is not None or page_ids is not None:
+    if search_context:
+        baseline = (
+            scoped_view_entries
+            if nav_scope == _NAV_SCOPE_NOTEBOOK
+            else (search_hits or entries)
+        )
+    elif view_entries is not None or page_ids is not None:
         baseline = entries
         st.session_state["view_entries_base"] = baseline
     else:
@@ -606,7 +762,7 @@ def render_page_viewer(
         entries = constrain_entries(baseline, page_tags, required_slugs)
         if not entries:
             st.info("No pages in this view have those tags.")
-            if st.button("Clear tag filter", key="pv_clear_tag_filter_empty"):
+            if st.button("Clear tag filter", key="pv_clear_tag_filter_empty", icon=ic.RESET):
                 st.session_state["viewer_tag_filter"] = []
                 st.rerun()
             return project
@@ -641,9 +797,7 @@ def render_page_viewer(
     # Refresh unapproved suggestions (edit presentation only). Cover pages also
     # re-try while undated so they can inherit the first dated page after later
     # pages are filled.
-    effective_cover_id = project.cover_page_id or (
-        project.pages[0].page_id if project.pages else None
-    )
+    effective_cover_id = _reader_cover_page_id(project)
     needs_date_suggest = (not read_only) and (
         (not page.date_approved) or (page.date is None and page.page_id == effective_cover_id)
     )
@@ -660,15 +814,32 @@ def render_page_viewer(
     img_path = paths.resolve_contained(render.image_relpath)
     result = projects.load_page_result(page.page_id)
 
+    if search_context:
+        nav_scope = _render_search_nav_scope_control(notebook_root=paths.root)
+
     total = len(entries)
-    top = st.columns([1, 1, 2.2, 1.4, 1, 1])
+    if search_context and nav_scope == _NAV_SCOPE_NOTEBOOK:
+        prev_help = "Previous page in notebook"
+        next_help = "Next page in notebook"
+        total_suffix = "pages"
+    elif search_context:
+        prev_help = "Previous matching hit"
+        next_help = "Next matching hit"
+        total_suffix = "hits"
+    else:
+        prev_help = "Previous page"
+        next_help = "Next page"
+        total_suffix = ""
+    top = st.columns([1, 1, 2, 2, 1, 1])
     if show_back:
-        if top[0].button(back_label):
+        if top[0].button(back_label, icon=ic.ARROW_BACK):
             st.session_state.pop("view_page_id", None)
             st.session_state.pop("view_page_ids", None)
             st.session_state.pop("view_entries", None)
             st.session_state.pop("view_entries_base", None)
             st.session_state.pop("viewer_tag_filter", None)
+            st.session_state.pop("viewer_nav_scope", None)
+            st.session_state.pop("viewer_nav_scope_control", None)
             st.session_state.pop("view_highlight", None)
             st.session_state["show_page_viewer"] = False
             return_mode = st.session_state.pop("page_return_mode", None)
@@ -679,7 +850,7 @@ def render_page_viewer(
             st.rerun()
     else:
         top[0].write("")
-    if top[1].button("←", disabled=idx <= 0, help="Previous page"):
+    if top[1].button("", disabled=idx <= 0, help=prev_help, icon=ic.CHEVRON_LEFT):
         _navigate_to_entry(entries[idx - 1])
         st.rerun()
     top[2].markdown(
@@ -687,7 +858,7 @@ def render_page_viewer(
     )
     with top[3]:
         with st.form("page_viewer_jump", border=False, clear_on_submit=False):
-            jump_cols = st.columns([2.2, 1.4, 1.2])
+            jump_cols = st.columns([1.6, 0.9, 1.3])
             jump_to = jump_cols[0].number_input(
                 "Page",
                 min_value=1,
@@ -697,17 +868,40 @@ def render_page_viewer(
                 label_visibility="collapsed",
                 help=f"Type a page number (1–{total}) and press Enter or Go",
             )
-            jump_cols[1].markdown(f"/ {total}")
-            jumped = jump_cols[2].form_submit_button("Go")
+            jump_cols[1].markdown(f"/ {total}{f' {total_suffix}' if total_suffix else ''}")
+            jumped = jump_cols[2].form_submit_button(
+                "Go",
+                key="pv_jump_go",
+                use_container_width=True,
+                icon=ic.ARROW_FORWARD,
+            )
         if jumped:
             jump_idx = _page_number_to_index(int(jump_to), total)
             if jump_idx is not None and jump_idx != idx:
                 _navigate_to_entry(entries[jump_idx])
                 st.rerun()
-    if top[4].button("→", disabled=idx >= total - 1, help="Next page"):
+    if top[4].button("", disabled=idx >= total - 1, help=next_help, icon=ic.CHEVRON_RIGHT):
         _navigate_to_entry(entries[idx + 1])
         st.rerun()
     top[5].caption(f"`{page.page_id[:8]}…`")
+
+    if read_only:
+        review_row = st.columns([5, 1])
+        with review_row[1]:
+            if st.button(
+                "Review",
+                key=f"pv_to_review_{page.page_id}",
+                help="Open Review to edit this page's date, text, and OCR.",
+                width="stretch",
+                icon=ic.RATE_REVIEW,
+            ):
+                from transcribe.ui.view_jumps import jump_to_review
+
+                jump_to_review(
+                    page.page_id,
+                    project=project,
+                    project_root=paths.root,
+                )
 
     from transcribe.services.tags import TagService
     from transcribe.tagging.kernel import display_tag, normalize_slugs
@@ -727,7 +921,7 @@ def render_page_viewer(
         with filt_cols[0]:
             labels = ", ".join(display_tag(catalog, s).label for s in required_slugs)
             st.caption(f"Showing pages tagged: {labels}")
-        if filt_cols[1].button("Clear tag filter", key="pv_clear_tag_filter"):
+        if filt_cols[1].button("Clear tag filter", key="pv_clear_tag_filter", icon=ic.RESET):
             st.session_state["viewer_tag_filter"] = []
             st.rerun()
 
@@ -764,24 +958,19 @@ def render_page_viewer(
     if not read_only:
         try:
             from transcribe.detection.api import DetectionService
+            from transcribe.ui.detection_tag_review import render_page_detection_tag_row
 
             det_svc = DetectionService(projects)
             page_findings = det_svc.findings_for_page(page.page_id)
             if page_findings:
                 st.caption("Detections")
                 for f in page_findings[:8]:
-                    fresh = det_svc.freshness(f.detector_id)
-                    stale = "" if fresh == "ok" else f" · {fresh}"
-                    cols = st.columns([6, 1, 1])
-                    cols[0].write(
-                        f"{f.finding_type} · {f.confidence:.0%} · {f.review_status}{stale}"
+                    render_page_detection_tag_row(
+                        det_svc=det_svc,
+                        finding=f,
+                        page_id=page.page_id,
+                        key_prefix="pv",
                     )
-                    if cols[1].button("✓", key=f"pv_ap_{f.finding_id}", help="Approve"):
-                        det_svc.set_review_status(f.detector_id, f.finding_id, "approved")
-                        st.rerun()
-                    if cols[2].button("✗", key=f"pv_rj_{f.finding_id}", help="Reject"):
-                        det_svc.set_review_status(f.detector_id, f.finding_id, "rejected")
-                        st.rerun()
         except Exception:  # noqa: BLE001 — optional surface; never break viewer
             pass
     else:
@@ -808,8 +997,8 @@ def render_page_viewer(
 
     def _render_scan_and_metrics(*, image_width: int | str) -> None:
         st.image(str(img_path), width=image_width)
-        # Explicit cover pages are outside page-metrics (service omits them).
-        if project.cover_page_id is not None and page.page_id == project.cover_page_id:
+        # Reader cover pages are outside page-metrics, including first-page fallback.
+        if page.page_id == _reader_cover_page_id(project):
             return
         try:
             from transcribe.ui.page_metrics_view import (
@@ -888,7 +1077,7 @@ def render_page_viewer(
         edited = result.edited_text if result else None
         if not read_only and edited is not None and attempt and attempt.raw_text is not None:
             st.caption("An edit is active. New OCR raw text is preserved separately.")
-            if st.button("Use new transcription"):
+            if st.button("Use new transcription", icon=ic.PROMOTE):
                 projects.adopt_raw_as_edit(page.page_id)
                 bump_archive_generation(build_runtime_paths())
                 st.rerun()
@@ -903,7 +1092,7 @@ def render_page_viewer(
                 "Preferred attempt differs from active — Prefer mode may be "
                 "`prefer_only`, or promote explicitly."
             )
-            if st.button("Use preferred as transcription basis"):
+            if st.button("Use preferred as transcription basis", icon=ic.CHECK):
                 projects.set_active_attempt(page.page_id, preferred.attempt_id)
                 bump_archive_generation(build_runtime_paths())
                 st.rerun()
@@ -913,21 +1102,25 @@ def render_page_viewer(
                 st.markdown(highlight_terms(default_text, highlight_query))
         if read_only:
             if default_text.strip():
-                st.markdown(default_text)
+                _render_transcription_plain(default_text)
             else:
                 st.caption("No transcription text on this page.")
             if page.date is not None and not page.date_approved:
                 st.caption("Date is suggested, not approved — Archive timeline still indexes it.")
         else:
             text = st.text_area("Transcription", value=default_text, height=320)
-            if st.button("Save edit"):
+            if st.button("Save edit", icon=ic.SAVE):
                 projects.save_user_edit(page.page_id, text)
                 bump_archive_generation(build_runtime_paths())
                 st.success("Saved")
 
             with st.expander("Re-run this page", expanded=False):
                 st.caption("Force OCR on this page with the notebook’s current model settings.")
-                if st.button("Re-run OCR on this page", key=f"rerun_page_{page.page_id}"):
+                if st.button(
+                    "Re-run OCR on this page",
+                    key=f"rerun_page_{page.page_id}",
+                    icon=ic.REPLAY,
+                ):
                     try:
                         from transcribe.services.job import build_coordinator
 
@@ -972,10 +1165,11 @@ def render_page_viewer(
                     st.caption(suggest_label)
                 with ok_col:
                     if st.button(
-                        "✓",
+                        "",
                         key=f"date_approve_{page.page_id}",
                         help="Approve suggested date",
                         type="tertiary",
+                        icon=ic.CHECK,
                     ):
                         try:
                             projects.approve_page_date(page.page_id, page.date)
@@ -987,10 +1181,11 @@ def render_page_viewer(
                             st.error(str(exc))
                 with all_col:
                     if st.button(
-                        "✓✓",
+                        "",
                         key=f"date_approve_all_{page.page_id}",
                         help=approve_all_help,
                         type="tertiary",
+                        icon=ic.CHECK_ALL,
                     ):
                         try:
                             confirm = bool(st.session_state.get(confirm_key))
@@ -999,7 +1194,7 @@ def render_page_viewer(
                                 st.warning(
                                     f"{len(regressions)} date regression"
                                     f"{'s' if len(regressions) != 1 else ''} look "
-                                    "suspicious. Click ✓✓ again to approve anyway."
+                                    "suspicious. Click Approve all again to approve anyway."
                                 )
                             else:
                                 updated, approved_n, _regs = projects.approve_all_suggested_dates(
@@ -1019,10 +1214,11 @@ def render_page_viewer(
                             st.error(str(exc))
                 with no_col:
                     if st.button(
-                        "✕",
+                        "",
                         key=f"date_ignore_{page.page_id}",
                         help="Ignore suggestion (clear date)",
                         type="tertiary",
+                        icon=ic.CLOSE,
                     ):
                         try:
                             projects.approve_page_date(page.page_id, None)
@@ -1047,7 +1243,7 @@ def render_page_viewer(
                 catalog=catalog,
                 key_prefix=f"tags_{page.page_id}",
             )
-            if st.button("Save metadata"):
+            if st.button("Save metadata", icon=ic.SAVE):
                 try:
                     new_date = parse_date_input(date_in)
                     project, _date_changed = projects.approve_page_date(page.page_id, new_date)
@@ -1061,7 +1257,7 @@ def render_page_viewer(
                     st.error(str(exc))
 
             thumbs = ThumbnailService(paths)
-            if st.button("Set as notebook cover"):
+            if st.button("Set as notebook cover", icon=ic.MENU_BOOK):
                 try:
                     from transcribe.ui.action_menus.nav import viewer_page_ids
 
@@ -1091,7 +1287,7 @@ def render_page_viewer(
                     projects=projects,
                     project_root=paths.root,
                 )
-            if st.button("Delete page"):
+            if st.button("Delete page", icon=ic.DELETE):
                 if len(project.pages) <= 1:
                     st.error("Cannot delete the last page; delete the notebook instead.")
                 else:
@@ -1131,3 +1327,6 @@ def open_page_context(
     st.session_state["show_page_viewer"] = True
     if return_mode:
         st.session_state["page_return_mode"] = return_mode
+    if return_mode == "Search":
+        st.session_state["viewer_nav_scope"] = _NAV_SCOPE_SEARCH
+        st.session_state.pop("viewer_nav_scope_control", None)

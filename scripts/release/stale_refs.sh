@@ -27,6 +27,7 @@ check_absent() {
 }
 
 check_absent "src/setup.py path refs" 'src/setup\.py'
+check_absent "dead ReadTheDocs hostname" 'readthedocs\.io'
 
 version_check="$(python3 - <<'PY'
 import re, pathlib, sys

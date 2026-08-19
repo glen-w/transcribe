@@ -18,6 +18,7 @@ from transcribe.services.export_document import (
     ExportDocument,
     ExportSnapshot,
     build_document,
+    resolve_cover_image_path,
 )
 from transcribe.services.export_epub import EpubDependencyError, write_epub
 from transcribe.services.export_html import build_html, write_html
@@ -52,7 +53,12 @@ class ExportService:
             for page in snap_project.pages:
                 results[page.page_id] = self.projects._load_page_result_unlocked(page.page_id)
             rev = content_revision_hex(snap_project, results)
-            return ExportSnapshot(project=snap_project, results=results, content_revision=rev)
+            return ExportSnapshot(
+                project=snap_project,
+                results=results,
+                content_revision=rev,
+                cover_image_path=resolve_cover_image_path(self.paths, snap_project),
+            )
 
     @staticmethod
     def capture_snapshot_at(paths: ProjectPaths, projects: ProjectService) -> ExportSnapshot:
@@ -238,6 +244,8 @@ class ExportService:
                     "tags": list(page.tags),
                 }
             )
+            if page.ignored:
+                pages_out[-1]["ignored"] = True
         rev = (
             snap.content_revision
             if snap is not None and snap.content_revision

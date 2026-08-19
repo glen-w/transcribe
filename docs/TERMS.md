@@ -13,6 +13,10 @@ This document is an **index of terms only**. It aggregates terminology from auth
 - **Project** — On-disk notebook directory with `project.json`. See [contracts/project-on-disk.md](contracts/project-on-disk.md).
 - **Page result** — Per-page JSON of attempts + edits. See [contracts/page-result.md](contracts/page-result.md).
 - **Effective text** — Edit if present, else active raw OCR. See [contracts/page-result.md](contracts/page-result.md).
+- **Merged draft** — LLM composite of competing vision OCR attempts; a recommendation, not a vote. Internally `attempt_kind=composite`. See [contracts/ocr-multipass.md](contracts/ocr-multipass.md) · [page-result.md](contracts/page-result.md).
+- **Notebook default** — `preferred_attempt_id` on a page result; which OCR attempt you Prefer for stats, export, and (depending on mode) current text. See [contracts/page-result.md](contracts/page-result.md) · [runtime/ocr.md](runtime/ocr.md#when-setting-a-notebook-default).
+- **Prefer mode** — Per-notebook setting for what Prefer (and multipass auto-composite under `prefer_is_promote`) does to active vs preferred attempts. See [contracts/page-result.md](contracts/page-result.md) · [runtime/ocr.md](runtime/ocr.md#notebook-ocr-settings).
+- **Review status** — Page-level `unreviewed` / `needs_attention` / `reviewed` / `skipped`; `reviewed` is valid only for the current effective text + OCR evidence fingerprints. See [contracts/page-result.md](contracts/page-result.md) · [project-on-disk.md](contracts/project-on-disk.md).
 - **Fingerprint** — Canonical hash of OCR inputs for skip/resume. See [contracts/page-result.md](contracts/page-result.md).
 - **JobPlan** — Frozen OCR execution inputs for one run (shape). See [ARCHITECTURE.md](ARCHITECTURE.md); persisted attempt rules in [page-result.md](contracts/page-result.md).
 - **OcrBatchRun** — Durable batch OCR across notebooks. See [contracts/ocr-batch-run.md](contracts/ocr-batch-run.md).
@@ -31,6 +35,7 @@ This document is an **index of terms only**. It aggregates terminology from auth
 - **Visual declutter** — Import-time (and Settings re-apply) scanner-border crop; not OCR preprocess. See [contracts/source-asset.md](contracts/source-asset.md).
 - **Archive strip paging** — `ui.archive_notebooks_initial` — cards before Show more (`0` = all). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
 - **Overview cards** — `ui.overview_cards` — which Overview cards are visible (status strip always on). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
+- **View Advanced expanders** — `ui.view_show_advanced` — show raw module JSON under **Advanced · …** on View pages (default off). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
 - **`transcribe.workspace-backup`** — Full-workspace ZIP (role roots); replace-only restore. See [workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md).
 - **Role roots** — Path-agnostic ZIP prefixes remapped to current mounts on restore. See [contracts/workspace-backup.md](contracts/workspace-backup.md).
 - **Install extras** (`[ui]` / `[dev]` / `[export]`) — Packaging profiles, not Analyse presets. See [runtime/installation.md](runtime/installation.md).

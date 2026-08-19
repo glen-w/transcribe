@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from transcribe.ui.action_menus.ids import ActionId, SectionId
+from transcribe.ui import icons as ic
 
 
 @dataclass(frozen=True)
@@ -19,55 +20,55 @@ ACTIONS: tuple[ActionDef, ...] = (
     ActionDef(
         ActionId.OPEN,
         "Open",
-        ":material/folder_open:",
+        ic.FOLDER_OPEN,
         "Open this notebook in Reading (cover first, or first page if none).",
     ),
     ActionDef(
         ActionId.TRANSCRIBE,
         "Transcribe",
-        ":material/document_scanner:",
+        ic.DOCUMENT_SCANNER,
         "Open the Transcribe (OCR) workflow for this notebook.",
     ),
     ActionDef(
         ActionId.ANALYSE,
         "Analyse",
-        ":material/analytics:",
+        ic.ANALYTICS,
         "Open Analyse for this notebook.",
     ),
     ActionDef(
         ActionId.OVERVIEW,
         "Overview",
-        ":material/dashboard:",
+        ic.DASHBOARD,
         "Open Overview for this notebook (published results and page ink).",
     ),
     ActionDef(
         ActionId.REVIEW,
         "Review",
-        ":material/rate_review:",
+        ic.RATE_REVIEW,
         "Open Review to correct dates, empty text, and failed OCR.",
     ),
     ActionDef(
         ActionId.DETECT,
         "Detect",
-        ":material/search_check:",
+        ic.SEARCH_CHECK,
         "Open Detect for poetry, lists, to-dos, quotations, and beer labels.",
     ),
     ActionDef(
         ActionId.EXPORT,
         "Export",
-        ":material/ios_share:",
+        ic.SHARE,
         "Open Export for this notebook.",
     ),
     ActionDef(
         ActionId.RENAME,
         "Rename",
-        ":material/edit:",
+        ic.EDIT,
         "Rename this notebook (display title only; the notebook folder path is unchanged).",
     ),
     ActionDef(
         ActionId.DELETE,
         "Delete",
-        ":material/delete:",
+        ic.DELETE,
         "Delete this managed notebook (imported copies only). External originals are not touched.",
     ),
 )
@@ -85,7 +86,9 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
     ),
     SectionId.VIEW_NOTEBOOK: (
         ActionId.OPEN,
+        ActionId.OVERVIEW,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.DETECT,
         ActionId.EXPORT,
@@ -93,20 +96,20 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
         ActionId.DELETE,
     ),
     SectionId.IMPORT_SUCCESS: (
-        ActionId.TRANSCRIBE,
         ActionId.OPEN,
+        ActionId.TRANSCRIBE,
         ActionId.ANALYSE,
     ),
     SectionId.TRANSCRIBE_COMPLETE: (
-        ActionId.REVIEW,
         ActionId.OPEN,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.EXPORT,
     ),
     SectionId.ANALYSE_COMPLETE: (
         ActionId.OVERVIEW,
-        ActionId.EXPORT,
         ActionId.OPEN,
+        ActionId.EXPORT,
         ActionId.REVIEW,
     ),
 }
@@ -119,7 +122,9 @@ NOTEBOOK_STRIP: tuple[ActionId, ...] = (
 
 VIEW_NOTEBOOK_STRIP: tuple[ActionId, ...] = (
     ActionId.OPEN,
+    ActionId.OVERVIEW,
     ActionId.TRANSCRIBE,
+    ActionId.REVIEW,
     ActionId.ANALYSE,
     ActionId.RENAME,
     ActionId.DELETE,
@@ -147,8 +152,8 @@ SECTION_DEFAULTS: dict[SectionDefaultKey, tuple[ActionId, ...]] = {
     SectionDefaultKey(SectionId.TRANSCRIBE_COMPLETE, "notebook"): (ActionId.REVIEW,),
     SectionDefaultKey(SectionId.ANALYSE_COMPLETE, "notebook"): (
         ActionId.OVERVIEW,
-        ActionId.EXPORT,
         ActionId.OPEN,
+        ActionId.EXPORT,
     ),
 }
 
@@ -166,7 +171,8 @@ def section_default_actions(
 
 
 def label_for(action: ActionId, section: SectionId | None = None) -> str:
-    _ = section
+    if action is ActionId.OVERVIEW and section is SectionId.VIEW_NOTEBOOK:
+        return "View analysis"
     return ACTIONS_BY_ID[action].label
 
 

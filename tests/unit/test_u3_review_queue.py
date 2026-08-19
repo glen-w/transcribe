@@ -13,9 +13,13 @@ from transcribe.ports import to_iso
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.action_menus.nav import chronological_page_ids, viewer_page_ids
 from transcribe.ui.review_queue import (
+    available_review_filters,
     empty_text_page_ids,
     failed_ocr_page_ids,
     filter_review_page_ids,
+    format_review_filter_label,
+    high_disagreement_page_ids,
+    review_status_page_ids,
     unapproved_date_page_ids,
 )
 from tests.conftest import FakeClock, SequentialIds
@@ -107,6 +111,36 @@ def test_review_queue_filters(tmp_path: Path) -> None:
     ) == [p2]
 
 
+def test_available_review_filters_omit_zero_counts(tmp_path: Path) -> None:
+    projects, project, clock = _project_with_pages(tmp_path, 3)
+    p0, p1, p2 = [p.page_id for p in project.pages]
+    _seed_result(projects, p0, text="hello", status="succeeded", clock=clock)
+    _seed_result(projects, p1, text="", status="succeeded", clock=clock)
+    _seed_result(projects, p2, text=None, status="failed", clock=clock)
+    page1 = next(p for p in project.pages if p.page_id == p1)
+    page1.set_date_state(ApproximateDate(2024, 2, 1), approved=False, source=DATE_SOURCE_EXTRACTED)
+    project = _write_project(projects, project)
+
+    base = viewer_page_ids(project)
+    options = available_review_filters(
+        project,
+        base_page_ids=base,
+        load_page_result=projects.load_page_result,
+    )
+    keys = [key for key, _ in options]
+    assert "high_disagreement" not in keys
+    assert "reviewed" not in keys
+    assert "skipped" not in keys
+    assert options == [
+        ("unreviewed", 3),
+        ("needs_date", 1),
+        ("no_text", 2),
+        ("failed_ocr", 1),
+        ("all", 3),
+    ]
+    assert format_review_filter_label("needs_date", 1) == "Needs date approval (1)"
+
+
 def test_batch_approve_and_ignore_suggested_dates(tmp_path: Path) -> None:
     projects, project, _clock = _project_with_pages(tmp_path, 2)
     p0, p1 = [p.page_id for p in project.pages]
@@ -166,3 +200,46 @@ def test_chronological_page_ids_orders_dated_then_undated(tmp_path: Path) -> Non
     assert ordered[0] == p2.page_id
     assert ordered[1] == p0.page_id
     assert ordered[2] == p1.page_id
+
+
+def test_high_disagreement_filter_uses_cached_count(tmp_path: Path) -> None:
+    projects, project, clock = _project_with_pages(tmp_path, 2)
+    p0, p1 = [p.page_id for p in project.pages]
+    _seed_result(projects, p0, text="hello", status="succeeded", clock=clock)
+    _seed_result(projects, p1, text="hello", status="succeeded", clock=clock)
+    projects.cache_alignment_signals(
+        p0, source_disagreement_count=3, agreement_ratio=0.5
+    )
+    projects.cache_alignment_signals(
+        p1, source_disagreement_count=2, agreement_ratio=0.8
+    )
+    assert high_disagreement_page_ids(project, projects.load_page_result) == [p0]
+    base = viewer_page_ids(project)
+    assert filter_review_page_ids(
+        project,
+        filter_key="high_disagreement",
+        base_page_ids=base,
+        load_page_result=projects.load_page_result,
+    ) == [p0]
+
+
+def test_review_status_queue_filters(tmp_path: Path) -> None:
+    projects, project, clock = _project_with_pages(tmp_path, 3)
+    p0, p1, p2 = [p.page_id for p in project.pages]
+    _seed_result(projects, p0, text="hello", status="succeeded", clock=clock)
+    _seed_result(projects, p1, text="hello", status="succeeded", clock=clock)
+    _seed_result(projects, p2, text="hello", status="succeeded", clock=clock)
+    projects.save_user_edit(p0, None, mark_reviewed=True)
+    projects.set_page_review_status(p1, "needs_attention")
+    project = projects.load(reconcile=False)
+    assert review_status_page_ids(project, "reviewed") == [p0]
+    assert review_status_page_ids(project, "needs_attention") == [p1]
+    assert review_status_page_ids(project, "unreviewed") == [p2]
+    base = viewer_page_ids(project)
+    assert filter_review_page_ids(
+        project,
+        filter_key="reviewed",
+        base_page_ids=base,
+        load_page_result=projects.load_page_result,
+    ) == [p0]
+

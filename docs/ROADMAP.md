@@ -22,11 +22,11 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.5.** Version ladder to autobiography:
+**Package is 0.8.6.** Version ladder to autobiography:
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-              I0–I1     I2–I3     product     U2 + I4–I6     tag + hosted docs      findings → fixes         freeze     autobiography
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
+              I0–I1     I2–I3     patch     product     U2 + I5–I6     tag + hosted docs      findings → fixes         freeze     autobiography
 ```
 
 | Label | Meaning |
@@ -34,6 +34,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.7.0** | Developer lanes + PR CI honesty gate (**I0–I1**). Makefile, `tests/README.md`, GitHub Actions matrix 3.10–3.12, compose-bind assert. |
 | **0.8.0** | Release hygiene + quality gates (**I2–I3**). `scripts/release/*`, `release_governance.md`, coverage fail-under, pre-commit, CI `release-checks`. |
 | **0.8.5** | Product patch on 0.8.0: cover-page skip in ink metrics; Analyse batch pick labels show published status. |
+| **0.8.6** | Post-U3 product cut: OCR Review workbench, export typography/cover/ignore-pages, Sphinx docs (**I4**), Ask history, Detect → Workflow nav, chart colours, detection tag approval. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
 | **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
@@ -87,11 +88,77 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 **Also landed with U3:** Archive activity-bin click filter; Archive notebook-strip paging (`ui.archive_notebooks_initial`, default show-all); page delete in the viewer; model-information expander wired to live picker selection on Transcribe panels.
 
-**Post-U3 deepen-in-place (shipped, not a new wave track):** OCR hang / model-load fail-fast circuits; Compare OCR attempt previews escape markdown so Prefer/Promote stays readable; Analyse Moments jump-to-page; Overview/Mood this-vs-corpus/period charts (PR #25).
+**Post-U3 deepen-in-place (shipped, not a new wave track):** OCR hang / model-load fail-fast circuits; Compare OCR attempt previews escape markdown so Prefer/Promote stays readable; Analyse Moments jump-to-page; Overview/Mood this-vs-corpus/period charts (PR #25). **OCR Review workbench:** scan + tabbed review lanes (Transcription / Date / Tags / Other), disagreement-centric review, merged draft as recommendation not vote ([ocr_review_workbench_plan.md](dev/ocr_review_workbench_plan.md)).
 
 ### U4 — Corpus UX — [x] gate green (Inbox polish may continue)
 
 Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and **Next — Notebook corpus**. Remaining Inbox polish (e.g. richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue without reopening the gate.
+
+Near-future deepen-in-place (planned, Reader-facing): **Ignore pages** — let users mark uninteresting pages as ignored so they are omitted from Reader by default. Make this a toggle with configurable default settings (workspace/user), plus an explicit “show ignored” override in Reader UI. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages** (default on) omits `ignored` pages from reading formats (Markdown/HTML/PDF/EPUB/text); JSON export keeps the full notebook. **Future:** include/exclude export pages by tag (AND filter, same semantics as Reading/Archive).
+
+**Page scan fullscreen (Reader / Review):** Today uses Streamlit’s built-in `st.image` hover toolbar (**View fullscreen**). **Candidate — click image → black lightbox:** Streamlit has no API for click-to-fullscreen or a black backdrop ([streamlit#8031](https://github.com/streamlit/streamlit/issues/8031)). Revisit when that lands; until then, optional custom JS below (parent-frame overlay, same pattern as Review hotkeys).
+
+<details>
+<summary>Custom JS lightbox (safekeeping — not wired in app)</summary>
+
+```javascript
+(function () {
+  const parent = window.parent;
+  if (!parent) return;
+
+  function ensureOverlay() {
+    let overlay = parent.document.getElementById("tx-page-lightbox");
+    if (overlay) return overlay;
+    overlay = parent.document.createElement("div");
+    overlay.id = "tx-page-lightbox";
+    overlay.style.cssText = [
+      "display:none", "position:fixed", "inset:0", "z-index:999999",
+      "background:#000", "cursor:zoom-out", "align-items:center",
+      "justify-content:center", "padding:1rem", "box-sizing:border-box",
+    ].join(";");
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Page scan fullscreen");
+
+    const img = parent.document.createElement("img");
+    img.id = "tx-page-lightbox-img";
+    img.style.cssText = [
+      "max-width:100%", "max-height:100%", "object-fit:contain",
+      "cursor:default", "user-select:none",
+    ].join(";");
+    img.addEventListener("click", (e) => e.stopPropagation());
+
+    overlay.appendChild(img);
+    overlay.addEventListener("click", () => {
+      overlay.style.display = "none";
+      img.removeAttribute("src");
+    });
+    parent.document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && overlay.style.display !== "none") {
+        overlay.style.display = "none";
+        img.removeAttribute("src");
+      }
+    });
+    parent.document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  parent.txOpenPageLightbox = function (src) {
+    const overlay = ensureOverlay();
+    const img = parent.document.getElementById("tx-page-lightbox-img");
+    img.src = src;
+    overlay.style.display = "flex";
+  };
+})();
+
+// Per-image bind (inject via components.html after st.image in a keyed container):
+// root.querySelector('[data-testid="stImage"] img').addEventListener('click', (e) => {
+//   e.preventDefault(); e.stopPropagation();
+//   parent.txOpenPageLightbox(img.src);
+// });
+```
+
+</details>
 
 ---
 
@@ -153,6 +220,20 @@ Ambitious OCR features on the durable attempt model: multipass multi-model runs,
 
 ---
 
+## Next — Detection fine-tune export — [?] candidate
+
+Extend the shipped OCR **fine-tune export** pattern ([finetune-export](contracts/finetune-export.md), [finetune_export.md](finetune_export.md)) to **prompt-backed Detection**: export page images + effective text with **approved / rejected** finding labels as a local dataset for **external** detector fine-tuning (Transcribe does not train in-app).
+
+| Outcome | Intent |
+|---------|--------|
+| **Review-labelled export** | Turn user review of detection suggestions — e.g. `todo_lists`, `lists`, `poetry`, custom detectors — into positive/negative training pairs. Approved findings = positive examples; rejected = negatives or hard negatives. Unreviewed findings excluded by default. |
+| **Finding-aware samples** | Each JSONL row ties image + text window to span boundaries, `finding_type`, detector + prompt provenance, and `review_status` ([detection-finding](contracts/detection-finding.md)). Reuse existing carry-forward semantics so re-runs do not orphan labels. |
+| **Per-detector datasets** | Filter by `detector_id` / `finding_type`; optional include neighbouring page context for cross-page spans. Same privacy model as OCR export — user copies the folder; no network upload. |
+
+**Rules of thumb:** Detection export is a deepen-in-place on the evaluation loop, not a new detection runtime. Ship after detection review UX is stable enough to accumulate trustworthy labels. Not on the **0.9.0** path.
+
+---
+
 ## Next — Corpus & product lifecycle — [?] candidates (partially pulled)
 
 Primary post-hardening direction for living with many notebooks. **Usability-wave U3** pulls Review UX, reading mode, search deepening, organisation polish, and model/runtime management as committed work on today’s project model (no bulk corpus activation required). **U4** covers import recovery / inbox (gate green; Inbox polish may continue). Remaining rows stay uncommitted candidates.
@@ -161,6 +242,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 |---------|--------|------|
 | **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity filters → After 1.0 **1.1/1.3**; saved searches still candidate |
 | **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Archive strip paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. Workspace tag catalogue (labels, colours, rename/merge) + viewer click-to-filter + detection auto-tag: [tag-catalog.md](contracts/tag-catalog.md). | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped as deepen-in-place; collections/archive-state candidate |
+| **Page reordering & date repair** | Add a drag/drop thumbnail grid to reorder notebook pages after scan upload order errors, plus a “move suspiciously dated page to end of confirmed date cluster” action that updates page-number navigation. See plan: [page reorder plan](../../.cursor/plans/page_reorder_plan_6d561135.plan.md). | candidate |
 | **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
 | **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** (done) |
@@ -168,11 +250,12 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | **0.9 path (thin):** pre-upgrade backup + restore verify in first-run/backup docs — [Path to 0.9.0](#path-to-090--09-1--10) foundation checklist. Full “archive readable without Transcribe” remains candidate |
 | **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. Model-information expander follows live Transcribe picker selection. | **U3** (done) |
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
+| **Detection fine-tune export** | Export approved/rejected detection findings (e.g. to-do list suggestions) as labelled datasets for external detector fine-tuning — same “export only, train elsewhere” model as OCR fine-tune export. | candidate — see **Detection fine-tune export** |
 | **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
 | **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels` + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
-| **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done) |
-| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options, export profiles, multi-notebook anthology (provenance via U0 #13). Further reading-mode polish remains a separate candidate above. | **shipped** |
+| **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done); OCR Review workbench deepen-in-place shipped |
+| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options (25 curated free/system body fonts), export profiles, multi-notebook anthology (provenance via U0 #13), **exclude ignored pages** toggle. Further reading-mode polish remains a separate candidate above. **Candidate:** user-uploaded custom fonts; **future:** include/exclude by tag. | **shipped** |
 | **Analyse information architecture** | Validate Overview / Themes / Mood / Summaries / Ask against real use. People/Moments/Ask are in-page sections (not extra sidebar items). Corpus/period compare + Moments/chart jump → Reading, and Analyse launcher vs View consume split, landed as deepen-in-place. | **U1** (done) + GUI alignment |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
 | **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. First-class Person identity is **After 1.0 / 1.3**, not this lifecycle row. | Places shipped; Patterns optional |
@@ -192,7 +275,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.5** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.6** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
 **Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
 
@@ -223,15 +306,15 @@ Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.
 | **I1** PR CI honesty gate | [x] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
 | **I2** Release hygiene + governance | [x] | `scripts/release/*`, secrets/denylist, `release_governance.md`, dependency audit log |
 | **I3** Quality gates | [x] | Coverage fail-under, pre-commit, partial CI `release-checks` |
-| **I4** Hosted docs | [ ] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
+| **I4** Hosted docs | [x] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
 | **I5** Public landing | [ ] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
 | **I6** Sustaining lanes | [ ] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
 
-Suggested cut order: **I0+I1** (0.7.0, landed) → **I2+I3** (0.8.0, landed) → **I4+I5** → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
+Suggested cut order: **I0+I1** (0.7.0, landed) → **I2+I3** (0.8.0, landed) → **I4** (Sphinx, landed) → **I5** → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
 
 **Infra exit gate (summary):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
 
-**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs that already *expect* the missing scripts.
+**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**.
 
 ### Track C — Foundation readiness for After 1.0 (docs + freeze rules)
 
@@ -251,7 +334,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch. Remaining infra: **I4–I6**.
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs. Remaining infra: **I5–I6**.
 
 ### 0.9-1 — Unfamiliar user testing
 
@@ -467,19 +550,19 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Product goal:** Answer “what else in my notebooks belongs with this page?” without new importers.
 
-**UX:** Reading shows other pages in a date window (this notebook + corpus). Search/Archive: tighter range; optional exclude unapproved dates. Page **time-of-day** from diary stamps (`YYMMDD HHMM`) stored alongside `ApproximateDate`. Entity filters on Search only if a cheap NER join exists; otherwise wait for 1.3.
+**UX:** Reading shows other pages in a date window (this notebook + corpus). Search/Archive: tighter range; optional exclude unapproved dates; and a configurable ignore list so extracted dates from pages whose Detect categories match (e.g. label/packaging) are treated as `rejected`/unapproved by default. Add date-window presets (`same day`, `3 days`, `1 week`, `1 month`) and group related pages by temporal proximity (`same day`, `nearby`, `same week`). Allow previous/next **dated** page jumps across the corpus. Show date-source / confidence badges (explicit on page, inherited, manual correction) and a quick exact-only filter chip so inherited or weak dates can be hidden. Page **time-of-day** from diary stamps (`YYMMDD HHMM`) stored alongside `ApproximateDate`. Optional **estimated writing time** per page/notebook from OCR word count and a user-set average words-per-minute; label as approximate and allow workspace/user override. Entity filters on Search only if a cheap NER join exists; otherwise wait for 1.3.
 
-**Architecture:** Additive page time on `PageIndex` (legacy = null). `ArchiveService.related_pages(page_id, window)`. Document ClaimStatus vocabulary in contracts (map existing date/detection/edit states). No `ContextCollection` yet. Relatedness is **computed**, not persisted links.
+**Architecture:** Additive page time on `PageIndex` (legacy = null). `ArchiveService.related_pages(page_id, window)` plus previous/next dated-page lookups over the same index. Date-source / confidence is a read-model over existing page date state (explicit extraction, inherited notebook date, manual review), not a new autobiography entity. Estimated writing duration is derived, not authored metadata: persist only the configured WPM setting and recompute from approved/current page text. Document ClaimStatus vocabulary in contracts (map existing date/detection/edit states). No `ContextCollection` yet. Relatedness is **computed**, not persisted links.
 
-**Reuse:** `ApproximateDate`, ArchiveService, Reading, `view_jumps`.
+**Reuse:** `ApproximateDate`, ArchiveService, Reading, `view_jumps`, existing date review state.
 
 **AI:** None. No LLM for relatedness.
 
 **Storage / migration:** Additive `project.json` fields; AnalysisDocument dates stay `YYYY-MM-DD` (do not break fingerprints). Archive indexes rebuildable.
 
-**Risks:** Turning Archive into a calendar. Over-linking inherited dates. Presenting unapproved dates as confirmed.
+**Risks:** Turning Archive into a calendar. Over-linking inherited dates. Presenting unapproved dates as confirmed. Letting date-source badges imply more certainty than the underlying extraction/review state supports. Treating estimated writing time as exact despite OCR noise, edits, or non-prose pages.
 
-**Exit:** Related-pages panel; window/precision tests; unapproved dates visually distinct; no context schema shipped.
+**Exit:** Related-pages panel; window/precision tests; window presets and temporal grouping in Reading/Search; previous/next dated-page jumps; inherited/unapproved/ignored-by-category dates visually distinct with exact-only filter and source badges; estimated writing time clearly marked approximate and derived from configurable WPM; no context schema shipped.
 
 #### 1.2 — Photographs as contextual evidence
 
@@ -690,6 +773,7 @@ Worth recording without scheduling. Rows pulled into [After 1.0](#after-10--note
 - Annotations distinct from OCR corrections
 - Batch metadata editing
 - Image-only / non-OCR page handling
+- **Detection fine-tune export** — scheduled as candidate section above (approved/rejected Detect labels → external training datasets)
 
 ---
 
@@ -764,7 +848,7 @@ Still the more central product surface than speculative analysis work. Detail an
 
 Summary:
 
-- OCR pipeline — import, vision OCR, optional second-pass cleanup; **multipass compare / prefer / promote / composite / fine-tune export** (OCR lifecycle package — shipped)
+- OCR pipeline — import, vision OCR, optional second-pass cleanup; **multipass compare / prefer / promote / composite / fine-tune export** (OCR lifecycle package — shipped); **detection fine-tune export** (candidate — extend export to approved/rejected Detect findings)
 - **Preprocessing** — visual declutter (human, on by default at import + explicit re-apply) vs OCR optimisation (`gentle_contrast` only today, off by default; other OCR profiles deferred) — see **Preprocessing system** above
 - **Notebook corpus** — contracts runtime-normative; bulk import supported; import recovery / inbox as the user-facing continuation
 - **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX

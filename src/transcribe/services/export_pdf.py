@@ -116,6 +116,15 @@ class _PdfBuilder:
         self._ensure_space(self.fontsize * em)
         self.y += self.fontsize * em
 
+    def add_cover_image(self, part: ExportPart) -> None:
+        path = part.cover_image_path
+        if path is None or not path.is_file():
+            return
+        self._new_page()
+        assert self.page is not None
+        rect = pymupdf.Rect(self.margin, self.margin, _PAGE_W - self.margin, _PAGE_H - self.margin)
+        self.page.insert_image(rect, filename=str(path), keep_proportion=True)
+
     def add_title_page(self) -> None:
         self._new_page()
         self._write_textbox(self.document.title, fontsize=self.title_size)
@@ -171,9 +180,13 @@ class _PdfBuilder:
                 self._gap(self.typo.paragraph_spacing_em)
 
     def build(self) -> bytes:
+        if self.options.cover_image and len(self.document.parts) == 1:
+            self.add_cover_image(self.document.parts[0])
         if self.options.title_page:
             self.add_title_page()
         for part in self.document.parts:
+            if self.options.cover_image and self.document.is_bundle:
+                self.add_cover_image(part)
             if self.document.is_bundle or self.options.title_page:
                 self.add_part_heading(part)
             elif self.page is None:

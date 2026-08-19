@@ -91,39 +91,78 @@ class DetectionService:
             result["auto_tagged_pages"] = tagged
         return result
 
-    def apply_tags_from_published(self, detector_id: str) -> int:
-        """Union ``finding_type`` onto span pages for non-rejected published findings."""
+    def finding_tag_slug(
+        self,
+        detector_id: str,
+        *,
+        finding_type: str | None = None,
+    ) -> str:
         custom = load_custom_detectors()
         detector = resolve_detector(detector_id, custom_detectors=custom)
-        findings = self.list_findings(detector_id)
-        if not findings:
-            return 0
-        page_ids: list[str] = []
-        seen: set[str] = set()
-        for finding in findings:
-            if finding.review_status == "rejected":
-                continue
-            for pid in self._page_ids_between(finding.start_page_id, finding.end_page_id):
-                if pid in seen:
-                    continue
-                seen.add(pid)
-                page_ids.append(pid)
-        if not page_ids:
-            return 0
-        from transcribe.services.tags import TagService
         from transcribe.tagging.kernel import normalize_slug
 
         slug_source = (
-            detector.finding_type if detector is not None else detector_id
-        ) or detector_id
-        slug = normalize_slug(slug_source)
-        label = detector.title if detector is not None else slug
-        return TagService().union_page_tags(
+            (detector.finding_type if detector is not None else finding_type) or detector_id
+        )
+        return normalize_slug(slug_source)
+
+    def finding_tag_label(self, detector_id: str, *, slug: str) -> str:
+        custom = load_custom_detectors()
+        detector = resolve_detector(detector_id, custom_detectors=custom)
+        return detector.title if detector is not None else slug
+
+    def span_page_ids(self, finding: DetectionFinding) -> list[str]:
+        return self._page_ids_between(finding.start_page_id, finding.end_page_id)
+
+    def pages_missing_tag(self, page_ids: list[str], slug: str) -> list[str]:
+        project = self.project_service.load(reconcile=False)
+        tags_by_page = {p.page_id: set(p.tags) for p in project.pages}
+        return [pid for pid in page_ids if slug not in tags_by_page.get(pid, set())]
+
+    def apply_finding_tag(
+        self,
+        finding: DetectionFinding,
+        page_ids: list[str],
+        *,
+        approve_finding: bool = False,
+    ) -> int:
+        """Union the finding tag onto ``page_ids``. Returns how many pages changed."""
+        if finding.review_status == "rejected":
+            return 0
+        slug = self.finding_tag_slug(finding.detector_id, finding_type=finding.finding_type)
+        missing = self.pages_missing_tag(page_ids, slug)
+        if not missing:
+            if approve_finding:
+                self.set_review_status(finding.detector_id, finding.finding_id, "approved")
+            return 0
+        from transcribe.services.tags import TagService
+
+        label = self.finding_tag_label(finding.detector_id, slug=slug)
+        changed = TagService().union_page_tags(
             self.project_service,
-            page_ids,
+            missing,
             slug,
             label=label,
         )
+        if approve_finding:
+            self.set_review_status(finding.detector_id, finding.finding_id, "approved")
+        return changed
+
+    def apply_tags_from_published(self, detector_id: str) -> int:
+        """Union ``finding_type`` onto span pages for non-rejected published findings."""
+        findings = self.list_findings(detector_id)
+        if not findings:
+            return 0
+        changed = 0
+        for finding in findings:
+            if finding.review_status == "rejected":
+                continue
+            changed += self.apply_finding_tag(
+                finding,
+                self.span_page_ids(finding),
+                approve_finding=False,
+            )
+        return changed
 
     def list_findings(self, detector_id: str) -> list[DetectionFinding]:
         published = self.storage.read_published(detector_id)

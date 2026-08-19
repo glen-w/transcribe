@@ -85,7 +85,8 @@ def test_shared_jump_helper_targets_reading_not_review() -> None:
     views = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
     detect = Path("src/transcribe/ui/run_detection.py").read_text(encoding="utf-8")
     assert 'st.session_state["ui_mode"] = "Reading"' in jumps
-    assert "Review" not in jumps
+    assert 'st.session_state["ui_mode"] = "Review"' not in jumps
+    assert "def jump_to_reading" in jumps
     assert "jump_to_reading" in views
     assert 'return_mode="Review"' not in views
     assert 'return_mode="Detect"' in detect

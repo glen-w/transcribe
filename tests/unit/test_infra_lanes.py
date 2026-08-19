@@ -43,6 +43,7 @@ def test_ci_workflow_runs_python_matrix_and_compose():
     assert "make test-smoke" in text
     assert "make test-fast" in text
     assert "make test-coverage" in text
+    assert "make docs" in text
     assert "assert_compose_bind.sh" in text
     assert "ruff check src/transcribe" in text
     assert "release-checks:" in text
@@ -57,7 +58,7 @@ def test_package_version_matches_pyproject():
     proj_ver = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
     assert init_ver and proj_ver
     assert init_ver.group(1) == proj_ver.group(1)
-    assert init_ver.group(1) == "0.8.5"
+    assert init_ver.group(1) == "0.8.6"
 
 
 def test_i2_i3_release_kit_files_exist():
@@ -73,6 +74,10 @@ def test_i2_i3_release_kit_files_exist():
         "scripts/release/assert_compose_bind.sh",
         "docs/dev/release_governance.md",
         "docs/dev/dependency_audit.md",
+        "docs/dev/rtd_go_live_checklist.md",
+        "docs/conf.py",
+        "scripts/release/build_docs.sh",
+        ".readthedocs.yml",
         ".coveragerc",
         ".pre-commit-config.yaml",
     ):

@@ -8,6 +8,7 @@ from typing import Any
 import streamlit as st
 
 from transcribe.ui.components.empty_state import EmptyCta, EmptyKind, render_empty_state
+from transcribe.ui import icons as ic
 from transcribe.ui.navigation import (
     VIEW_PAGE_PANELS,
     VIEW_PANEL_PENDING_KEY,
@@ -32,6 +33,7 @@ def render_analyse_cta(*, key: str = "view_analyse_cta") -> None:
             on_click=_go,
             key=key,
             primary=True,
+            icon=ic.ANALYTICS,
         ),
     )
 
@@ -110,6 +112,7 @@ def render_notebook_view_page(
                 on_click=_go,
                 key=analyse_cta_key,
                 primary=True,
+                icon=ic.ANALYTICS,
             )
         render_empty_state(
             kind=empty_kind,

@@ -66,6 +66,8 @@ class CompositeResult:
     prompt_id: str = ""
     prompt_version: str = ""
     prompt_sha256: str = ""
+    prompt_text: str = ""
+    model_digest: str | None = None
 
 
 def _format_candidates(attempts: list[OCRAttempt]) -> str:
@@ -210,7 +212,13 @@ def run_composite(
     if len(vision) < 2:
         return CompositeResult(text=None, note="insufficient_candidates")
     prompt_id, prompt_version, prompt_text = render_composite_prompt(vision)
+    prompt_sha = sha256_text(prompt_text)
+    digest: str | None = None
     cli = client or OllamaTextClient(base_url=base_url)
+    try:
+        digest = cli.model_digest(model_name)
+    except Exception:  # noqa: BLE001 — digest is best-effort provenance
+        digest = None
     try:
         raw = cli.generate(
             model=model_name,
@@ -223,7 +231,9 @@ def run_composite(
             note="provider_failed",
             prompt_id=prompt_id,
             prompt_version=prompt_version,
-            prompt_sha256=sha256_text(prompt_text),
+            prompt_sha256=prompt_sha,
+            prompt_text=prompt_text,
+            model_digest=digest,
         )
     text = narrow_unwrap_fence(raw if isinstance(raw, str) else str(raw)).strip()
     note = validate_composite_against_union(
@@ -236,14 +246,18 @@ def run_composite(
             note=note,
             prompt_id=prompt_id,
             prompt_version=prompt_version,
-            prompt_sha256=sha256_text(prompt_text),
+            prompt_sha256=prompt_sha,
+            prompt_text=prompt_text,
+            model_digest=digest,
         )
     return CompositeResult(
         text=text,
         note=None,
         prompt_id=prompt_id,
         prompt_version=prompt_version,
-        prompt_sha256=sha256_text(prompt_text),
+        prompt_sha256=prompt_sha,
+        prompt_text=prompt_text,
+        model_digest=digest,
     )
 
 

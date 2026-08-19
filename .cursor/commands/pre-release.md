@@ -29,6 +29,7 @@ When present under `scripts/release/` or `scripts/`, prefer them. If missing on 
 | Check | Script (when present) |
 |-------|------------------------|
 | Compose loopback bind | `make docker-smoke` / `bash scripts/release/assert_compose_bind.sh` |
+| Sphinx HTML | `make docs` / `bash scripts/release/build_docs.sh` |
 | Denylist / secrets | `bash scripts/secrets_check.sh` |
 | Tracked data allowlist | `python3 scripts/release/check_tracked_data.py` |
 | Stale refs + TODO gate | `bash scripts/release/stale_refs.sh` |

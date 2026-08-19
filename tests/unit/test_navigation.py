@@ -42,15 +42,16 @@ def test_page_spec_table_and_sections() -> None:
         "Transcribe",
         "Review",
         "Analyse",
+        "Detect",
         "Export",
     )
     assert VIEW_MODES == (
         "Reading",
         "Overview",
+        "Summaries",
+        "Ask",
         "Themes",
         "Mood",
-        "Summaries",
-        "Detect",
     )
     assert SYSTEM_MODES == ("Settings", "Diagnostics")
     assert len(PAGE_SPECS) == len(PAGE_SPECS_BY_ID)
@@ -76,20 +77,20 @@ def test_analyse_is_workflow_none_overview_is_view_notebook() -> None:
 
 
 def test_nav_labels_short_titles_long() -> None:
+    assert page_spec_for("Reading").nav_label == "Read"
     assert page_spec_for("Mood").nav_label == "Mood"
     assert page_spec_for("Mood").title == "Mood & tone"
     assert page_spec_for("Themes").nav_label == "Themes"
     assert page_spec_for("Summaries").nav_label == "Summaries"
     assert page_spec_for("Summaries").required_context == "notebook"
+    assert page_spec_for("Ask").nav_label == "Ask"
+    assert page_spec_for("Ask").title == "Ask notebook"
+    assert page_spec_for("Ask").required_context == "notebook"
     people = view_panel_for("Themes", "people")
-    ask = view_panel_for("Summaries", "ask")
     moments = view_panel_for("Mood", "moments")
     assert people is not None
     assert people.label == "People"
     assert people.title == "People & places"
-    assert ask is not None
-    assert ask.label == "Ask"
-    assert ask.title == "Ask notebook"
     assert moments is not None
     assert moments.label == "Moments"
 
@@ -97,13 +98,13 @@ def test_nav_labels_short_titles_long() -> None:
 def test_view_panel_aliases_open_parent_section() -> None:
     assert normalize_ui_mode("Moments") == "Mood"
     assert normalize_ui_mode("People") == "Themes"
-    assert normalize_ui_mode("Ask") == "Summaries"
+    assert normalize_ui_mode("Ask") == "Ask"
     assert page_spec_for("People") is page_spec_for("Themes")
     assert destination_for_mode("Moments") == ("Mood", "moments")
     assert destination_for_mode("People") == ("Themes", "people")
-    assert destination_for_mode("Ask") == ("Summaries", "ask")
+    assert destination_for_mode("Ask") == ("Ask", None)
     assert destination_for_mode("Themes") == ("Themes", None)
-    assert set(VIEW_PAGE_PANELS) == {"Themes", "Mood", "Summaries"}
+    assert set(VIEW_PAGE_PANELS) == {"Themes", "Mood"}
     session: dict = {}
     assert apply_destination_to_session(session, "People") == "Themes"
     assert session["ui_mode"] == "Themes"
@@ -136,6 +137,7 @@ def test_reading_is_view_not_workflow() -> None:
     assert not is_workflow_mode("Reading")
     assert not is_open_notebook_workflow("Reading")
     assert is_open_notebook_workflow("Review")
+    assert is_open_notebook_workflow("Detect")
     assert is_open_notebook_workflow("Export")
     assert not is_open_notebook_workflow("Analyse")
 
@@ -150,8 +152,11 @@ def test_nav_enabled_and_disabled_help() -> None:
     assert not nav_enabled(themes, has_notebook=True, has_published=False)
     assert nav_enabled(themes, has_notebook=True, has_published=True)
     summaries = page_spec_for("Summaries")
+    ask = page_spec_for("Ask")
     assert nav_enabled(summaries, has_notebook=True, has_published=False)
     assert not nav_enabled(summaries, has_notebook=False, has_published=False)
+    assert nav_enabled(ask, has_notebook=True, has_published=False)
+    assert not nav_enabled(ask, has_notebook=False, has_published=False)
     assert nav_disabled_help(themes, has_notebook=False) == NAV_HELP_SELECT_NOTEBOOK
     assert nav_disabled_help(themes, has_notebook=True) == NAV_HELP_ANALYSE_FIRST
     assert nav_disabled_help(overview, has_notebook=False) == NAV_HELP_SELECT_NOTEBOOK

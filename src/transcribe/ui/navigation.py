@@ -109,6 +109,17 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         required_context="none",
     ),
     PageSpec(
+        id="Detect",
+        nav_label="Detect",
+        title="Detect",
+        description=(
+            "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
+            "and custom phenomena."
+        ),
+        section="workflow",
+        required_context="notebook",
+    ),
+    PageSpec(
         id="Export",
         nav_label="Export",
         title="Export",
@@ -118,7 +129,7 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
     ),
     PageSpec(
         id="Reading",
-        nav_label="Reading",
+        nav_label="Read",
         title="Reading",
         description="Read pages chronologically without editing.",
         section="view",
@@ -129,6 +140,24 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         nav_label="Overview",
         title="Overview",
         description="Notebook snapshot: counts, diversity, entities, themes, and page ink.",
+        section="view",
+        required_context="notebook",
+    ),
+    PageSpec(
+        id="Summaries",
+        nav_label="Summaries",
+        title="Summaries",
+        description="Highlights, summary, and insights for this notebook.",
+        section="view",
+        required_context="notebook",
+    ),
+    PageSpec(
+        id="Ask",
+        nav_label="Ask",
+        title="Ask notebook",
+        description=(
+            "Ask a question grounded in this notebook. Ad-hoc Ask does not update batch health."
+        ),
         section="view",
         required_context="notebook",
     ),
@@ -147,25 +176,6 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         description="Emotion, affect tension, hedging, and salient quotes.",
         section="view",
         required_context="notebook_published",
-    ),
-    PageSpec(
-        id="Summaries",
-        nav_label="Summaries",
-        title="Summaries",
-        description="Highlights, summary, insights, and questions for this notebook.",
-        section="view",
-        required_context="notebook",
-    ),
-    PageSpec(
-        id="Detect",
-        nav_label="Detect",
-        title="Detect",
-        description=(
-            "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
-            "and custom phenomena."
-        ),
-        section="view",
-        required_context="notebook",
     ),
     PageSpec(
         id="Settings",
@@ -227,7 +237,6 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "App": "Settings",
     "Moments": "Mood",
     "People": "Themes",
-    "Ask": "Summaries",
 }
 
 VIEW_PANEL_PENDING_KEY = "view_panel_pending"
@@ -272,27 +281,12 @@ VIEW_PAGE_PANELS: dict[str, tuple[ViewPanel, ...]] = {
             "Salient quotes from the notebook.",
         ),
     ),
-    "Summaries": (
-        ViewPanel(
-            "summaries",
-            "Summaries",
-            "Summaries",
-            "Highlights, summary, and insights for this notebook.",
-        ),
-        ViewPanel(
-            "ask",
-            "Ask",
-            "Ask notebook",
-            "Ask a question grounded in this notebook. Ad-hoc Ask does not update batch health.",
-        ),
-    ),
 }
 
 # Former top-level View pages that now open a parent page + in-page section.
 _VIEW_PANEL_ALIASES: dict[str, tuple[str, str]] = {
     "Moments": ("Mood", "moments"),
     "People": ("Themes", "people"),
-    "Ask": ("Summaries", "ask"),
 }
 
 NAV_HELP_SELECT_NOTEBOOK = "Select a notebook"

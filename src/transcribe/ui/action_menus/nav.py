@@ -34,6 +34,8 @@ def clear_page_viewer_state(session: dict | None = None) -> None:
     state.pop("view_highlight", None)
     state.pop("view_entries_base", None)
     state.pop("viewer_tag_filter", None)
+    state.pop("viewer_nav_scope", None)
+    state.pop("viewer_nav_scope_control", None)
 
 
 def validate_project_root(
@@ -95,6 +97,12 @@ def chronological_page_ids(project: Project) -> list[str]:
             undated.append(page.page_id)
     dated.sort(key=lambda row: (row[0], row[1]))
     return [page_id for _key, _index, page_id in dated] + undated
+
+
+def notebook_view_entries(project: Project, project_root: str | Path) -> list[dict[str, str]]:
+    """Reading-mode Prev/Next entries for one notebook (chronological order)."""
+    root = str(project_root)
+    return [{"page_id": pid, "project_root": root} for pid in chronological_page_ids(project)]
 
 
 def first_valid_open_page(

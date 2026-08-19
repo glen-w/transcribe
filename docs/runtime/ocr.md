@@ -37,7 +37,44 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
   --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
 ```
 
-**UI:** **Compare models** (multi-select) → Start multipass compare (background). Vision-phase cleanup defaults **off** unless you opt in. Rank + optional composite use the text/cleanup model. Prefer / Promote in Review: [page-result](../contracts/page-result.md). Preference ledger: [ocr-preference](../contracts/ocr-preference.md).
+**UI:** **Compare models** (multi-select) → Start multipass compare (background). Vision-phase cleanup defaults **off** unless you opt in. Rank + optional **merged draft** (composite) use the text/cleanup model. Review the draft in the **Transcription** tab beside the scan: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). Notebook OCR settings (below) and contract detail: [page-result](../contracts/page-result.md). Preference ledger: [ocr-preference](../contracts/ocr-preference.md).
+
+## Notebook OCR settings
+
+Per-notebook overrides for **When setting a notebook default** (prefer mode) and **Seed transcription from merged draft after multipass** (`auto_activate_composite`). Workspace defaults seed new notebooks; these fields live on `project.json` → `settings`.
+
+| Where in UI | Notes |
+|-------------|-------|
+| **Workflow → Review** → **Other** tab | **OCR settings** — labels match the Review workbench |
+| **Reading / Archive** page viewer → **Compare OCR attempts** | Same semantics; slightly shorter control labels |
+| **Workflow → Transcribe** → **Advanced** (single-model / batch) | Prefer mode + auto-activate composite for the next run |
+| **Workflow → Transcribe** → multipass row | **Do not auto-activate composite** inverts the seed checkbox for that compare only |
+
+Changes apply to the **next** multipass or Prefer action; an active job keeps its frozen plan.
+
+### When setting a notebook default
+
+Controls what happens when you **Prefer** an OCR attempt (or when multipass auto-activates a merged draft under `prefer_is_promote`). **Promote** always sets the active attempt without clearing your edit overlay.
+
+| UI label (Review) | Mode | Behaviour |
+|-------------------|------|-----------|
+| **Notebook default = current text** (default) | `prefer_is_promote` | Prefer sets both notebook default (`preferred_attempt_id`) and **current text** (`active_attempt_id`). Effective text follows the active attempt unless you have an edit in Transcription. |
+| **Notebook default only (stats / fine-tune)** | `prefer_only` | Prefer records the notebook default and preference stats only — **does not** change current text or what Transcription shows. Use when tagging a favourite model for export / ledger without switching the live reading. |
+| **Notebook default + current, with edit gate** | `prefer_promote_with_edit_gate` | Like the default, but if Transcription already has a human edit, Prefer asks **Keep edit overlay** vs **Adopt new (clear edit)** before applying. |
+
+Preference history and rollup stats: [ocr-preference](../contracts/ocr-preference.md).
+
+### Seed transcription from merged draft after multipass
+
+When **on** (default), multipass activation after a successful **merged draft** (composite):
+
+1. Sets the merged draft as the **active** attempt (and notebook default when prefer mode is **Notebook default = current text**).
+2. Seeds the Review **Transcription** buffer from that draft when there is no edit overlay.
+3. Records an `auto_composite` event in the preference ledger.
+
+When **off**, multipass still ranks vision attempts and builds a merged draft for review, but does **not** auto-activate it. Pages with no prior active attempt fall back to the best-ranked raw vision output. Use this when you want every page reviewed manually before the merged draft becomes current text.
+
+CLI equivalent: omit `--no-auto-composite` (default seeds) or pass `--no-auto-composite` to disable.
 
 ## Batch OCR
 
@@ -52,7 +89,7 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
 
 ## Review after OCR
 
-**Review** is the needs-attention queue (dates, empty text, failures). **Compare OCR attempts** for Prefer / Promote. Edits live in `edited_text` and survive re-runs. Golden path detail: [user_guide.md](../user_guide.md).
+**Review** is the needs-attention queue (dates, empty text, failures). Right-pane tabs walk **Transcription → Date → Tags → Other** beside the scan; layout and evidence hierarchy: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). **Compare OCR attempts** for Prefer / Promote. Edits live in `edited_text` and survive re-runs. Golden path detail: [user_guide.md](../user_guide.md).
 
 ## Related
 

@@ -534,6 +534,27 @@ def inject_global_styles() -> None:
         margin: 0 !important;
         line-height: inherit !important;
     }
+    /* Page jump "Go" — keep the label horizontal in tight nav columns */
+    [class*="st-key-rw_jump"] div[data-testid="stHorizontalBlock"],
+    [class*="st-key-page_viewer_jump"] div[data-testid="stHorizontalBlock"] {
+        align-items: flex-end !important;
+    }
+    [class*="st-key-rw_jump_go"] [data-testid="stFormSubmitButton"] > button,
+    [class*="st-key-pv_jump_go"] [data-testid="stFormSubmitButton"] > button {
+        white-space: nowrap !important;
+        min-width: 2.75rem !important;
+    }
+    [class*="st-key-rw_jump_go"] [data-testid="stFormSubmitButton"] > button p,
+    [class*="st-key-pv_jump_go"] [data-testid="stFormSubmitButton"] > button p {
+        white-space: nowrap !important;
+    }
+    /* Review workbench: keep the scan large but inside the viewport */
+    [class*="st-key-review_scan"] img {
+        max-height: 55vh;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+    }
 </style>
 """,
         unsafe_allow_html=True,
@@ -596,6 +617,8 @@ def set_ui_mode(mode: str) -> None:
     st.session_state.pop("view_entries", None)
     st.session_state.pop("view_highlight", None)
     st.session_state.pop("page_return_mode", None)
+    st.session_state.pop("viewer_nav_scope", None)
+    st.session_state.pop("viewer_nav_scope_control", None)
     st.rerun()
 
 
@@ -754,6 +777,8 @@ def render_mode_nav(
                 st.session_state.pop("view_page_ids", None)
                 st.session_state.pop("view_entries", None)
                 st.session_state.pop("view_highlight", None)
+                st.session_state.pop("viewer_nav_scope", None)
+                st.session_state.pop("viewer_nav_scope_control", None)
         else:
             st.session_state.pop("root", None)
     else:

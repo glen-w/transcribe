@@ -21,6 +21,7 @@ from transcribe.providers.ollama import (
 )
 from transcribe.runtime_paths import PATHS, default_ollama_base_url
 from transcribe.services.export import ExportService
+from transcribe.services.export_options import BODY_FONT_CHOICES
 from transcribe.services.job import build_coordinator
 from transcribe.services.project import ProjectService, open_project_paths
 
@@ -152,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Export profile name (default/readable/compact/large_print or user)",
     )
-    p_export.add_argument("--body-font", choices=["serif", "sans", "mono"], default=None)
+    p_export.add_argument("--body-font", choices=list(BODY_FONT_CHOICES), default=None)
     p_export.add_argument("--body-size", type=float, default=None)
     p_export.add_argument("--line-height", type=float, default=None)
     p_export.add_argument("--margin", type=float, default=None)

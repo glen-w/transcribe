@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from transcribe.ui import icons as ic
 from transcribe.ui.action_menus.catalog import (
     ACTIONS,
     SECTION_ALLOWLISTS,
@@ -192,6 +193,7 @@ def render_interface_panel() -> None:
             key="iface_save",
             type="primary",
             disabled=draft.recovery,
+            icon=ic.SAVE,
         )
     with c2:
         restore_clicked = st.button(
@@ -200,9 +202,10 @@ def render_interface_panel() -> None:
             help=widget_help(
                 "Persist built-in defaults to disk (same conflict protection as Save)."
             ),
+            icon=ic.RESTORE,
         )
     with c3:
-        reload_clicked = st.button("Reload saved settings", key="iface_reload")
+        reload_clicked = st.button("Reload saved settings", key="iface_reload", icon=ic.REFRESH)
 
     if save_clicked and not draft.recovery:
         _pull_widgets_into_draft()

@@ -161,6 +161,7 @@ def render_notebook_places_tab(
     runtime: RuntimePaths,
     ner_health: ModuleHealth | None = None,
     entity_sentiment_health: ModuleHealth | None = None,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -204,7 +205,8 @@ def render_notebook_places_tab(
             return
         st.divider()
         render_entity_sentiment_section(payload)
-        render_advanced_payload("entity_sentiment", payload)
+        if show_advanced:
+            render_advanced_payload("entity_sentiment", payload)
 
 
 def render_corpus_places_page(runtime: RuntimePaths) -> None:

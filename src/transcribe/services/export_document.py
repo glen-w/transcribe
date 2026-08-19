@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import mimetypes
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Sequence
 
 from transcribe.domain.fingerprint import canonical_json_bytes
 from transcribe.domain.models import PageResult, Project
+from transcribe.paths import ProjectPaths
 from transcribe.services.export_options import ExportOptions
 
 
@@ -19,6 +23,34 @@ class ExportSnapshot:
     project: Project
     results: dict[str, PageResult | None]
     content_revision: str = ""
+    cover_image_path: Path | None = None
+
+
+def resolve_cover_image_path(paths: ProjectPaths, project: Project) -> Path | None:
+    """Return the notebook cover page scan path, if present on disk."""
+    from transcribe.services.thumbnails import ThumbnailService
+
+    cover_id = ThumbnailService(paths).cover_page_id(project)
+    if not cover_id:
+        return None
+    page = next((p for p in project.pages if p.page_id == cover_id), None)
+    if page is None:
+        return None
+    render = project.renders.get(page.active_render_id)
+    if render is None:
+        return None
+    src = paths.resolve_contained(render.image_relpath)
+    return src if src.is_file() else None
+
+
+def cover_image_data_uri(path: Path) -> str:
+    mime = mimetypes.guess_type(str(path))[0] or "image/png"
+    data = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{data}"
+
+
+def cover_image_media_type(path: Path) -> str:
+    return mimetypes.guess_type(str(path))[0] or "image/png"
 
 
 def _slugify(title: str, fallback: str) -> str:
@@ -62,6 +94,7 @@ class ExportPart:
     slug: str
     date_start_label: str | None = None
     date_end_label: str | None = None
+    cover_image_path: Path | None = None
     sections: tuple[ExportSection, ...] = ()
 
 
@@ -116,6 +149,8 @@ def build_part_from_snapshot(
     project = snapshot.project
     sections: list[ExportSection] = []
     for i, page in enumerate(project.pages):
+        if options.exclude_ignored_pages and page.ignored:
+            continue
         result = snapshot.results.get(page.page_id)
         text = (result.effective_text() if result else None) or ""
         stripped = text.strip()
@@ -152,6 +187,7 @@ def build_part_from_snapshot(
         slug=slug,
         date_start_label=start_label,
         date_end_label=end_label,
+        cover_image_path=snapshot.cover_image_path,
         sections=tuple(sections),
     )
 
@@ -181,6 +217,7 @@ def build_document(
                 slug=slug,
                 date_start_label=part.date_start_label,
                 date_end_label=part.date_end_label,
+                cover_image_path=part.cover_image_path,
                 sections=part.sections,
             )
         parts.append(part)
@@ -201,8 +238,9 @@ def build_document(
 
 def document_css(options: ExportOptions) -> str:
     typo = options.typography
-    return f"""
-:root {{
+    font_import = typo.google_fonts_css_import
+    import_block = f"{font_import}\n\n" if font_import else ""
+    return f"""{import_block}:root {{
   --body-font: {typo.css_font_family};
   --body-size: {typo.body_size_pt}pt;
   --line-height: {typo.line_height};
@@ -243,6 +281,16 @@ p {{
 }}
 .part-title-page {{
   margin: 2em 0 2em;
+}}
+.cover-image {{
+  page-break-after: always;
+  text-align: center;
+  margin: 0 0 2em;
+}}
+.cover-image img {{
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
 }}
 .section {{
   {"page-break-before: always;" if options.page_breaks == "per_page" else ""}

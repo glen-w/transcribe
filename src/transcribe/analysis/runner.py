@@ -53,7 +53,7 @@ from transcribe.analysis.parents import (
 from transcribe.analysis.storage import AnalysisStorage
 from transcribe.config.facade import bind_operation_config, snapshot_for_operation
 from transcribe.persistence.locks import mutation_lock
-from transcribe.ports import Clock, IdGenerator
+from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.services.project import ProjectService
 
 
@@ -425,11 +425,38 @@ class AnalysisRunner:
             )
         )
 
+    def planned_content_fingerprint(
+        self,
+        module_id: str,
+        *,
+        project: Any | None = None,
+    ) -> str | None:
+        """Current analysis document content fingerprint for UI staleness checks."""
+        from transcribe.analysis.document import content_fingerprint as doc_content_fingerprint
+
+        modules = get_registered_modules()
+        module = modules.get(module_id)
+        if module is None:
+            raise KeyError(f"unknown module_id: {module_id}")
+        project = project or self.project_service.load(reconcile=True)
+        try:
+            document = _build_document(project, self.project_service, module.module_id)
+        except AnalysisDocumentError:
+            return None
+        if module.module_id in ELIGIBILITY_REQUIRED:
+            filtered, skip, _ = _apply_eligibility(document)
+            if skip is not None:
+                return doc_content_fingerprint(document)
+            assert filtered is not None
+            document = filtered
+        return doc_content_fingerprint(document)
+
     def run_module(
         self,
         module_id: str,
         *,
         question_text: str | None = None,
+        text_model_name: str | None = None,
     ) -> dict[str, Any]:
         modules = get_registered_modules()
         module = modules.get(module_id)
@@ -455,6 +482,7 @@ class AnalysisRunner:
                     module,
                     project=project,
                     question_text=question_text,
+                    text_model_name=text_model_name,
                 )
         except Exception as exc:
             _adhoc_progress_log(
@@ -483,13 +511,15 @@ class AnalysisRunner:
         project: Any,
         question_text: str | None,
         llm_ctx: TextLLMContext | None | object = _UNSET,
+        text_model_name: str | None = None,
     ) -> dict[str, Any]:
         if llm_ctx is _UNSET:
             resolved_llm: TextLLMContext | None = None
             if module.module_id in LLM_MODULES:
                 resolved_llm = bind_text_llm_context(
                     text_model_name=resolve_text_model_name(
-                        getattr(project.settings, "text_model_name", None)
+                        getattr(project.settings, "text_model_name", None),
+                        override=text_model_name,
                     )
                     or None,
                     base_url=ollama_base_url_for_binding(
@@ -677,6 +707,7 @@ class AnalysisRunner:
             resolved_model_digest=resolved_digest,
             llm=llm_obj,
             evidence=evidence,
+            recorded_at=to_iso(self.clock.now()),
         )
         return self._publish_terminal(
             module=module,
@@ -991,6 +1022,7 @@ class AnalysisRunner:
             lexicon_or_model=_module_lexicon(module),
             resolved_model_digest=resolved_digest,
             llm=llm_obj,
+            recorded_at=to_iso(self.clock.now()),
         )
         return self._publish_terminal(
             module=module,

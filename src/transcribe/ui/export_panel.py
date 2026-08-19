@@ -20,11 +20,14 @@ from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.archive import ArchiveService
 from transcribe.services.export import EpubDependencyError, ExportService
 from transcribe.services.export_options import (
+    BODY_FONT_CHOICES,
     EXPORT_FORMATS,
     ExportOptions,
     ExportTypography,
+    body_font_label,
 )
 from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.ui import icons as ic
 
 
 def _path_read(path: Path) -> bytes:
@@ -56,6 +59,23 @@ def _render_export_panel_body(
     root: str,
     archive: ArchiveService | None = None,
 ) -> None:
+    notebook_tab, finetune_tab = st.tabs(["Notebook", "Fine-tune dataset"])
+    with notebook_tab:
+        _render_notebook_export_tab(
+            runtime, paths, projects, project, root, archive=archive
+        )
+    with finetune_tab:
+        _render_finetune_export_tab(paths, projects)
+
+
+def _render_notebook_export_tab(
+    runtime: RuntimePaths,
+    paths,
+    projects: ProjectService,
+    project,
+    root: str,
+    archive: ArchiveService | None = None,
+) -> None:
     view = get_config()
     export_cfg = view.effective.export
     active_profile = view.effective.activations.export
@@ -74,7 +94,7 @@ def _render_export_panel_body(
             key="export_profile_select",
         )
     with col_b:
-        if st.button("Activate profile", key="export_profile_activate"):
+        if st.button("Activate profile", key="export_profile_activate", icon=ic.ACTIVATE):
             try:
                 loaded = load_workspace_settings()
                 load_profile_overlay("export", chosen_profile)
@@ -99,7 +119,9 @@ def _render_export_panel_body(
         st.session_state["export_page_breaks"] = export_cfg.page_breaks
         st.session_state["export_include_dates"] = export_cfg.include_dates
         st.session_state["export_include_blank"] = export_cfg.include_blank_pages
+        st.session_state["export_exclude_ignored"] = export_cfg.exclude_ignored_pages
         st.session_state["export_title_page"] = export_cfg.title_page
+        st.session_state["export_cover_image"] = export_cfg.cover_image
         st.session_state["export_body_font"] = export_cfg.typography.body_font
         st.session_state["export_body_size"] = float(export_cfg.typography.body_size_pt)
         st.session_state["export_line_height"] = float(export_cfg.typography.line_height)
@@ -132,10 +154,20 @@ def _render_export_panel_body(
             "Title page",
             key="export_title_page",
         )
+        cover_image = st.checkbox(
+            "Cover image",
+            key="export_cover_image",
+            help="Use the notebook cover page scan as the first page in HTML, PDF, and EPUB.",
+        )
     with c3:
         include_blank = st.checkbox(
             "Include blank pages",
             key="export_include_blank",
+        )
+        exclude_ignored = st.checkbox(
+            "Exclude ignored pages",
+            key="export_exclude_ignored",
+            help="Omit pages marked as ignored from exported reading formats.",
         )
 
     st.markdown("#### Typography")
@@ -143,7 +175,8 @@ def _render_export_panel_body(
     with t1:
         body_font = st.selectbox(
             "Body font",
-            ["serif", "sans", "mono"],
+            BODY_FONT_CHOICES,
+            format_func=body_font_label,
             key="export_body_font",
         )
         body_size = st.number_input(
@@ -184,7 +217,7 @@ def _render_export_panel_body(
             key="export_heading_scale",
         )
 
-    if st.button("Save as workspace export defaults", key="export_save_workspace"):
+    if st.button("Save as workspace export defaults", key="export_save_workspace", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
@@ -193,7 +226,9 @@ def _render_export_panel_body(
                 page_breaks=page_breaks,  # type: ignore[arg-type]
                 include_dates=include_dates,
                 include_blank_pages=include_blank,
+                exclude_ignored_pages=exclude_ignored,
                 title_page=title_page,
+                cover_image=cover_image,
                 typography=ExportTypography(
                     body_font=body_font,  # type: ignore[arg-type]
                     body_size_pt=float(body_size),
@@ -254,7 +289,7 @@ def _render_export_panel_body(
         key="export_dest",
     )
 
-    if st.button("Export", type="primary", key="export_run"):
+    if st.button("Export", type="primary", key="export_run", icon=ic.SHARE):
         if not formats:
             st.error("Select at least one format.")
             return
@@ -266,7 +301,9 @@ def _render_export_panel_body(
             page_breaks=page_breaks,  # type: ignore[arg-type]
             include_dates=include_dates,
             include_blank_pages=include_blank,
+            exclude_ignored_pages=exclude_ignored,
             title_page=title_page,
+            cover_image=cover_image,
             typography=ExportTypography(
                 body_font=body_font,  # type: ignore[arg-type]
                 body_size_pt=float(body_size),
@@ -331,8 +368,11 @@ def _render_export_panel_body(
                 key=f"export_dl_{kind}",
             )
 
-    st.divider()
-    st.subheader("Fine-tune dataset")
+
+def _render_finetune_export_tab(
+    paths,
+    projects: ProjectService,
+) -> None:
     st.caption(
         "Export page images + preferred/active text for **external** training. "
         "See docs/finetune_export.md — Transcribe does not train models."
@@ -341,7 +381,7 @@ def _render_export_panel_body(
     ft_rejected = st.checkbox("Include rejected vision candidates", key="ft_rejected")
     ft_no_edited = st.checkbox("Skip pages with human edits", key="ft_no_edited")
     ft_hardlink = st.checkbox("Hardlink images when possible", key="ft_hardlink")
-    if st.button("Export fine-tune package", key="ft_export_btn"):
+    if st.button("Export fine-tune package", key="ft_export_btn", icon=ic.SHARE):
         from transcribe.services.finetune_export import (
             FinetuneExportOptions,
             FinetuneExportService,

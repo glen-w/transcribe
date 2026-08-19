@@ -69,6 +69,7 @@ Other contracts (including analysis-run-storage, detection-run-storage, and page
 - Source and page identity is by ID (`source_id`, `page_id`, `render_id`), not by filename alone
 - `page_index` is within-source only; it is not the notebook global order
 - Page diary dates may be auto-suggested (`date_source: extracted|inherited`) or human-approved. Invariants: `date=null` ⇒ `date_approved=true` and `date_source=null`; approved dates have `date_source=null`; unapproved dates require a source. Legacy manifests without these keys load as approved.
+- Optional additive `review_status` on each page: `unreviewed` (default when absent) \| `needs_attention` \| `reviewed` \| `skipped`. This is human OCR-review state, distinct from date approval. `reviewed` is valid only while the page-result fingerprints still match the current effective text and OCR evidence ([page-result.md](page-result.md)). Writers omit the key when `unreviewed`.
 
 Writers load → modify → validate → atomically replace `project.json` under the mutation lock. Callers must not wholesale-write a stale in-memory `Project` that was loaded before an unrelated settings/metadata change.
 

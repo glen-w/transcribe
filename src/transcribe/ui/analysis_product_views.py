@@ -17,6 +17,7 @@ from transcribe.analysis.health import AnalysisHealth, ModuleHealth
 from transcribe.config.models import OVERVIEW_CARD_IDS
 from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.analysis_compare import COMPARABLE_SPECS, extract_foundations_display
+from transcribe.ui import icons as ic
 from transcribe.ui.analysis_compare_view import (
     render_compare_period_controls,
     render_module_compare_charts,
@@ -42,6 +43,11 @@ from transcribe.ui.analysis_health_view import (
     product_capability_label,
     render_advanced_payload,
     render_module_unavailable,
+)
+from transcribe.ui.chart_colors import (
+    EMOTION_ORDER,
+    SENTIMENT_ORDER,
+    render_colored_bar_pairs,
 )
 from transcribe.ui.page_series_charts import maybe_jump, render_clickable_page_series
 from transcribe.ui.page_series_selection import page_id_from_unit_id
@@ -85,7 +91,7 @@ def _show_or_note(mh: ModuleHealth, *, title: str) -> dict[str, Any] | None:
 def _hub_link(label: str, mode: str, *, key: str) -> None:
     from transcribe.ui.shell import set_ui_mode
 
-    if st.button(label, key=key, type="tertiary"):
+    if st.button(label, key=key, type="tertiary", icon=ic.ARROW_FORWARD):
         set_ui_mode(mode)
 
 
@@ -100,6 +106,39 @@ def _bar_pairs(pairs: list[tuple[str, float]], *, x_name: str, y_name: str) -> N
         {x_name: [k for k, _ in pairs], y_name: [v for _, v in pairs]},
         x=x_name,
         y=y_name,
+    )
+
+
+def _chart_palettes() -> dict[str, dict[str, str]]:
+    from transcribe.config.facade import get_config
+
+    return get_config().effective.ui.chart_colors.resolved()
+
+
+def _bar_sentiment_buckets(pairs: list[tuple[str, float]]) -> None:
+    palette = _chart_palettes()["sentiment"]
+    render_colored_bar_pairs(
+        pairs,
+        x_name="tone",
+        y_name="pages",
+        palette=palette,
+        sort_order=SENTIMENT_ORDER,
+    )
+
+
+def _bar_emotion_pairs(
+    pairs: list[tuple[str, float]],
+    *,
+    x_name: str = "emotion",
+    y_name: str = "weight",
+) -> None:
+    palette = _chart_palettes()["emotion"]
+    render_colored_bar_pairs(
+        pairs,
+        x_name=x_name,
+        y_name=y_name,
+        palette=palette,
+        sort_order=EMOTION_ORDER,
     )
 
 
@@ -169,6 +208,7 @@ def render_overview_product(
     project_id: str | None = None,
     on_jump: Callable[[str], None] | None = None,
     visible_cards: Sequence[str] | None = None,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -265,7 +305,8 @@ def render_overview_product(
                     on_jump,
                 )
         _hub_link("Open Themes", "Themes", key=_ns(project_id, f"overview_to_themes_{mid}"))
-        render_advanced_payload(mid, payload)
+        if show_advanced:
+            render_advanced_payload(mid, payload)
 
     if "wordclouds" in overview_ids and "wordclouds" in card_set:
         mh = health.modules.get("wordclouds")
@@ -275,7 +316,8 @@ def render_overview_product(
                 st.markdown("**Word themes**")
                 render_wordcloud_section(payload, key_prefix=_ns(project_id, "overview_wc"))
                 _hub_link("Open Themes", "Themes", key=_ns(project_id, "overview_to_themes_wc"))
-                render_advanced_payload("wordclouds", payload)
+                if show_advanced:
+                    render_advanced_payload("wordclouds", payload)
 
     if "ner" in overview_ids and "ner" in card_set:
         mh = health.modules.get("ner")
@@ -294,7 +336,8 @@ def render_overview_product(
                 if not label_rows and not entity_rows:
                     st.caption("No named entities found.")
                 _hub_link("Open People", "People", key=_ns(project_id, "overview_to_people"))
-                render_advanced_payload("ner", payload)
+                if show_advanced:
+                    render_advanced_payload("ner", payload)
 
     if "sentiment" in overview_ids and "sentiment" in card_set:
         mh = health.modules.get("sentiment")
@@ -317,7 +360,7 @@ def render_overview_product(
                 buckets = sentiment_bucket_counts(payload)
                 if buckets:
                     st.caption("Tone mix")
-                    _bar_pairs(buckets, x_name="tone", y_name="pages")
+                    _bar_sentiment_buckets(buckets)
                 gs = payload.get("global_stats") or {}
                 if gs.get("compound_mean") is not None:
                     st.caption(f"Mean compound={float(gs['compound_mean']):.3f}")
@@ -330,7 +373,8 @@ def render_overview_product(
                     chart_key=_ns(project_id, "overview_sentiment"),
                 )
                 _hub_link("Open Mood", "Mood", key=_ns(project_id, "overview_to_mood_sent"))
-                render_advanced_payload("sentiment", payload)
+                if show_advanced:
+                    render_advanced_payload("sentiment", payload)
 
     if "epistemic_markers" in overview_ids and "epistemic_markers" in card_set:
         mh = health.modules.get("epistemic_markers")
@@ -357,7 +401,8 @@ def render_overview_product(
                     chart_key=_ns(project_id, "overview_epistemic"),
                 )
                 _hub_link("Open Mood", "Mood", key=_ns(project_id, "overview_to_mood_ep"))
-                render_advanced_payload("epistemic_markers", payload)
+                if show_advanced:
+                    render_advanced_payload("epistemic_markers", payload)
 
     handled = {
         "stats",
@@ -377,7 +422,8 @@ def render_overview_product(
         payload = _show_or_note(mh, title=mid.replace("_", " ").title())
         if payload is not None:
             st.markdown(f"**{mid.replace('_', ' ').title()}** · ready")
-            render_advanced_payload(mid, payload)
+            if show_advanced:
+                render_advanced_payload(mid, payload)
 
 
 def render_themes_product(
@@ -386,6 +432,7 @@ def render_themes_product(
     *,
     on_jump: Callable[[str], None] | None = None,
     project_id: str | None = None,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -509,7 +556,8 @@ def render_themes_product(
                     st.write(f"- **{r['label']}**: {', '.join(r['terms'])}")
         else:
             st.markdown(f"**{title}** · ready")
-        render_advanced_payload(mid, payload)
+        if show_advanced:
+            render_advanced_payload(mid, payload)
 
 
 def render_mood_product(
@@ -519,6 +567,7 @@ def render_mood_product(
     projects_dir: Path | None = None,
     project_id: str | None = None,
     on_jump: Callable[[str], None] | None = None,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -567,14 +616,14 @@ def render_mood_product(
             buckets = sentiment_bucket_counts(payload)
             if buckets:
                 st.caption("Tone mix")
-                _bar_pairs(buckets, x_name="tone", y_name="pages")
+                _bar_sentiment_buckets(buckets)
         elif mid == "emotion":
             gs = payload.get("global_stats") or {}
             st.markdown(f"**Emotion** · intensity mean {gs.get('intensity_mean', '—')}")
             labels = emotion_label_totals(payload)
             if labels:
                 st.caption("Emotion lexicon totals")
-                _bar_pairs(labels, x_name="emotion", y_name="weight")
+                _bar_emotion_pairs(labels, x_name="emotion", y_name="weight")
             rows = unit_series_rows(units, "intensity")
             if rows:
                 st.caption("Intensity across pages — click a point to open that page")
@@ -640,7 +689,7 @@ def render_mood_product(
             )
             if label_counts:
                 st.caption("Top emotion by page (neighbour-smoothed)")
-                _bar_pairs(label_counts, x_name="emotion", y_name="pages")
+                _bar_emotion_pairs(label_counts, x_name="emotion", y_name="pages")
             if rows:
                 st.caption("Click a point to open that page")
                 maybe_jump(
@@ -657,7 +706,7 @@ def render_mood_product(
             rows = unit_series_rows(units, "intensity")
             st.markdown(f"**{title}**")
             if labels:
-                _bar_pairs(labels, x_name="emotion", y_name="weight")
+                _bar_emotion_pairs(labels, x_name="emotion", y_name="weight")
             if rows:
                 st.caption("Click a point to open that page")
                 maybe_jump(
@@ -687,7 +736,8 @@ def render_mood_product(
                 project_id=project_id,
                 chart_key=_ns(project_id, f"mood_{mid}"),
             )
-        render_advanced_payload(mid, payload)
+        if show_advanced:
+            render_advanced_payload(mid, payload)
 
 
 def _page_id_for_moment(
@@ -716,6 +766,7 @@ def render_moments_product(
     *,
     on_jump: Callable[[str], None] | None = None,
     project_id: str | None = None,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -731,7 +782,8 @@ def render_moments_product(
     rows = moments_score_rows(payload, limit=16)
     if not rows:
         st.info("No salient moments found yet.")
-        render_advanced_payload("moments", payload)
+        if show_advanced:
+            render_advanced_payload("moments", payload)
         return
     st.bar_chart(
         {
@@ -756,18 +808,22 @@ def render_moments_product(
             and st.button(
                 "Jump to page",
                 key=f"moment_jump_{project_id or 'nb'}_{page_id}_{hash(quote) & 0xFFFF}",
+                type="tertiary",
+                icon=ic.ARROW_FORWARD,
             )
         ):
             on_jump(str(page_id))
     for w in env.get("warnings") or []:
         st.caption(w.get("message") or w.get("code"))
-    render_advanced_payload("moments", payload)
+    if show_advanced:
+        render_advanced_payload("moments", payload)
 
 
 def render_summaries_product(
     health: AnalysisHealth,
     synth_ids: list[str],
     *,
+    show_advanced: bool = False,
     heading: bool = True,
 ) -> None:
     if heading:
@@ -905,7 +961,8 @@ def render_summaries_product(
                 st.caption("Ready — open Advanced for details.")
         if mh.live_evidence:
             st.caption(f"{len(mh.live_evidence)} supporting citation(s)")
-        render_advanced_payload(mid, payload)
+        if show_advanced:
+            render_advanced_payload(mid, payload)
 
 
 def render_ask_product(
@@ -913,6 +970,8 @@ def render_ask_product(
     runner: Any,
     question_key: str = "ask_notebook_question",
     heading: bool = True,
+    project: Any | None = None,
+    show_advanced: bool = False,
 ) -> None:
     if heading:
         st.subheader("Ask notebook")
@@ -920,10 +979,74 @@ def render_ask_product(
             "Ask a question grounded in this notebook. Unsupported answers abstain — "
             "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
         )
+
+    chosen_model = ""
+    default_name = ""
+    if project is not None:
+        from transcribe.analysis.llm_runtime import (
+            is_unsuitable_text_model_name,
+            resolve_text_model_name,
+            suitable_text_model_names,
+        )
+        from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
+        from transcribe.ui.components.model_info import render_model_information
+
+        default_name = resolve_text_model_name(project.settings.text_model_name)
+        base_url = project.settings.base_url
+        model_key = f"{question_key}_text_model"
+
+        st.caption(
+            "Pick a local **text** Ollama model for this question "
+            "(workspace default: Settings → Models)."
+        )
+        provider = OllamaVisionProvider(base_url)
+        refresh_models = st.button("Refresh models", key=f"{question_key}_refresh_models", icon=ic.REFRESH)
+        if refresh_models:
+            invalidate_discovery_cache(base_url)
+        discovery = provider.list_models(refresh=refresh_models)
+        names = suitable_text_model_names(discovery.models)
+        if default_name and is_unsuitable_text_model_name(default_name):
+            st.warning(
+                f"Saved model `{default_name}` is vision/embedding — "
+                "choose a text model below."
+            )
+            default_name = ""
+        if names:
+            idx = names.index(default_name) if default_name in names else 0
+            chosen_model = st.selectbox(
+                "Text model",
+                options=names,
+                index=idx,
+                key=model_key,
+            )
+        else:
+            st.caption("No suitable text models discovered from Ollama.")
+            chosen_model = st.text_input(
+                "Text model name",
+                value=default_name,
+                key=model_key,
+            )
+        render_model_information(
+            discovery.models,
+            selected=chosen_model or default_name,
+            role="text",
+            key=f"{question_key}_model_info",
+        )
+        if not (chosen_model or default_name).strip():
+            st.warning("Select a text model before asking.")
+
     question = st.text_input("Question", key=question_key)
-    if st.button("Ask", disabled=not (question or "").strip(), key=f"{question_key}_go"):
+    resolved_model = (chosen_model or "").strip()
+    ask_disabled = not (question or "").strip() or (
+        project is not None and not (resolved_model or default_name).strip()
+    )
+    if st.button("Ask", disabled=ask_disabled, key=f"{question_key}_go", icon=ic.ASK):
         with st.spinner("Asking notebook…"):
-            env = runner.run_module("llm_custom_qa", question_text=question.strip())
+            env = runner.run_module(
+                "llm_custom_qa",
+                question_text=question.strip(),
+                text_model_name=resolved_model or None,
+            )
         payload = env.get("payload") or {}
         if payload.get("honesty_label"):
             st.caption(payload["honesty_label"])
@@ -950,4 +1073,75 @@ def render_ask_product(
             st.caption("Evidence citations omitted (content changed since Ask).")
         for w in env.get("warnings") or []:
             st.warning(w.get("message") or w.get("code"))
-        render_advanced_payload("ask", payload)
+        if show_advanced:
+            render_advanced_payload("ask", payload)
+
+
+def render_ask_history(
+    *,
+    storage: Any,
+    current_content_fingerprint: str | None = None,
+    show_advanced: bool = False,
+) -> None:
+    from transcribe.analysis.ask_history import list_ask_history, summarize_ask_label
+    from transcribe.analysis.envelope import filter_live_evidence
+
+    entries = list_ask_history(storage)
+    if not entries:
+        return
+
+    st.divider()
+    st.subheader("Previous questions")
+    st.caption("Saved Ask runs for this notebook (newest first).")
+
+    for entry in entries:
+        label = summarize_ask_label(entry)
+        with st.expander(label, expanded=False):
+            st.caption(format_ask_meta(entry))
+
+            stale = bool(
+                current_content_fingerprint
+                and entry.content_fingerprint
+                and entry.content_fingerprint != current_content_fingerprint
+            )
+            if stale:
+                st.caption("Notebook text changed since this answer — citations may be stale.")
+
+            if entry.answer:
+                st.markdown(entry.answer)
+            elif entry.outcome == "skipped_not_applicable":
+                st.caption("The model abstained — question unsupported by notebook text.")
+            elif entry.outcome == "failed" or entry.capability == "failed":
+                st.warning(product_capability_label(entry.capability, entry.outcome))
+            else:
+                st.caption(product_capability_label(entry.capability, entry.outcome))
+
+            evidence = entry.envelope.get("evidence") or []
+            live = filter_live_evidence(
+                evidence,
+                current_content_fingerprint=current_content_fingerprint or entry.content_fingerprint,
+            )
+            if live:
+                st.caption("Supporting passages")
+                for cite in live:
+                    st.write(cite)
+            elif evidence and not stale:
+                st.caption("Evidence citations omitted (content changed since Ask).")
+
+            for w in entry.envelope.get("warnings") or []:
+                if isinstance(w, dict):
+                    st.warning(w.get("message") or w.get("code"))
+
+            if show_advanced:
+                with st.expander("Advanced · attempt", expanded=False):
+                    st.json(entry.envelope)
+
+
+def format_ask_meta(entry: Any) -> str:
+    from transcribe.analysis.ask_history import format_ask_timestamp
+
+    parts = [format_ask_timestamp(entry.recorded_at)]
+    if entry.model:
+        parts.append(entry.model)
+    parts.append(f"outcome: {entry.outcome or 'unknown'}")
+    return " · ".join(parts)

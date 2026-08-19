@@ -5,8 +5,66 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from transcribe.services.export_document import ExportDocument, document_css
+from transcribe.services.export_document import (
+    ExportDocument,
+    ExportPart,
+    cover_image_media_type,
+    document_css,
+)
 from transcribe.services.export_options import ExportOptions
+
+
+def _cover_ext(path: Path) -> str:
+    ext = path.suffix.lower().lstrip(".")
+    return ext if ext in ("jpg", "jpeg", "png", "gif", "webp") else "png"
+
+
+def _add_cover_chapter(
+    book,
+    epub,
+    style,
+    *,
+    part: ExportPart,
+    file_stem: str,
+    spine: list,
+    chapters: list,
+    toc: list,
+    set_as_book_cover: bool = False,
+) -> None:
+    path = part.cover_image_path
+    if path is None or not path.is_file():
+        return
+    ext = _cover_ext(path)
+    image_name = f"images/{file_stem}.{ext}"
+    image_bytes = path.read_bytes()
+    if set_as_book_cover:
+        book.set_cover(image_name, image_bytes)
+    else:
+        media_type = cover_image_media_type(path)
+        image_item = epub.EpubItem(
+            uid=f"cover-img-{file_stem}",
+            file_name=image_name,
+            media_type=media_type,
+            content=image_bytes,
+        )
+        book.add_item(image_item)
+    cover_html = (
+        f"<html><head><link rel='stylesheet' href='style/default.css'/></head>"
+        f"<body><figure class='cover-image'>"
+        f"<img src='{html.escape(image_name)}' alt='{html.escape(part.title)}'/>"
+        f"</figure></body></html>"
+    )
+    cover_ch = epub.EpubHtml(
+        title="Cover",
+        file_name=f"{file_stem}-cover.xhtml",
+        lang="en",
+        content=cover_html,
+    )
+    cover_ch.add_item(style)
+    book.add_item(cover_ch)
+    spine.append(cover_ch)
+    chapters.append(cover_ch)
+    toc.append(cover_ch)
 
 
 class EpubDependencyError(RuntimeError):
@@ -62,6 +120,19 @@ def build_epub(document: ExportDocument, options: ExportOptions) -> bytes:
     toc: list = []
     chapters: list = []
 
+    if options.cover_image and len(document.parts) == 1:
+        _add_cover_chapter(
+            book,
+            epub,
+            style,
+            part=document.parts[0],
+            file_stem="cover",
+            spine=spine,
+            chapters=chapters,
+            toc=toc,
+            set_as_book_cover=True,
+        )
+
     if options.title_page:
         title_html = (
             f"<html><head><link rel='stylesheet' href='style/default.css'/></head>"
@@ -82,6 +153,17 @@ def build_epub(document: ExportDocument, options: ExportOptions) -> bytes:
 
     for part_i, part in enumerate(document.parts):
         part_toc: list = []
+        if options.cover_image and document.is_bundle:
+            _add_cover_chapter(
+                book,
+                epub,
+                style,
+                part=part,
+                file_stem=f"cover-{part.slug}",
+                spine=spine,
+                chapters=chapters,
+                toc=part_toc,
+            )
         if document.is_bundle or options.title_page:
             part_html = (
                 f"<html><head><link rel='stylesheet' href='style/default.css'/></head>"

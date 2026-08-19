@@ -5,8 +5,25 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
-from transcribe.services.export_document import ExportDocument, document_css
+from transcribe.services.export_document import (
+    ExportDocument,
+    ExportPart,
+    cover_image_data_uri,
+    document_css,
+)
 from transcribe.services.export_options import ExportOptions
+
+
+def _cover_html(part: ExportPart, *, alt: str) -> str:
+    path = part.cover_image_path
+    if path is None or not path.is_file():
+        return ""
+    src = cover_image_data_uri(path)
+    return (
+        f'<figure class="cover-image">'
+        f'<img src="{src}" alt="{html.escape(alt)}"/>'
+        f"</figure>"
+    )
 
 
 def _p(text: str) -> str:
@@ -26,6 +43,10 @@ def _p(text: str) -> str:
 def build_html(document: ExportDocument, options: ExportOptions) -> str:
     parts_html: list[str] = []
     rev = document.stamp_revision
+    if options.cover_image and len(document.parts) == 1:
+        cover = _cover_html(document.parts[0], alt=document.title)
+        if cover:
+            parts_html.append(cover)
     if options.title_page:
         parts_html.append('<header class="title-page">')
         parts_html.append(f"<h1>{html.escape(document.title)}</h1>")
@@ -37,6 +58,10 @@ def build_html(document: ExportDocument, options: ExportOptions) -> str:
         parts_html.append("</header>")
 
     for part in document.parts:
+        if options.cover_image and document.is_bundle:
+            cover = _cover_html(part, alt=part.title)
+            if cover:
+                parts_html.append(cover)
         if document.is_bundle or options.title_page:
             parts_html.append('<section class="part-title-page">')
             parts_html.append(f"<h2>{html.escape(part.title)}</h2>")

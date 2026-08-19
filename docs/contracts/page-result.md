@@ -33,17 +33,31 @@ On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export pr
 - Re-running OCR must not clear a user edit
 - Promoting / preferring an attempt must not clear `edited_text` unless the user explicitly chooses adopt-new under `prefer_promote_with_edit_gate`
 
+Optional additive page-level provenance (not per-token):
+
+- `effective_text_origin`: `ocr_attempt` \| `composite` \| `human_selected` \| `human_corrected` — how the current effective text was established. Absent on legacy files.
+- `reviewed_text_fingerprint` / `reviewed_evidence_fingerprint` — identity of effective text and OCR evidence (merge-input vision attempt ids + current composite id) when the page was marked **reviewed**. Required for a valid `reviewed` status on `PageIndex.review_status`.
+- `source_disagreement_count` / `agreement_ratio` — optional cached **source-only** alignment signals (raw vision attempts; never counting composite or the editor as votes)
+
+A stored `reviewed` is valid only while both fingerprints match. Central invalidation on write (and a load-time repair) moves `reviewed` → `needs_attention` when effective text, `active_attempt_id`, current merged draft, or newly available source OCR evidence changes. Skip is sticky; reviewed is not.
+
+## Composite / merged draft
+
+Composite attempts (`attempt_kind=composite`) are an LLM reconciliation of independent vision attempts, not another OCR vote. `source_attempt_ids` lists the vision attempts consumed. A composite is **current** iff that set equals the latest succeeded vision attempt per `(model_name, digest)` that would feed a new merge; otherwise it is **stale**. Stale composites are retained (append-only). At most one current composite is the live merged draft. User-facing name: **Merged draft**. Rank lists never include composites.
+
 ## Prefer / promote
 
-Prefer modes (workspace default + per-notebook OCR override):
+Prefer modes (workspace default + per-notebook OCR override). User-facing guide: [runtime/ocr.md](../runtime/ocr.md#notebook-ocr-settings).
 
-| Mode | Prefer behaviour |
-|------|------------------|
-| `prefer_is_promote` (default) | Sets `preferred_attempt_id` and `active_attempt_id` |
-| `prefer_only` | Sets `preferred_attempt_id` only |
-| `prefer_promote_with_edit_gate` | Sets preferred and active; if `edited_text` is set, require `keep_edit` or `adopt_new` before applying |
+| Mode | Review UI label | Prefer behaviour |
+|------|-----------------|------------------|
+| `prefer_is_promote` (default) | Notebook default = current text | Sets `preferred_attempt_id` and `active_attempt_id` |
+| `prefer_only` | Notebook default only (stats / fine-tune) | Sets `preferred_attempt_id` only |
+| `prefer_promote_with_edit_gate` | Notebook default + current, with edit gate | Sets preferred and active; if `edited_text` is set, require `keep_edit` or `adopt_new` before applying |
 
 Promote (`set_active_attempt`) always sets `active_attempt_id` to a succeeded attempt and does not clear edits.
+
+When `auto_activate_composite` is true (default), multipass sets active (and preferred under `prefer_is_promote`) from a succeeded merged draft and seeds Transcription — see [ocr-multipass.md](ocr-multipass.md) activation phase.
 
 ## Comparison record
 

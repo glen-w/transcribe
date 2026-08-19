@@ -13,6 +13,7 @@ Lane names here match the root `Makefile` and `.github/workflows/ci.yml`. Defaul
 | `make test-coverage` | Default suite + coverage (`.coveragerc` `fail_under`; I3) |
 | `make lint` | Ruff critical selects on `src/transcribe` (same as CI `lint`) |
 | `make docker-smoke` | Compose loopback bind assert |
+| `make docs` | Sphinx HTML from `docs/` Markdown (`pip install -e '.[docs]'`) |
 
 `# pre-release` runs smoke then the default offline suite (Makefile targets when present).
 
@@ -22,7 +23,9 @@ Lane names here match the root `Makefile` and `.github/workflows/ci.yml`. Defaul
 
 **PR add-ons (0.8 / I3):** `release-checks` (secrets, tracked-data, stale refs, compose assert, package build/import). Coverage on Python 3.11 via `make test-coverage`.
 
-**Not in PR CI yet (I4–I6):** Sphinx docs job, GitHub Pages, nightly heavier acceptance, full `docker compose build` image smoke.
+**PR add-ons (I4):** `docs` job — `pip install -e '.[docs]'` then `make docs` (Sphinx HTML artifact).
+
+**Not in PR CI yet (I5–I6):** GitHub Pages, nightly heavier acceptance, full `docker compose build` image smoke.
 
 Time budgets (target ceilings):
 

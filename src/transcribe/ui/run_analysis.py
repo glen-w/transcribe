@@ -42,6 +42,7 @@ from transcribe.ui.components.progress_panel import (
     make_initial_snapshot,
     render_progress_panel,
 )
+from transcribe.ui import icons as ic
 from transcribe.ui.module_ui_groups import format_detector_label, group_plan_for_ui
 
 _PRESET_KEY = "run_analysis_preset"
@@ -173,10 +174,11 @@ def render_review_module_row(
         st.markdown(f"- {label}")
     with remove_col:
         if st.button(
-            "✕",
+            "",
             key=f"{key_prefix}_review_rm_{module_id}",
             help=f"Remove from run: {label}",
             type="tertiary",
+            icon=ic.CLOSE,
         ):
             if apply_review_module_removal(
                 st.session_state,
@@ -460,7 +462,7 @@ def _render_config_and_launch(
                 "Workspace default: Settings → Models."
             )
             provider = OllamaVisionProvider(project.settings.base_url)
-            refresh_models = st.button("Refresh models", key="run_analysis_refresh_models")
+            refresh_models = st.button("Refresh models", key="run_analysis_refresh_models", icon=ic.REFRESH)
             if refresh_models:
                 invalidate_discovery_cache(project.settings.base_url)
             discovery = provider.list_models(refresh=refresh_models)
@@ -484,7 +486,7 @@ def _render_config_and_launch(
                 role="text",
                 key="analyse_text_model_info",
             )
-            if st.button("Save text model", key="run_analysis_save_text_model"):
+            if st.button("Save text model", key="run_analysis_save_text_model", icon=ic.SAVE):
                 settings = project.settings
                 settings.text_model_name = chosen
                 projects.save_settings(project, settings)
@@ -507,6 +509,7 @@ def _render_config_and_launch(
         disabled=run_disabled,
         width="stretch",
         key="run_analysis_launch",
+        icon=ic.RUN,
     ):
         q = (question_text or "").strip() or None
         try:
@@ -612,7 +615,7 @@ def render_run_analysis_form(
         def analysis_status_panel() -> None:
             progress = _sync_snapshot_from_coord(coord)
             render_progress_panel(st.session_state[SNAPSHOT_KEY])
-            if st.button("Cancel analysis", key="run_analysis_cancel"):
+            if st.button("Cancel analysis", key="run_analysis_cancel", icon=ic.STOP):
                 coord.cancel()
                 st.rerun()
             if coord.is_running() or progress.status == "running":
@@ -634,7 +637,7 @@ def render_run_analysis_form(
             progress = _sync_snapshot_from_coord(coord)
             st.markdown(progress.message or "Running analysis…")
             render_progress_panel(st.session_state[SNAPSHOT_KEY])
-            if st.button("Cancel analysis", key="run_analysis_cancel_orphan"):
+            if st.button("Cancel analysis", key="run_analysis_cancel_orphan", icon=ic.STOP):
                 coord.cancel()
                 st.rerun()
             if coord.is_running() or progress.status == "running":

@@ -33,6 +33,7 @@ from transcribe.config.reset import (
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.ui import icons as ic
 from transcribe.ui.components.info_tooltip import widget_help
 
 
@@ -72,7 +73,7 @@ def render_configuration_panel() -> None:
         key="workspace_backup_include_exports",
         help="Also pack TRANSCRIBE_EXPORT_DIR (skips the zip being written).",
     )
-    if st.button("Create backup", key="workspace_backup_create"):
+    if st.button("Create backup", key="workspace_backup_create", icon=ic.BACKUP):
         from transcribe.errors import BackupError
         from transcribe.services.workspace_backup import (
             BackupOptions,
@@ -112,7 +113,7 @@ def render_configuration_panel() -> None:
     )
     verify_col, dry_col = st.columns(2)
     with verify_col:
-        if st.button("Verify archive", key="workspace_backup_verify"):
+        if st.button("Verify archive", key="workspace_backup_verify", icon=ic.VERIFY):
             from transcribe.errors import BackupError
             from transcribe.services.workspace_backup import WorkspaceBackupService
 
@@ -131,7 +132,7 @@ def render_configuration_panel() -> None:
                 except BackupError as exc:
                     st.error(str(exc))
     with dry_col:
-        if st.button("Dry-run restore", key="workspace_backup_dry_run"):
+        if st.button("Dry-run restore", key="workspace_backup_dry_run", icon=ic.DRY_RUN):
             from transcribe.errors import BackupError
             from transcribe.services.workspace_backup import WorkspaceBackupService
 
@@ -155,7 +156,7 @@ def render_configuration_panel() -> None:
         value=False,
         key="workspace_backup_restore_confirm",
     )
-    if st.button("Restore from backup", key="workspace_backup_restore"):
+    if st.button("Restore from backup", key="workspace_backup_restore", icon=ic.RESTORE):
         from transcribe.errors import BackupError
         from transcribe.services.workspace_backup import WorkspaceBackupService
 
@@ -204,7 +205,7 @@ def render_configuration_panel() -> None:
             "notebook."
         ),
     )
-    if st.button("Save import defaults", type="primary", key="settings_ingest_save"):
+    if st.button("Save import defaults", type="primary", key="settings_ingest_save", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
@@ -240,6 +241,7 @@ def render_configuration_panel() -> None:
             "Re-apply visual declutter",
             key="settings_declutter_reapply_run",
             type="secondary",
+            icon=ic.REPLAY,
         ):
             root = Path(runtime.projects_dir) / choice
             try:
@@ -279,7 +281,7 @@ def render_configuration_panel() -> None:
         key="settings_archive_notebooks_initial",
         help=widget_help("How many notebook cards load before “Show more”. 0 shows all notebooks."),
     )
-    if st.button("Save archive defaults", type="primary", key="settings_archive_save"):
+    if st.button("Save archive defaults", type="primary", key="settings_archive_save", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
@@ -296,7 +298,10 @@ def render_configuration_panel() -> None:
 
     st.divider()
     st.markdown("#### Overview")
-    st.caption("View → Overview cards. Status strip is always shown.")
+    st.caption(
+        "View → Overview cards. Status strip is always shown. "
+        "**Advanced** expanders (raw module JSON) on View pages are off by default."
+    )
     from transcribe.config.models import OVERVIEW_CARD_IDS
 
     _CARD_LABELS = {
@@ -319,12 +324,88 @@ def render_configuration_panel() -> None:
         )
         if on:
             chosen.append(cid)
-    if st.button("Save overview cards", type="primary", key="settings_overview_cards_save"):
+    show_advanced = st.checkbox(
+        "Show Advanced expanders (raw module JSON)",
+        value=bool(view.effective.ui.view_show_advanced),
+        key="settings_view_show_advanced",
+        help=(
+            "When off, View pages hide per-module **Advanced · …** collapsibles "
+            "(Overview, Themes, Mood, Summaries, Ask, People)."
+        ),
+    )
+    if st.button("Save overview settings", type="primary", key="settings_overview_cards_save", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
             ui_cfg = cfg.setdefault("ui", {})
             ui_cfg["overview_cards"] = list(chosen)
+            ui_cfg["view_show_advanced"] = bool(show_advanced)
+            ui_cfg.pop("overview_show_advanced", None)
+            save_workspace_settings(config=cfg, activations=loaded.activations)
+            clear_config_cache()
+            reload_config()
+            st.success("Saved.")
+            st.rerun()
+        except ConfigError as exc:
+            st.error(f"{exc.code}: {exc}")
+
+    st.divider()
+    st.markdown("#### Chart colours")
+    st.caption(
+        "Bar colours on View → Overview / Mood for sentiment tone mix and emotion lexicon totals. "
+        "Defaults use red shades for anger/fear, green for joy, grey for sadness, and so on."
+    )
+    from transcribe.ui.chart_colors import (
+        DEFAULT_EMOTION_COLORS,
+        DEFAULT_SENTIMENT_COLORS,
+    )
+
+    palettes = view.effective.ui.chart_colors.resolved()
+    sent_cols = st.columns(3)
+    sentiment_picks: dict[str, str] = {}
+    for idx, label in enumerate(("negative", "neutral", "positive")):
+        sentiment_picks[label] = sent_cols[idx].color_picker(
+            label.title(),
+            value=palettes["sentiment"][label],
+            key=f"settings_chart_sentiment_{label}",
+            help=f"Default {DEFAULT_SENTIMENT_COLORS[label]}",
+        )
+    emo_cols = st.columns(3)
+    emotion_picks: dict[str, str] = {}
+    for idx, label in enumerate(("anger", "fear", "joy", "sadness", "surprise", "trust")):
+        col = emo_cols[idx % 3]
+        emotion_picks[label] = col.color_picker(
+            label.title(),
+            value=palettes["emotion"][label],
+            key=f"settings_chart_emotion_{label}",
+            help=f"Default {DEFAULT_EMOTION_COLORS[label]}",
+        )
+    if st.button("Save chart colours", type="primary", key="settings_chart_colors_save", icon=ic.SAVE):
+        try:
+            from transcribe.tagging.colors import parse_hex_color
+
+            loaded = load_workspace_settings()
+            cfg = deep_merge_dict({}, loaded.config)
+            ui_cfg = cfg.setdefault("ui", {})
+            chart_cfg: dict[str, dict[str, str]] = {}
+            sent_out: dict[str, str] = {}
+            for label, picked in sentiment_picks.items():
+                canonical = parse_hex_color(picked)
+                if canonical != DEFAULT_SENTIMENT_COLORS[label]:
+                    sent_out[label] = canonical
+            if sent_out:
+                chart_cfg["sentiment"] = sent_out
+            emo_out: dict[str, str] = {}
+            for label, picked in emotion_picks.items():
+                canonical = parse_hex_color(picked)
+                if canonical != DEFAULT_EMOTION_COLORS[label]:
+                    emo_out[label] = canonical
+            if emo_out:
+                chart_cfg["emotion"] = emo_out
+            if chart_cfg:
+                ui_cfg["chart_colors"] = chart_cfg
+            else:
+                ui_cfg.pop("chart_colors", None)
             save_workspace_settings(config=cfg, activations=loaded.activations)
             clear_config_cache()
             reload_config()
@@ -364,7 +445,7 @@ def render_configuration_panel() -> None:
     with st.expander("Provenance (diagnostics)"):
         st.json(view.provenance)
 
-    if st.button("Reset whole workspace settings", key="settings_reset_workspace"):
+    if st.button("Reset whole workspace settings", key="settings_reset_workspace", icon=ic.RESET):
         try:
             reset_whole_workspace()
             clear_config_cache()
@@ -426,7 +507,7 @@ def render_models_panel() -> None:
         max_value=32000,
         value=int(llm.max_prompt_tokens),
     )
-    if st.button("Save model defaults", type="primary", key="settings_models_save"):
+    if st.button("Save model defaults", type="primary", key="settings_models_save", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
@@ -476,7 +557,7 @@ def render_models_panel() -> None:
         st.caption("No differences between workspace OCR defaults and notebook settings.")
         return
     st.json({k: {"from": a, "to": b} for k, (a, b) in changed.items()})
-    if st.button("Apply allowlisted OCR fields to open notebook", key="settings_apply_ocr"):
+    if st.button("Apply allowlisted OCR fields to open notebook", key="settings_apply_ocr", icon=ic.APPLY):
         try:
             new_settings = apply_ocr_patch(project.settings, plan)
             projects.save_settings(project, new_settings)
@@ -503,7 +584,7 @@ def render_profiles_panel() -> None:
     current = getattr(view.effective.activations, target)
     idx = names.index(current) if current in names else 0
     chosen = st.selectbox("Active profile", names, index=idx, key="settings_profile_active")
-    if st.button("Activate", key="settings_profile_activate"):
+    if st.button("Activate", key="settings_profile_activate", icon=ic.ACTIVATE):
         try:
             loaded = load_workspace_settings()
             acts = ProfileActivations(
@@ -523,7 +604,7 @@ def render_profiles_panel() -> None:
         except ConfigError as exc:
             st.error(f"{exc.code}: {exc}")
 
-    if st.button("Reset activation to default", key="settings_profile_reset_act"):
+    if st.button("Reset activation to default", key="settings_profile_reset_act", icon=ic.RESET):
         try:
             reset_profile_activation(target)
             clear_config_cache()
@@ -534,7 +615,7 @@ def render_profiles_panel() -> None:
 
     st.divider()
     new_name = st.text_input("Save As name", key="settings_profile_save_as_name")
-    if st.button("Save As (current effective subtree)", key="settings_profile_save_as"):
+    if st.button("Save As (current effective subtree)", key="settings_profile_save_as", icon=ic.SAVE):
         try:
             name = validate_profile_name(new_name, for_save_as=True)
             eff = get_config().effective

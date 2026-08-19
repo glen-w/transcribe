@@ -42,6 +42,7 @@ Console scripts after install: `transcribe`, `transcribe-ui`.
 | `[ui]` | Streamlit + pydantic + ebooklib (primary interactive surface) |
 | `[export]` | ebooklib for EPUB without pulling Streamlit |
 | `[dev]` | pytest, pytest-cov, pytest-timeout, ruff, tomli (Python 3.10) + UI extras |
+| `[docs]` | Sphinx + MyST + Furo (`make docs`); not required to run the app |
 
 There is no published PyPI package today — install from this repository.
 

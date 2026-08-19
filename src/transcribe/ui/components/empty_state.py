@@ -22,6 +22,7 @@ class EmptyCta:
     on_click: Callable[[], None]
     key: str
     primary: bool = True
+    icon: str | None = None
 
 
 def render_empty_state(
@@ -42,10 +43,12 @@ def render_empty_state(
     cols = st.columns(len(ctas), gap="small")
     for col, cta in zip(cols, ctas):
         with col:
-            if st.button(
-                cta.label,
-                key=cta.key,
-                type="primary" if cta.primary else "secondary",
-                width="stretch",
-            ):
+            kwargs: dict = {
+                "key": cta.key,
+                "type": "primary" if cta.primary else "secondary",
+                "width": "stretch",
+            }
+            if cta.icon:
+                kwargs["icon"] = cta.icon
+            if st.button(cta.label, **kwargs):
                 cta.on_click()

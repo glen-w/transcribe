@@ -16,6 +16,7 @@ from transcribe.config.facade import get_config
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.services.analysis_compare import COMPARABLE_SPECS
 from transcribe.ui.analysis_product_views import (
+    render_ask_history,
     render_ask_product,
     render_moments_product,
     render_mood_product,
@@ -129,14 +130,20 @@ def _on_jump(page_id: str, *, project, paths, return_mode: str) -> None:
     )
 
 
+def _view_show_advanced() -> bool:
+    return get_config().effective.ui.view_show_advanced
+
+
 def render_view_overview(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
     spec = page_spec_for("Overview")
     assert spec is not None
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
-    visible = list(get_config().effective.ui.overview_cards)
+    ui = get_config().effective.ui
+    visible = list(ui.overview_cards)
     comparable_on = any(cid in COMPARABLE_SPECS for cid in visible if cid != "page_metrics")
+    show_advanced = ui.view_show_advanced
 
     def _body() -> None:
         def _page_metrics() -> None:
@@ -160,6 +167,7 @@ def render_view_overview(runtime, paths, projects, project, *, get_analysis_coor
                 pid, project=project, paths=paths, return_mode="Overview"
             ),
             visible_cards=visible,
+            show_advanced=show_advanced,
             heading=False,
         )
 
@@ -182,6 +190,7 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
     spec = _spec_for_panel(spec, panel)
 
     def _body() -> None:
+        show_advanced = _view_show_advanced()
         chosen = select_view_panel("Themes", project_id=project.id, render=True)
         assert chosen is not None
         if chosen.id == "people":
@@ -195,6 +204,7 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
                 runtime=runtime,
                 ner_health=ner_mh,
                 entity_sentiment_health=entity_mh,
+                show_advanced=show_advanced,
                 heading=False,
             )
             return
@@ -208,6 +218,7 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
                 pid, project=project, paths=paths, return_mode="Themes"
             ),
             project_id=project.id,
+            show_advanced=show_advanced,
             heading=False,
         )
 
@@ -241,6 +252,7 @@ def render_view_mood(runtime, paths, projects, project, *, get_analysis_coordina
     spec = _spec_for_panel(spec, panel)
 
     def _body() -> None:
+        show_advanced = _view_show_advanced()
         chosen = select_view_panel("Mood", project_id=project.id, render=True)
         assert chosen is not None
         if chosen.id == "moments":
@@ -250,6 +262,7 @@ def render_view_mood(runtime, paths, projects, project, *, get_analysis_coordina
                     pid, project=project, paths=paths, return_mode="Moments"
                 ),
                 project_id=project.id,
+                show_advanced=show_advanced,
                 heading=False,
             )
             return
@@ -261,6 +274,7 @@ def render_view_mood(runtime, paths, projects, project, *, get_analysis_coordina
             on_jump=lambda pid: _on_jump(
                 pid, project=project, paths=paths, return_mode="Mood"
             ),
+            show_advanced=show_advanced,
             heading=False,
         )
 
@@ -290,46 +304,72 @@ def render_view_summaries(runtime, paths, projects, project, *, get_analysis_coo
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
-    panel = select_view_panel("Summaries", project_id=project.id, render=False)
-    assert panel is not None
-    spec = _spec_for_panel(spec, panel)
-    question_key = f"ask_notebook_question_{project.id}"
 
     def _body() -> None:
-        chosen = select_view_panel("Summaries", project_id=project.id, render=True)
-        assert chosen is not None
-        if chosen.id == "ask":
-            st.caption("Ask notebook is ad-hoc and does not update batch analysis health.")
-            render_ask_product(runner=ctx["runner"], question_key=question_key, heading=False)
-            question = st.session_state.get(question_key) or ""
-            rm = module_freshness(
-                ctx["runner"],
-                ctx["storage"],
-                ["llm_custom_qa"],
-                question_text=question.strip() or None,
-            )[0]
-            if rm.get("envelope"):
-                st.divider()
-                if rm.get("status") == "stale":
-                    st.caption("Last Ask answer is out of date — ask again to refresh.")
-                else:
-                    st.caption("Last Ask answer")
-                    payload = (rm["envelope"] or {}).get("payload") or {}
-                    if payload.get("answer"):
-                        st.markdown(payload["answer"])
-                    with st.expander("Advanced · last Ask"):
-                        st.json(payload)
-            return
         if not published:
             render_analyse_cta(key="summaries_analyse_cta")
             return
         render_summaries_product(
-            ctx["summaries_health"], ctx["ids"]["synth"], heading=False
+            ctx["summaries_health"],
+            ctx["ids"]["synth"],
+            show_advanced=_view_show_advanced(),
+            heading=False,
         )
 
     render_notebook_view_page(
         spec,
         health=ctx["batch_health"],
+        body=_body,
+    )
+
+
+def render_view_ask(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
+    _ = runtime
+    spec = page_spec_for("Ask")
+    assert spec is not None
+    ctx = load_view_health(
+        paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
+    )
+    question_key = f"ask_notebook_question_{project.id}"
+
+    def _body() -> None:
+        show_advanced = _view_show_advanced()
+        render_ask_product(
+            runner=ctx["runner"],
+            question_key=question_key,
+            heading=False,
+            project=project,
+            show_advanced=show_advanced,
+        )
+        render_ask_history(
+            storage=ctx["storage"],
+            current_content_fingerprint=ctx["runner"].planned_content_fingerprint("llm_custom_qa"),
+            show_advanced=show_advanced,
+        )
+        question = st.session_state.get(question_key) or ""
+        rm = module_freshness(
+            ctx["runner"],
+            ctx["storage"],
+            ["llm_custom_qa"],
+            question_text=question.strip() or None,
+        )[0]
+        if rm.get("envelope"):
+            st.divider()
+            if rm.get("status") == "stale":
+                st.caption("Last Ask answer is out of date — ask again to refresh.")
+            else:
+                st.caption("Last Ask answer")
+                payload = (rm["envelope"] or {}).get("payload") or {}
+                if payload.get("answer"):
+                    st.markdown(payload["answer"])
+                if show_advanced:
+                    with st.expander("Advanced · last Ask"):
+                        st.json(payload)
+
+    render_notebook_view_page(
+        spec,
+        health=ctx["batch_health"],
+        ask_note=True,
         body=_body,
     )
 

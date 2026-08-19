@@ -47,6 +47,7 @@ See [tag-catalog.md](tag-catalog.md).
 |-----|---------|------|
 | `archive_notebooks_initial` | `0` | Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
 | `overview_cards` | all frozen ids | Ordered visible Overview cards (`page_metrics`, `stats`, `lexical_diversity`, `understandability`, `wordclouds`, `ner`, `sentiment`, `epistemic_markers`). Unknown/duplicate ids dropped; catalogue order; empty after sanitise restores the default all-ids list. Status strip is always shown. |
+| `view_show_advanced` | `false` | When `true`, View pages show per-module **Advanced · …** expanders with raw published JSON. Default off — ordinary use does not need module/cache literacy. Applies to Overview, Themes, Mood, Moments, Summaries, Ask, and Themes → People (entity tone). Analyse launcher Advanced sections are unchanged. Legacy key `overview_show_advanced` is still read on load. |
 
 Edited under **Settings → Configuration → Archive** and **Settings → Configuration → Overview**. `ui.*` does not fingerprint.
 
@@ -58,13 +59,13 @@ job authority remains `project.json` → `settings`.
 | Key | Default | Role |
 |-----|---------|------|
 | `preprocess_profile` | `none` | Image preprocess named profile (`none` \| `gentle_contrast`). Edited under **Settings → Models**; seeds new notebooks; Apply-OCR can copy. |
-| `prefer_mode` | `prefer_is_promote` | Prefer semantics: `prefer_is_promote` \| `prefer_only` \| `prefer_promote_with_edit_gate` (see [page-result.md](page-result.md)) |
-| `auto_activate_composite` | `true` | After multipass, auto-activate composite candidates |
+| `prefer_mode` | `prefer_is_promote` | **When setting a notebook default** — `prefer_is_promote` \| `prefer_only` \| `prefer_promote_with_edit_gate` (Review UI labels in [page-result.md](page-result.md); guide: [runtime/ocr.md](../runtime/ocr.md#when-setting-a-notebook-default)) |
+| `auto_activate_composite` | `true` | **Seed transcription from merged draft after multipass** — auto-activate succeeded composite after multipass ([runtime/ocr.md](../runtime/ocr.md#seed-transcription-from-merged-draft-after-multipass)) |
 | `multipass_default_models` | `[]` | Optional UI default multi-select list |
 | `finetune_*` | see [finetune-export.md](finetune-export.md) | Fine-tune export defaults |
 
 Project OCR may override `prefer_mode` and `auto_activate_composite` (and other
-allowlisted OCR fields). Review → Compare settings writes the project override.
+allowlisted OCR fields). **Workflow → Review → Other → OCR settings**, Compare OCR attempts, and Transcribe Advanced write the project override.
 
 ## Profiles
 

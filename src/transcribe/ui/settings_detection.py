@@ -10,12 +10,13 @@ from transcribe.detection.custom import (
     compile_custom_detector,
 )
 from transcribe.detection.registry import list_all_detectors
+from transcribe.ui import icons as ic
 
 
 @st.fragment
 def render_detection_settings_panel() -> None:
     st.subheader("Detection")
-    st.caption("Built-in and custom detectors. Run from View → Detect after selecting a notebook.")
+    st.caption("Built-in and custom detectors. Run from Workflow → Detect after selecting a notebook.")
 
     dets = list_all_detectors()
     from transcribe.services.tags import TagService
@@ -61,7 +62,7 @@ def render_detection_settings_panel() -> None:
         )
         model_mode = st.selectbox("Model mode", ["auto", "text", "vision"])
         threshold = st.slider("Confidence threshold", 0.0, 1.0, 0.7, 0.05)
-        submitted = st.form_submit_button("Save custom detector", type="primary")
+        submitted = st.form_submit_button("Save custom detector", type="primary", icon=ic.SAVE)
         if submitted:
             custom = CustomDetectorDefinition(
                 name=name,

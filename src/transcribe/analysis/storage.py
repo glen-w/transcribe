@@ -64,6 +64,13 @@ class AnalysisStorage:
             return None
         return read_json(path)
 
+    def iter_attempt_files(self, module_id: str) -> list[Path]:
+        """Return attempt JSON paths for a module, oldest first."""
+        attempts = self.attempts_dir(module_id)
+        if not attempts.exists():
+            return []
+        return sorted(attempts.glob("*.json"), key=lambda p: p.name)
+
     def read_published(self, module_id: str) -> dict[str, Any] | None:
         path = self.published_path(module_id)
         if not path.exists():
