@@ -28,6 +28,8 @@ notebook-test/
 data/
 !src/transcribe/analysis/data/
 !src/transcribe/analysis/data/**
+!src/transcribe/detection/data/
+!src/transcribe/detection/data/**
 .env
 .env.*
 !.env.example
