@@ -22,6 +22,7 @@ _OCR_TOKENS = (
     "paddleocr",
     "nougat",
     "olmocr",
+    "deepseek-ocr",
 )
 
 
@@ -45,6 +46,8 @@ def is_ocr_oriented_name(name: str) -> bool:
 
 def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
     """Return user-facing caveats for a selected model name."""
+    from transcribe.services.ocr_model_recipes import recipe_for_model
+
     if role == "text":
         return ModelAdvice(
             kind="text",
@@ -54,6 +57,14 @@ def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
                 "Needs a text model for Analyse LLM modules, rank/composite, and optional OCR cleanup.",
                 "Cleanup adds a second Ollama call per succeeded page.",
             ),
+        )
+    recipe = recipe_for_model(name)
+    if recipe is not None:
+        return ModelAdvice(
+            kind="ocr_oriented",
+            title=f"OCR-oriented vision model · {recipe.title} recipe",
+            use_case="first_ocr",
+            warnings=recipe.warnings,
         )
     if is_ocr_oriented_name(name):
         return ModelAdvice(

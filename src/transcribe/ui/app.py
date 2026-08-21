@@ -17,7 +17,7 @@ from transcribe.analysis.coordinator import (
     build_analysis_coordinator,
 )
 from transcribe.corpus.paths import CorpusPaths
-from transcribe.errors import TranscribeError
+from transcribe.errors import ProjectError, TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import ArchiveService, bump_archive_generation
@@ -308,6 +308,13 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     if not project.pages:
         st.info("No pages yet.")
         return
+
+    for page in project.pages:
+        try:
+            projects.repair_empty_successes(page.page_id)
+        except (TranscribeError, ProjectError):
+            pass
+    project = projects.load(reconcile=False)
 
     st.caption(
         "Unapproved suggested dates still appear in Archive timeline. "

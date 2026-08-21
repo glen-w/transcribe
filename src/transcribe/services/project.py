@@ -19,10 +19,13 @@ from transcribe.domain.dates import (
     normalize_tags,
 )
 from transcribe.domain.models import (
+    AttemptError,
     ComparisonRecord,
     DEFAULT_PREFER_MODE,
     EDIT_GATE_CHOICES,
     EFFECTIVE_TEXT_ORIGINS,
+    EMPTY_OUTPUT_CODE,
+    EMPTY_OUTPUT_MESSAGE,
     MAX_ATTEMPTS_RETAINED,
     OCRAttempt,
     OCRSettings,
@@ -89,6 +92,51 @@ def _origin_from_active(result: PageResult) -> str | None:
     if (active.attempt_kind or "vision") == "composite":
         return "composite"
     return "ocr_attempt"
+
+
+def _latest_succeeded_with_text(
+    attempts: list[OCRAttempt],
+    *,
+    exclude_id: str | None = None,
+) -> OCRAttempt | None:
+    found: OCRAttempt | None = None
+    for attempt in attempts:
+        if exclude_id and attempt.attempt_id == exclude_id:
+            continue
+        if attempt.status != "succeeded":
+            continue
+        if not (attempt.raw_text or "").strip():
+            continue
+        if found is None or attempt.started_at >= found.started_at:
+            found = attempt
+    return found
+
+
+def _active_after_generation(
+    existing: PageResult,
+    attempt: OCRAttempt,
+    *,
+    activate: bool,
+) -> str | None:
+    """Choose active_attempt_id after appending/updating ``attempt``.
+
+    Succeeded-with-text may become active when ``activate`` is true. Failed,
+    running, and empty writes keep a prior good reading. First-ever attempt
+    (no prior succeeded-with-text) may still become active when ``activate``.
+    """
+    prior_good = _latest_succeeded_with_text(existing.attempts, exclude_id=attempt.attempt_id)
+    current = existing.active_attempt_id
+    if not activate:
+        if current:
+            return current
+        return prior_good.attempt_id if prior_good else current
+    if attempt.status == "succeeded" and (attempt.raw_text or "").strip():
+        return attempt.attempt_id
+    if current and current != attempt.attempt_id:
+        return current
+    if prior_good:
+        return prior_good.attempt_id
+    return attempt.attempt_id
 
 
 def _review_fingerprints_match(result: PageResult | None) -> bool:
@@ -701,8 +749,9 @@ class ProjectService:
                     break
             if not replaced:
                 existing.attempts.append(attempt)
-            if activate:
-                existing.active_attempt_id = attempt.attempt_id
+            existing.active_attempt_id = _active_after_generation(
+                existing, attempt, activate=activate
+            )
             if len(existing.attempts) > MAX_ATTEMPTS_RETAINED:
                 existing.attempts = prune_attempts(
                     existing.attempts,
@@ -905,6 +954,56 @@ class ProjectService:
             raise ProjectError("mark reviewed via save_user_edit(..., mark_reviewed=True)")
         with mutation_lock(self.paths.mutation_lock):
             return self._write_review_status_unlocked(page_id, status)
+
+    def repair_empty_successes(self, page_id: str) -> PageResult | None:
+        """Demote succeeded-but-empty vision attempts and restore a good active.
+
+        Historical empty ``succeeded`` writes (e.g. DeepSeek-OCR + faithful prompt)
+        become ``failed`` / ``empty_output``. If the active attempt has no text and
+        another succeeded-with-text exists, that reading becomes current.
+        """
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                return None
+            before = PageResult.from_dict(existing.as_dict())
+            changed = False
+            for i, attempt in enumerate(existing.attempts):
+                if (attempt.attempt_kind or "vision") != "vision":
+                    continue
+                if attempt.status != "succeeded":
+                    continue
+                if (attempt.raw_text or "").strip():
+                    continue
+                attempt.status = "failed"
+                attempt.error = AttemptError(
+                    code=EMPTY_OUTPUT_CODE,
+                    message=EMPTY_OUTPUT_MESSAGE,
+                    retriable=False,
+                )
+                existing.attempts[i] = attempt
+                changed = True
+            active = existing.active_attempt()
+            prior = _latest_succeeded_with_text(existing.attempts)
+            if (
+                prior is not None
+                and (
+                    active is None
+                    or active.status != "succeeded"
+                    or not (active.raw_text or "").strip()
+                )
+            ):
+                existing.active_attempt_id = prior.attempt_id
+                if existing.edited_text is None:
+                    existing.effective_text_origin = _origin_from_active(existing)
+                changed = True
+            if not changed:
+                return existing
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            self._invalidate_review_unlocked(page_id, before=before, after=existing)
+            return existing
 
     def repair_review_validity(self, page_id: str) -> str:
         """If status is reviewed but fingerprints mismatch, move to needs_attention."""

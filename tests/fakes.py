@@ -17,6 +17,7 @@ class FakeVisionOCRProvider:
     fail_times: int = 0
     calls: int = 0
     last_options: dict[str, Any] = field(default_factory=dict)
+    last_prompt: str = ""
     fail_codes: list[str] = field(default_factory=list)
     models: list[ModelInfo] = field(default_factory=list)
 
@@ -60,6 +61,7 @@ class FakeVisionOCRProvider:
     ) -> ProviderResult:
         self.calls += 1
         self.last_options = dict(options or {})
+        self.last_prompt = prompt
         if self.fail_codes:
             code = self.fail_codes.pop(0)
             if code:

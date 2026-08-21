@@ -35,7 +35,7 @@ Two-pane: **scan** (left) and **tabbed review lanes** (right). Typical pass: **T
 | **Transcription** | Editor, OCR evidence strip, disagreement navigation, Save / Save + Mark reviewed / Skip / Undo |
 | **Date** | Manual date entry, approve/ignore suggestions (✓ / ✓✓ / ✕), regression confirm; label shows **Date ⚠** when a suggestion is pending |
 | **Tags** | Page tag assignment (catalog + ad-hoc); **💾 Save tags** |
-| **Other** | Notebook cover, per-notebook OCR settings (below), re-run OCR, delete page |
+| **Other** | Notebook cover, per-notebook OCR settings (below), **Re-run OCR** (vision model; this page / all pages / not reviewed), delete page |
 
 Nav bar **✓ date** remains for quick approve without opening the Date tab.
 

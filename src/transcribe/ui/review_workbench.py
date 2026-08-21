@@ -16,7 +16,6 @@ from transcribe.domain.models import DEFAULT_PREFER_MODE, PREFER_MODES, PageResu
 from transcribe.errors import JobConflictError, ProjectError, TranscribeError
 from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.paths import ProjectPaths
-from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import bump_archive_generation
 from transcribe.services.ocr_alignment import (
@@ -30,6 +29,7 @@ from transcribe.services.ocr_alignment import (
 )
 from transcribe.services.ocr_composite_state import (
     current_composite_attempt,
+    failed_vision_attempts,
     merge_input_vision_attempts,
     seed_editor_text,
     stale_composite_attempts,
@@ -45,9 +45,10 @@ from transcribe.ui.page_viewer import (
     _page_number_to_index,
     _transcription_model_label,
 )
+from transcribe.ui.review_queue import RerunOcrScope, not_reviewed_page_ids, rerun_ocr_page_ids
 
 _ZOOM_CYCLE = ("fit_page", "fit_width", "700")
-_ZOOM_WIDTH = {"fit_page": 560, "fit_width": "stretch", "700": 700}
+_ZOOM_WIDTH = {"fit_page": 644, "fit_width": "stretch", "700": 700}
 _ZOOM_CYCLE_HELP = "Cycle zoom level (fit page, fit width, 700px)"
 
 _SAVE_TRANSCRIPTION = "Save transcription"
@@ -274,7 +275,9 @@ def render_review_page(
 ) -> None:
     """Render the OCR comparison workbench for one page in the Review queue."""
     _inject_review_hotkeys()
-    entries = view_entries or [{"page_id": pid, "project_root": str(paths.root)} for pid in page_ids]
+    entries = view_entries or [
+        {"page_id": pid, "project_root": str(paths.root)} for pid in page_ids
+    ]
     ids = [e["page_id"] for e in entries]
     if page_id not in ids:
         page_id = ids[0]
@@ -283,6 +286,7 @@ def render_review_page(
     total = len(ids)
 
     try:
+        projects.repair_empty_successes(page_id)
         projects.repair_review_validity(page_id)
         project = projects.load(reconcile=False)
     except (TranscribeError, ProjectError):
@@ -305,7 +309,11 @@ def render_review_page(
     elif review_status == "needs_attention":
         chip = "⚠ needs attention"
 
-    nav = st.columns([1, 1, 2.0, 1.8, 1.2, 1.0, 1.0])
+    nav = st.columns(
+        [0.7, 2.6, 0.7, 1.8, 1.2, 1.0, 1.0],
+        gap="medium",
+        vertical_alignment="center",
+    )
     if nav[0].button(
         "",
         disabled=idx <= 0,
@@ -326,7 +334,8 @@ def render_review_page(
         else:
             _navigate_to_entry(entries[idx - 1])
             st.rerun()
-    if nav[1].button(
+    nav[1].markdown(f"**{project.title}** · {date_label}")
+    if nav[2].button(
         "",
         disabled=idx >= total - 1,
         help="Next page",
@@ -346,7 +355,6 @@ def render_review_page(
         else:
             _navigate_to_entry(entries[idx + 1])
             st.rerun()
-    nav[2].markdown(f"**{project.title}** · {date_label}")
     with nav[3]:
         with st.form("rw_jump", border=False, clear_on_submit=False):
             jc = st.columns([1.6, 0.9, 1.3])
@@ -407,9 +415,7 @@ def render_review_page(
     remaining = 0
     if alignment is not None:
         remaining = sum(1 for r in alignment.regions if r.key not in resolved)
-        sources = {
-            a.attempt_id: a.raw_text or "" for a in merge_input_vision_attempts(result)
-        }
+        sources = {a.attempt_id: a.raw_text or "" for a in merge_input_vision_attempts(result)}
         signals = build_review_signals(alignment, sources, remaining=remaining)
         warn = "⚠ " if alignment.source_disagreement_count or alignment.departure_count else ""
         st.caption(warn + signals.header_line())
@@ -426,7 +432,20 @@ def render_review_page(
             n = len(alignment.source_ids)
             st.caption(f"{n}/{n} source attempts agree")
     elif result.attempts:
-        st.caption("Single OCR reading — no source disagreement to review.")
+        vision_ok = merge_input_vision_attempts(result)
+        failed = failed_vision_attempts(result)
+        if len(vision_ok) == 1 and failed:
+            n_fail = len(failed)
+            st.caption(
+                f"1 reading, {n_fail} failed — no second source to compare."
+            )
+        elif not vision_ok and failed:
+            n_fail = len(failed)
+            st.caption(
+                f"{n_fail} failed OCR attempt{'s' if n_fail != 1 else ''} — no text to compare."
+            )
+        else:
+            st.caption("Single OCR reading — no source disagreement to review.")
 
     left, right = st.columns([1, 1], gap="medium")
     with left:
@@ -435,7 +454,7 @@ def render_review_page(
             """
 <style>
 div[data-testid="stImage"] img {
-    max-height: 55vh;
+    max-height: 63vh;
     width: auto;
     max-width: 100%;
     object-fit: contain;
@@ -449,7 +468,7 @@ div[data-testid="stImage"] img {
         if rot:
             image = image.rotate(-90 * rot, expand=True)
         zoom = st.session_state.get(f"rw_zoom_{page_id}") or "fit_page"
-        st.image(image, width=_ZOOM_WIDTH.get(zoom, 560))
+        st.image(image, width=_ZOOM_WIDTH.get(zoom, 644))
         try:
             from transcribe.ui.page_metrics_view import (
                 ensure_page_metrics,
@@ -486,7 +505,7 @@ div[data-testid="stImage"] img {
                     st.session_state[f"rw_origin_{page_id}"] = "human_corrected"
                 canonical = text
                 dirty = _is_dirty(page_id)
-            act = st.columns([1.4, 1.6, 0.8, 0.8], gap="medium")
+            act = st.columns([1.3, 1.5, 1.15, 1.15], gap="small")
             if act[0].button(
                 _SAVE_TRANSCRIPTION,
                 type="primary",
@@ -568,7 +587,8 @@ def _render_ocr_comparison_band(
     """Full-width OCR evidence and disagreement controls below scan + tabs."""
     vision = merge_input_vision_attempts(result)
     current = current_composite_attempt(result)
-    if not vision and current is None and alignment is None:
+    failed = failed_vision_attempts(result)
+    if not vision and current is None and alignment is None and not failed:
         return
     st.divider()
     _render_evidence_strip(projects, project, page_id, result)
@@ -616,7 +636,8 @@ def _render_evidence_strip(
     vision = merge_input_vision_attempts(result)
     current = current_composite_attempt(result)
     stale = stale_composite_attempts(result)
-    if not vision and current is None:
+    failed = failed_vision_attempts(result)
+    if not vision and current is None and not failed:
         return
     st.markdown("#### OCR evidence")
     options: list[str] = [a.attempt_id for a in vision]
@@ -629,6 +650,10 @@ def _render_evidence_strip(
             role.append("Default")
         suffix = f" · {' · '.join(role)}" if role else ""
         labels[attempt.attempt_id] = f"{_attempt_label(attempt)}{suffix}"
+    for attempt in failed:
+        code = attempt.error.code if attempt.error else "failed"
+        labels[attempt.attempt_id] = f"{_attempt_label(attempt)} · failed ({code})"
+        options.append(attempt.attempt_id)
     if current is not None:
         options.append(current.attempt_id)
         extra = " · Current" if result.active_attempt_id == current.attempt_id else ""
@@ -641,14 +666,21 @@ def _render_evidence_strip(
         key=f"rw_att_{page_id}",
         label_visibility="collapsed",
     )
+    chosen = result.attempt_by_id(selected)
+    chosen_ok = chosen is not None and chosen.status == "succeeded"
     act = st.columns([1.2, 1.2, 2.6], gap="medium")
     if act[0].button(
         "Use as current text",
         key=f"rw_use_{page_id}",
         icon=ic.CHECK_CIRCLE,
+        disabled=not chosen_ok,
     ):
         try:
-            prefer_mode = project.settings.prefer_mode if project.settings.prefer_mode in PREFER_MODES else DEFAULT_PREFER_MODE
+            prefer_mode = (
+                project.settings.prefer_mode
+                if project.settings.prefer_mode in PREFER_MODES
+                else DEFAULT_PREFER_MODE
+            )
             if prefer_mode == "prefer_is_promote":
                 projects.set_preferred_attempt(page_id, selected, mode=prefer_mode)
             else:
@@ -656,16 +688,21 @@ def _render_evidence_strip(
             if result.edited_text is not None:
                 projects.save_user_edit(page_id, None, origin=None)
             bump_archive_generation(build_runtime_paths())
-            for key in (f"rw_buf_{page_id}", f"rw_gen_{page_id}", f"rw_saved_{page_id}", f"rw_origin_{page_id}"):
+            for key in (
+                f"rw_buf_{page_id}",
+                f"rw_gen_{page_id}",
+                f"rw_saved_{page_id}",
+                f"rw_origin_{page_id}",
+            ):
                 st.session_state.pop(key, None)
             st.rerun()
         except TranscribeError as exc:
             st.error(str(exc))
-    chosen = result.attempt_by_id(selected)
     if chosen and act[1].button(
         "Copy into editor",
         key=f"rw_copy_{page_id}",
         icon=ic.COPY,
+        disabled=not chosen_ok,
     ):
         _set_buffer(page_id, chosen.raw_text or "", origin="human_selected")
         st.rerun()
@@ -677,6 +714,59 @@ def _render_evidence_strip(
                 st.caption(f"{len(stale)} previous merged draft(s) retained (stale).")
                 for old in stale[:4]:
                     st.caption(f"stale {old.attempt_id[:8]} · {old.started_at}")
+    if len(vision) >= 2:
+        _render_rank_merge_button(
+            projects,
+            project,
+            page_ids=[page_id],
+            key=f"rw_rank_{page_id}",
+            label="Rank and merge existing OCR",
+        )
+
+
+def _ranker_model_name(project: Project) -> str:
+    settings = project.settings
+    return (settings.cleanup_model_name or "").strip() or (settings.text_model_name or "").strip()
+
+
+def _render_rank_merge_button(
+    projects: ProjectService,
+    project: Project,
+    *,
+    page_ids: list[str],
+    key: str,
+    label: str,
+) -> None:
+    from transcribe.ui.run_transcribe import get_multipass_coordinator
+
+    ranker = _ranker_model_name(project)
+    if st.button(
+        label,
+        key=key,
+        icon=ic.PLAY,
+        disabled=not ranker,
+        help=(
+            "Rank competing OCR readings and build a merged draft from attempts "
+            "already on disk. Needs a text/cleanup model."
+            if ranker
+            else "Set a text or cleanup model under Transcribe or notebook OCR settings first."
+        ),
+    ):
+        try:
+            multi = get_multipass_coordinator(str(projects.paths.root))
+            multi.start_compare_existing(
+                page_ids=page_ids,
+                auto_activate_composite=bool(project.settings.auto_activate_composite),
+            )
+            st.session_state["_job_was_running"] = True
+            st.session_state["_transcribe_post_kind"] = "multipass"
+            st.session_state.pop("_transcribe_post_job_id", None)
+            st.toast("Ranking existing OCR…")
+            st.rerun()
+        except (JobConflictError, TranscribeError) as exc:
+            st.error(str(exc))
+    if not ranker:
+        st.caption("Rank and merge needs a text/cleanup model (Transcribe settings).")
 
 
 def _render_disagreement_panel(
@@ -695,9 +785,7 @@ def _render_disagreement_panel(
     remaining = sum(1 for r in regions if r.key not in resolved)
     st.divider()
     kind = "Source disagreement" if region.kind == "source" else "Merged-draft departure"
-    st.markdown(
-        f"#### {kind} · {idx + 1}/{len(regions)} · line {region.line_hint}"
-    )
+    st.markdown(f"#### {kind} · {idx + 1}/{len(regions)} · line {region.line_hint}")
     st.caption(
         f"{alignment.source_disagreement_count} OCR disagreements · "
         f"{len(resolved)} resolved · {remaining} remaining"
@@ -823,6 +911,185 @@ def _render_ocr_settings(projects: ProjectService, project: Project, page_id: st
         st.rerun()
 
 
+def _rerun_ocr_open_key(page_id: str) -> str:
+    return f"rw_rerun_open__{page_id}"
+
+
+def _close_rerun_ocr_dialog(page_id: str) -> None:
+    st.session_state.pop(_rerun_ocr_open_key(page_id), None)
+
+
+def _start_review_ocr(
+    *,
+    paths: ProjectPaths,
+    projects: ProjectService,
+    project: Project,
+    page_id: str,
+    model_name: str,
+    scope: RerunOcrScope,
+) -> None:
+    from transcribe.ui.run_transcribe import get_coordinator
+
+    chosen = (model_name or "").strip()
+    if not chosen:
+        st.error("Select a vision model.")
+        return
+    page_ids = rerun_ocr_page_ids(project, scope=scope, page_id=page_id)
+    if not page_ids:
+        if scope == "not_reviewed":
+            st.error("Every page is already marked reviewed.")
+        else:
+            st.error("No pages to re-run.")
+        return
+    try:
+        settings = project.settings
+        if (settings.model_name or "").strip() != chosen:
+            settings.model_name = chosen
+            project = projects.save_settings(project, settings)
+        coord = get_coordinator(str(paths.root))
+        coord.start(page_ids=page_ids, force=True, model_name=chosen)
+        st.session_state["_job_was_running"] = True
+        _close_rerun_ocr_dialog(page_id)
+        if scope == "this_page":
+            st.toast("Page OCR started")
+        elif scope == "not_reviewed":
+            st.toast(f"OCR started for {len(page_ids)} unreviewed page(s)")
+        else:
+            st.toast(f"OCR started for {len(page_ids)} page(s)")
+        st.rerun()
+    except (JobConflictError, TranscribeError) as exc:
+        st.error(str(exc))
+
+
+@st.dialog("Re-run OCR")
+def _rerun_ocr_dialog(
+    *,
+    paths: ProjectPaths,
+    projects: ProjectService,
+    project: Project,
+    page_id: str,
+) -> None:
+    from transcribe.providers.ollama import (
+        OllamaVisionProvider,
+        invalidate_discovery_cache,
+    )
+    from transcribe.services.ocr_preference_stats import (
+        preference_hint_for_model,
+        rollup_preference_stats,
+    )
+    from transcribe.ui.components.model_info import render_model_information
+
+    settings = project.settings
+    base_url = (settings.base_url or "").strip()
+    provider = OllamaVisionProvider(base_url)
+    refresh = st.button(
+        "Refresh models",
+        key=f"rw_rerun_refresh_{page_id}",
+        icon=ic.REFRESH,
+    )
+    if refresh:
+        invalidate_discovery_cache(base_url)
+    discovery = provider.list_vision_models(refresh=refresh)
+    if discovery.error:
+        st.caption(f"Discovery: {discovery.error}")
+    names = [m.name for m in discovery.models]
+    current = (settings.model_name or "").strip()
+    model_options = list(names)
+    if current and current not in model_options:
+        model_options.insert(0, current)
+    if not model_options:
+        st.error("No vision models discovered. Start Ollama or refresh.")
+        if st.button("Close", key=f"rw_rerun_close_empty_{page_id}", icon=ic.CANCEL):
+            _close_rerun_ocr_dialog(page_id)
+            st.rerun()
+        return
+
+    pref_stats = rollup_preference_stats()
+
+    def _model_label(name: str) -> str:
+        hint = preference_hint_for_model(name, stats=pref_stats)
+        return f"{name} — {hint}" if hint else name
+
+    model_index = model_options.index(current) if current in model_options else 0
+    model = st.selectbox(
+        "Vision model",
+        options=model_options,
+        index=model_index,
+        format_func=_model_label,
+        key=f"rw_rerun_model_{page_id}",
+    )
+    render_model_information(
+        discovery.models,
+        selected=model or "",
+        role="vision",
+        key=f"rw_rerun_model_info_{page_id}",
+    )
+    st.caption(
+        "Force OCR with the selected vision model. "
+        "This becomes the notebook vision model. "
+        "Progress continues in the background (Workflow → Transcribe)."
+    )
+    all_n = len(project.pages)
+    unreviewed_n = len(not_reviewed_page_ids(project))
+    if st.button(
+        "This page",
+        key=f"rw_rerun_this_{page_id}",
+        width="stretch",
+        icon=ic.REPLAY,
+    ):
+        _start_review_ocr(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=page_id,
+            model_name=model,
+            scope="this_page",
+        )
+    if st.button(
+        f"All pages ({all_n})",
+        key=f"rw_rerun_all_{page_id}",
+        width="stretch",
+        icon=ic.REPLAY,
+    ):
+        _start_review_ocr(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=page_id,
+            model_name=model,
+            scope="all_pages",
+        )
+    unreviewed_disabled = unreviewed_n == 0
+    if st.button(
+        f"All pages not marked as reviewed ({unreviewed_n})",
+        key=f"rw_rerun_unreviewed_{page_id}",
+        width="stretch",
+        icon=ic.REPLAY,
+        disabled=unreviewed_disabled,
+        help=(
+            "Every page is already marked reviewed."
+            if unreviewed_disabled
+            else "Skip pages whose current transcription is marked reviewed."
+        ),
+    ):
+        _start_review_ocr(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=page_id,
+            model_name=model,
+            scope="not_reviewed",
+        )
+    if st.button(
+        "Cancel",
+        key=f"rw_rerun_cancel_{page_id}",
+        width="stretch",
+        icon=ic.CANCEL,
+    ):
+        _close_rerun_ocr_dialog(page_id)
+        st.rerun()
+
+
 def _render_date_tab(projects, project, page, result) -> None:
     date_default = page.date.format_display() if page.date else ""
     date_in = st.text_input(
@@ -889,10 +1156,7 @@ def _render_date_tab(projects, project, page, result) -> None:
                         for p in updated.pages:
                             st.session_state.pop(f"rw_date_{p.page_id}", None)
                         if approved_n:
-                            st.toast(
-                                f"Approved {approved_n} date"
-                                f"{'s' if approved_n != 1 else ''}"
-                            )
+                            st.toast(f"Approved {approved_n} date{'s' if approved_n != 1 else ''}")
                         st.rerun()
                 except (ValueError, TranscribeError) as exc:
                     st.error(str(exc))
@@ -985,23 +1249,50 @@ def _render_other_tab(paths, projects, project, page) -> None:
 
     _render_ocr_settings(projects, project, page.page_id)
 
+    result = projects.load_page_result(page.page_id)
+    vision = merge_input_vision_attempts(result) if result is not None else []
+    if len(vision) >= 2:
+        _render_rank_merge_button(
+            projects,
+            project,
+            page_ids=[page.page_id],
+            key=f"rw_rank_other_{page.page_id}",
+            label="Rank and merge this page",
+        )
+        comparable = [
+            p.page_id
+            for p in project.pages
+            if len(
+                merge_input_vision_attempts(
+                    projects.load_page_result(p.page_id) or PageResult(page_id=p.page_id)
+                )
+            )
+            >= 2
+        ]
+        if len(comparable) > 1:
+            _render_rank_merge_button(
+                projects,
+                project,
+                page_ids=comparable,
+                key=f"rw_rank_all_{page.page_id}",
+                label=f"Rank and merge all comparable pages ({len(comparable)})",
+            )
+
+    open_key = _rerun_ocr_open_key(page.page_id)
+    if st.session_state.get(open_key):
+        _rerun_ocr_dialog(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=page.page_id,
+        )
     if st.button(
-        "Re-run OCR on this page",
+        "Re-run OCR",
         key=f"rw_rerun_{page.page_id}",
         icon=ic.REPLAY,
     ):
-        try:
-            from transcribe.services.job import build_coordinator
-
-            _paths, _projects, coord, _ingest = build_coordinator(
-                paths.root, clock=SystemClock(), ids=UuidGenerator()
-            )
-            coord.start(page_ids=[page.page_id], force=True)
-            st.session_state["_job_was_running"] = True
-            st.success("Page OCR started")
-            st.rerun()
-        except (JobConflictError, TranscribeError) as exc:
-            st.error(str(exc))
+        st.session_state[open_key] = True
+        st.rerun()
 
     st.divider()
     pending_delete = f"rw_delete_pending__{page.page_id}"

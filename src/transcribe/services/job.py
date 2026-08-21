@@ -49,10 +49,10 @@ TIMEOUT_CIRCUIT_THRESHOLD = 3
 MODEL_LOAD_CIRCUIT_THRESHOLD = 1
 
 _CIRCUIT_MSG_TIMEOUT = (
-    f"Stopped remaining pages after {TIMEOUT_CIRCUIT_THRESHOLD} " "consecutive Ollama timeouts"
+    f"Stopped remaining pages after {TIMEOUT_CIRCUIT_THRESHOLD} consecutive Ollama timeouts"
 )
 _CIRCUIT_MSG_MODEL_LOAD = (
-    "Ollama cannot load this vision model; remaining pages for this model " "were skipped"
+    "Ollama cannot load this vision model; remaining pages for this model were skipped"
 )
 
 
@@ -200,6 +200,7 @@ class JobCoordinator:
         *,
         page_ids: list[str] | None = None,
         force: bool = False,
+        model_name: str | None = None,
     ) -> str:
         self._validate_cleanup_settings_or_raise()
         with self._lock:
@@ -222,6 +223,7 @@ class JobCoordinator:
                         page_ids=page_ids,
                         force=force,
                         on_progress=_default_progress_log,
+                        model_name=model_name,
                     )
                 finally:
                     self._job_file_lock.release()
@@ -237,6 +239,7 @@ class JobCoordinator:
         page_ids: list[str] | None = None,
         force: bool = False,
         on_progress: Callable[[JobProgress], None] | None = None,
+        model_name: str | None = None,
     ) -> JobProgress:
         """CLI-friendly synchronous run (still uses job lock)."""
         self._validate_cleanup_settings_or_raise()
@@ -254,7 +257,13 @@ class JobCoordinator:
                 on_progress(p)
 
         try:
-            self._run_job(state, page_ids=page_ids, force=force, on_progress=emit)
+            self._run_job(
+                state,
+                page_ids=page_ids,
+                force=force,
+                on_progress=emit,
+                model_name=model_name,
+            )
             return self.get_progress()
         finally:
             self._job_file_lock.release()
@@ -417,18 +426,35 @@ class JobCoordinator:
         if not resolved_model:
             raise ProviderError("No model selected", code="model_missing")
         targets = tuple(page_ids or [p.page_id for p in project.pages])
-        try:
-            from transcribe.prompt_engine.hub import ocr_render_for_job
+        custom = settings.custom_prompt
+        recipe = None
+        if not (custom and str(custom).strip()):
+            from transcribe.services.ocr_model_recipes import recipe_for_model, recipe_prompt
 
-            prompt_id, prompt_version, prompt_text = ocr_render_for_job(
-                prompt_id=settings.prompt_id,
-                custom_prompt=settings.custom_prompt,
-            )
-        except Exception:  # noqa: BLE001
-            prompt_id, prompt_version, prompt_text = legacy_render_prompt(
-                prompt_id=settings.prompt_id,
-                custom_prompt=settings.custom_prompt,
-            )
+            recipe = recipe_for_model(resolved_model)
+        if recipe is not None:
+            try:
+                from transcribe.prompt_engine.hub import ocr_render_for_job
+
+                prompt_id, prompt_version, prompt_text = ocr_render_for_job(
+                    prompt_id=recipe.prompt_id,
+                    custom_prompt=None,
+                )
+            except Exception:  # noqa: BLE001
+                prompt_id, prompt_version, prompt_text = recipe_prompt(recipe)
+        else:
+            try:
+                from transcribe.prompt_engine.hub import ocr_render_for_job
+
+                prompt_id, prompt_version, prompt_text = ocr_render_for_job(
+                    prompt_id=settings.prompt_id,
+                    custom_prompt=settings.custom_prompt,
+                )
+            except Exception:  # noqa: BLE001
+                prompt_id, prompt_version, prompt_text = legacy_render_prompt(
+                    prompt_id=settings.prompt_id,
+                    custom_prompt=settings.custom_prompt,
+                )
         prompt_sha = sha256_text(prompt_text)
         digest: str | None = None
         verified = False
@@ -436,6 +462,8 @@ class JobCoordinator:
         if callable(resolve):
             digest, verified = resolve(resolved_model)
         gen_opts = copy.deepcopy(settings.generation_options.as_dict())
+        if recipe is not None and recipe.generation_options:
+            gen_opts.update(recipe.generation_options)
         if "num_predict" not in gen_opts:
             gen_opts["num_predict"] = DEFAULT_VISION_NUM_PREDICT
         provider_id = getattr(provider, "provider_id", "unknown")
@@ -513,6 +541,7 @@ class JobCoordinator:
         page_ids: list[str] | None,
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
+        model_name: str | None = None,
     ) -> None:
         from transcribe.config.facade import (
             bind_operation_config,
@@ -531,6 +560,7 @@ class JobCoordinator:
                 page_ids=page_ids,
                 force=force,
                 on_progress=on_progress,
+                model_name=model_name,
             )
 
     def _run_job_with_config(
@@ -541,6 +571,7 @@ class JobCoordinator:
         page_ids: list[str] | None,
         force: bool,
         on_progress: Callable[[JobProgress], None] | None = None,
+        model_name: str | None = None,
     ) -> None:
         # Capture provider reference at job start; later UI swaps of self.provider are ignored.
         start_provider = self.provider
@@ -550,6 +581,7 @@ class JobCoordinator:
             page_ids=page_ids,
             force=force,
             provider=start_provider,
+            model_name=model_name,
         )
         self._execute_plan(
             state,
@@ -867,13 +899,25 @@ class JobCoordinator:
                 client=self.cleanup_client,
             )
 
-            # Atomic success write: raw_text + cleanup together; never persist
-            # cleaned text without a complete cleanup record.
             running.raw_text = final_text
             running.cleanup = cleanup_record
             running.provider_metadata = result.provider_metadata
-            running.status = "succeeded"
             running.completed_at = to_iso(self.clock.now())
+            if not (final_text or "").strip():
+                from transcribe.domain.models import EMPTY_OUTPUT_CODE, EMPTY_OUTPUT_MESSAGE
+
+                running.status = "failed"
+                running.error = AttemptError(
+                    code=EMPTY_OUTPUT_CODE,
+                    message=EMPTY_OUTPUT_MESSAGE,
+                    retriable=False,
+                )
+                self.projects.record_generation(page_id, running, activate=plan.activate)
+                return "failed"
+
+            # Atomic success write: raw_text + cleanup together; never persist
+            # cleaned text without a complete cleanup record.
+            running.status = "succeeded"
             if (
                 result.model_digest != plan.model_digest
                 or result.model_identity_verified != plan.model_identity_verified

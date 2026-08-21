@@ -43,6 +43,7 @@ def test_catalogue_includes_ocr_and_detection(tmp_path: Path):
     cat = list_catalogue(runtime=rt)
     ids = {e.definition.prompt_id for e in cat}
     assert "faithful_markdown" in ids
+    assert "free_ocr" in ids
     assert "cleanup_strip_leak" in ids
     assert "poetry_detect_text_v1" in ids
     assert "todo_lists_detect_text_v1" in ids

@@ -7,11 +7,8 @@ import threading
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
-from transcribe import __version__
 from transcribe.domain.models import (
-    AttemptProvenance,
     DEFAULT_PREFER_MODE,
-    OCRAttempt,
     PREFER_MODES,
     page_label,
 )
@@ -20,9 +17,8 @@ from transcribe.persistence.atomic import write_json_atomic
 from transcribe.persistence.locks import JobLock
 from transcribe.ports import Clock, IdGenerator, to_iso
 from transcribe.services.job import JobCoordinator
-from transcribe.services.ocr_compare import run_composite, run_rank
-from transcribe.services.ocr_composite_state import current_composite_attempt
-from transcribe.services.ocr_preference_stats import append_preference_event
+from transcribe.services.ocr_composite_state import current_composite_attempt, merge_input_vision_attempts
+from transcribe.services.ocr_rank_merge import rank_and_composite_page
 from transcribe.services.project import ProjectService
 
 _log = logging.getLogger(__name__)
@@ -41,6 +37,7 @@ class MultiPassPlan:
     model_digests: dict[str, str | None] = field(default_factory=dict)
     model_verified: dict[str, bool] = field(default_factory=dict)
     cleanup_enabled: bool = False
+    compare_only: bool = False
 
 
 @dataclass
@@ -142,6 +139,71 @@ class MultiPassCoordinator:
         thread.start()
         return pass_id
 
+    def start_compare_existing(
+        self,
+        *,
+        page_ids: list[str] | None = None,
+        auto_activate_composite: bool | None = None,
+    ) -> str:
+        """Rank/merge on-disk vision successes without re-running OCR."""
+        project = self.projects.load(reconcile=False)
+        targets = list(page_ids) if page_ids else [p.page_id for p in project.pages]
+        comparable: list[str] = []
+        model_names: list[str] = []
+        seen_models: set[str] = set()
+        for page_id in targets:
+            result = self.projects.load_page_result(page_id)
+            inputs = merge_input_vision_attempts(result) if result is not None else []
+            if len(inputs) < 2:
+                continue
+            comparable.append(page_id)
+            for attempt in inputs:
+                name = ""
+                if attempt.provenance is not None:
+                    name = (attempt.provenance.model_name or "").strip()
+                if name and name not in seen_models:
+                    seen_models.add(name)
+                    model_names.append(name)
+        if not comparable:
+            raise TranscribeError("no pages with two or more OCR readings to compare")
+        if len(model_names) < 2:
+            raise TranscribeError("need OCR from at least two vision models to rank and merge")
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise JobConflictError("a transcription job is already running in this process")
+            if self.jobs.is_running():
+                raise JobConflictError("a transcription job is already running in this process")
+            if not self._job_lock.try_acquire():
+                raise JobConflictError("another process holds the OCR job lock for this project")
+            self._cancel.clear()
+            pass_id = self.ids.new_id()
+            progress = MultiPassProgress(
+                pass_id=pass_id, status="running", message="Ranking existing OCR…"
+            )
+            self._progress = progress
+
+            def runner() -> None:
+                try:
+                    self._run(
+                        models=model_names,
+                        page_ids=comparable,
+                        force=False,
+                        auto_activate_composite=auto_activate_composite,
+                        on_progress=None,
+                        pass_id=pass_id,
+                        cleanup_enabled=False,
+                        compare_only=True,
+                    )
+                finally:
+                    self._job_lock.release()
+
+            thread = threading.Thread(
+                target=runner, name=f"transcribe-compare-{pass_id}", daemon=True
+            )
+            self._thread = thread
+        thread.start()
+        return pass_id
+
     def run_blocking(
         self,
         *,
@@ -168,6 +230,52 @@ class MultiPassCoordinator:
                 on_progress=on_progress,
                 cleanup_enabled=cleanup_enabled,
                 pass_id=pass_id,
+            )
+        finally:
+            self._job_lock.release()
+
+    def run_compare_existing_blocking(
+        self,
+        *,
+        page_ids: list[str] | None = None,
+        auto_activate_composite: bool | None = None,
+        on_progress: Callable[[MultiPassProgress], None] | None = None,
+    ) -> MultiPassProgress:
+        """Blocking rank/merge of on-disk vision successes (tests / CLI-shaped)."""
+        project = self.projects.load(reconcile=False)
+        targets = list(page_ids) if page_ids else [p.page_id for p in project.pages]
+        comparable: list[str] = []
+        model_names: list[str] = []
+        seen_models: set[str] = set()
+        for page_id in targets:
+            result = self.projects.load_page_result(page_id)
+            inputs = merge_input_vision_attempts(result) if result is not None else []
+            if len(inputs) < 2:
+                continue
+            comparable.append(page_id)
+            for attempt in inputs:
+                name = ""
+                if attempt.provenance is not None:
+                    name = (attempt.provenance.model_name or "").strip()
+                if name and name not in seen_models:
+                    seen_models.add(name)
+                    model_names.append(name)
+        if not comparable:
+            raise TranscribeError("no pages with two or more OCR readings to compare")
+        if len(model_names) < 2:
+            raise TranscribeError("need OCR from at least two vision models to rank and merge")
+        self._cancel.clear()
+        if not self._job_lock.try_acquire():
+            raise JobConflictError("another process holds the OCR job lock for this project")
+        try:
+            return self._run(
+                models=model_names,
+                page_ids=comparable,
+                force=False,
+                auto_activate_composite=auto_activate_composite,
+                on_progress=on_progress,
+                cleanup_enabled=False,
+                compare_only=True,
             )
         finally:
             self._job_lock.release()
@@ -254,6 +362,7 @@ class MultiPassCoordinator:
         prefer_mode_override: str | None = None,
         ranker_override: str | None = None,
         cleanup_enabled: bool = False,
+        compare_only: bool = False,
     ) -> MultiPassProgress:
         project = self.projects.load(reconcile=False)
         targets = tuple(page_ids or [p.page_id for p in project.pages])
@@ -277,7 +386,7 @@ class MultiPassCoordinator:
         )
         if not ranker:
             raise TranscribeError(
-                "multipass rank/composite requires a text/cleanup model "
+                "rank/composite requires a text/cleanup model "
                 "(set cleanup_model_name or text_model_name)"
             )
         pass_id = pass_id or self.ids.new_id()
@@ -291,18 +400,23 @@ class MultiPassCoordinator:
             ranker_model_name=ranker,
             base_url=settings.base_url,
             cleanup_enabled=bool(cleanup_enabled),
+            compare_only=bool(compare_only),
         )
         progress = MultiPassProgress(
             pass_id=pass_id,
             status="running",
-            model_total=len(models),
-            phase="vision",
+            model_total=0 if compare_only else len(models),
+            phase="rank_composite" if compare_only else "vision",
             model_index=start_model_index,
             pages_total=len(targets),
             message=(
-                f"Resuming multipass from model {start_model_index + 1}…"
-                if start_model_index
-                else "Starting multipass…"
+                "Ranking existing OCR…"
+                if compare_only
+                else (
+                    f"Resuming multipass from model {start_model_index + 1}…"
+                    if start_model_index
+                    else "Starting multipass…"
+                )
             ),
         )
         self._persist(plan, progress, terminal=False)
@@ -316,42 +430,43 @@ class MultiPassCoordinator:
 
         try:
             cancelled = False
-            for idx, model_name in enumerate(models):
-                if idx < start_model_index:
-                    continue
-                if self._cancel.is_set() or self.jobs.get_progress().status == "cancelled":
-                    cancelled = True
-                    break
-                self._emit(
-                    progress,
-                    on_progress,
-                    phase="vision",
-                    model_index=idx + 1,
-                    message=f"Vision model {model_name} ({idx + 1}/{len(models)})",
-                )
-                job_plan = self.jobs._build_plan(
-                    project,
-                    job_id=f"{pass_id}-m{idx}",
-                    page_ids=list(targets),
-                    force=force,
-                    provider=self.jobs.provider,
-                    model_name=model_name,
-                    activate=False,
-                    pass_id=pass_id,
-                    skip_match_any_succeeded=True,
-                    attempt_kind="vision",
-                    cleanup_enabled=bool(plan.cleanup_enabled),
-                )
-                self.jobs.run_frozen_plan_blocking(
-                    job_plan,
-                    hold_lock=False,
-                    on_progress=None,
-                )
-                self._persist(plan, progress, terminal=False)
-                inner = self.jobs.get_progress()
-                if self._cancel.is_set() or inner.status == "cancelled":
-                    cancelled = True
-                    break
+            if not compare_only:
+                for idx, model_name in enumerate(models):
+                    if idx < start_model_index:
+                        continue
+                    if self._cancel.is_set() or self.jobs.get_progress().status == "cancelled":
+                        cancelled = True
+                        break
+                    self._emit(
+                        progress,
+                        on_progress,
+                        phase="vision",
+                        model_index=idx + 1,
+                        message=f"Vision model {model_name} ({idx + 1}/{len(models)})",
+                    )
+                    job_plan = self.jobs._build_plan(
+                        project,
+                        job_id=f"{pass_id}-m{idx}",
+                        page_ids=list(targets),
+                        force=force,
+                        provider=self.jobs.provider,
+                        model_name=model_name,
+                        activate=False,
+                        pass_id=pass_id,
+                        skip_match_any_succeeded=True,
+                        attempt_kind="vision",
+                        cleanup_enabled=bool(plan.cleanup_enabled),
+                    )
+                    self.jobs.run_frozen_plan_blocking(
+                        job_plan,
+                        hold_lock=False,
+                        on_progress=None,
+                    )
+                    self._persist(plan, progress, terminal=False)
+                    inner = self.jobs.get_progress()
+                    if self._cancel.is_set() or inner.status == "cancelled":
+                        cancelled = True
+                        break
 
             # Rank + composite per page (skip pages already compared for this pass).
             # Cancel does not skip rank: pages that already have ≥2 vision successes
@@ -425,132 +540,38 @@ class MultiPassCoordinator:
         result = self.projects.load_page_result(page_id)
         if result is None:
             return
-        pass_attempts = [
-            a
-            for a in result.attempts
-            if a.pass_id == plan.pass_id
-            and a.status == "succeeded"
-            and (a.attempt_kind or "vision") == "vision"
-        ]
-        # Also include any succeeded vision attempts if pass filter yields <2
-        # (e.g. skips reused older attempts without this pass_id)
-        if len(pass_attempts) < 2:
+        if plan.compare_only:
+            pass_attempts = list(merge_input_vision_attempts(result))
+        else:
             pass_attempts = [
                 a
                 for a in result.attempts
-                if a.status == "succeeded"
+                if a.pass_id == plan.pass_id
+                and a.status == "succeeded"
                 and (a.attempt_kind or "vision") == "vision"
-                and (a.raw_text or "").strip()
             ]
+            if len(pass_attempts) < 2:
+                pass_attempts = list(merge_input_vision_attempts(result))
         if len(pass_attempts) < 2:
             return
-
-        created = to_iso(self.clock.now())
-        ranker_digest = None
-        if self.text_client is not None:
-            try:
-                ranker_digest = self.text_client.model_digest(plan.ranker_model_name)
-            except Exception:  # noqa: BLE001 — provenance best-effort
-                ranker_digest = None
-        rank = run_rank(
-            attempts=pass_attempts,
+        outcome = rank_and_composite_page(
+            projects=self.projects,
+            page_id=page_id,
             pass_id=plan.pass_id,
-            model_name=plan.ranker_model_name,
-            model_digest=ranker_digest,
-            created_at=created,
+            ranker_model_name=plan.ranker_model_name,
             base_url=plan.base_url,
-            client=self.text_client,
-        )
-        if rank.comparison is not None:
-            self.projects.save_comparison(page_id, rank.comparison)
-            progress.pages_ranked += 1
-
-        comp = run_composite(
+            ids=self.ids,
+            clock=self.clock,
+            auto_activate_composite=plan.auto_activate_composite,
+            prefer_mode=plan.prefer_mode,
+            prior_active_id=prior_active_id,
             attempts=pass_attempts,
-            model_name=plan.ranker_model_name,
-            base_url=plan.base_url,
-            client=self.text_client,
+            text_client=self.text_client,
         )
-        composite_attempt: OCRAttempt | None = None
-        if comp.text:
-            attempt_id = self.ids.new_id()
-            source_ids = [a.attempt_id for a in pass_attempts]
-            composite_attempt = OCRAttempt(
-                attempt_id=attempt_id,
-                status="succeeded",
-                input_fingerprint=f"composite:{plan.pass_id}:{attempt_id}",
-                fingerprint_payload={
-                    "kind": "composite",
-                    "pass_id": plan.pass_id,
-                    "source_attempt_ids": source_ids,
-                },
-                raw_text=comp.text,
-                provenance=AttemptProvenance(
-                    model_name=plan.ranker_model_name,
-                    model_digest=comp.model_digest or ranker_digest,
-                    model_identity_verified=bool(comp.model_digest or ranker_digest),
-                    prompt_id=comp.prompt_id or "ocr_composite",
-                    prompt_version=comp.prompt_version or "1",
-                    prompt_sha256=comp.prompt_sha256 or "",
-                    prompt_text=comp.prompt_text or "",
-                    input_sha256="",
-                    preprocess_profile="none",
-                    preprocess_version=0,
-                    generation_options={},
-                    application_version=__version__,
-                    ollama_host=plan.base_url,
-                    request_id=attempt_id,
-                    render_id="",
-                ),
-                provider_metadata={},
-                started_at=created,
-                completed_at=created,
-                attempt_kind="composite",
-                pass_id=plan.pass_id,
-                source_attempt_ids=source_ids,
-            )
-            # Fill render_id from page
-            project = self.projects.load(reconcile=False)
-            page = next((p for p in project.pages if p.page_id == page_id), None)
-            if page and composite_attempt.provenance:
-                composite_attempt.provenance.render_id = page.active_render_id
-            activate = bool(plan.auto_activate_composite)
-            self.projects.record_generation(page_id, composite_attempt, activate=activate)
+        if outcome.ranked:
+            progress.pages_ranked += 1
+        if outcome.composited:
             progress.pages_composite += 1
-            if activate:
-                if plan.prefer_mode == "prefer_is_promote":
-                    self.projects.set_preferred_attempt(
-                        page_id,
-                        attempt_id,
-                        mode="prefer_is_promote",
-                        record_ledger=True,
-                        action_override="auto_composite",
-                    )
-                else:
-                    append_preference_event(
-                        notebook_id=project.id,
-                        page_id=page_id,
-                        attempt_id=attempt_id,
-                        model_name=plan.ranker_model_name,
-                        model_digest=comp.model_digest or ranker_digest,
-                        attempt_kind="composite",
-                        action="auto_composite",
-                        pass_id=plan.pass_id,
-                        clock=self.clock,
-                    )
-        else:
-            # Fallback activation when no prior active
-            result = self.projects.load_page_result(page_id)
-            if result and not prior_active_id:
-                best_id = None
-                if rank.comparison and rank.comparison.ranked_attempt_ids:
-                    best_id = rank.comparison.ranked_attempt_ids[0]
-                elif pass_attempts:
-                    best_id = sorted(pass_attempts, key=lambda a: a.started_at, reverse=True)[
-                        0
-                    ].attempt_id
-                if best_id:
-                    self.projects.set_active_attempt(page_id, best_id)
 
     def _persist(
         self,
@@ -573,6 +594,7 @@ class MultiPassCoordinator:
             "ranker_model_name": plan.ranker_model_name,
             "base_url": plan.base_url,
             "cleanup_enabled": plan.cleanup_enabled,
+            "compare_only": plan.compare_only,
             "status": progress.status,
             "phase": progress.phase,
             "model_index": progress.model_index,

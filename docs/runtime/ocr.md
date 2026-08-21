@@ -17,7 +17,7 @@ Run local vision OCR via Ollama on notebook pages. Product framing: [PRODUCT.md]
 ./transcribe.sh cli models --refresh --prefs
 ```
 
-Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or **1 fatal model-load** error on a frozen vision plan, remaining pages for **that** model are skipped (`circuit_open`) so a bad tag does not burn the notebook.
+Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or **1 fatal model-load** error on a frozen vision plan, remaining pages for **that** model are skipped (`circuit_open`) so a bad tag does not burn the notebook. Some tags (DeepSeek-OCR) use a **model recipe** for the frozen prompt — [ocr_model_recipes.md](ocr_model_recipes.md). Whitespace-only OCR is **failed** (`empty_output`) and does not overwrite a prior reading.
 
 ## This notebook (single model)
 
@@ -37,7 +37,7 @@ Matching fingerprints on succeeded pages are skipped when model identity was ver
   --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
 ```
 
-**UI:** **Compare models** (multi-select) → Start multipass compare (background). Vision-phase cleanup defaults **off** unless you opt in. Rank + optional **merged draft** (composite) use the text/cleanup model. Review the draft in the **Transcription** tab beside the scan: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). Notebook OCR settings (below) and contract detail: [page-result](../contracts/page-result.md). Preference ledger: [ocr-preference](../contracts/ocr-preference.md).
+**UI:** **Compare models** (multi-select) → Start multipass compare (background). Vision-phase cleanup defaults **off** unless you opt in. Rank + optional **merged draft** (composite) use the text/cleanup model. If two or more models already have succeeded text on disk (separate Transcribe jobs), **Rank and merge existing OCR** on Transcribe or Review runs rank/composite without re-running vision. Review the draft in the **Transcription** tab beside the scan: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). Notebook OCR settings (below) and contract detail: [page-result](../contracts/page-result.md). Preference ledger: [ocr-preference](../contracts/ocr-preference.md).
 
 ## Notebook OCR settings
 
@@ -89,10 +89,11 @@ CLI equivalent: omit `--no-auto-composite` (default seeds) or pass `--no-auto-co
 
 ## Review after OCR
 
-**Review** is the needs-attention queue (dates, empty text, failures). Right-pane tabs walk **Transcription → Date → Tags → Other** beside the scan; layout and evidence hierarchy: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). **Compare OCR attempts** for Prefer / Promote. Edits live in `edited_text` and survive re-runs. Golden path detail: [user_guide.md](../user_guide.md).
+**Review** is the needs-attention queue (dates, empty text, failures). Right-pane tabs walk **Transcription → Date → Tags → Other** beside the scan; layout and evidence hierarchy: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). **Other → Re-run OCR** picks a vision model and can force this page, all pages, or pages not marked reviewed. **Rank and merge** (this page / all comparable pages) runs rank + merged draft on existing readings. Failed attempts appear in OCR evidence. Golden path detail: [user_guide.md](../user_guide.md).
 
 ## Related
 
 - Settings / preprocess seed: [settings.md](settings.md)
+- Model recipes (DeepSeek-OCR `Free OCR.` lane): [ocr_model_recipes.md](ocr_model_recipes.md)
 - Import / bulk import: [user_guide.md](../user_guide.md)
 - Docker Ollama URL: [docker.md](docker.md)

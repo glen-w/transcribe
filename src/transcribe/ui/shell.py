@@ -550,7 +550,7 @@ def inject_global_styles() -> None:
     }
     /* Review workbench: keep the scan large but inside the viewport */
     [class*="st-key-review_scan"] img {
-        max-height: 55vh;
+        max-height: 63vh;
         width: auto;
         max-width: 100%;
         object-fit: contain;

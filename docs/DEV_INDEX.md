@@ -44,6 +44,7 @@ Product and module reviews (critique and follow-ups — not contracts): [reviews
 | [dev/places_tx_alignment.md](dev/places_tx_alignment.md) | NER/places map alignment with TranscriptX |
 | [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md) | Settings / profiles / models / prompts alignment |
 | [dev/ocr_review_workbench_plan.md](dev/ocr_review_workbench_plan.md) | Post-U3 OCR Review workbench (scan / tabbed lanes / evidence / merged draft / transcription) |
+| [runtime/ocr_model_recipes.md](runtime/ocr_model_recipes.md) | Per-model OCR prompt recipes (DeepSeek-OCR first) |
 
 ## Archive
 

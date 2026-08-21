@@ -85,16 +85,20 @@ def test_batch_mixed_cleanup_outcomes(tmp_path: Path):
     coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup)
     progress = coord.run_blocking()
     assert progress.status == "completed"
-    assert progress.failed == 0
-    assert progress.completed == 5
+    assert progress.failed == 1
+    assert progress.completed == 4
 
     project = projects.load()
     outcomes = []
+    empty_failed = None
     for page in project.pages:
         result = projects.load_page_result(page.page_id)
         assert result is not None
         attempt = result.active_attempt()
         assert attempt is not None
+        if attempt.status == "failed" and attempt.error and attempt.error.code == "empty_output":
+            empty_failed = attempt
+            continue
         assert attempt.status == "succeeded"
         assert attempt.cleanup is not None
         outcomes.append(
@@ -105,12 +109,14 @@ def test_batch_mixed_cleanup_outcomes(tmp_path: Path):
             )
         )
 
+    assert empty_failed is not None
+    assert empty_failed.cleanup is not None
+    assert empty_failed.cleanup.execution_status == "skipped_empty_source"
     assert outcomes[0][1] == "applied"
     assert outcomes[1][1] == "unchanged"
     assert outcomes[2][1] == "validator_rejected"
-    assert outcomes[3][0] == "skipped_empty_source"
-    assert outcomes[4][0] == "provider_failed"
-    assert outcomes[4][2] == "timeout"
+    assert outcomes[3][0] == "provider_failed"
+    assert outcomes[3][2] == "timeout"
     # empty source must not call generate
     assert cleanup.generate_calls == 4  # apply, unchanged, reject, fail — not empty
 
@@ -200,6 +206,32 @@ def test_plan_freezes_cleanup_identity(tmp_path: Path):
     )
     assert plan2.cleanup.mode == "rewrite"
     assert plan2.config_fingerprint != frozen_fp
+
+
+def test_build_plan_honors_model_name_override(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    provider = FakeVisionOCRProvider()
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "notebook-default"
+    projects.save_settings(project, settings)
+    project = projects.load()
+    plan = coord._build_plan(
+        project,
+        job_id="j1",
+        page_ids=None,
+        force=True,
+        provider=provider,
+        model_name="override-vision",
+    )
+    assert plan.model_name == "override-vision"
+    assert project.settings.model_name == "notebook-default"
 
 
 def test_settings_persistence_roundtrip(tmp_path: Path):

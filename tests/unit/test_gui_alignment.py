@@ -50,6 +50,7 @@ def test_widget_keys_include_project_id() -> None:
     assert "page_metrics_refresh_{project.id}" in metrics
     assert "overview_ink_{project.id}" in metrics
     assert "detect_run_detectors_{project_id}" in detect
+    assert "detect_findings_type_{project_id}" in detect
     assert "moment_jump_{project_id" in product
 
 
@@ -148,6 +149,14 @@ def test_detect_viewer_returns_to_detect() -> None:
     assert 'return_mode="Detect"' in detect
     assert 'st.session_state["ui_mode"] = "Detect"' in detect
     assert "Back to Detect" in views
+
+
+def test_detect_findings_selects_one_type() -> None:
+    """Findings must not render every detector on first paint (page scans are expensive)."""
+    detect = (UI_ROOT / "run_detection.py").read_text(encoding="utf-8")
+    assert "detect_findings_type_{project_id}" in detect
+    assert "st.segmented_control" in detect
+    assert "for info in svc.list_detectors():" not in detect
 
 
 def test_search_and_library_open_reading() -> None:

@@ -16,6 +16,7 @@ Curated entry points for people using Transcribe (not repository historians).
 | [Docker](runtime/docker.md) | Compose mounts and Ollama from Docker |
 | [Settings & knobs](runtime/settings.md) | Configuration scopes, profiles, UI knobs |
 | [OCR / transcription](runtime/ocr.md) | Single-run, multipass, batch, cleanup |
+| [OCR model recipes](runtime/ocr_model_recipes.md) | Per-tag prompt lanes (DeepSeek-OCR `Free OCR.`) |
 | [Analysis & Detect](runtime/analysis.md) | Analyse presets, View consume, Detect |
 | [Export](runtime/export.md) | Notebook formats, anthology, fine-tune pointer |
 | [Backup & restore](backup_and_restore.md) | Full-workspace ZIP create / verify / restore |

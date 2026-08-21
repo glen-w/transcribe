@@ -44,9 +44,16 @@ FAITHFUL_TEXT = PromptTemplate(
     ),
 )
 
+FREE_OCR = PromptTemplate(
+    prompt_id="free_ocr",
+    version="1",
+    body="Free OCR.",
+)
+
 REGISTRY: dict[str, PromptTemplate] = {
     FAITHFUL_MARKDOWN.prompt_id: FAITHFUL_MARKDOWN,
     FAITHFUL_TEXT.prompt_id: FAITHFUL_TEXT,
+    FREE_OCR.prompt_id: FREE_OCR,
 }
 
 

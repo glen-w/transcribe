@@ -18,6 +18,13 @@ def test_glm_ocr_is_ocr_oriented():
     assert advice.kind == "ocr_oriented"
 
 
+def test_deepseek_ocr_is_ocr_oriented():
+    assert is_ocr_oriented_name("deepseek-ocr:latest")
+    advice = advise_model("deepseek-ocr:latest", role="vision")
+    assert advice.kind == "ocr_oriented"
+    assert any("free ocr" in w.lower() or "empty" in w.lower() for w in advice.warnings)
+
+
 def test_text_role_mentions_cleanup_cost():
     advice = advise_model("llama3.1:8b", role="text")
     assert advice.kind == "text"

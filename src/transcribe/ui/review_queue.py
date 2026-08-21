@@ -84,10 +84,34 @@ def review_status_page_ids(project: Project, status: str) -> list[str]:
     """Pages whose stored review_status matches (missing → unreviewed)."""
     wanted = status or "unreviewed"
     return [
-        page.page_id
-        for page in project.pages
-        if (page.review_status or "unreviewed") == wanted
+        page.page_id for page in project.pages if (page.review_status or "unreviewed") == wanted
     ]
+
+
+def not_reviewed_page_ids(project: Project) -> list[str]:
+    """Pages that are not marked ``reviewed`` (includes skipped / needs attention)."""
+    return [
+        page.page_id for page in project.pages if (page.review_status or "unreviewed") != "reviewed"
+    ]
+
+
+RerunOcrScope = Literal["this_page", "all_pages", "not_reviewed"]
+
+
+def rerun_ocr_page_ids(
+    project: Project,
+    *,
+    scope: RerunOcrScope,
+    page_id: str,
+) -> list[str]:
+    """Notebook page ids for a Review re-run OCR scope."""
+    if scope == "this_page":
+        if any(page.page_id == page_id for page in project.pages):
+            return [page_id]
+        return []
+    if scope == "all_pages":
+        return [page.page_id for page in project.pages]
+    return not_reviewed_page_ids(project)
 
 
 def source_disagreement_count(result: PageResult | None) -> int:

@@ -56,4 +56,4 @@ Project override → workspace override → workspace custom → code builtin (i
 
 ## Versioning policy
 
-When `version` changes, prior results remain provenance-addressable. Freshness semantics compare `(prompt_id, version)` in detection cache identity; stale results are marked, not silently upgraded. OCR jobs freeze exact rendered text SHA at job start.
+When `version` changes, prior results remain provenance-addressable. Freshness semantics compare `(prompt_id, version)` in detection cache identity; stale results are marked, not silently upgraded. OCR jobs freeze exact rendered text SHA at job start. Builtin OCR ids include `faithful_markdown`, `faithful_text`, and `free_ocr` (DeepSeek-OCR recipe). Model-name recipes may select `free_ocr` at JobPlan freeze; a notebook custom prompt still wins — [ocr_model_recipes.md](../runtime/ocr_model_recipes.md).

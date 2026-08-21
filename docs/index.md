@@ -18,6 +18,7 @@ known_limitations
 runtime/installation
 runtime/settings
 runtime/ocr
+runtime/ocr_model_recipes
 runtime/analysis
 runtime/docker
 runtime/export

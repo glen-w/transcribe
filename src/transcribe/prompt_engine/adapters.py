@@ -13,6 +13,7 @@ from transcribe.prompt_engine.definition import (
 from transcribe.prompts import (
     FAITHFUL_MARKDOWN,
     FAITHFUL_TEXT,
+    FREE_OCR,
     REGISTRY as OCR_REGISTRY,
 )
 
@@ -98,6 +99,7 @@ def resolve_cleanup_prompt_text(
 __all__ = [
     "FAITHFUL_MARKDOWN",
     "FAITHFUL_TEXT",
+    "FREE_OCR",
     "cleanup_templates_as_definitions",
     "ocr_templates_as_definitions",
     "resolve_cleanup_prompt_text",

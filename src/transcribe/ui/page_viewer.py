@@ -142,6 +142,8 @@ def _reader_cover_page_id(project: Project) -> str | None:
 
 # Cap page-scan width in multi-model compare so Prefer/Promote stays primary.
 _COMPARE_SCAN_IMAGE_WIDTH_PX = 320
+# Reading mode: smaller scan so transcription stays the focus.
+_READING_SCAN_IMAGE_WIDTH_PX = 360
 
 
 def _render_attempt_compare(
@@ -1040,6 +1042,9 @@ def render_page_viewer(
     if compare_layout:
         # Prefer/Promote is the job; scan is reference — narrower + collapsible.
         left, right = st.columns([2, 3])
+    elif read_only:
+        # Reading: text-forward; scan is a smaller reference beside transcription.
+        left, right = st.columns([2, 3])
     else:
         left, right = st.columns([3, 2])
 
@@ -1068,6 +1073,8 @@ def render_page_viewer(
                 key=f"pv_scan_{page.page_id}",
             ):
                 _render_scan_and_metrics(image_width=_COMPARE_SCAN_IMAGE_WIDTH_PX)
+        elif read_only:
+            _render_scan_and_metrics(image_width=_READING_SCAN_IMAGE_WIDTH_PX)
         else:
             _render_scan_and_metrics(image_width="stretch")
     with right:

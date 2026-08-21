@@ -567,6 +567,8 @@ class Project:
 
 
 ATTEMPT_STATUSES = frozenset({"running", "succeeded", "failed", "cancelled", "interrupted"})
+EMPTY_OUTPUT_CODE = "empty_output"
+EMPTY_OUTPUT_MESSAGE = "model returned no text"
 REVIEW_STATUSES = frozenset({"unreviewed", "needs_attention", "reviewed", "skipped"})
 EFFECTIVE_TEXT_ORIGINS = frozenset(
     {"ocr_attempt", "composite", "human_selected", "human_corrected"}

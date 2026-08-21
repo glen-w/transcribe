@@ -774,6 +774,46 @@ def _render_this_notebook_launch(
             except (JobConflictError, TranscribeError) as exc:
                 st.error(str(exc))
 
+    from transcribe.services.ocr_composite_state import merge_input_vision_attempts
+
+    pages_comparable = 0
+    for page in project.pages:
+        result = projects.load_page_result(page.page_id)
+        if result is not None and len(merge_input_vision_attempts(result)) >= 2:
+            pages_comparable += 1
+    if pages_comparable:
+        st.caption(
+            f"{pages_comparable} page(s) already have OCR from two or more models. "
+            "Rank and merge builds a merged draft without re-running vision."
+        )
+        ranker = (form.get("text_model") or project.settings.text_model_name or "").strip() or (
+            (project.settings.cleanup_model_name or "").strip()
+        )
+        if st.button(
+            "Rank and merge existing OCR",
+            key="tx_this_rank_existing",
+            icon=ic.PLAY,
+            disabled=not ranker,
+            help="Rank competing on-disk OCR readings and build a merged draft.",
+        ):
+            try:
+                if form["text_model"] and not project.settings.cleanup_model_name:
+                    settings = project.settings
+                    settings.cleanup_model_name = form["text_model"]
+                    project = projects.save_settings(project, settings)
+                multi = get_multipass_coordinator(str(root))
+                multi.start_compare_existing(
+                    auto_activate_composite=not no_auto_comp,
+                )
+                st.session_state["_job_was_running"] = True
+                st.session_state["_transcribe_post_kind"] = "multipass"
+                st.session_state.pop("_transcribe_post_job_id", None)
+                st.rerun()
+            except (JobConflictError, TranscribeError) as exc:
+                st.error(str(exc))
+        if not ranker:
+            st.caption("Set a text model above to rank and merge.")
+
 
 def _multipass_default_selection(available: list[str]) -> list[str]:
     """Workspace multipass_default_models filtered to currently listed models."""

@@ -21,6 +21,8 @@ On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export pr
 - `pass_id` (optional) ties attempts from one multipass run
 - Composite attempts carry `source_attempt_ids` (vision attempt ids used as merge inputs) and optional `composite_note`
 - `active_attempt_id` selects the attempt that owns current derived status / raw text
+- Whitespace-only provider output is **failed** with `error.code=empty_output` (not `succeeded`). Cleanup may still record `skipped_empty_source` on that failed attempt. Failed / running / empty writes **do not** replace a prior succeeded-with-text `active_attempt_id`. A first-ever attempt on a page may still become active when `activate` is true (the page then shows Failed OCR).
+- Historical empty `succeeded` attempts (legacy DeepSeek-OCR + long faithful prompt) are repaired on Review: rewritten to `failed` / `empty_output`, and `active_attempt_id` restored to the latest succeeded-with-text reading when one exists.
 - `preferred_attempt_id` (optional) records user preference; may differ from active under `prefer_only` mode
 - Interrupted reconciliation: when the job lock is free, `running` attempts become `interrupted`
 - Retention must never drop `active`, `preferred`, the latest succeeded attempt per `(model_name, digest)`, or the latest composite for the current `pass_id` when possible within the cap
@@ -75,6 +77,8 @@ Vision generate always sends a `num_predict` cap (default 4096). The **default**
 
 When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
 
+Some vision tags use a **model recipe** (name match → short prompt such as `free_ocr`) frozen into the plan; that prompt hash participates like any other `prompt_sha256`. Custom notebook prompts always win over a recipe. See [runtime/ocr_model_recipes.md](../runtime/ocr_model_recipes.md).
+
 Skip/resume policy for *single-model jobs* (runtime): a page may be skipped only when the frozen job plan has **verified** model identity and the recomputed fingerprint matches a succeeded **active** attempt. Unverified model identity is non-cacheable for skip.
 
 Skip/resume for *multipass* vision phases: skip when verified identity matches **any** succeeded vision attempt fingerprint on the page (not only active), so rematching models stay cacheable while accumulating candidates.
@@ -98,6 +102,6 @@ Fields:
 - Bounded diagnostics on reject/fail: `original_length`, `candidate_length`, `length_ratio` — **rejected candidate text is not persisted**
 - `cleanup_validator_policy_id` / `cleanup_validator_policy_version`
 
-Whitespace-only vision OCR skips the cleanup model (`execution_status=skipped_empty_source`). Plan-time misconfiguration (invalid mode, missing/unsuitable cleanup model, unverified digest) rejects **job start**. Runtime model disappearance or digest drift is page-level fail-soft (`provider_failed`) and keeps vision `raw_text`.
+Whitespace-only vision OCR skips the cleanup model (`execution_status=skipped_empty_source`) and the **attempt is failed** (`empty_output`) — not a succeeded blank page. Plan-time misconfiguration (invalid mode, missing/unsuitable cleanup model, unverified digest) rejects **job start**. Runtime model disappearance or digest drift is page-level fail-soft (`provider_failed`) and keeps vision `raw_text`.
 
 `raw_text` and `cleanup` for a succeeded attempt are committed in one write. Interrupted `running` attempts must not leave cleaned `raw_text` without a complete `cleanup` record.

@@ -19,6 +19,8 @@ from transcribe.ui.review_queue import (
     filter_review_page_ids,
     format_review_filter_label,
     high_disagreement_page_ids,
+    not_reviewed_page_ids,
+    rerun_ocr_page_ids,
     review_status_page_ids,
     unapproved_date_page_ids,
 )
@@ -207,12 +209,8 @@ def test_high_disagreement_filter_uses_cached_count(tmp_path: Path) -> None:
     p0, p1 = [p.page_id for p in project.pages]
     _seed_result(projects, p0, text="hello", status="succeeded", clock=clock)
     _seed_result(projects, p1, text="hello", status="succeeded", clock=clock)
-    projects.cache_alignment_signals(
-        p0, source_disagreement_count=3, agreement_ratio=0.5
-    )
-    projects.cache_alignment_signals(
-        p1, source_disagreement_count=2, agreement_ratio=0.8
-    )
+    projects.cache_alignment_signals(p0, source_disagreement_count=3, agreement_ratio=0.5)
+    projects.cache_alignment_signals(p1, source_disagreement_count=2, agreement_ratio=0.8)
     assert high_disagreement_page_ids(project, projects.load_page_result) == [p0]
     base = viewer_page_ids(project)
     assert filter_review_page_ids(
@@ -242,4 +240,8 @@ def test_review_status_queue_filters(tmp_path: Path) -> None:
         base_page_ids=base,
         load_page_result=projects.load_page_result,
     ) == [p0]
-
+    assert not_reviewed_page_ids(project) == [p1, p2]
+    assert rerun_ocr_page_ids(project, scope="this_page", page_id=p0) == [p0]
+    assert rerun_ocr_page_ids(project, scope="this_page", page_id="missing") == []
+    assert rerun_ocr_page_ids(project, scope="all_pages", page_id=p0) == [p0, p1, p2]
+    assert rerun_ocr_page_ids(project, scope="not_reviewed", page_id=p0) == [p1, p2]

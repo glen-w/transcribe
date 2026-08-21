@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Built-in lexical detectors **`first_person`** (count standalone `I`/`i`) and **`swear_words`** (lexicon hit counts). Deterministic OCR text match; no LLM. One finding per page with `detector_data.count` / `samples`.
 
+### Changed
+
+- **Review → Other → Re-run OCR** opens a vision-model picker and can force OCR on this page, all pages, or pages not marked reviewed.
+- Whitespace-only OCR is **failed** (`empty_output`) and no longer replaces a prior succeeded reading. Review repairs historical empty `succeeded` attempts.
+- **DeepSeek-OCR** (and documented recipe tags) freeze a short `free_ocr` prompt unless a custom prompt is set — [ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md).
+- **Rank and merge existing OCR** (Review and Transcribe) ranks on-disk readings from different jobs and builds a merged draft without a same-session multipass.
+
 ## [0.8.6] - 2026-08-19
 
 ### Added

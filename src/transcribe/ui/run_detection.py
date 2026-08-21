@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from transcribe.detection.api import DetectionService
+from transcribe.detection.api import DetectionService, DetectorInfo
+from transcribe.detection.findings import DetectionFinding
 from transcribe.detection.registry import list_all_detectors
 from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.project import ProjectService
@@ -228,70 +229,121 @@ div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
             )
 
 
+@st.fragment
 def _render_findings(projects: ProjectService, project_root: str, *, project_id: str) -> None:
+    """One detector type at a time — Streamlit tabs still render every pane."""
     svc = DetectionService(projects)
+    infos = svc.list_detectors()
+    if not infos:
+        st.caption("No detectors registered.")
+        return
+
+    type_ids = [info.detector_id for info in infos]
+    titles = {info.detector_id: info.title for info in infos}
+    key = f"detect_findings_type_{project_id}"
+    if st.session_state.get(key) not in type_ids:
+        st.session_state[key] = _default_finding_type(svc, infos)
+    selected_id = st.segmented_control(
+        "Finding type",
+        options=type_ids,
+        format_func=lambda did: titles[did],
+        key=key,
+        label_visibility="collapsed",
+        required=True,
+        width="stretch",
+    )
+    if selected_id is None or selected_id not in titles:
+        selected_id = st.session_state.get(key) or type_ids[0]
+    info = next(item for item in infos if item.detector_id == selected_id)
+    _render_finding_type(
+        svc,
+        info,
+        svc.list_findings(info.detector_id),
+        projects=projects,
+        project_root=project_root,
+        project_id=project_id,
+    )
+
+
+def _default_finding_type(svc: DetectionService, infos: list[DetectorInfo]) -> str:
+    for info in infos:
+        if svc.storage.published_path(info.detector_id).exists():
+            return info.detector_id
+    return infos[0].detector_id
+
+
+def _render_finding_type(
+    svc: DetectionService,
+    info: DetectorInfo,
+    findings: list[DetectionFinding],
+    *,
+    projects: ProjectService,
+    project_root: str,
+    project_id: str,
+) -> None:
     project = projects.load()
     page_order = {p.page_id: i for i, p in enumerate(project.pages)}
-
-    for info in svc.list_detectors():
-        findings = svc.list_findings(info.detector_id)
-        if not findings:
-            continue
-        fresh = svc.freshness(info.detector_id)
-        head = st.columns([5, 2])
-        head[0].markdown(f"### {info.title} `{info.detector_id}` · freshness: **{fresh}**")
-        if head[1].button(
-            "Apply tags from findings",
-            key=f"apply_tags_{project_id}_{info.detector_id}",
-            help="Tag pages in published findings without re-running detection.",
-        ):
-            n = svc.apply_tags_from_published(info.detector_id)
-            st.success(f"Tagged {n} page(s)")
-            st.rerun()
-        for f in findings:
-            start_i = page_order.get(f.start_page_id, "?")
-            end_i = page_order.get(f.end_page_id, "?")
-            span = (
-                f"pages {start_i + 1}–{end_i + 1}"
-                if isinstance(start_i, int) and isinstance(end_i, int)
-                else f"{f.start_page_id}…{f.end_page_id}"
+    fresh = svc.freshness(info.detector_id)
+    if not findings:
+        st.caption(
+            f"{info.title} `{info.detector_id}` · freshness: **{fresh}** — "
+            "no published findings yet."
+        )
+        return
+    head = st.columns([5, 2])
+    head[0].markdown(f"### {info.title} `{info.detector_id}` · freshness: **{fresh}**")
+    if head[1].button(
+        "Apply tags from findings",
+        key=f"apply_tags_{project_id}_{info.detector_id}",
+        help="Tag pages in published findings without re-running detection.",
+    ):
+        n = svc.apply_tags_from_published(info.detector_id)
+        st.success(f"Tagged {n} page(s)")
+        st.rerun()
+    for f in findings:
+        start_i = page_order.get(f.start_page_id, "?")
+        end_i = page_order.get(f.end_page_id, "?")
+        span = (
+            f"pages {start_i + 1}–{end_i + 1}"
+            if isinstance(start_i, int) and isinstance(end_i, int)
+            else f"{f.start_page_id}…{f.end_page_id}"
+        )
+        with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
+            st.write(escape_markdown_plain(str(f.evidence.get("reason") or "")))
+            span_page_ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
+            _render_finding_page_context(
+                projects,
+                project,
+                span_page_ids,
+                page_order=page_order,
+                key_prefix=f"find_{project_id}_{f.finding_id}",
             )
-            with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
-                st.write(escape_markdown_plain(str(f.evidence.get("reason") or "")))
-                span_page_ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
-                _render_finding_page_context(
-                    projects,
-                    project,
-                    span_page_ids,
-                    page_order=page_order,
-                    key_prefix=f"find_{project_id}_{f.finding_id}",
+            if f.detector_data:
+                with st.expander("Detector details"):
+                    st.json(f.detector_data)
+            st.caption(
+                f"prompt={f.prompt_provenance} model={f.model_provenance.get('model_name')}"
+            )
+            render_finding_tag_actions(
+                det_svc=svc,
+                detector_id=info.detector_id,
+                finding=f,
+                key_prefix=f"find_{project_id}",
+            )
+            c1, c2 = st.columns(2)
+            if c1.button("Open pages", key=f"open_{project_id}_{f.finding_id}"):
+                ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
+                open_page_context(
+                    page_id=f.start_page_id,
+                    page_ids=ids,
+                    project_root=project_root,
+                    return_mode="Detect",
+                    view_entries=[
+                        {"page_id": pid, "project_root": project_root} for pid in ids
+                    ],
                 )
-                if f.detector_data:
-                    with st.expander("Detector details"):
-                        st.json(f.detector_data)
-                st.caption(
-                    f"prompt={f.prompt_provenance} model={f.model_provenance.get('model_name')}"
-                )
-                render_finding_tag_actions(
-                    det_svc=svc,
-                    detector_id=info.detector_id,
-                    finding=f,
-                    key_prefix=f"find_{project_id}",
-                )
-                c1, c2 = st.columns(2)
-                if c1.button("Open pages", key=f"open_{project_id}_{f.finding_id}"):
-                    ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
-                    open_page_context(
-                        page_id=f.start_page_id,
-                        page_ids=ids,
-                        project_root=project_root,
-                        return_mode="Detect",
-                        view_entries=[
-                            {"page_id": pid, "project_root": project_root} for pid in ids
-                        ],
-                    )
-                    st.session_state["ui_mode"] = "Detect"
-                    st.rerun()
-                if c2.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
-                    svc.run_detector(info.detector_id, force=True)
-                    st.rerun()
+                st.session_state["ui_mode"] = "Detect"
+                st.rerun()
+            if c2.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
+                svc.run_detector(info.detector_id, force=True)
+                st.rerun()

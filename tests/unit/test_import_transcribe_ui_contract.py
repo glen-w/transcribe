@@ -34,6 +34,8 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "Start batch multipass compare" in TRANSCRIBE
     assert "tx_batch_start_multipass" in TRANSCRIBE
     assert "_multipass_default_selection" in TRANSCRIBE
+    assert "Rank and merge existing OCR" in TRANSCRIBE
+    assert "start_compare_existing" in TRANSCRIBE
     assert 'unit_label="notebooks"' in TRANSCRIBE
     assert "pages in this notebook" in TRANSCRIBE
     assert "_job_progress_to_snapshot" in TRANSCRIBE

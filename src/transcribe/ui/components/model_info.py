@@ -98,6 +98,11 @@ def render_model_information(
                 st.caption(hint)
             for warning in advice.warnings:
                 st.caption(warning)
+            if advice.kind == "ocr_oriented" and "recipe" in advice.title.lower():
+                st.caption(
+                    "This model uses a documented OCR recipe at job start "
+                    "(custom prompt still overrides). See runtime/ocr_model_recipes.md."
+                )
             if advice.kind == "general_vlm":
                 st.warning(
                     "This is a general vision-language model, not an OCR model. "

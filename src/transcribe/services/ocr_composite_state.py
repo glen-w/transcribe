@@ -49,6 +49,25 @@ def merge_input_vision_attempts(result: PageResult) -> list[OCRAttempt]:
     return sorted(latest.values(), key=lambda a: a.started_at)
 
 
+def failed_vision_attempts(result: PageResult) -> list[OCRAttempt]:
+    """Latest failed vision attempt per model identity not already a merge input."""
+    latest: dict[tuple[str, str | None], OCRAttempt] = {}
+    for attempt in result.attempts:
+        if (attempt.attempt_kind or "vision") != "vision":
+            continue
+        if attempt.status != "failed":
+            continue
+        key = _model_key(attempt)
+        prev = latest.get(key)
+        if prev is None or attempt.started_at >= prev.started_at:
+            latest[key] = attempt
+    succeeded_keys = {_model_key(attempt) for attempt in merge_input_vision_attempts(result)}
+    return sorted(
+        [attempt for key, attempt in latest.items() if key not in succeeded_keys],
+        key=lambda a: a.started_at,
+    )
+
+
 def merge_input_ids(result: PageResult) -> frozenset[str]:
     return frozenset(attempt.attempt_id for attempt in merge_input_vision_attempts(result))
 
