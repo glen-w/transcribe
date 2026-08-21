@@ -40,8 +40,13 @@ def merge_adjacent_spans(
     *,
     ordered_page_ids: list[str],
     confidence_threshold: float,
+    merge: bool = True,
 ) -> list[RawDetection]:
-    """Deterministically merge overlapping/adjacent raw window hits."""
+    """Deterministically merge overlapping/adjacent raw window hits.
+
+    When ``merge`` is False (AggregationStrategy.NONE), keep each hit separate
+    after the confidence filter — used by per-page lexical counters.
+    """
     filtered = [r for r in raw_detections if r.confidence >= confidence_threshold]
     if not filtered:
         return []
@@ -49,6 +54,8 @@ def merge_adjacent_spans(
     filtered.sort(
         key=lambda r: (r.start_page_idx, r.end_page_idx, -r.confidence),
     )
+    if not merge:
+        return filtered
 
     merged: list[RawDetection] = []
     for cand in filtered:

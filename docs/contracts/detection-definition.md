@@ -13,7 +13,8 @@ A **DetectorDefinition** orchestrates scanning notebook content for phenomena. I
 | `version` | yes | Bump on logic/schema/threshold changes |
 | `title` | yes | Catalogue label |
 | `description` | no | Human-readable summary |
-| `prompt_ref` | yes | `{prompt_id, version}` (v1: single ref) |
+| `prompt_ref` | when `engine=prompt` | `{prompt_id, version}` (v1: single ref); omitted for lexical counters |
+| `engine` | no | `prompt` (default) \| `lexical_count` |
 | `scope` | yes | `page` \| `page_window` \| `notebook` |
 | `input_mode` | yes | `auto` \| `text` \| `vision` |
 | `candidate_strategy` | yes | v1: `all_pages`; future heuristics |
@@ -21,13 +22,15 @@ A **DetectorDefinition** orchestrates scanning notebook content for phenomena. I
 | `window_overlap` | when window scope | Default 1 |
 | `confidence_threshold` | yes | Post-validation filter (0–1) |
 | `finding_type` | yes | Stable label namespace (`poetry`, `custom:<id>`) |
-| `aggregation_strategy` | yes | v1: `merge_adjacent_spans` |
+| `aggregation_strategy` | yes | `merge_adjacent_spans` \| `none` (per-page lexical counters) |
 | `model_requirements` | no | May override prompt defaults |
+| `extra_config` | no | Engine-specific (e.g. `lexical_matcher`, lexicon digest) |
 
 ## Built-in vs custom
 
-- **Built-in detectors** ship in code registry (`transcribe.detection.registry`): `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`.
+- **Built-in detectors** ship in code registry (`transcribe.detection.registry`): `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, plus lexical counters `first_person` and `swear_words`.
 - **Custom detectors** are declarative user definitions compiled to DetectorDefinition + constrained prompt. No arbitrary Python plugins in v1.
+- **Lexical count detectors** (`engine=lexical_count`) match OCR text deterministically (no LLM). They emit one finding per page when the count is above `min_count`, with `detector_data.count` / `samples`.
 
 ## CustomDetectorDefinition (user-facing, declarative)
 

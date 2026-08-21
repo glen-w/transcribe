@@ -272,3 +272,50 @@ def test_beer_labels_detector_runs(tmp_path: Path):
     data = finding.get("detector_data") or {}
     assert data.get("beer_name") == "Northern Lights"
     assert data.get("label_kind") == "bottle_label"
+
+
+def test_first_person_detector_counts_without_llm(tmp_path: Path):
+    assert get_builtin_detector("first_person") is not None
+    paths = open_project_paths(tmp_path / "fp")
+    clock, ids = FakeClock(), SequentialIds("fp")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("n")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("a.png", _png())
+    ingest.import_bytes("b.png", _png())
+    project = projects.load()
+    projects.save_user_edit(project.pages[0].page_id, "I went out. Later i came back.")
+    projects.save_user_edit(project.pages[1].page_id, "No pronouns on this page.")
+    # No text LLM context — lexical detectors must not require a model.
+    svc = DetectionService(projects)
+    result = svc.run_detector("first_person", force=True)
+    assert result["outcome"] == "success"
+    findings = result.get("findings") or []
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding["finding_type"] == "first_person"
+    assert finding["start_page_id"] == project.pages[0].page_id
+    assert finding["end_page_id"] == project.pages[0].page_id
+    data = finding.get("detector_data") or {}
+    assert data.get("count") == 2
+    assert finding["model_provenance"].get("model_name") == "lexical"
+
+
+def test_swear_words_detector_counts_without_llm(tmp_path: Path):
+    assert get_builtin_detector("swear_words") is not None
+    paths = open_project_paths(tmp_path / "sw")
+    clock, ids = FakeClock(), SequentialIds("sw")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("n")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png())
+    page = projects.load().pages[0]
+    projects.save_user_edit(page.page_id, "Damn, that was a shit day.")
+    svc = DetectionService(projects)
+    result = svc.run_detector("swear_words", force=True)
+    assert result["outcome"] == "success"
+    findings = result.get("findings") or []
+    assert len(findings) == 1
+    data = findings[0].get("detector_data") or {}
+    assert data.get("count") == 2
+    assert "samples" in data
