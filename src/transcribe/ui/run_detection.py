@@ -25,7 +25,7 @@ def render_detection_workspace(
         render_page_shell(
             "Detect",
             "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
-            "and custom phenomena.",
+            "first-person I, swear words, and custom phenomena.",
         )
 
     @st.fragment

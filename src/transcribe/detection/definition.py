@@ -21,6 +21,12 @@ class CandidateStrategy(str, Enum):
 
 class AggregationStrategy(str, Enum):
     MERGE_ADJACENT_SPANS = "merge_adjacent_spans"
+    NONE = "none"
+
+
+class DetectorEngine(str, Enum):
+    PROMPT = "prompt"
+    LEXICAL_COUNT = "lexical_count"
 
 
 class ModelMode(str, Enum):
@@ -44,9 +50,10 @@ class DetectorDefinition:
     version: str
     title: str
     description: str
-    prompt_ref: PromptRef
     scope: DetectorScope
     input_mode: ModelMode
+    prompt_ref: PromptRef | None = None
+    engine: DetectorEngine = DetectorEngine.PROMPT
     candidate_strategy: CandidateStrategy = CandidateStrategy.ALL_PAGES
     window_size: int = 3
     window_overlap: int = 1
@@ -59,6 +66,16 @@ class DetectorDefinition:
     def __post_init__(self) -> None:
         if not self.finding_type:
             object.__setattr__(self, "finding_type", self.detector_id)
+        if self.engine == DetectorEngine.PROMPT and self.prompt_ref is None:
+            raise ValueError(
+                f"detector {self.detector_id!r} requires prompt_ref for prompt engine"
+            )
+        if self.engine == DetectorEngine.LEXICAL_COUNT:
+            matcher = (self.extra_config or {}).get("lexical_matcher")
+            if not matcher:
+                raise ValueError(
+                    f"detector {self.detector_id!r} requires extra_config.lexical_matcher"
+                )
 
     def cache_config(self) -> dict[str, Any]:
         return {
@@ -68,5 +85,7 @@ class DetectorDefinition:
             "candidate_strategy": self.candidate_strategy.value,
             "input_mode": self.input_mode.value,
             "scope": self.scope.value,
+            "engine": self.engine.value,
+            "aggregation_strategy": self.aggregation_strategy.value,
             **self.extra_config,
         }

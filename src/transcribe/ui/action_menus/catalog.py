@@ -51,7 +51,7 @@ ACTIONS: tuple[ActionDef, ...] = (
         ActionId.DETECT,
         "Detect",
         ic.SEARCH_CHECK,
-        "Open Detect for poetry, lists, to-dos, quotations, and beer labels.",
+        "Open Detect for poetry, lists, to-dos, quotations, beer labels, first-person I, and swear words.",
     ),
     ActionDef(
         ActionId.EXPORT,

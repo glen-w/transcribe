@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Built-in lexical detectors **`first_person`** (count standalone `I`/`i`) and **`swear_words`** (lexicon hit counts). Deterministic OCR text match; no LLM. One finding per page with `detector_data.count` / `samples`.
+
 ## [0.8.6] - 2026-08-19
 
 ### Added

@@ -1,10 +1,11 @@
-"""Prompt-backed notebook detection."""
+"""Notebook content detection (prompt-backed and lexical counters)."""
 
 from transcribe.detection.api import DetectionService
 from transcribe.detection.definition import (
     AggregationStrategy,
     CandidateStrategy,
     DetectorDefinition,
+    DetectorEngine,
     DetectorScope,
     ModelMode,
     PromptRef,
@@ -21,6 +22,7 @@ __all__ = [
     "DetectionRunner",
     "DetectionService",
     "DetectorDefinition",
+    "DetectorEngine",
     "DetectorScope",
     "ModelMode",
     "PromptRef",

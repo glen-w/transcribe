@@ -41,7 +41,7 @@ Chart compare notes: [dev/analysis_visual_compare.md](../dev/analysis_visual_com
 
 **UI:** **View → Detect** — review findings from suite runs (approve/reject, jump to source pages). Ad-hoc / page-scoped runs still launch from **Detect → Run Detection**.
 
-Built-ins: poetry, to-do lists, lists, quotations, beer labels, plus custom detectors.
+Built-ins: poetry, to-do lists, lists, quotations, beer labels, first-person `I` counts, swear-word counts, plus custom detectors.
 
 ```bash
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry

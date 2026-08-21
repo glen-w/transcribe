@@ -23,7 +23,11 @@ from transcribe.detection.cache_identity import (
 )
 from transcribe.detection.candidates import select_candidates
 from transcribe.detection.custom import load_custom_detectors
-from transcribe.detection.definition import DetectorDefinition
+from transcribe.detection.definition import (
+    AggregationStrategy,
+    DetectorDefinition,
+    DetectorEngine,
+)
 from transcribe.detection.envelope import build_detection_envelope
 from transcribe.detection.findings import (
     DetectionFinding,
@@ -32,6 +36,7 @@ from transcribe.detection.findings import (
     utc_now_iso,
 )
 from transcribe.detection.inputs import load_render_bytes, scope_fingerprint
+from transcribe.detection.lexical import lexical_prompt_id, run_lexical_matcher
 from transcribe.detection.registry import resolve_detector
 from transcribe.detection.routing import resolve_model_route
 from transcribe.detection.scope import plan_windows
@@ -71,6 +76,10 @@ def _detector_data_from_raw(parsed: dict[str, Any], finding_type: str) -> dict[s
             "sample_text",
         ):
             if key in parsed and parsed[key] is not None:
+                data[key] = parsed[key]
+    if finding_type in ("first_person", "swear_words"):
+        for key in ("count", "samples", "category_counts"):
+            if key in parsed:
                 data[key] = parsed[key]
     if parsed.get("title") and "title" not in data:
         data["title"] = parsed["title"]
@@ -131,6 +140,22 @@ class DetectionRunner:
             self.paths,
             page_ids=page_ids,
         )
+        if detector.engine == DetectorEngine.LEXICAL_COUNT:
+            matcher = str(detector.extra_config.get("lexical_matcher") or "")
+            identity_obj = build_cache_identity_object(
+                notebook_id=project.id,
+                detector=detector,
+                prompt_id=lexical_prompt_id(matcher),
+                prompt_version=detector.version,
+                page_inputs=page_inputs,
+                model_digest=None,
+                generation_settings={},
+            )
+            sf = scope_fingerprint(page_inputs)
+            return cache_identity_hex(identity_obj), sf, identity_obj
+
+        if detector.prompt_ref is None:
+            raise ValueError(f"detector {detector.detector_id} missing prompt_ref")
         prompt = resolve_prompt(
             detector.prompt_ref.prompt_id,
             version=detector.prompt_ref.version,
@@ -272,6 +297,200 @@ class DetectionRunner:
         cancel_check: Any | None,
         progress_callback: Any | None = None,
     ) -> dict[str, Any]:
+        if detector.engine == DetectorEngine.LEXICAL_COUNT:
+            return self._execute_lexical_run(
+                detector,
+                attempt_id=attempt_id,
+                planned_cache_identity=planned_cache_identity,
+                page_ids=page_ids,
+                cancel_check=cancel_check,
+                progress_callback=progress_callback,
+            )
+        return self._execute_prompt_run(
+            detector,
+            attempt_id=attempt_id,
+            planned_cache_identity=planned_cache_identity,
+            page_ids=page_ids,
+            cancel_check=cancel_check,
+            progress_callback=progress_callback,
+        )
+
+    def _execute_lexical_run(
+        self,
+        detector: DetectorDefinition,
+        *,
+        attempt_id: str,
+        planned_cache_identity: str,
+        page_ids: list[str] | None,
+        cancel_check: Any | None,
+        progress_callback: Any | None = None,
+    ) -> dict[str, Any]:
+        from transcribe.detection.aggregate import RawDetection
+
+        project = self.project_service.load(reconcile=False)
+        page_inputs, warnings = select_candidates(
+            detector,
+            project,
+            self.project_service,
+            self.paths,
+            page_ids=page_ids,
+        )
+        scope_fp = scope_fingerprint(page_inputs)
+        matcher = str(detector.extra_config.get("lexical_matcher") or "")
+        min_count = int(detector.extra_config.get("min_count") or 1)
+        prompt_prov = {
+            "prompt_id": lexical_prompt_id(matcher),
+            "version": detector.version,
+        }
+        model_prov = {
+            "model_name": "lexical",
+            "model_digest": None,
+            "input_mode": InputMode.TEXT.value,
+        }
+
+        if not page_inputs:
+            return build_detection_envelope(
+                notebook_id=project.id,
+                detector_id=detector.detector_id,
+                detector_version=detector.version,
+                cache_identity=planned_cache_identity,
+                scope_fingerprint=scope_fp,
+                attempt_state="succeeded",
+                outcome="insufficient_data",
+                findings=[],
+                pages_scanned=[],
+                windows_scanned=0,
+                config_fingerprint=config_fingerprint(detector.cache_config()),
+                warnings=warnings
+                + [{"code": "no_pages", "message": "no candidate pages with text"}],
+                attempt_id=attempt_id,
+                prompt_provenance=prompt_prov,
+                model_provenance=model_prov,
+            )
+
+        ordered = sorted(page_inputs, key=lambda x: x.page_order_index)
+        ordered_page_ids = [p.page_id for p in ordered]
+        idx_map = {pid: i for i, pid in enumerate(ordered_page_ids)}
+        raw_hits: list[RawDetection] = []
+
+        for wi, page in enumerate(ordered):
+            if progress_callback:
+                try:
+                    progress_callback(wi + 1, len(ordered))
+                except Exception:  # noqa: BLE001
+                    pass
+            if cancel_check and cancel_check():
+                return build_detection_envelope(
+                    notebook_id=project.id,
+                    detector_id=detector.detector_id,
+                    detector_version=detector.version,
+                    cache_identity=planned_cache_identity,
+                    scope_fingerprint=scope_fp,
+                    attempt_state="cancelled",
+                    outcome="failed",
+                    findings=[],
+                    pages_scanned=ordered_page_ids,
+                    windows_scanned=len(ordered),
+                    config_fingerprint=config_fingerprint(detector.cache_config()),
+                    warnings=warnings,
+                    attempt_id=attempt_id,
+                    prompt_provenance=prompt_prov,
+                    model_provenance=model_prov,
+                )
+            result = run_lexical_matcher(matcher, page.effective_text)
+            if result.count < min_count:
+                continue
+            page_idx = idx_map[page.page_id]
+            label = detector.title or detector.finding_type
+            reason = f"{label}: count={result.count}"
+            if result.samples:
+                preview = ", ".join(result.samples[:5])
+                reason = f"{reason} ({preview})"
+            raw_payload = {
+                "detected": True,
+                "confidence": 1.0,
+                "reason": reason,
+                **result.as_detector_data(),
+            }
+            raw_hits.append(
+                RawDetection(
+                    finding_type=detector.finding_type,
+                    page_ids=(page.page_id,),
+                    start_page_idx=page_idx,
+                    end_page_idx=page_idx,
+                    confidence=1.0,
+                    reason=reason,
+                    title=None,
+                    input_fingerprint=page.effective_text_sha256,
+                    window_id=page.page_id[:16],
+                    raw=raw_payload,
+                )
+            )
+
+        merge = detector.aggregation_strategy != AggregationStrategy.NONE
+        merged = merge_adjacent_spans(
+            raw_hits,
+            ordered_page_ids=ordered_page_ids,
+            confidence_threshold=detector.confidence_threshold,
+            merge=merge,
+        )
+        now = utc_now_iso()
+        findings: list[DetectionFinding] = []
+        for raw in merged:
+            findings.append(
+                DetectionFinding(
+                    finding_id=self.ids.new_id(),
+                    detector_id=detector.detector_id,
+                    detector_version=detector.version,
+                    notebook_id=project.id,
+                    start_page_id=raw.page_ids[0],
+                    end_page_id=raw.page_ids[-1],
+                    finding_type=raw.finding_type,
+                    confidence=raw.confidence,
+                    evidence={
+                        "reason": raw.reason,
+                        "snippets": list((raw.raw or {}).get("samples") or [])[:8],
+                    },
+                    prompt_provenance=prompt_prov,
+                    model_provenance=model_prov,
+                    input_fingerprint=raw.input_fingerprint,
+                    created_at=now,
+                    updated_at=now,
+                    detector_data=_detector_data_from_raw(raw.raw or {}, raw.finding_type),
+                )
+            )
+        findings = carry_forward_reviews(
+            findings, self.storage.read_published(detector.detector_id)
+        )
+        return build_detection_envelope(
+            notebook_id=project.id,
+            detector_id=detector.detector_id,
+            detector_version=detector.version,
+            cache_identity=planned_cache_identity,
+            scope_fingerprint=scope_fp,
+            attempt_state="succeeded",
+            outcome="success",
+            findings=findings_to_dicts(findings),
+            pages_scanned=ordered_page_ids,
+            windows_scanned=len(ordered),
+            config_fingerprint=config_fingerprint(detector.cache_config()),
+            warnings=warnings,
+            attempt_id=attempt_id,
+            prompt_provenance=prompt_prov,
+            model_provenance=model_prov,
+            generation_settings={},
+        )
+
+    def _execute_prompt_run(
+        self,
+        detector: DetectorDefinition,
+        *,
+        attempt_id: str,
+        planned_cache_identity: str,
+        page_ids: list[str] | None,
+        cancel_check: Any | None,
+        progress_callback: Any | None = None,
+    ) -> dict[str, Any]:
         # Active attempt is on disk as running; reconcile would mark it interrupted.
         project = self.project_service.load(reconcile=False)
         page_inputs, warnings = select_candidates(
@@ -282,6 +501,22 @@ class DetectionRunner:
             page_ids=page_ids,
         )
         scope_fp = scope_fingerprint(page_inputs)
+        if detector.prompt_ref is None:
+            return build_detection_envelope(
+                notebook_id=project.id,
+                detector_id=detector.detector_id,
+                detector_version=detector.version,
+                cache_identity=planned_cache_identity,
+                scope_fingerprint=scope_fp,
+                attempt_state="failed",
+                outcome="failed",
+                findings=[],
+                pages_scanned=[],
+                windows_scanned=0,
+                config_fingerprint=config_fingerprint(detector.cache_config()),
+                warnings=[{"code": "missing_prompt", "message": "prompt_ref required"}],
+                attempt_id=attempt_id,
+            )
         prompt = resolve_prompt(
             detector.prompt_ref.prompt_id,
             version=detector.prompt_ref.version,
@@ -446,10 +681,12 @@ class DetectionRunner:
                     }
                 )
 
+        merge = detector.aggregation_strategy != AggregationStrategy.NONE
         merged = merge_adjacent_spans(
             raw_hits,
             ordered_page_ids=ordered_page_ids,
             confidence_threshold=detector.confidence_threshold,
+            merge=merge,
         )
         now = utc_now_iso()
         findings: list[DetectionFinding] = []

@@ -27,7 +27,7 @@ Authority: self — supported public entrypoints and support policy for how user
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `export-finetune <project> [dest]` | Export images + preferred/active text for external fine-tuning |
 | `status <project>` | Print per-page status |
-| `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels`, `--force`, `--auto-tag`, `--list`) |
+| `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels\|first_person\|swear_words`, `--force`, `--auto-tag`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
 | `corpus-doctor` | Workspace corpus integrity (`--deep` also doctors each notebook) |
 | `backup create` | Full-workspace ZIP to `{EXPORT}/backups/` (`--dest`, `--force`, `--include-inbox`, `--include-exports`) |
