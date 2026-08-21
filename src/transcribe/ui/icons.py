@@ -59,6 +59,8 @@ USE_VARIANT = (
 CROP_FREE = ":material/crop_free:"
 WIDTH_NORMAL = ":material/width_normal:"
 ZOOM_IN = ":material/zoom_in:"
+ZOOM_OUT = ":material/zoom_out:"
+GRID_VIEW = ":material/grid_view:"
 ROTATE_RIGHT = ":material/rotate_right:"
 
 # Workflow (sidebar / action menus)

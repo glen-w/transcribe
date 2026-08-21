@@ -61,14 +61,6 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         required_context="none",
     ),
     PageSpec(
-        id="Places",
-        nav_label="Places",
-        title="Places",
-        description="Map places mentioned across all notebooks (from published NER).",
-        section="primary",
-        required_context="none",
-    ),
-    PageSpec(
         id="New notebook",
         nav_label="New notebook",
         title="New notebook",
@@ -165,7 +157,7 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         id="Themes",
         nav_label="Themes",
         title="Themes",
-        description="Topics, people, and places in this notebook.",
+        description="Topics, keyphrases, and how themes shift across the notebook.",
         section="view",
         required_context="notebook_published",
     ),
@@ -176,6 +168,16 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         description="Emotion, affect tension, hedging, and salient quotes.",
         section="view",
         required_context="notebook_published",
+    ),
+    PageSpec(
+        id="Places",
+        nav_label="People & Places",
+        title="People & Places",
+        description=(
+            "People and place maps from published NER — this notebook or all notebooks."
+        ),
+        section="view",
+        required_context="none",
     ),
     PageSpec(
         id="Settings",
@@ -217,9 +219,8 @@ CONTEXT_BAR_HIDDEN_MODES: frozenset[str] = frozenset(
 )
 
 # Maps and the page viewer need width more than Overview.
-# Themes hosts the this-notebook People & places map.
 WIDE_LAYOUT_MODES: frozenset[str] = frozenset(
-    {"Home", "Reading", "Review", "Archive", "Places", "Themes"}
+    {"Home", "Reading", "Review", "Archive", "Places"}
 )
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
@@ -236,7 +237,7 @@ _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Inbox": "Import",
     "App": "Settings",
     "Moments": "Mood",
-    "People": "Themes",
+    "People": "Places",
 }
 
 VIEW_PANEL_PENDING_KEY = "view_panel_pending"
@@ -253,20 +254,6 @@ class ViewPanel:
 
 
 VIEW_PAGE_PANELS: dict[str, tuple[ViewPanel, ...]] = {
-    "Themes": (
-        ViewPanel(
-            "themes",
-            "Themes",
-            "Themes",
-            "Topics, keyphrases, and how themes shift across the notebook.",
-        ),
-        ViewPanel(
-            "people",
-            "People",
-            "People & places",
-            "People and places from published NER for this notebook.",
-        ),
-    ),
     "Mood": (
         ViewPanel(
             "mood",
@@ -281,12 +268,27 @@ VIEW_PAGE_PANELS: dict[str, tuple[ViewPanel, ...]] = {
             "Salient quotes from the notebook.",
         ),
     ),
+    "Places": (
+        ViewPanel(
+            "people",
+            "People",
+            "People",
+            "People from published NER (this notebook or all notebooks).",
+        ),
+        ViewPanel(
+            "places",
+            "Places",
+            "Places",
+            "Place mentions and map from published NER (this notebook or all notebooks).",
+        ),
+    ),
 }
 
 # Former top-level View pages that now open a parent page + in-page section.
 _VIEW_PANEL_ALIASES: dict[str, tuple[str, str]] = {
     "Moments": ("Mood", "moments"),
-    "People": ("Themes", "people"),
+    "People": ("Places", "people"),
+    "NotebookPlaces": ("Places", "places"),
 }
 
 NAV_HELP_SELECT_NOTEBOOK = "Select a notebook"

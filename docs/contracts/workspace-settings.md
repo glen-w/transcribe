@@ -32,7 +32,9 @@ Workspace `ingest.*` seeds PDF rasterisation and visual declutter defaults for
 **Workflow → Import** (and Settings → Configuration → Import). Declutter may
 also be **re-applied** to an existing notebook from that panel (creates a new
 `render_id` when pixels change; does not re-run OCR) — see
-[source-asset.md](source-asset.md).
+[source-asset.md](source-asset.md). The same Configuration panel can
+**Regenerate thumbnails** (force-rewrite disposable cover + grid JPEGs under
+`.cache/thumbs/`); single-notebook and bulk import warm thumbs on commit.
 
 Workspace `ui.*` holds UI presentation defaults that do not affect OCR or
 analysis fingerprints.
@@ -47,7 +49,7 @@ See [tag-catalog.md](tag-catalog.md).
 |-----|---------|------|
 | `archive_notebooks_initial` | `0` | Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
 | `overview_cards` | all frozen ids | Ordered visible Overview cards (`page_metrics`, `stats`, `lexical_diversity`, `understandability`, `wordclouds`, `ner`, `sentiment`, `epistemic_markers`). Unknown/duplicate ids dropped; catalogue order; empty after sanitise restores the default all-ids list. Status strip is always shown. |
-| `view_show_advanced` | `false` | When `true`, View pages show per-module **Advanced · …** expanders with raw published JSON. Default off — ordinary use does not need module/cache literacy. Applies to Overview, Themes, Mood, Moments, Summaries, Ask, and Themes → People (entity tone). Analyse launcher Advanced sections are unchanged. Legacy key `overview_show_advanced` is still read on load. |
+| `view_show_advanced` | `false` | When `true`, View pages show per-module **Advanced · …** expanders with raw published JSON. Default off — ordinary use does not need module/cache literacy. Applies to Overview, Themes, Mood, Moments, Summaries, Ask, and People & Places (entity tone). Analyse launcher Advanced sections are unchanged. Legacy key `overview_show_advanced` is still read on load. |
 
 Edited under **Settings → Configuration → Archive** and **Settings → Configuration → Overview**. `ui.*` does not fingerprint.
 

@@ -51,6 +51,15 @@ COMPARABLE_SPECS: dict[str, tuple[tuple[str, str, str], ...]] = {
     ),
 }
 
+# Chart-only divisors so Counts metrics share a readable y-axis. Raw values
+# stay in extract/compare_rows; Overview chips and Δ captions use unscaled units.
+# key → (divisor, axis label)
+STATS_CHART_SCALE: dict[str, tuple[float, str]] = {
+    "unit_count": (1.0, "Pages / units"),
+    "total_token_count": (1_000.0, "Tokens (thousands)"),
+    "total_char_count": (10_000.0, "Characters (×10k)"),
+}
+
 
 def payload_get(payload: dict[str, Any], dotted: str) -> Any:
     """Fetch a dotted path from a payload dict; missing → None."""
@@ -295,3 +304,40 @@ def compare_rows(
             }
         )
     return rows
+
+
+def chart_series_for_module(
+    module_id: str,
+    *,
+    keys: list[str],
+    labels: list[str],
+    values: list[float],
+) -> tuple[list[str], list[float]]:
+    """Apply chart-only scaling for Counts; other modules pass through."""
+    if module_id != "stats":
+        return labels, values
+    out_labels: list[str] = []
+    out_values: list[float] = []
+    for key, label, value in zip(keys, labels, values, strict=True):
+        scale, chart_label = STATS_CHART_SCALE.get(key, (1.0, label))
+        out_labels.append(chart_label)
+        out_values.append(value / scale)
+    return out_labels, out_values
+
+
+def chart_compare_series(
+    module_id: str,
+    rows: list[dict[str, Any]],
+) -> tuple[list[str], list[float], list[float]]:
+    """Scaled metric labels + this/average series for the compare bar chart."""
+    keys = [str(r["key"]) for r in rows]
+    labels = [str(r["label"]) for r in rows]
+    this_vals = [float(r["this"]) for r in rows]
+    avg_vals = [float(r["average"]) for r in rows]
+    chart_labels, this_scaled = chart_series_for_module(
+        module_id, keys=keys, labels=labels, values=this_vals
+    )
+    _, avg_scaled = chart_series_for_module(
+        module_id, keys=keys, labels=labels, values=avg_vals
+    )
+    return chart_labels, this_scaled, avg_scaled

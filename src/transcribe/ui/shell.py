@@ -346,6 +346,46 @@ def inject_global_styles() -> None:
         font-size: 0.8rem;
         line-height: 1;
     }
+    /* Thumbnail grid: click image to open (transparent overlay button).
+       Key the wrap container (tx_thumbwrap_) so positioning does not depend on
+       Streamlit nesting the button as a direct child of stVerticalBlock. */
+    [class*="st-key-tx_thumbwrap_"] {
+        position: relative !important;
+    }
+    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 5 !important;
+        margin: 0 !important;
+        opacity: 0 !important;
+        pointer-events: auto !important;
+    }
+    [class*="st-key-tx_thumbwrap_"] [data-testid="stImage"],
+    [class*="st-key-tx_thumbwrap_"] [data-testid="stImage"] * {
+        pointer-events: none !important;
+    }
+    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] [data-testid="stButton"],
+    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] [data-testid="stButton"] > button,
+    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] button {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+    }
+    [class*="st-key-tx_thumbwrap_"]:has(
+            [class*="st-key-tx_thumb_"] button:not(:disabled)
+        ):hover
+        [data-testid="stImage"]
+        img {
+        outline: 2px solid rgba(31, 119, 180, 0.55);
+        outline-offset: 2px;
+        cursor: pointer;
+    }
     /* Cover click = Open (transparent button overlays the thumbnail only).
        Require direct-child cover key so ancestor page blocks / sibling
        captions+actions are not part of the hit target or hover outline. */
@@ -555,6 +595,66 @@ def inject_global_styles() -> None:
         max-width: 100%;
         object-fit: contain;
     }
+    /* Global analysis progress — fixed top-right while a run is active off-page */
+    div[data-testid="stVerticalBlock"]:has(> div.tx-global-run-progress-flag),
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.tx-global-run-progress-flag) {
+        position: fixed;
+        top: 0.65rem;
+        right: 0.85rem;
+        z-index: 1100;
+        width: min(22rem, calc(100vw - 1.7rem));
+        margin: 0 !important;
+        padding: 0.55rem 0.65rem 0.5rem 0.65rem;
+        background: var(--background-color, #0e1117);
+        border: 1px solid rgba(250, 250, 250, 0.14);
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    }
+    .tx-global-run-progress {
+        font-size: 0.78rem;
+        line-height: 1.3;
+        color: #c5d0de;
+    }
+    .tx-global-run-progress__row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .tx-global-run-progress__title {
+        font-weight: 600;
+        color: #e8eef6;
+    }
+    .tx-global-run-progress__meta {
+        font-size: 0.7rem;
+        color: #8a9ab0;
+        white-space: nowrap;
+    }
+    .tx-global-run-progress__detail {
+        margin-top: 0.2rem;
+        color: #8a9ab0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tx-global-run-progress__track {
+        margin-top: 0.4rem;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(250, 250, 250, 0.12);
+        overflow: hidden;
+    }
+    .tx-global-run-progress__fill {
+        height: 100%;
+        border-radius: 2px;
+        background: #1f77b4;
+        transition: width 0.25s ease;
+    }
+    .tx-global-run-progress__pct {
+        margin-top: 0.2rem;
+        font-size: 0.68rem;
+        color: #8a9ab0;
+    }
 </style>
 """,
         unsafe_allow_html=True,
@@ -619,6 +719,9 @@ def set_ui_mode(mode: str) -> None:
     st.session_state.pop("page_return_mode", None)
     st.session_state.pop("viewer_nav_scope", None)
     st.session_state.pop("viewer_nav_scope_control", None)
+    from transcribe.ui.thumbnails_view import clear_thumbs_view_state
+
+    clear_thumbs_view_state()
     st.rerun()
 
 

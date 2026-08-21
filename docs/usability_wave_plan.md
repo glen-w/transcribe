@@ -128,7 +128,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 
 **Outcome:** Analyse and Transcribe surfaces read as **user tasks**, not module/OCR consoles. Builds on U0 health/revision.
 
-**Later deepen-in-place (shipped, not a new U1 reopen):** Analyse is the **launcher only** (This notebook | Batch). Product read-models live under **View** (Reading, Overview, Themes, Mood, Summaries, Detect) and consume current `published.json`. Themes hosts People; Mood hosts Moments; Summaries hosts Ask. Jump-to-page / page-series clicks open **Reading**, not Review. See [public_surfaces.md](public_surfaces.md).
+**Later deepen-in-place (shipped, not a new U1 reopen):** Analyse is the **launcher only** (This notebook | Batch). Product read-models live under **View** (Reading, Overview, Themes, Mood, Summaries, People & Places, Detect) and consume current `published.json`. Mood hosts Moments; Summaries hosts Ask. Jump-to-page / page-series clicks open **Reading**, not Review. See [public_surfaces.md](public_surfaces.md).
 
 Parse checklist parenthetical **#7–9** as three shippable items:
 

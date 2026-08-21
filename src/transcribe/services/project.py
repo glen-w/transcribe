@@ -294,6 +294,10 @@ class ProjectService:
                 self.paths.thumb_path(page_id).unlink(missing_ok=True)
             except OSError:
                 pass
+            try:
+                self.paths.grid_thumb_path(page_id).unlink(missing_ok=True)
+            except OSError:
+                pass
 
             # Reindex later pages in this source via a staging dir to avoid collisions.
             siblings = [
@@ -1065,6 +1069,9 @@ class ProjectService:
                 thumb = self.paths.thumb_path(page.page_id)
                 if thumb.exists():
                     thumb_files.append(thumb)
+                grid_thumb = self.paths.grid_thumb_path(page.page_id)
+                if grid_thumb.exists():
+                    thumb_files.append(grid_thumb)
 
             current.updated_at = to_iso(self.clock.now())
             validate_project(current)
@@ -1080,6 +1087,13 @@ class ProjectService:
                     path.unlink(missing_ok=True)
                 except OSError:
                     pass
+            # Active renders changed — rebuild disposable cover + grid thumbs.
+            try:
+                from transcribe.services.thumbnails import ThumbnailService
+
+                ThumbnailService(self.paths).ensure_thumbs_for_pages(current)
+            except Exception:  # noqa: BLE001
+                pass
             if on_progress is not None:
                 on_progress(
                     stats.pages_total,

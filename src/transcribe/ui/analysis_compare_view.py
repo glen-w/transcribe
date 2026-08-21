@@ -12,6 +12,8 @@ from transcribe.domain.dates import ApproximateDate
 from transcribe.services.analysis_compare import (
     COMPARABLE_SPECS,
     ComparePeriod,
+    chart_compare_series,
+    chart_series_for_module,
     compare_rows,
     extract_module_metrics,
     load_module_baseline,
@@ -122,29 +124,46 @@ def render_module_compare_charts(
         # Still show a single-series chart so the metric is visual.
         labels = [r for r in COMPARABLE_SPECS[module_id] if r[0] in current]
         if labels:
+            keys = [k for k, _lab, _p in labels]
+            lab = [lab for _k, lab, _p in labels]
+            vals = [current[k] for k, _lab, _p in labels]
+            chart_labels, chart_vals = chart_series_for_module(
+                module_id, keys=keys, labels=lab, values=vals
+            )
             st.bar_chart(
                 {
-                    "metric": [lab for _k, lab, _p in labels],
-                    "This notebook": [current[k] for k, _lab, _p in labels],
+                    "metric": chart_labels,
+                    "This notebook": chart_vals,
                 },
                 x="metric",
                 y="This notebook",
             )
+            if module_id == "stats":
+                st.caption(
+                    "Tokens in thousands · characters in tens of thousands "
+                    "so pages stay visible on the same axis."
+                )
         return
 
     st.caption(f"Compared with {baseline.baseline_label} · peers exclude this notebook.")
+    chart_labels, this_vals, avg_vals = chart_compare_series(module_id, rows)
     # Grouped (side-by-side) bars: this notebook vs baseline per metric.
     st.bar_chart(
         {
-            "metric": [r["label"] for r in rows],
-            "This notebook": [r["this"] for r in rows],
-            baseline.baseline_label: [r["average"] for r in rows],
+            "metric": chart_labels,
+            "This notebook": this_vals,
+            baseline.baseline_label: avg_vals,
         },
         x="metric",
         y=["This notebook", baseline.baseline_label],
         stack=False,
     )
-    # Compact delta strip
+    if module_id == "stats":
+        st.caption(
+            "Tokens in thousands · characters in tens of thousands "
+            "so pages stay visible on the same axis."
+        )
+    # Compact delta strip (raw units)
     deltas = []
     for r in rows:
         sign = "+" if r["delta"] >= 0 else ""

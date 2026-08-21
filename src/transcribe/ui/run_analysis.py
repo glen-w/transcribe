@@ -541,6 +541,8 @@ def _render_config_and_launch(
         detector_bit = (
             f" · {len(frozen.detector_ids)} detectors" if frozen.detector_ids else ""
         )
+        from transcribe.ui.targets import TARGET_THIS
+
         st.session_state[_PENDING_LAUNCH_KEY] = {
             "modules": list(frozen.module_ids),
             "detectors": list(frozen.detector_ids),
@@ -552,6 +554,8 @@ def _render_config_and_launch(
             "plan_hash": frozen.plan_hash,
             "form_cleared": False,
             "started": False,
+            "target_type": TARGET_THIS,
+            "project_root": str(projects.paths.root),
             "footer_summary": (
                 f"Running **{format_preset_label(preset)}**{version_bit} · "
                 f"{len(frozen.module_ids)} modules{detector_bit} · {model_bit}"

@@ -513,6 +513,17 @@ class IngestService:
             if committed:
                 created.paths = [staging]
             created.rollback()
+            if committed:
+                # Disposable cache: warm cover + grid thumbs after promote (best-effort).
+                try:
+                    from transcribe.services.thumbnails import ThumbnailService
+
+                    ThumbnailService(self.paths).ensure_thumbs_for_pages(
+                        project,
+                        [p.page_id for p in new_pages],
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             return project
         except Exception:
             if not locals().get("committed"):
@@ -598,6 +609,19 @@ class IngestService:
                     validate_project(project, paths=self.paths)
                     write_json_atomic(self.paths.manifest, project.as_dict())
                     already_committed = True
+                    try:
+                        from transcribe.services.thumbnails import ThumbnailService
+
+                        page_ids = [
+                            str(e.get("page_id") or "")
+                            for e in pages
+                            if e.get("page_id")
+                        ]
+                        ThumbnailService(self.paths).ensure_thumbs_for_pages(
+                            project, page_ids
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
                 except Exception:
                     already_committed = False
 

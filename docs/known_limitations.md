@@ -43,6 +43,7 @@ Operational guide: [runtime/ocr.md](runtime/ocr.md).
 - Diary date auto-extract (early page text) understands compact `YYMMDD`, `DD/MM/YYYY`, `DD/MM/YY`, `YYYY-MM-DD`, and English month names (`Jan 2, 2018`). Ambiguous numerics are **day/month** (DMY). Time-of-day is ignored. OCR can still garble stamps; pages that look stamped but fail to parse stay **undated** (no inheritance) until Review
 - Ollama model discovery metadata is cached by base URL + transport timeout; **Refresh** invalidates. Execution clients stay lightweight. Model information shows verified vs unverified identity (digest) and preference last-used when available.
 - Archive notebook strip paging defaults to **show all** (`ui.archive_notebooks_initial = 0`). A positive value loads that many cards before **Show more**; session state can expand further until rerun/reset.
+- Reading/Review **Thumbnails** grids serve small disposable JPEGs (`.cache/thumbs/*.grid.jpg`, max edge 128). Import (single-notebook and bulk) warms cover + grid thumbs; **Settings → Configuration → Thumbnails → Regenerate thumbnails** force-rewrites them for an existing notebook. Older notebooks without grid thumbs generate on first Thumbnails open (one-time cost per page).
 
 ## Workspace backup / restore
 
@@ -80,7 +81,7 @@ Operational guide: [runtime/analysis.md](runtime/analysis.md). Settings / preset
 - Named presets carry `content_version` (bumped on Settings save); runs record preset identity
 - Exports stamp notebook `content_revision` on JSON, manifest, Markdown, and plain text
 - Dedicated Patterns tab is not shipped; payloads feed Themes instead (optional polish under the **usability wave**, not deferred reinterpretation modules — [usability_wave_plan.md](usability_wave_plan.md))
-- **People** (View) maps NER place labels (GPE/LOC/FAC) for the open notebook; **Places** (primary nav) aggregates across notebooks. Geocoding via OpenStreetMap Nominatim is opt-in and cached under `data/cache/geocode.json`
+- **People & Places** (View): People and Places sections each toggle **This notebook | All notebooks**. Geocoding via OpenStreetMap Nominatim is opt-in and cached under `data/cache/geocode.json`
 - Overview / Mood **corpus or period compare** averages other notebooks’ published numeric metrics (this notebook excluded). Year / date-range use diary `date_start`/`date_end`; undated notebooks count only under “Entire corpus”. Peers without a published result for that module are skipped — charts need at least one peer with data
 - **Word themes** offer **Basic** (static frequency cloud) or **Advanced** (interactive explorer with search / top N / min value / sort / CSV — TranscriptX explorer controls). Advanced uses a vendored `wordcloud2.js` (offline). Basic uses the default ``wordcloud`` package. Analysis still stores frequencies only — images/explorer state are not durable artifacts.
 - Deferred reinterpretation modules are not scheduled; product focus is the usability wave (trust, Analyse product UX, first-run, daily workbench) for the shipped surfaces — [ROADMAP.md](ROADMAP.md) **Now**

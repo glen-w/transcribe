@@ -35,7 +35,7 @@ from transcribe.ui.navigation import (
 
 
 def test_page_spec_table_and_sections() -> None:
-    assert PRIMARY_MODES == ("Home", "Library", "Search", "Archive", "Places")
+    assert PRIMARY_MODES == ("Home", "Library", "Search", "Archive")
     assert WORKFLOW_MODES == (
         "New notebook",
         "Import",
@@ -52,6 +52,7 @@ def test_page_spec_table_and_sections() -> None:
         "Ask",
         "Themes",
         "Mood",
+        "Places",
     )
     assert SYSTEM_MODES == ("Settings", "Diagnostics")
     assert len(PAGE_SPECS) == len(PAGE_SPECS_BY_ID)
@@ -86,28 +87,40 @@ def test_nav_labels_short_titles_long() -> None:
     assert page_spec_for("Ask").nav_label == "Ask"
     assert page_spec_for("Ask").title == "Ask notebook"
     assert page_spec_for("Ask").required_context == "notebook"
-    people = view_panel_for("Themes", "people")
+    places = page_spec_for("Places")
+    assert places is not None
+    assert places.section == "view"
+    assert places.nav_label == "People & Places"
+    assert places.title == "People & Places"
+    assert places.required_context == "none"
+    people = view_panel_for("Places", "people")
+    notebook_places = view_panel_for("Places", "places")
     moments = view_panel_for("Mood", "moments")
     assert people is not None
     assert people.label == "People"
-    assert people.title == "People & places"
+    assert people.title == "People"
+    assert notebook_places is not None
+    assert notebook_places.label == "Places"
+    assert notebook_places.title == "Places"
+    assert {p.id for p in VIEW_PAGE_PANELS["Places"]} == {"people", "places"}
     assert moments is not None
     assert moments.label == "Moments"
 
 
 def test_view_panel_aliases_open_parent_section() -> None:
     assert normalize_ui_mode("Moments") == "Mood"
-    assert normalize_ui_mode("People") == "Themes"
+    assert normalize_ui_mode("People") == "Places"
     assert normalize_ui_mode("Ask") == "Ask"
-    assert page_spec_for("People") is page_spec_for("Themes")
+    assert page_spec_for("People") is page_spec_for("Places")
     assert destination_for_mode("Moments") == ("Mood", "moments")
-    assert destination_for_mode("People") == ("Themes", "people")
+    assert destination_for_mode("People") == ("Places", "people")
+    assert destination_for_mode("NotebookPlaces") == ("Places", "places")
     assert destination_for_mode("Ask") == ("Ask", None)
     assert destination_for_mode("Themes") == ("Themes", None)
-    assert set(VIEW_PAGE_PANELS) == {"Themes", "Mood"}
+    assert set(VIEW_PAGE_PANELS) == {"Mood", "Places"}
     session: dict = {}
-    assert apply_destination_to_session(session, "People") == "Themes"
-    assert session["ui_mode"] == "Themes"
+    assert apply_destination_to_session(session, "People") == "Places"
+    assert session["ui_mode"] == "Places"
     assert session[VIEW_PANEL_PENDING_KEY] == "people"
     apply_destination_to_session(session, "Mood")
     assert session["ui_mode"] == "Mood"
@@ -182,11 +195,11 @@ def test_context_bar_and_wide_layout() -> None:
     assert use_wide_layout("Reading")
     assert use_wide_layout("Review")
     assert use_wide_layout("Archive")
-    assert use_wide_layout("Themes")
+    assert not use_wide_layout("Themes")
     assert use_wide_layout("People")
     assert not use_wide_layout("Overview")
     assert "Places" in WIDE_LAYOUT_MODES
-    assert "Themes" in WIDE_LAYOUT_MODES
+    assert "Themes" not in WIDE_LAYOUT_MODES
     assert "People" not in WIDE_LAYOUT_MODES
 
 

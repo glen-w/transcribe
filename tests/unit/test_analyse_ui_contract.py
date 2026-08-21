@@ -140,12 +140,13 @@ def test_analyse_wires_corpus_compare_into_overview_and_mood():
     ).read_text(encoding="utf-8")
 
 
-def test_entity_sentiment_is_on_people_places_batch():
+def test_entity_sentiment_is_on_people_tab():
     assert "entity_sentiment" in VIEWS
     assert "entity_sentiment_health" in VIEWS
     places = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
     assert "entity_sentiment_health" in places
     assert "render_entity_sentiment_section" in places
+    assert "render_notebook_people_tab" in places
     assert "Entity tone" in places or "entity tone" in places.lower()
     helpers = Path("src/transcribe/ui/analysis_display_helpers.py").read_text(encoding="utf-8")
     assert "aggregate_entity_sentiment" in helpers

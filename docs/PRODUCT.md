@@ -12,7 +12,7 @@ On your machine you can:
 1. Import JPEG/PNG/PDF pages into a durable managed notebook directory
 2. Run local vision OCR via Ollama
 3. Review and correct text page by page
-4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Summaries, Detect under **View**; Detect also launches from Analyse presets; People & places lives on Themes, Moments on Mood, Ask notebook on Summaries; corpus Places map in the primary nav)
+4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Summaries, Detect, People & Places under **View**; Detect also launches from Analyse presets; Moments on Mood, Ask notebook on Summaries; People & Places scope This notebook | All notebooks)
 5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
 6. Back up and restore the full workspace (notebooks + corpus + config) as a local ZIP
 

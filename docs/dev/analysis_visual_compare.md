@@ -32,7 +32,7 @@ user selects (year / date range), using each notebook’s diary `date_start` /
 
 | Module | User visual | Corpus/period compare? |
 |--------|-------------|------------------------|
-| `stats` | chips + tokens/page bars | yes |
+| `stats` | chips + tokens/page bars; compare chart scales tokens÷1k / chars÷10k so pages stay visible | yes |
 | `lexical_diversity` | chips + TTR line | yes |
 | `understandability` | chips + Flesch line | yes |
 | `wordclouds` | **Basic** static cloud or **Advanced** interactive explorer (TX controls) | no |

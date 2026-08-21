@@ -36,6 +36,9 @@ def clear_page_viewer_state(session: dict | None = None) -> None:
     state.pop("viewer_tag_filter", None)
     state.pop("viewer_nav_scope", None)
     state.pop("viewer_nav_scope_control", None)
+    from transcribe.ui.thumbnails_view import clear_thumbs_view_state
+
+    clear_thumbs_view_state(state)
 
 
 def validate_project_root(

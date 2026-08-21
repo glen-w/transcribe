@@ -364,6 +364,7 @@ class ImportOrchestrator:
                     doc.close()
             self._hook(crash_hook, "render_promotion")
 
+            warmed_page_ids: list[str] = []
             with mutation_lock(project_paths.mutation_lock):
                 payload = require_format(read_json(project_paths.manifest), "transcribe.project")
                 project = Project.from_dict(payload)
@@ -412,6 +413,17 @@ class ImportOrchestrator:
                     project.updated_at = now
                     validate_project(project, paths=project_paths)
                     write_json_atomic(project_paths.manifest, project.as_dict())
+                    warmed_page_ids = [p.page_id for p in new_pages]
+            if warmed_page_ids:
+                try:
+                    from transcribe.services.thumbnails import ThumbnailService
+
+                    ThumbnailService(project_paths).ensure_thumbs_for_pages(
+                        project,
+                        warmed_page_ids,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             self._hook(crash_hook, "project_json_commit")
         finally:
             shutil.rmtree(staging, ignore_errors=True)

@@ -830,7 +830,10 @@ def render_page_viewer(
         prev_help = "Previous page"
         next_help = "Next page"
         total_suffix = ""
-    top = st.columns([1, 1, 2, 2, 1, 1])
+    if read_only:
+        top = st.columns([1, 1, 2, 1.6, 1, 1, 1.2])
+    else:
+        top = st.columns([1, 1, 2, 2, 1, 1])
     if show_back:
         if top[0].button(back_label, icon=ic.ARROW_BACK):
             st.session_state.pop("view_page_id", None)
@@ -841,6 +844,9 @@ def render_page_viewer(
             st.session_state.pop("viewer_nav_scope", None)
             st.session_state.pop("viewer_nav_scope_control", None)
             st.session_state.pop("view_highlight", None)
+            from transcribe.ui.thumbnails_view import clear_thumbs_view_state
+
+            clear_thumbs_view_state()
             st.session_state["show_page_viewer"] = False
             return_mode = st.session_state.pop("page_return_mode", None)
             if return_mode:
@@ -883,7 +889,14 @@ def render_page_viewer(
     if top[4].button("", disabled=idx >= total - 1, help=next_help, icon=ic.CHEVRON_RIGHT):
         _navigate_to_entry(entries[idx + 1])
         st.rerun()
-    top[5].caption(f"`{page.page_id[:8]}…`")
+    if read_only:
+        with top[5]:
+            from transcribe.ui.thumbnails_view import render_thumbs_toggle_button
+
+            render_thumbs_toggle_button(key="pv_thumbs_toggle")
+        top[6].caption(f"`{page.page_id[:8]}…`")
+    else:
+        top[5].caption(f"`{page.page_id[:8]}…`")
 
     if read_only:
         review_row = st.columns([5, 1])
@@ -987,6 +1000,20 @@ def render_page_viewer(
                 st.caption("Detections: " + " · ".join(labels))
         except Exception:  # noqa: BLE001
             pass
+
+    if read_only:
+        from transcribe.ui.thumbnails_view import render_thumbnails_view, thumbs_mode_active
+
+        if thumbs_mode_active():
+            render_thumbnails_view(
+                entries=entries,
+                current_page_id=page_id,
+                key_prefix="pv_thumbs",
+            )
+            by_root = dict(st.session_state.get("reading_page_by_root") or {})
+            by_root[str(paths.root)] = page_id
+            st.session_state["reading_page_by_root"] = by_root
+            return project
 
     compare_layout = (not read_only) and _shows_compare_attempts(result)
     if compare_layout:

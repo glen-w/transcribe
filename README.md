@@ -78,7 +78,7 @@ More: [user guide](docs/user_guide.md) · [OCR](docs/runtime/ocr.md) · [analysi
 - Analyse presets (Quick / Balanced / Thorough / Custom); product read-models under View (corpus/period compare on Overview/Mood; Moments and page-series jump-to-page → Reading)
 - Portable export (`transcribe.notebook` JSON + Markdown + plain text + HTML/EPUB/PDF)
 - **Full-workspace backup / restore** (ZIP of notebooks + corpus + config; CLI + Settings → Configuration) — [backup_and_restore.md](docs/backup_and_restore.md)
-- **Core notebook analysis** on transcribed text (Overview, Themes with People, Mood with Moments, Summaries with Ask, Detect) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
+- **Core notebook analysis** on transcribed text (Overview, Themes, Mood with Moments, Summaries with Ask, People & Places, Detect) with project-local `analysis/` results — [ROADMAP.md](docs/ROADMAP.md)
 
 Invariants live in **contracts**, not this README — see [CONTRACT_INDEX.md](docs/CONTRACT_INDEX.md).
 

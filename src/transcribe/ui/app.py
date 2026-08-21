@@ -43,6 +43,9 @@ from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.run_import import render_run_import
 from transcribe.ui.run_transcribe import invalidate_batch_ocr_caches, render_run_transcribe
+from transcribe.ui.components.global_analysis_progress import (
+    render_global_analysis_progress,
+)
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
@@ -179,6 +182,11 @@ def render_analyse_workspace(
     project,
 ) -> None:
     """Analyse with This notebook | Batch target switcher."""
+    from transcribe.ui.components.global_analysis_progress import (
+        is_analysis_operation_active,
+        sync_analyse_target_to_active_operation,
+    )
+    from transcribe.ui.run_analysis import analysis_run_in_progress
     from transcribe.ui.run_analysis_batch import (
         render_batch_analysis_launch,
         render_batch_analysis_progress,
@@ -196,27 +204,81 @@ def render_analyse_workspace(
     batch_coord = get_batch_analysis_coordinator(
         str(runtime.data_dir), str(runtime.projects_dir)
     )
-    if render_batch_analysis_progress(batch_coord, runtime):
-        return
-
-    apply_pending_target(
-        st.session_state,
-        pending_key=PENDING_ANALYSE_TARGET_KEY,
-        target_key=ANALYSE_TARGET_KEY,
+    batch_running = batch_coord.is_running() or (
+        batch_coord.get_progress().status == "running"
     )
+    operation_active = is_analysis_operation_active(
+        st.session_state, batch_running=batch_running
+    )
+    # Returning mid-run must reopen the same target + progress, not the config form.
+    if operation_active:
+        st.session_state.pop(PENDING_ANALYSE_TARGET_KEY, None)
+        active_target = sync_analyse_target_to_active_operation(
+            st.session_state, batch_running=batch_running
+        )
+    else:
+        apply_pending_target(
+            st.session_state,
+            pending_key=PENDING_ANALYSE_TARGET_KEY,
+            target_key=ANALYSE_TARGET_KEY,
+        )
+        active_target = None
+
     normalize_target(st.session_state, ANALYSE_TARGET_KEY)
     target = st.segmented_control(
         "Target",
         options=list(TARGET_OPTIONS),
         key=ANALYSE_TARGET_KEY,
+        disabled=operation_active,
         help=(
             "This notebook: Analyse the selected notebook. "
             "Batch: same Analyse plan across many notebooks "
             "(needing analysis, an import run, or a manual pick)."
+            if not operation_active
+            else "Target is locked while an analysis run is in progress."
         ),
     )
     if target is None:
         target = st.session_state.get(ANALYSE_TARGET_KEY) or TARGET_THIS
+    if operation_active and active_target is not None:
+        target = active_target
+
+    # Ongoing this-notebook run takes priority over Target=Batch so return
+    # visits always restore the live progress panel (and Cancel).
+    active_root = root
+    pending = st.session_state.get("run_analysis_pending_launch")
+    if (
+        operation_active
+        and active_target == TARGET_THIS
+        and isinstance(pending, dict)
+        and isinstance(pending.get("project_root"), str)
+        and pending["project_root"].strip()
+    ):
+        active_root = pending["project_root"].strip()
+
+    this_running = False
+    if active_root:
+        try:
+            analysis_coord = get_analysis_coordinator(str(Path(active_root)))
+            this_running = analysis_run_in_progress(analysis_coord)
+        except TranscribeError:
+            this_running = bool(st.session_state.get("analysis_run_in_progress"))
+
+    if this_running or (operation_active and active_target == TARGET_THIS and active_root):
+        try:
+            paths = open_project_paths(Path(active_root))
+            run_projects = ProjectService(
+                paths, clock=SystemClock(), ids=UuidGenerator()
+            )
+            run_project = run_projects.load(reconcile=True)
+        except TranscribeError as exc:
+            st.error(str(exc))
+            return
+        _render_analyse_this_notebook(runtime, paths, run_projects, run_project)
+        return
+
+    if render_batch_analysis_progress(batch_coord, runtime):
+        return
 
     if target == TARGET_BATCH:
         render_batch_analysis_launch(
@@ -473,6 +535,15 @@ def main() -> None:
         show_path=False,
     )
 
+    # Floating chip while analysis runs off the Analyse page.
+    batch_coord = get_batch_analysis_coordinator(
+        str(runtime.data_dir), str(runtime.projects_dir)
+    )
+    render_global_analysis_progress(
+        batch_coord=batch_coord,
+        get_analysis_coord=get_analysis_coordinator,
+    )
+
     spec = page_spec_for(mode)
     if spec is None:
         spec = page_spec_for("Archive")
@@ -493,12 +564,6 @@ def main() -> None:
     if mode == "Archive":
         render_page_shell(spec.title, spec.description)
         render_archive(runtime, archive)
-        return
-    if mode == "Places":
-        render_page_shell(spec.title, spec.description)
-        from transcribe.ui.places_map import render_corpus_places_page
-
-        render_corpus_places_page(runtime)
         return
     if mode == "Settings":
         render_page_shell(spec.title, spec.description)
@@ -551,6 +616,12 @@ def main() -> None:
 
     if is_view_mode(mode) or is_open_notebook_workflow(mode):
         if not root:
+            if mode == "Places":
+                render_page_shell(spec.title, spec.description)
+                from transcribe.ui.notebook_views import render_places_without_notebook
+
+                render_places_without_notebook(runtime)
+                return
             render_page_shell(spec.title, spec.description)
             st.info("Select a notebook in View, or create one under Workflow → New notebook.")
             return
@@ -573,6 +644,7 @@ def main() -> None:
             render_view_detect,
             render_view_mood,
             render_view_overview,
+            render_view_places,
             render_view_summaries,
             render_view_themes,
         )
@@ -590,6 +662,8 @@ def main() -> None:
             render_view_themes(**kwargs)
         elif mode == "Mood":
             render_view_mood(**kwargs)
+        elif mode == "Places":
+            render_view_places(**kwargs)
         elif mode == "Summaries":
             render_view_summaries(**kwargs)
         elif mode == "Ask":

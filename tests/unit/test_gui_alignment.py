@@ -98,6 +98,8 @@ def test_settings_interface_lists_additive_sections() -> None:
     assert "overview_cards" in hub
     assert "view_show_advanced" in hub
     assert "Save overview settings" in hub
+    assert "Regenerate thumbnails" in hub
+    assert "settings_thumbs_regen_run" in hub
 
 
 def test_settings_hub_tab_labels_and_order() -> None:
@@ -204,6 +206,7 @@ def test_published_view_pages_use_analyse_cta_when_unpublished() -> None:
     for name in (
         "render_view_themes",
         "render_view_mood",
+        "render_view_places",
         "render_view_summaries",
         "render_view_ask",
     ):

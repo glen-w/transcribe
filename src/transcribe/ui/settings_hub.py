@@ -271,6 +271,59 @@ def render_configuration_panel() -> None:
             except Exception as exc:  # noqa: BLE001
                 st.error(f"{type(exc).__name__}: {exc}")
 
+    st.markdown("#### Thumbnails")
+    st.caption(
+        "Cover and grid JPEGs under `.cache/thumbs/` are built on import. "
+        "Regenerate to rebuild them for an existing notebook (for example after "
+        "clearing cache, or to pick up the smaller grid size)."
+    )
+    if labels:
+        thumb_choice = st.selectbox(
+            "Notebook",
+            options=labels,
+            key="settings_thumbs_regen_notebook",
+        )
+        if st.button(
+            "Regenerate thumbnails",
+            key="settings_thumbs_regen_run",
+            type="secondary",
+            icon=ic.REFRESH,
+            help=widget_help(
+                "Force-rewrite cover (256px) and grid (128px) thumbs for every page."
+            ),
+        ):
+            root = Path(runtime.projects_dir) / thumb_choice
+            try:
+                paths = open_project_paths(root)
+                svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+                project = svc.load(reconcile=False)
+                from transcribe.services.thumbnails import ThumbnailService
+
+                bar = st.progress(0.0, text="Starting thumbnails…")
+                status = st.empty()
+
+                def on_thumb_progress(done: int, total: int, message: str) -> None:
+                    frac = min(1.0, done / max(1, total))
+                    bar.progress(
+                        frac,
+                        text=f"Thumbnails {done}/{total}"
+                        + (f" · {message}" if message else ""),
+                    )
+                    if message:
+                        status.caption(message)
+
+                stats = ThumbnailService(paths).regenerate_thumbs(
+                    project, on_progress=on_thumb_progress
+                )
+                st.success(
+                    f"Done on **{thumb_choice}**: wrote {stats.pages_written}, "
+                    f"missing render {stats.pages_missing}, "
+                    f"errors {stats.pages_error} "
+                    f"(of {stats.pages_total} pages)."
+                )
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"{type(exc).__name__}: {exc}")
+
     st.divider()
     st.markdown("#### Archive")
     st.caption("Archive notebook strip paging.")
@@ -330,7 +383,7 @@ def render_configuration_panel() -> None:
         key="settings_view_show_advanced",
         help=(
             "When off, View pages hide per-module **Advanced · …** collapsibles "
-            "(Overview, Themes, Mood, Summaries, Ask, People)."
+            "(Overview, Themes, Mood, Summaries, Ask, People & Places)."
         ),
     )
     if st.button("Save overview settings", type="primary", key="settings_overview_cards_save", icon=ic.SAVE):

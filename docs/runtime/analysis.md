@@ -28,11 +28,11 @@ Edit preset policies under **Settings → Analysis**. Mid-run settings changes a
 
 ## View consume
 
-Inspect published results under **View**: Overview / Themes / Mood / Summaries. Themes includes **People**; Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current.
+Inspect published results under **View**: Overview / Themes / Mood / Summaries / People & Places. Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current.
 
 - Overview / Mood: **Compare with corpus / period** for numeric metrics vs other notebooks
 - Mood → Moments and page-series charts: **Jump to page** → Reading
-- **Places** (primary nav): map of places across notebooks (opt-in geocoding)
+- **People & Places**: People / Places with This notebook | All notebooks scope (opt-in geocoding)
 - Technical module details under **Advanced**
 
 Chart compare notes: [dev/analysis_visual_compare.md](../dev/analysis_visual_compare.md).

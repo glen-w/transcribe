@@ -1,4 +1,4 @@
-Type: PRODUCT
+ runType: PRODUCT
 Authority: Product roadmap and sequencing. Does not define runtime contracts or shipped schemas. This roadmap describes product priorities and sequencing. Completed implementation detail lives in delivery-history documents and is not duplicated here.
 
 # Transcribe roadmap
@@ -480,6 +480,20 @@ Adapters land **one family per release**, not a plugin framework in 1.1:
 | `telegram_json` | 1.6 | Native fields in raw payload. **Do not** coerce to WhatsApp shape. Shared **index projection** only (`kind, t, participants[], text, collection_id`) |
 | `transcriptx_bundle` | 1.6 | TX export files: transcript required; audio optional; summary if present; speakers as strings. No ASR re-run, no TX package |
 
+#### Future context import candidates — [?] uncommitted
+
+Worth recording after the committed **1.2–1.6** sequence. Same Family B rules: user-provided **export files only** (no live APIs, scrapers, or OAuth sync); `ContextCollection` + `ContextRecord`; re-import = new snapshot; treat like chats/photos in backup sensitivity.
+
+| Source | Typical export | Evidence role | Notes |
+|--------|----------------|---------------|-------|
+| **Spotify / Last.fm** | Spotify account data JSON (extended streaming history); Last.fm scrobble CSV or GDPR export | Music listened to near a page date | Timestamps → `TemporalClaim`; artist/track/album as record text. No streaming API or scrobble daemon |
+| **Amazon purchases** | Order history CSV (“Download order reports”); GDPR/data-request bundle | Purchases as dated commercial activity | Order date, item title, category; likely extends `tabular_csv` or a thin dedicated adapter; strip or user-control shipping/payment fields |
+| **Browser / search history** | Chrome/Firefox/Safari export; Google Takeout (Chrome history, My Activity) | Web pages and queries around dates | High volume — JSONL sharding like WhatsApp; URL, title, visit time, search query; among the most privacy-sensitive imports |
+| **Google Maps Timeline** | Google Takeout Location History (JSON) | Visits, stays, movement | Complements NER **Places** (extracted mentions) with GPS-derived places; segment records with start/end; geocode policy unchanged (opt-in) |
+| **Calendar** | `.ics` export; Google/Apple/Microsoft Takeout | Scheduled events around pages | Event title, time range, location string, attendees as strings → Person suggestions. **Not** a calendar product — evidence only (see non-goals) |
+
+Evaluate after **1.6** (shared context index + doctor + backup) and **1.8** (Related evidence panel proves cross-source value). One adapter per release; no universal importer framework before three post-1.6 adapters ship.
+
 On-disk sketch (absence valid). Recommend bulky originals in `TRANSCRIBE_CONTEXT_DIR` (sibling of projects); indexes under `data/context/`; both packed in backup; cache still excluded:
 
 ```text
@@ -586,7 +600,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Product goal:** “Anna” in a notebook can become a Person the user owns, without pretending NER was identity.
 
-**UX:** Person profile: mentions, pages, dates, later photos/chats. Confirm/reject suggestions. Aliases. Merge/split. Privacy hide. Keep Themes → People as the **extracted mention** layer. Place confirmation if it fits this release; otherwise Person-only and Place later.
+**UX:** Person profile: mentions, pages, dates, later photos/chats. Confirm/reject suggestions. Aliases. Merge/split. Privacy hide. Keep People & Places → People as the **extracted mention** layer. Place confirmation if it fits this release; otherwise Person-only and Place later.
 
 **Architecture:** `data/context/entities/people/<id>.json`. Mentions → `page_id` / `record_id` + quote + fingerprint. NER rerun carry-forward (detection-review pattern). Suggested matches `status=suggested`.
 
@@ -596,7 +610,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Risks:** Auto-merge; social-graph product; contact sync; treating FAC as people.
 
-**Exit:** Create person from mention; alias; refuse silent merge; profile → Reading; NER rerun preserves confirmations. Empty entity store = today’s Themes People.
+**Exit:** Create person from mention; alias; refuse silent merge; profile → Reading; NER rerun preserves confirmations. Empty entity store = today’s People & Places → People.
 
 #### 1.4 — WhatsApp as high-volume context
 
@@ -733,7 +747,7 @@ No live WhatsApp/Telegram/Ollama in default CI. Doctor deep-hash originals. Back
 - Treating photos/chats as notebook pages
 - Porting TX speaker/audio modules (`interactions`, `pauses`, `voice_*`)
 - Cloud OCR/sync; multi-user social graph
-- Calendar or quantified-self dashboards as the product
+- Calendar **app** or quantified-self **dashboards** as the product (importing calendar **exports** as dated evidence is a separate candidate — [Future context import candidates](#future-context-import-candidates--uncommitted))
 - Deferred analysis ports (`politeness`, `echoes`, …) disguised as autobiography
 - Universal plugin importer before three adapters exist
 - Schema bump of `AnalysisDocument` v1 for messages
@@ -768,6 +782,7 @@ Defaults for implementers; revisit with evidence:
 Worth recording without scheduling. Rows pulled into [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) are marked.
 
 - Cross-notebook links / related pages — **scheduled 1.1** (notebook date windows; computed, not a graph)
+- **Context import candidates (post-1.6)** — Spotify/Last.fm exports, Amazon purchase history, browser/search history, Google Maps Timeline, calendar exports — [Future context import candidates](#future-context-import-candidates--uncommitted) in After 1.0
 - Corpus-level Analyse / search (cross-notebook products — **not** Bulk Analyse orchestration above). **2.0 reconstruction** is retrieved-evidence QA, not a cross-notebook Analyse runner; a corpus Analyse product remains uncommitted
 - Bookmarks / favourites
 - Annotations distinct from OCR corrections

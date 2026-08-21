@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from transcribe.analysis.storage import AnalysisStorage
+from transcribe.domain.dates import ApproximateDate
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
 from transcribe.persistence.locks import FileLock
@@ -83,6 +84,29 @@ class PersonMention:
     surface: str
     count: int
     page_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PageRef:
+    """Notebook page metadata for people mention rendering."""
+
+    page_index: int
+    page_count: int
+    date: ApproximateDate | None = None
+    text: str = ""
+
+
+@dataclass(frozen=True)
+class PersonOccurrence:
+    """One PERSON entity hit with provenance for the People panel."""
+
+    surface: str
+    page_id: str | None
+    snippet: str
+    date: ApproximateDate | None = None
+    order: int = 0
+    notebook_title: str | None = None
+    project_root: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -766,3 +790,180 @@ def write_ner_locations_artifact(
 
 def load_notebook_places_from_paths(paths: ProjectPaths) -> PlacesSnapshot:
     return load_notebook_places(paths.root)
+
+
+def _date_from_entity_row(row: dict[str, Any]) -> ApproximateDate | None:
+    raw = row.get("date")
+    if isinstance(raw, dict):
+        return ApproximateDate.from_dict(raw)
+    return None
+
+
+def _evidence_for_entity(
+    entity: dict[str, Any], evidence: list[Any] | None
+) -> dict[str, Any] | None:
+    if not isinstance(evidence, list):
+        return None
+    unit_id = entity.get("unit_id")
+    char_start = entity.get("char_start")
+    char_end = entity.get("char_end")
+    fallback: dict[str, Any] | None = None
+    for row in evidence:
+        if not isinstance(row, dict):
+            continue
+        if row.get("label") != PERSON_LABEL:
+            continue
+        if row.get("unit_id") != unit_id:
+            continue
+        if row.get("char_start") == char_start and row.get("char_end") == char_end:
+            return row
+        if fallback is None:
+            fallback = row
+    return fallback
+
+
+def _person_snippet(
+    surface: str,
+    *,
+    page_text: str | None,
+    evidence_quote: str | None,
+) -> str:
+    from transcribe.services.archive import _snippet
+
+    if page_text:
+        return _snippet(page_text, surface)
+    if evidence_quote:
+        return evidence_quote.strip()
+    return surface.strip()
+
+
+def extract_person_occurrences(
+    payload: dict[str, Any] | None,
+    *,
+    evidence: list[Any] | None = None,
+    notebook_title: str | None = None,
+    project_root: Path | None = None,
+    page_refs: dict[str, PageRef] | None = None,
+) -> dict[str, list[PersonOccurrence]]:
+    """Group PERSON entity hits by normalized surface (sorted by date, page order)."""
+    if not isinstance(payload, dict):
+        return {}
+    entities = payload.get("entities")
+    if not isinstance(entities, list):
+        return {}
+
+    refs = page_refs or {}
+    grouped: dict[str, list[PersonOccurrence]] = defaultdict(list)
+
+    for row in entities:
+        if not isinstance(row, dict):
+            continue
+        label = row.get("label")
+        surface = row.get("surface") or row.get("text")
+        if label != PERSON_LABEL or not isinstance(surface, str) or not surface.strip():
+            continue
+        page_id = _page_id_from_entity(row)
+        ev = _evidence_for_entity(row, evidence)
+        page_ref = refs.get(page_id) if page_id else None
+        page_text = page_ref.text if page_ref else None
+        ev_quote = ev.get("quote") if isinstance(ev, dict) else None
+        if not isinstance(ev_quote, str):
+            ev_quote = None
+        snippet = _person_snippet(surface, page_text=page_text, evidence_quote=ev_quote)
+        entity_date = _date_from_entity_row(row)
+        date = entity_date or (page_ref.date if page_ref else None)
+        order = row.get("order")
+        grouped[normalize_place_query(surface)].append(
+            PersonOccurrence(
+                surface=surface.strip(),
+                page_id=page_id,
+                snippet=snippet,
+                date=date,
+                order=int(order) if isinstance(order, int) else 0,
+                notebook_title=notebook_title,
+                project_root=project_root,
+            )
+        )
+
+    def _sort_key(occ: PersonOccurrence) -> tuple[Any, ...]:
+        ref = refs.get(occ.page_id) if occ.page_id else None
+        d = occ.date or (ref.date if ref else None)
+        date_key = d.sort_key() if d else (9999, 99, 99)
+        page_ord = ref.page_index if ref else 9999
+        return (*date_key, page_ord, occ.order, occ.surface.casefold())
+
+    return {
+        key: sorted(items, key=_sort_key)
+        for key, items in grouped.items()
+    }
+
+
+def build_notebook_page_refs(project_root: Path) -> dict[str, PageRef]:
+    """Load page text and numbering for snippet context in the People panel."""
+    from transcribe.ports import SystemClock, UuidGenerator
+    from transcribe.services.project import ProjectService
+
+    paths = open_project_paths(Path(project_root))
+    svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+    try:
+        project = svc.load(reconcile=False)
+    except Exception:  # noqa: BLE001
+        return {}
+    count = len(project.pages)
+    out: dict[str, PageRef] = {}
+    for index, page in enumerate(project.pages):
+        result = svc.load_page_result(page.page_id)
+        text = (result.effective_text() if result else None) or ""
+        out[page.page_id] = PageRef(
+            page_index=index + 1,
+            page_count=count,
+            date=page.date,
+            text=text,
+        )
+    return out
+
+
+def load_notebook_person_occurrences(project_root: Path) -> dict[str, list[PersonOccurrence]]:
+    """PERSON hits for one notebook with search-style snippets."""
+    paths = open_project_paths(Path(project_root))
+    storage = AnalysisStorage(paths)
+    published = storage.read_published("ner")
+    if published is None or published.get("outcome") != "success":
+        return {}
+
+    title = paths.root.name
+    try:
+        manifest = read_json(paths.manifest)
+        if isinstance(manifest, dict) and isinstance(manifest.get("title"), str):
+            title = manifest["title"].strip() or title
+    except Exception:  # noqa: BLE001
+        pass
+
+    payload = published.get("payload") or {}
+    evidence = published.get("evidence")
+    page_refs = build_notebook_page_refs(Path(project_root))
+    return extract_person_occurrences(
+        payload if isinstance(payload, dict) else {},
+        evidence=evidence if isinstance(evidence, list) else None,
+        notebook_title=title,
+        project_root=Path(project_root),
+        page_refs=page_refs,
+    )
+
+
+def load_corpus_person_occurrences(projects_dir: Path) -> dict[str, list[PersonOccurrence]]:
+    """Aggregate PERSON hits across notebooks."""
+    merged: dict[str, list[PersonOccurrence]] = defaultdict(list)
+    for root in discover_project_roots(Path(projects_dir)):
+        for key, items in load_notebook_person_occurrences(root).items():
+            merged[key].extend(items)
+    for key in merged:
+        merged[key].sort(
+            key=lambda occ: (
+                *(occ.date.sort_key() if occ.date else (9999, 99, 99)),
+                occ.notebook_title or "",
+                occ.order,
+                occ.surface.casefold(),
+            )
+        )
+    return dict(merged)

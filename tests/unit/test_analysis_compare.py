@@ -8,6 +8,8 @@ from pathlib import Path
 from transcribe.domain.dates import ApproximateDate
 from transcribe.services.analysis_compare import (
     ComparePeriod,
+    chart_compare_series,
+    chart_series_for_module,
     compare_rows,
     extract_foundations_display,
     extract_module_metrics,
@@ -67,6 +69,68 @@ def test_extract_stats_and_understandability():
     assert extract_foundations_display(
         {"document": {"flesch_reading_ease": 70.0}}, "understandability"
     )
+
+
+def test_stats_chart_scale_keeps_pages_visible():
+    """Characters/tokens dwarf pages on a shared axis unless scaled for the chart."""
+    keys = ["unit_count", "total_token_count", "total_char_count"]
+    labels = ["Pages / units", "Tokens", "Characters"]
+    values = [171.0, 21_601.0, 134_939.0]
+    chart_labels, scaled = chart_series_for_module(
+        "stats", keys=keys, labels=labels, values=values
+    )
+    assert chart_labels == [
+        "Pages / units",
+        "Tokens (thousands)",
+        "Characters (×10k)",
+    ]
+    assert scaled[0] == 171.0
+    assert abs(scaled[1] - 21.601) < 1e-9
+    assert abs(scaled[2] - 13.4939) < 1e-9
+    # All three should be in the same order of magnitude for a shared y-axis.
+    assert max(scaled) / min(scaled) < 20
+
+    # Non-stats modules are unchanged.
+    other_labels, other_vals = chart_series_for_module(
+        "lexical_diversity",
+        keys=["ttr"],
+        labels=["TTR"],
+        values=[0.42],
+    )
+    assert other_labels == ["TTR"]
+    assert other_vals == [0.42]
+
+    rows = [
+        {
+            "key": "unit_count",
+            "label": "Pages / units",
+            "this": 171.0,
+            "average": 27.0,
+            "n": 4,
+            "delta": 144.0,
+        },
+        {
+            "key": "total_token_count",
+            "label": "Tokens",
+            "this": 21_601.0,
+            "average": 10_000.0,
+            "n": 4,
+            "delta": 11_601.0,
+        },
+        {
+            "key": "total_char_count",
+            "label": "Characters",
+            "this": 134_939.0,
+            "average": 70_000.0,
+            "n": 4,
+            "delta": 64_939.0,
+        },
+    ]
+    cl, this_s, avg_s = chart_compare_series("stats", rows)
+    assert cl[0] == "Pages / units"
+    assert this_s[0] == 171.0 and avg_s[0] == 27.0
+    assert abs(this_s[1] - 21.601) < 1e-9 and abs(avg_s[1] - 10.0) < 1e-9
+    assert abs(this_s[2] - 13.4939) < 1e-9 and abs(avg_s[2] - 7.0) < 1e-9
 
 
 def test_notebook_overlaps_period_year_and_range():

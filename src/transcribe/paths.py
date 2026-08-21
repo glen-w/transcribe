@@ -110,6 +110,10 @@ class ProjectPaths:
     def thumb_path(self, page_id: str) -> Path:
         return self.thumbs_dir / f"{page_id}.jpg"
 
+    def grid_thumb_path(self, page_id: str) -> Path:
+        """Smaller disposable JPEG for Reading/Review thumbnail grids."""
+        return self.thumbs_dir / f"{page_id}.grid.jpg"
+
     def resolve_contained(self, rel: str) -> Path:
         """Resolve a stored relative path and require it stay inside the project root."""
         if not rel or rel.startswith("/") or rel.startswith("\\"):

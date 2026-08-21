@@ -10,8 +10,11 @@ import pytest
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.places import (
     GeocodeCache,
+    PageRef,
+    PersonOccurrence,
     PlaceMention,
     extract_from_ner_payload,
+    extract_person_occurrences,
     load_corpus_places,
     load_notebook_places,
     map_points,
@@ -207,11 +210,26 @@ def test_load_notebook_and_corpus_places(tmp_path: Path) -> None:
 def test_shell_and_app_wire_places_surfaces() -> None:
     nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
     assert 'id="Places"' in nav
+    assert 'nav_label="People & Places"' in nav
+    assert 'section="view"' in nav
     app = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
     views = Path("src/transcribe/ui/notebook_views.py").read_text(encoding="utf-8")
-    assert "People & places" in nav
-    assert "render_corpus_places_page" in app
+    assert "People" in nav
+    assert '"places"' in nav
+    assert '"corpus"' not in nav.split("VIEW_PAGE_PANELS")[1].split("_VIEW_PANEL_ALIASES")[0]
+    assert "render_view_places" in app
+    assert "render_places_without_notebook" in app
+    assert "render_view_places" in views
+    assert "render_places_scope_control" in views
+    assert "render_notebook_people_tab" in views
     assert "render_notebook_places_tab" in views
+    places_map = Path("src/transcribe/ui/places_map.py").read_text(encoding="utf-8")
+    assert "render_places_scope_control" in places_map
+    assert "load_corpus_person_occurrences" in places_map
+    assert "This notebook" in places_map
+    assert "All notebooks" in places_map
+    assert "st.expander" in places_map
+    assert "Jump to page" in places_map
 
 
 def test_places_service_has_no_streamlit_import() -> None:
@@ -481,6 +499,64 @@ def test_extract_fac_label() -> None:
     )
     assert snap.places[0].label == "FAC"
     assert snap.places[0].surface == "Louvre"
+
+
+def test_extract_person_occurrences_with_snippet() -> None:
+    payload = {
+        "entities": [
+            {
+                "surface": "Alice",
+                "label": "PERSON",
+                "unit_id": "page-1",
+                "order": 2,
+                "char_start": 12,
+                "char_end": 17,
+                "date": {"y": 1999, "m": 3, "d": 4},
+            },
+            {
+                "surface": "Alice",
+                "label": "PERSON",
+                "unit_id": "page-2",
+                "order": 5,
+                "char_start": 0,
+                "char_end": 5,
+            },
+        ],
+    }
+    evidence = [
+        {
+            "unit_id": "page-1",
+            "label": "PERSON",
+            "char_start": 12,
+            "char_end": 17,
+            "quote": "Alice",
+        },
+    ]
+    page_refs = {
+        "page-1": PageRef(
+            page_index=1,
+            page_count=3,
+            text="Yesterday I met Alice at the park and we talked for hours.",
+        ),
+        "page-2": PageRef(page_index=2, page_count=3, text="Alice called later that evening."),
+    }
+    grouped = extract_person_occurrences(
+        payload,
+        evidence=evidence,
+        page_refs=page_refs,
+        notebook_title="Diary",
+    )
+    alice_key = normalize_place_query("Alice")
+    assert len(grouped[alice_key]) == 2
+    first = grouped[alice_key][0]
+    assert first.page_id == "page-1"
+    assert first.date is not None
+    assert first.date.year == 1999
+    assert "Alice" in first.snippet
+    assert "met" in first.snippet or "park" in first.snippet
+    second = grouped[alice_key][1]
+    assert second.page_id == "page-2"
+    assert "Alice" in second.snippet
 
 
 def test_load_notebook_without_ner(tmp_path: Path) -> None:

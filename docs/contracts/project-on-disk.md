@@ -29,7 +29,7 @@ A project root contains:
 | `prompts/` | Reserved for project prompt assets |
 | `jobs/` | Ephemeral-ish OCR job run records (not page authority) |
 | `.staging/` | Ingest scratch (cleared after commit / recovery) |
-| `.cache/thumbs/` | Disposable thumbnails |
+| `.cache/thumbs/` | Disposable thumbnails (cover `*.jpg` + grid `*.grid.jpg`) |
 | `.cache/analysis/` | Optional disposable analysis acceleration (never authoritative) |
 | `.transcribe.lock` | Short mutation lock |
 | `.transcribe.job.lock` | Cross-process OCR job lock |

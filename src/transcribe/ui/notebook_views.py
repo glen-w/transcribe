@@ -179,38 +179,17 @@ def _spec_for_panel(spec: PageSpec, panel: ViewPanel) -> PageSpec:
 
 
 def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
+    _ = runtime
     spec = page_spec_for("Themes")
     assert spec is not None
     published = notebook_has_published_analysis(paths.root)
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
-    panel = select_view_panel("Themes", project_id=project.id, render=False)
-    assert panel is not None
-    spec = _spec_for_panel(spec, panel)
 
     def _body() -> None:
-        show_advanced = _view_show_advanced()
-        chosen = select_view_panel("Themes", project_id=project.id, render=True)
-        assert chosen is not None
-        if chosen.id == "people":
-            from transcribe.ui.places_map import render_notebook_places_tab
-
-            st.caption("All-notebook map: Places in the primary nav.")
-            ner_mh = ctx["batch_health"].modules.get("ner")
-            entity_mh = ctx["batch_health"].modules.get("entity_sentiment")
-            render_notebook_places_tab(
-                project_root=paths.root,
-                runtime=runtime,
-                ner_health=ner_mh,
-                entity_sentiment_health=entity_mh,
-                show_advanced=show_advanced,
-                heading=False,
-            )
-            return
         themes = get_registered_modules(through=THROUGH_THEMES)
         assert set(ctx["ids"]["themes"]).issubset(set(themes))
-        st.caption("Corpus Places map is under Places in the primary nav.")
         render_themes_product(
             ctx["themes_health"],
             ctx["ids"]["themes"],
@@ -218,16 +197,10 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
                 pid, project=project, paths=paths, return_mode="Themes"
             ),
             project_id=project.id,
-            show_advanced=show_advanced,
+            show_advanced=_view_show_advanced(),
             heading=False,
         )
 
-    empty_title = "No published NER yet" if panel.id == "people" else "No published analysis yet"
-    empty_body = (
-        "Run Analyse (including NER) to map people and places in this notebook."
-        if panel.id == "people"
-        else "Run Analyse on this notebook to see themes."
-    )
     render_notebook_view_page(
         spec,
         health=ctx["batch_health"],
@@ -235,8 +208,131 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
         analyse_cta_key="themes_analyse_cta",
         body=_body if published else None,
         empty_kind=None if published else "no_results_yet",
-        empty_title=empty_title,
-        empty_body=empty_body,
+        empty_title="No published analysis yet",
+        empty_body="Run Analyse on this notebook to see themes.",
+    )
+
+
+def render_view_places(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
+    spec = page_spec_for("Places")
+    assert spec is not None
+    published = notebook_has_published_analysis(paths.root)
+    ctx = load_view_health(
+        paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
+    )
+    panel = select_view_panel("Places", project_id=project.id, render=False)
+    assert panel is not None
+    spec = _spec_for_panel(spec, panel)
+
+    def _body() -> None:
+        from transcribe.ui.places_map import (
+            SCOPE_CORPUS,
+            render_notebook_people_tab,
+            render_notebook_places_tab,
+            render_places_scope_control,
+        )
+
+        show_advanced = _view_show_advanced()
+        chosen = select_view_panel("Places", project_id=project.id, render=True)
+        assert chosen is not None
+        scope = render_places_scope_control(allow_notebook=True)
+        if scope != SCOPE_CORPUS and not published:
+            render_analyse_cta(key="places_analyse_cta")
+            return
+        if chosen.id == "people":
+            from transcribe.ui.action_menus.nav import viewer_page_ids
+            from transcribe.ports import SystemClock, UuidGenerator
+            from transcribe.services.project import ProjectService, open_project_paths
+            from transcribe.ui.page_viewer import open_page_context
+
+            ner_mh = ctx["batch_health"].modules.get("ner") if scope != SCOPE_CORPUS else None
+            entity_mh = (
+                ctx["batch_health"].modules.get("entity_sentiment")
+                if scope != SCOPE_CORPUS
+                else None
+            )
+
+            def _on_person_jump(occ) -> None:
+                if not occ.page_id:
+                    return
+                jump_root = Path(occ.project_root) if occ.project_root else Path(paths.root)
+                try:
+                    jump_paths = open_project_paths(jump_root)
+                    jump_projects = ProjectService(
+                        jump_paths, clock=SystemClock(), ids=UuidGenerator()
+                    )
+                    jump_project = jump_projects.load(reconcile=False)
+                except Exception:  # noqa: BLE001
+                    st.toast("Could not open that notebook.")
+                    return
+                page_ids = viewer_page_ids(jump_project)
+                if occ.page_id not in page_ids:
+                    st.toast("That page is no longer in the notebook.")
+                    return
+                open_page_context(
+                    page_id=occ.page_id,
+                    page_ids=page_ids,
+                    project_root=jump_root,
+                    highlight=occ.surface,
+                    return_mode="People",
+                )
+                st.session_state["ui_mode"] = "Reading"
+                st.rerun()
+
+            render_notebook_people_tab(
+                project_root=paths.root,
+                runtime=runtime,
+                scope=scope,
+                ner_health=ner_mh,
+                entity_sentiment_health=entity_mh,
+                show_advanced=show_advanced,
+                heading=False,
+                on_occurrence_jump=_on_person_jump,
+            )
+            return
+        ner_mh = ctx["batch_health"].modules.get("ner") if scope != SCOPE_CORPUS else None
+        render_notebook_places_tab(
+            project_root=paths.root,
+            runtime=runtime,
+            scope=scope,
+            ner_health=ner_mh,
+            show_advanced=show_advanced,
+            heading=False,
+        )
+
+    render_notebook_view_page(
+        spec,
+        health=ctx["batch_health"],
+        body=_body,
+    )
+
+
+def render_places_without_notebook(runtime) -> None:
+    """People & Places when no notebook is selected (all-notebooks scope only)."""
+    from transcribe.ui.places_map import (
+        SCOPE_CORPUS,
+        render_notebook_people_tab,
+        render_notebook_places_tab,
+        render_places_scope_control,
+    )
+    from transcribe.ui.notebook_view_page import select_view_panel
+
+    chosen = select_view_panel("Places", project_id="none", render=True)
+    assert chosen is not None
+    render_places_scope_control(allow_notebook=False)
+    if chosen.id == "people":
+        render_notebook_people_tab(
+            project_root=None,
+            runtime=runtime,
+            scope=SCOPE_CORPUS,
+            heading=False,
+        )
+        return
+    render_notebook_places_tab(
+        project_root=None,
+        runtime=runtime,
+        scope=SCOPE_CORPUS,
+        heading=False,
     )
 
 

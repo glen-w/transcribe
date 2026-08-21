@@ -305,7 +305,7 @@ def render_review_page(
     elif review_status == "needs_attention":
         chip = "⚠ needs attention"
 
-    nav = st.columns([1, 1, 2.4, 2.2, 1, 1.2])
+    nav = st.columns([1, 1, 2.0, 1.8, 1.2, 1.0, 1.0])
     if nav[0].button(
         "",
         disabled=idx <= 0,
@@ -369,9 +369,13 @@ def render_review_page(
                 if jump_idx is not None and jump_idx != idx:
                     _navigate_to_entry(entries[jump_idx])
                     st.rerun()
-    nav[4].caption(chip)
+    with nav[4]:
+        from transcribe.ui.thumbnails_view import render_thumbs_toggle_button
+
+        render_thumbs_toggle_button(key="rw_thumbs_toggle")
+    nav[5].caption(chip)
     if page.date is not None and not page.date_approved:
-        if nav[5].button(
+        if nav[6].button(
             "Date",
             help="Approve suggested date",
             icon=ic.CHECK,
@@ -383,7 +387,17 @@ def render_review_page(
             except (ValueError, TranscribeError) as exc:
                 st.error(str(exc))
     else:
-        nav[5].write("")
+        nav[6].write("")
+
+    from transcribe.ui.thumbnails_view import render_thumbnails_view, thumbs_mode_active
+
+    if thumbs_mode_active():
+        render_thumbnails_view(
+            entries=entries,
+            current_page_id=page_id,
+            key_prefix="rw_thumbs",
+        )
+        return
 
     canonical = st.session_state[f"rw_buf_{page_id}"]
     dirty = _is_dirty(page_id)

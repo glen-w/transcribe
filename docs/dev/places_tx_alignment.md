@@ -28,7 +28,7 @@ Legacy duplicate: `core/geo_utils.py` (thinner; NER does **not** use it). Prefer
 | Rate limit / cap | ≥1.05s between live lookups; default cap **50**, frequency-ranked |
 | Cache | `data/cache/geocode.json` — versioned schema, normalized keys, atomic writes; caches ok / not_found / error |
 | Artifact | `analysis/ner/locations.json` (`transcribe.ner-locations`) when coords resolve |
-| UI | View → Themes → People; primary nav → Places; Streamlit `st.map` |
+| UI | View → People & Places (People / Places + This notebook | All notebooks); Streamlit `st.map` |
 | Privacy | **Opt-in** checkbox (intentional divergence — place names leave the machine only when enabled) |
 | Provenance | `page_ids` + sample `sentence` from NER evidence quotes |
 

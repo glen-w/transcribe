@@ -336,6 +336,11 @@ def render_overview_product(
                 if not label_rows and not entity_rows:
                     st.caption("No named entities found.")
                 _hub_link("Open People", "People", key=_ns(project_id, "overview_to_people"))
+                _hub_link(
+                    "Open Places",
+                    "NotebookPlaces",
+                    key=_ns(project_id, "overview_to_places"),
+                )
                 if show_advanced:
                     render_advanced_payload("ner", payload)
 
