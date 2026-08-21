@@ -34,7 +34,7 @@ from transcribe.ui.navigation import (
 from transcribe.ui.notebook_view_page import render_analyse_cta, render_notebook_view_page, select_view_panel
 from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.shell import render_page_shell
-from transcribe.ui.view_jumps import jump_to_reading
+from transcribe.ui.view_jumps import jump_person_occurrence, jump_to_reading
 
 
 def _module_id_lists() -> dict[str, list[str]]:
@@ -240,44 +240,12 @@ def render_view_places(runtime, paths, projects, project, *, get_analysis_coordi
             render_analyse_cta(key="places_analyse_cta")
             return
         if chosen.id == "people":
-            from transcribe.ui.action_menus.nav import viewer_page_ids
-            from transcribe.ports import SystemClock, UuidGenerator
-            from transcribe.services.project import ProjectService, open_project_paths
-            from transcribe.ui.page_viewer import open_page_context
-
             ner_mh = ctx["batch_health"].modules.get("ner") if scope != SCOPE_CORPUS else None
             entity_mh = (
                 ctx["batch_health"].modules.get("entity_sentiment")
                 if scope != SCOPE_CORPUS
                 else None
             )
-
-            def _on_person_jump(occ) -> None:
-                if not occ.page_id:
-                    return
-                jump_root = Path(occ.project_root) if occ.project_root else Path(paths.root)
-                try:
-                    jump_paths = open_project_paths(jump_root)
-                    jump_projects = ProjectService(
-                        jump_paths, clock=SystemClock(), ids=UuidGenerator()
-                    )
-                    jump_project = jump_projects.load(reconcile=False)
-                except Exception:  # noqa: BLE001
-                    st.toast("Could not open that notebook.")
-                    return
-                page_ids = viewer_page_ids(jump_project)
-                if occ.page_id not in page_ids:
-                    st.toast("That page is no longer in the notebook.")
-                    return
-                open_page_context(
-                    page_id=occ.page_id,
-                    page_ids=page_ids,
-                    project_root=jump_root,
-                    highlight=occ.surface,
-                    return_mode="People",
-                )
-                st.session_state["ui_mode"] = "Reading"
-                st.rerun()
 
             render_notebook_people_tab(
                 project_root=paths.root,
@@ -287,7 +255,7 @@ def render_view_places(runtime, paths, projects, project, *, get_analysis_coordi
                 entity_sentiment_health=entity_mh,
                 show_advanced=show_advanced,
                 heading=False,
-                on_occurrence_jump=_on_person_jump,
+                on_occurrence_jump=jump_person_occurrence,
             )
             return
         ner_mh = ctx["batch_health"].modules.get("ner") if scope != SCOPE_CORPUS else None
@@ -326,6 +294,7 @@ def render_places_without_notebook(runtime) -> None:
             runtime=runtime,
             scope=SCOPE_CORPUS,
             heading=False,
+            on_occurrence_jump=jump_person_occurrence,
         )
         return
     render_notebook_places_tab(

@@ -114,26 +114,41 @@ def test_reading_and_review_wire_thumbnails_overview() -> None:
 
     assert "Go to page" in thumbs
     assert "ZOOM_OUT" in thumbs and "ZOOM_IN" in thumbs
-    assert "tx_thumb_" in thumbs
+    assert "tx_grid_open_" in thumbs
+    assert "on_click=_open_entry_click" in thumbs
     assert "_open_entry" in thumbs
     assert "ensure_grid_thumb" in thumbs
     assert '_warm_grid_thumbs' in thumbs
     assert 'help=widget_help("Open this page in the normal view")' in thumbs
 
 
-def test_shell_css_covers_thumb_overlay_clicks() -> None:
+def test_shell_css_keeps_cover_overlay_and_clears_thumbs() -> None:
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
-    assert "st-key-tx_thumbwrap_" in shell
-    assert "st-key-tx_thumb_" in shell
-    assert "pointer-events: none" in shell
+    assert "st-key-tx_cover_" in shell
     assert "clear_thumbs_view_state" in shell
 
 
-def test_thumb_cell_uses_keyed_wrap_for_overlay() -> None:
+def test_thumb_cell_uses_visible_open_button() -> None:
     thumbs = Path("src/transcribe/ui/thumbnails_view.py").read_text(encoding="utf-8")
-    assert "tx_thumbwrap_" in thumbs
-    assert "key=wrap_key" in thumbs
-    assert "reading_page_by_root" in thumbs
+    assert "tx_grid_open_" in thumbs
+    assert "_open_entry_click" in thumbs
+    assert "remember_reading_page" in thumbs
+
+
+def test_open_entry_click_adapter(monkeypatch) -> None:
+    class _State(dict):
+        pass
+
+    state = _State()
+    monkeypatch.setattr(tv.st, "session_state", state)
+    seen: list[dict[str, str]] = []
+
+    def _fake_open(entry: dict[str, str]) -> None:
+        seen.append(entry)
+
+    monkeypatch.setattr(tv, "_open_entry", _fake_open)
+    tv._open_entry_click("page-9", "/nb")
+    assert seen == [{"page_id": "page-9", "project_root": "/nb"}]
 
 
 def test_open_entry_leaves_thumbs_and_sets_viewer(monkeypatch) -> None:
@@ -144,6 +159,7 @@ def test_open_entry_leaves_thumbs_and_sets_viewer(monkeypatch) -> None:
     state["viewer_thumbs_mode"] = True
     state["reading_page_by_root"] = {"/other": "old"}
     monkeypatch.setattr(tv.st, "session_state", state)
+    monkeypatch.setattr("transcribe.ui.page_viewer.st.session_state", state)
 
     navigated: list[dict[str, str]] = []
 
@@ -170,9 +186,9 @@ def test_docs_mention_thumbnails_on_reading_and_review() -> None:
     surfaces = Path("docs/public_surfaces.md").read_text(encoding="utf-8")
     guide = Path("docs/user_guide.md").read_text(encoding="utf-8")
     assert "Thumbnails" in surfaces
-    assert "click a thumb to open" in surfaces
+    assert "page button under a thumb" in surfaces
     assert "Thumbnails" in guide
-    assert "click a thumb to open" in guide
+    assert "page button under a thumb" in guide
 
 
 def test_notebook_cache_and_page_lookup(tmp_path: Path) -> None:

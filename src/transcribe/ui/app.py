@@ -403,8 +403,9 @@ def _render_reading_mode(paths, projects, project) -> None:
     st.session_state["view_page_id"] = default_id
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
-    by_root[root_key] = default_id
-    st.session_state["reading_page_by_root"] = by_root
+    from transcribe.ui.page_viewer import remember_reading_page
+
+    remember_reading_page(root_key, default_id)
     render_page_viewer(
         paths=paths,
         projects=projects,

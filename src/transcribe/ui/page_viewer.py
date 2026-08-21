@@ -455,11 +455,34 @@ def _page_number_to_index(page_number: int, total: int) -> int | None:
     return page_number - 1
 
 
+def _canonical_project_root(project_root: str | Path | None) -> str:
+    raw = str(project_root or "")
+    if not raw:
+        return ""
+    try:
+        return str(Path(raw).expanduser().resolve())
+    except OSError:
+        return raw
+
+
+def remember_reading_page(project_root: str | Path | None, page_id: str | None) -> None:
+    """Keep Reading's per-notebook resume pointer in sync with an opened page."""
+    root = _canonical_project_root(project_root)
+    if not root or not page_id:
+        return
+    by_root = dict(st.session_state.get("reading_page_by_root") or {})
+    by_root[root] = str(page_id)
+    st.session_state["reading_page_by_root"] = by_root
+
+
 def _navigate_to_entry(entry: dict[str, str]) -> None:
     """Point the page viewer at a nav entry (may switch notebook root)."""
-    st.session_state["view_page_id"] = entry["page_id"]
-    st.session_state["root"] = entry["project_root"]
-    st.session_state["pending_notebook_root"] = str(entry["project_root"])
+    page_id = entry["page_id"]
+    root = _canonical_project_root(entry.get("project_root"))
+    st.session_state["view_page_id"] = page_id
+    st.session_state["root"] = root or str(entry.get("project_root") or "")
+    st.session_state["pending_notebook_root"] = st.session_state["root"]
+    remember_reading_page(root, page_id)
 
 
 def _scrub_viewer_after_page_delete(page_id: str, project_root: Path) -> None:
@@ -1010,9 +1033,7 @@ def render_page_viewer(
                 current_page_id=page_id,
                 key_prefix="pv_thumbs",
             )
-            by_root = dict(st.session_state.get("reading_page_by_root") or {})
-            by_root[str(paths.root)] = page_id
-            st.session_state["reading_page_by_root"] = by_root
+            remember_reading_page(paths.root, page_id)
             return project
 
     compare_layout = (not read_only) and _shows_compare_attempts(result)
@@ -1322,9 +1343,7 @@ def render_page_viewer(
                     st.rerun()
 
     if read_only:
-        by_root = dict(st.session_state.get("reading_page_by_root") or {})
-        by_root[str(paths.root)] = page.page_id
-        st.session_state["reading_page_by_root"] = by_root
+        remember_reading_page(paths.root, page.page_id)
 
     return project
 
@@ -1338,13 +1357,14 @@ def open_page_context(
     return_mode: str | None = None,
     view_entries: list[dict[str, Any]] | None = None,
 ) -> None:
+    root = _canonical_project_root(project_root) or str(project_root)
     entries = _normalize_entries(
         page_ids=page_ids,
-        project_root=project_root,
+        project_root=root,
         view_entries=view_entries,
     )
-    st.session_state["root"] = str(project_root)
-    st.session_state["pending_notebook_root"] = str(project_root)
+    st.session_state["root"] = root
+    st.session_state["pending_notebook_root"] = root
     st.session_state["view_page_id"] = page_id
     st.session_state["view_page_ids"] = [e["page_id"] for e in entries]
     st.session_state["view_entries"] = entries
@@ -1352,6 +1372,12 @@ def open_page_context(
     st.session_state["viewer_tag_filter"] = []
     st.session_state["view_highlight"] = highlight
     st.session_state["show_page_viewer"] = True
+    # Stale Reading widgets must not override the page we just opened.
+    st.session_state.pop("reading_jump_by_date", None)
+    remember_reading_page(root, page_id)
+    from transcribe.ui.thumbnails_view import clear_thumbs_view_state
+
+    clear_thumbs_view_state(st.session_state)
     if return_mode:
         st.session_state["page_return_mode"] = return_mode
     if return_mode == "Search":

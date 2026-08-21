@@ -87,7 +87,10 @@ def test_shared_jump_helper_targets_reading_not_review() -> None:
     assert 'st.session_state["ui_mode"] = "Reading"' in jumps
     assert 'st.session_state["ui_mode"] = "Review"' not in jumps
     assert "def jump_to_reading" in jumps
+    assert "def jump_person_occurrence" in jumps
     assert "jump_to_reading" in views
+    assert "jump_person_occurrence" in views
+    assert "rerun=False" in jumps
     assert 'return_mode="Review"' not in views
     assert 'return_mode="Detect"' in detect
     assert 'st.session_state["ui_mode"] = "Detect"' in detect

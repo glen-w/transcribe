@@ -114,7 +114,7 @@ def _render_people(
     page_refs: dict[str, PageRef],
     show_notebook: bool,
     scope: str,
-    on_occurrence_jump: Callable[[PersonOccurrence], None] | None = None,
+    on_occurrence_jump: Callable[[str, str, str], None] | None = None,
 ) -> None:
     if not snapshot.people:
         st.caption("No people (PERSON) in published NER.")
@@ -143,13 +143,19 @@ def _render_people(
                 cols[0].markdown(" · ".join(header_parts))
                 if occ.snippet:
                     cols[0].caption(escape_markdown_plain(occ.snippet))
-                if on_occurrence_jump and occ.page_id and cols[1].button(
-                    "Jump to page",
-                    key=f"people_jump_{scope}_{key}_{occ.page_id}_{index}",
-                    type="tertiary",
-                    icon=ic.ARROW_FORWARD,
-                ):
-                    on_occurrence_jump(occ)
+                if on_occurrence_jump and occ.page_id:
+                    cols[1].button(
+                        "Jump to page",
+                        key=f"people_jump_{scope}_{key}_{occ.page_id}_{index}",
+                        type="tertiary",
+                        icon=ic.ARROW_FORWARD,
+                        on_click=on_occurrence_jump,
+                        args=(
+                            occ.page_id,
+                            str(occ.project_root or ""),
+                            occ.surface,
+                        ),
+                    )
 
 
 def _ner_panel_blocked(
@@ -190,7 +196,7 @@ def render_people_panel(
     page_refs: dict[str, PageRef] | None = None,
     show_notebook: bool = False,
     scope: str = "notebook",
-    on_occurrence_jump: Callable[[PersonOccurrence], None] | None = None,
+    on_occurrence_jump: Callable[[str, str, str], None] | None = None,
 ) -> None:
     """People list from published NER."""
     if _ner_panel_blocked(snapshot, ner_health=ner_health, product_title="People"):
@@ -301,7 +307,7 @@ def render_notebook_people_tab(
     entity_sentiment_health: ModuleHealth | None = None,
     show_advanced: bool = False,
     heading: bool = True,
-    on_occurrence_jump: Callable[[PersonOccurrence], None] | None = None,
+    on_occurrence_jump: Callable[[str, str, str], None] | None = None,
 ) -> None:
     if heading:
         st.subheader("People")

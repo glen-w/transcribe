@@ -59,10 +59,11 @@ def test_picker_does_not_rewrite_ui_mode() -> None:
     shell = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
     assert "picker changes never rewrite" in shell
     assert "disabled = (not enabled) and current != mode" in shell
-    start = shell.index("if selected != previous:")
+    start = shell.index("if _canonical_root(selected) != _canonical_root(previous):")
     chunk = shell[start : start + 400]
     assert "set_ui_mode" not in chunk
     assert '["ui_mode"]' not in chunk
+    assert "def _canonical_root" in shell
 
 
 def test_first_visit_home_is_app_not_normalize() -> None:

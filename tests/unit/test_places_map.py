@@ -230,6 +230,8 @@ def test_shell_and_app_wire_places_surfaces() -> None:
     assert "All notebooks" in places_map
     assert "st.expander" in places_map
     assert "Jump to page" in places_map
+    assert "on_click=on_occurrence_jump" in places_map
+    assert "jump_person_occurrence" in views
 
 
 def test_places_service_has_no_streamlit_import() -> None:

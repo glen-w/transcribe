@@ -1,9 +1,9 @@
 """Thumbnails overview for Reading and Review page surfaces.
 
-Toggle replaces the single-page scan with a grid of page thumbs. Clicking a
-thumb leaves the grid and opens that page in the normal viewer. The right panel
-shows info for the page that was current when entering the grid (or last opened
-via **Go to page**).
+Toggle replaces the single-page scan with a grid of page thumbs. Each thumb has
+a page button underneath — click it (or **Go to page** in the info panel) to
+leave the grid and open that page. The right panel shows info for the page that
+was current when entering the grid.
 """
 
 from __future__ import annotations
@@ -153,18 +153,19 @@ def _warm_grid_thumbs(
 def _open_entry(entry: dict[str, str]) -> None:
     """Leave thumbs mode and open the page in the normal viewer."""
     # Lazy import: page_viewer imports this module for the toggle.
-    from transcribe.ui.page_viewer import _navigate_to_entry
+    from transcribe.ui.page_viewer import _navigate_to_entry, remember_reading_page
 
     page_id = entry["page_id"]
     root = str(entry.get("project_root") or "")
     st.session_state[_THUMBS_MODE_KEY] = False
     st.session_state[_THUMBS_SELECTED_KEY] = page_id
     _navigate_to_entry(entry)
-    # Keep Reading's per-notebook resume pointer in sync with the opened page.
-    if root:
-        by_root = dict(st.session_state.get("reading_page_by_root") or {})
-        by_root[root] = page_id
-        st.session_state["reading_page_by_root"] = by_root
+    remember_reading_page(root, page_id)
+
+
+def _open_entry_click(page_id: str, project_root: str) -> None:
+    """``on_click`` adapter (args must be primitives for Streamlit callbacks)."""
+    _open_entry({"page_id": page_id, "project_root": project_root})
 
 
 def _render_zoom_controls(*, key_prefix: str) -> None:
@@ -205,40 +206,36 @@ def _render_thumb_cell(
     cache: dict[str, tuple[ProjectPaths, ProjectService, Project]],
 ) -> None:
     page_id = entry["page_id"]
+    root = str(entry.get("project_root") or "")
     loaded = _page_from_cache(cache, entry)
     selected = page_id == selected_id
-    # Dedicated wrap key so shell CSS can position the Open overlay over the
-    # image only (same pattern as Library/Archive cover clicks). Caption stays
-    # outside so it is not part of the hit target.
-    wrap_key = f"tx_thumbwrap_{key_prefix}_{page_id[:12]}_{index}"
-    btn_key = f"tx_thumb_{key_prefix}_{page_id[:12]}_{index}"
+    # Visible full-width control under the image — Streamlit cannot attach
+    # on_click to st.image, and CSS overlays over images are unreliable in
+    # column grids. on_click mutates session before the next run (no mid-render rerun).
+    open_key = f"tx_grid_open_{key_prefix}_{page_id[:12]}_{index}"
     with st.container(border=selected):
-        with st.container(key=wrap_key):
-            if loaded is None:
-                st.caption("(missing)")
-            else:
-                paths, _projects, project, _page = loaded
-                thumbs = ThumbnailService(paths)
-                thumb = thumbs.ensure_grid_thumb(project, page_id)
-                if thumb is not None and thumb.exists():
-                    st.image(str(thumb), width="stretch")
-                else:
-                    st.caption("(no image)")
-            if st.button(
-                "Open",
-                key=btn_key,
-                type="tertiary",
-                width="stretch",
-                help=widget_help("Open this page in the normal view"),
-            ):
-                _open_entry(entry)
-                st.rerun()
         if loaded is None:
-            st.caption(f"p.{index + 1}")
+            st.caption("(missing)")
+            label = f"p.{index + 1}"
         else:
-            page = loaded[3]
+            paths, _projects, project, page = loaded
+            thumbs = ThumbnailService(paths)
+            thumb = thumbs.ensure_grid_thumb(project, page_id)
+            if thumb is not None and thumb.exists():
+                st.image(str(thumb), width="stretch")
+            else:
+                st.caption("(no image)")
             date_bit = page.date.format_display() if page.date else "Undated"
-            st.caption(f"p.{index + 1} · {date_bit}")
+            label = f"p.{index + 1} · {date_bit}"
+        st.button(
+            label,
+            key=open_key,
+            type="primary" if selected else "secondary",
+            width="stretch",
+            help=widget_help("Open this page in the normal view"),
+            on_click=_open_entry_click,
+            args=(page_id, root),
+        )
 
 
 def _cover_page_id(project: Project) -> str | None:
@@ -314,16 +311,16 @@ def _render_page_info_panel(
     else:
         st.caption("No transcription text on this page.")
 
-    if st.button(
+    st.button(
         "Go to page",
         key=f"{key_prefix}_go",
         type="primary",
         width="stretch",
         icon=ic.ARROW_FORWARD,
         help=widget_help("Open this page in the normal view"),
-    ):
-        _open_entry(entry)
-        st.rerun()
+        on_click=_open_entry_click,
+        args=(entry["page_id"], str(entry.get("project_root") or "")),
+    )
 
 
 def render_thumbnails_view(

@@ -346,46 +346,6 @@ def inject_global_styles() -> None:
         font-size: 0.8rem;
         line-height: 1;
     }
-    /* Thumbnail grid: click image to open (transparent overlay button).
-       Key the wrap container (tx_thumbwrap_) so positioning does not depend on
-       Streamlit nesting the button as a direct child of stVerticalBlock. */
-    [class*="st-key-tx_thumbwrap_"] {
-        position: relative !important;
-    }
-    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] {
-        position: absolute !important;
-        inset: 0 !important;
-        z-index: 5 !important;
-        margin: 0 !important;
-        opacity: 0 !important;
-        pointer-events: auto !important;
-    }
-    [class*="st-key-tx_thumbwrap_"] [data-testid="stImage"],
-    [class*="st-key-tx_thumbwrap_"] [data-testid="stImage"] * {
-        pointer-events: none !important;
-    }
-    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] [data-testid="stButton"],
-    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] [data-testid="stButton"] > button,
-    [class*="st-key-tx_thumbwrap_"] [class*="st-key-tx_thumb_"] button {
-        width: 100% !important;
-        height: 100% !important;
-        min-height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        background: transparent !important;
-        cursor: pointer !important;
-        pointer-events: auto !important;
-    }
-    [class*="st-key-tx_thumbwrap_"]:has(
-            [class*="st-key-tx_thumb_"] button:not(:disabled)
-        ):hover
-        [data-testid="stImage"]
-        img {
-        outline: 2px solid rgba(31, 119, 180, 0.55);
-        outline-offset: 2px;
-        cursor: pointer;
-    }
     /* Cover click = Open (transparent button overlays the thumbnail only).
        Require direct-child cover key so ancestor page blocks / sibling
        captions+actions are not part of the hit target or hover outline. */
@@ -753,6 +713,16 @@ def _nav_button(
             set_ui_mode(mode)
 
 
+def _canonical_root(root: str | None) -> str:
+    """Resolve a notebook root for identity comparisons (picker vs jump)."""
+    if not root:
+        return ""
+    try:
+        return str(Path(root).expanduser().resolve())
+    except OSError:
+        return str(root)
+
+
 def _selectbox_index_kwargs(
     *,
     key: str,
@@ -874,7 +844,7 @@ def render_mode_nav(
         )
         if selected:
             st.session_state["root"] = selected
-            if selected != previous:
+            if _canonical_root(selected) != _canonical_root(previous):
                 st.session_state["show_page_viewer"] = False
                 st.session_state.pop("view_page_id", None)
                 st.session_state.pop("view_page_ids", None)

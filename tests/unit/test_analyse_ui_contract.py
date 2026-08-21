@@ -155,6 +155,7 @@ def test_entity_sentiment_is_on_people_tab():
 def test_moments_jump_opens_reading_via_page_viewer():
     """Jump to page must set Reading, not Review, via the shared helper."""
     assert "jump_to_reading" in VIEWS
+    assert "jump_person_occurrence" in VIEWS
     assert "open_page_context" in JUMPS
     assert 'st.session_state["ui_mode"] = "Reading"' in JUMPS
     assert 'st.session_state["ui_mode"] = "Review"' not in VIEWS
