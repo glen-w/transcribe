@@ -485,11 +485,16 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
             provider = OllamaVisionProvider(url)
-            result = (
-                provider.list_models(refresh=args.refresh)
-                if args.all
-                else provider.list_vision_models(refresh=args.refresh)
-            )
+            all_models = provider.list_models(refresh=args.refresh)
+            if args.all:
+                result = all_models
+            else:
+                from transcribe.services.model_selection import suitable_ocr_vision_models
+
+                result_models = suitable_ocr_vision_models(all_models.models)
+                from transcribe.providers.base import DiscoveryResult
+
+                result = DiscoveryResult(models=result_models, error=all_models.error)
             if result.error:
                 print(f"Discovery warning: {result.error}", file=sys.stderr)
             if not result.models:

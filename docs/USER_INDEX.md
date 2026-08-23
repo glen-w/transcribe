@@ -17,6 +17,7 @@ Curated entry points for people using Transcribe (not repository historians).
 | [Settings & knobs](runtime/settings.md) | Configuration scopes, profiles, UI knobs |
 | [OCR / transcription](runtime/ocr.md) | Single-run, multipass, batch, cleanup |
 | [OCR model recipes](runtime/ocr_model_recipes.md) | Per-tag prompt lanes (DeepSeek-OCR `Free OCR.`) |
+| [OCR model matrix](runtime/ocr_model_matrix.md) | Local probe results and first-OCR recommendations |
 | [Analysis & Detect](runtime/analysis.md) | Analyse presets, View consume, Detect |
 | [Export](runtime/export.md) | Notebook formats, anthology, fine-tune pointer |
 | [Backup & restore](backup_and_restore.md) | Full-workspace ZIP create / verify / restore |

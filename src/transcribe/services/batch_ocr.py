@@ -28,6 +28,7 @@ from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.batch_notebooks import (
     BatchCandidate,
+    _dedupe_candidates_by_id,
     list_candidates,
     page_counts,
     resolve_notebook_ref,
@@ -197,6 +198,7 @@ class BatchOcrCoordinator:
         vision_model_names: list[str] | None = None,
         multipass_cleanup_enabled: bool = False,
     ) -> OcrBatchRun:
+        candidates = _dedupe_candidates_by_id(candidates)
         if not candidates:
             raise ValidationError("select at least one notebook to transcribe")
         mode_norm = (mode or "single").strip() or "single"

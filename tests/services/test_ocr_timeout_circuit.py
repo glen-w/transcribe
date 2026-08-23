@@ -115,6 +115,22 @@ def test_model_load_failure_trips_circuit_immediately(tmp_path: Path):
     assert "cannot load this vision model" in progress.message.lower()
 
 
+def test_model_load_preflight_skips_pages_without_ocr_calls(tmp_path: Path):
+    paths, projects, clock, ids = _project_with_pages(tmp_path, 5)
+    provider = FakeVisionOCRProvider(
+        probe_fail_code="model_load",
+        digest="digest-aaa",
+        verified=True,
+    )
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    progress = coord.run_blocking(force=True)
+    assert progress.status == "failed"
+    assert progress.failed == 0
+    assert progress.skipped == 5
+    assert provider.calls == 0
+    assert "cannot load this vision model" in progress.message.lower()
+
+
 def test_model_load_circuit_does_not_trip_on_generic_http_error(tmp_path: Path):
     paths, projects, clock, ids = _project_with_pages(tmp_path, 3)
     provider = FakeVisionOCRProvider(

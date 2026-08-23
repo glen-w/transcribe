@@ -12,6 +12,11 @@ from transcribe.analysis.llm_runtime import (
     is_unsuitable_text_model_name,
     suitable_text_model_names,
 )
+from transcribe.services.model_selection import (
+    is_unsuitable_ocr_vision_model_name,
+    suitable_ocr_vision_model_names,
+    suitable_ocr_vision_models,
+)
 from transcribe.corpus.import_run import ImportRunStore
 from transcribe.corpus.ocr_run import OcrBatchRunStore
 from transcribe.corpus.paths import CorpusPaths
@@ -1103,8 +1108,14 @@ def _render_ocr_settings_form(
     discovery = provider.list_vision_models(refresh=refresh)
     if discovery.error:
         st.caption(f"Discovery: {discovery.error}")
-    names = [m.name for m in discovery.models]
     all_discovery = provider.list_models(refresh=False)
+    vision_models = suitable_ocr_vision_models(all_discovery.models)
+    names = suitable_ocr_vision_model_names(all_discovery.models)
+    if settings.model_name and is_unsuitable_ocr_vision_model_name(settings.model_name):
+        st.warning(
+            f"Saved vision model `{settings.model_name}` is not OCR-appropriate "
+            "(thinking models and text-only tags are excluded) — choose one below."
+        )
     unknown = [m.name for m in all_discovery.models if not m.capability_known]
     from transcribe.services.ocr_preference_stats import (
         preference_hint_for_model,
@@ -1117,7 +1128,15 @@ def _render_ocr_settings_form(
         hint = preference_hint_for_model(name, stats=pref_stats)
         return f"{name} — {hint}" if hint else name
 
-    model_options = names or [settings.model_name or ""]
+    if not names:
+        st.caption("No OCR-appropriate vision models discovered from Ollama.")
+        st.error(
+            "Install an OCR-oriented or recommended vision model "
+            "(for example glm-ocr, deepseek-ocr, granite3.2-vision, qwen2.5vl) "
+            "and click Refresh Models."
+        )
+        return None
+    model_options = names
     model_index = 0
     if settings.model_name in model_options:
         model_index = model_options.index(settings.model_name)
@@ -1285,7 +1304,7 @@ def _render_ocr_settings_form(
         "prefer_mode": prefer_mode,
         "auto_activate_composite": auto_activate_composite,
         "names": names,
-        "vision_models": discovery.models,
+        "vision_models": vision_models,
         "all_models": all_discovery.models,
         "model_label": _model_label,
     }

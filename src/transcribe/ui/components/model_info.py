@@ -109,6 +109,12 @@ def render_model_information(
                     "It can hang on dense scans; prefer an OCR-oriented model, "
                     "especially as the first compare model."
                 )
+            if advice.kind == "thinking_risk":
+                st.error(
+                    "This is a thinking model. It often returns empty OCR text "
+                    "(failed / empty_output) when num_predict is consumed internally. "
+                    "Switch to glm-ocr, deepseek-ocr, granite3.2-vision, or qwen2.5vl."
+                )
 
 
 def warn_if_first_compare_model_is_general_vlm(model_names: Sequence[str]) -> None:

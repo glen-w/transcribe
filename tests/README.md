@@ -76,6 +76,13 @@ CI isolates writable roots via `TRANSCRIBE_DATA_DIR`, `TRANSCRIBE_PROJECTS_DIR`,
 
 Live OCR probes belong in deep-test / local scripts under `.test_outputs/`, not the default suite.
 
+```bash
+PYTHONPATH=src python scripts/probe_ollama_vision_models.py --json .test_outputs/model_probe_results.json
+pytest -q tests/integration/test_ollama_model_probe.py -m integration   # when Ollama is up
+```
+
+See [docs/runtime/ocr_model_matrix.md](../docs/runtime/ocr_model_matrix.md) for interpreted results.
+
 ## I0 inventory (docs / scripts)
 
 Root Markdown allowlist intent (enforced in I2 `repo_hygiene_audit.py`): `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`. New root `*.md` files belong under `docs/`.

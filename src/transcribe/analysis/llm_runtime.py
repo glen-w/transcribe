@@ -19,11 +19,14 @@ from transcribe.providers.ollama import (
 )
 from transcribe.runtime_paths import default_ollama_base_url
 
+from transcribe.services.model_advice import is_ocr_oriented_name
+
 _UNSUITABLE_NAME = re.compile(
     r"(vision|embed|embedding|mllama|llava|minicpm-v|moondream|clip)",
     re.IGNORECASE,
 )
 _UNSUITABLE_CAPS = frozenset({"vision", "embedding", "embed"})
+_TEXT_CAPS = frozenset({"completion", "chat", "tools"})
 
 
 class TextLLMClient(Protocol):
@@ -60,13 +63,17 @@ def is_unsuitable_text_model_name(name: str) -> bool:
 
 
 def is_unsuitable_text_model_info(model: ModelInfo) -> bool:
-    """Reject vision/embedding models for text LLM dropdowns and binding."""
+    """Reject vision/embedding/OCR models for text LLM dropdowns and binding."""
+    if is_ocr_oriented_name(model.name):
+        return True
     if is_unsuitable_text_model_name(model.name):
         return True
-    if model.capability_known and _UNSUITABLE_CAPS.intersection(
-        {c.lower() for c in model.capabilities}
-    ):
-        return True
+    if model.capability_known:
+        caps = {c.lower() for c in model.capabilities}
+        if _UNSUITABLE_CAPS.intersection(caps):
+            return True
+        if not caps.intersection(_TEXT_CAPS):
+            return True
     family = (model.family or "").lower()
     if family in {"clip", "bert"} or "vision" in family or "embed" in family:
         return True

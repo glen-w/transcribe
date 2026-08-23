@@ -33,7 +33,9 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "Start batch transcription" in TRANSCRIBE
     assert "Start batch multipass compare" in TRANSCRIBE
     assert "tx_batch_start_multipass" in TRANSCRIBE
-    assert "_multipass_default_selection" in TRANSCRIBE
+    assert "suitable_ocr_vision_model_names" in TRANSCRIBE
+    assert "suitable_text_model_names" in TRANSCRIBE
+    assert "is_unsuitable_ocr_vision_model_name" in TRANSCRIBE
     assert "Rank and merge existing OCR" in TRANSCRIBE
     assert "start_compare_existing" in TRANSCRIBE
     assert 'unit_label="notebooks"' in TRANSCRIBE

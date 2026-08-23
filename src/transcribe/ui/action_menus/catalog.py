@@ -79,6 +79,7 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
     SectionId.ARCHIVE_NOTEBOOK: (
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
         ActionId.DETECT,
         ActionId.EXPORT,
@@ -117,6 +118,7 @@ SECTION_ALLOWLISTS: dict[SectionId, tuple[ActionId, ...]] = {
 NOTEBOOK_STRIP: tuple[ActionId, ...] = (
     ActionId.OPEN,
     ActionId.TRANSCRIBE,
+    ActionId.REVIEW,
     ActionId.ANALYSE,
 )
 

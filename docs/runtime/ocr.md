@@ -17,7 +17,7 @@ Run local vision OCR via Ollama on notebook pages. Product framing: [PRODUCT.md]
 ./transcribe.sh cli models --refresh --prefs
 ```
 
-Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or **1 fatal model-load** error on a frozen vision plan, remaining pages for **that** model are skipped (`circuit_open`) so a bad tag does not burn the notebook. Some tags (DeepSeek-OCR) use a **model recipe** for the frozen prompt — [ocr_model_recipes.md](ocr_model_recipes.md). Whitespace-only OCR is **failed** (`empty_output`) and does not overwrite a prior reading.
+Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or **1 fatal model-load** error on a frozen vision plan, remaining pages for **that** model are skipped (`circuit_open`) so a bad tag does not burn the notebook. Some tags (DeepSeek-OCR) use a **model recipe** for the frozen prompt — [ocr_model_recipes.md](ocr_model_recipes.md). Whitespace-only OCR is **failed** (`empty_output`) and does not overwrite a prior reading. **Thinking vision models** (for example `gemma4`) often burn `num_predict` internally and return empty text — see [ocr_model_matrix.md](ocr_model_matrix.md).
 
 ## This notebook (single model)
 
@@ -26,7 +26,7 @@ Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or 
 # force re-OCR: add --force
 ```
 
-**UI:** **Workflow → Transcribe** → Target **This notebook** → vision model → optional **Clean OCR with text model** → Start. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats.
+**UI:** **Workflow → Transcribe** → Target **This notebook** → vision model → optional **Clean OCR with text model** → Start. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats. Vision pickers list **OCR-appropriate VLMs only** (thinking models, text-only tags, and broken loaders excluded); text pickers list **completion LLMs only** (vision/embedding/OCR tags excluded).
 
 Matching fingerprints on succeeded pages are skipped when model identity was verified. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
 
@@ -95,5 +95,6 @@ CLI equivalent: omit `--no-auto-composite` (default seeds) or pass `--no-auto-co
 
 - Settings / preprocess seed: [settings.md](settings.md)
 - Model recipes (DeepSeek-OCR `Free OCR.` lane): [ocr_model_recipes.md](ocr_model_recipes.md)
+- Local probe matrix (first-OCR picks): [ocr_model_matrix.md](ocr_model_matrix.md)
 - Import / bulk import: [user_guide.md](../user_guide.md)
 - Docker Ollama URL: [docker.md](docker.md)

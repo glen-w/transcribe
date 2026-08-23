@@ -33,6 +33,7 @@ from transcribe.errors import JobConflictError, TranscribeError, ValidationError
 from transcribe.ports import Clock, IdGenerator, SystemClock, UuidGenerator, to_iso
 from transcribe.services.batch_notebooks import (
     NotebookCandidate,
+    _dedupe_candidates_by_id,
     list_analyse_picker_candidates,
     list_candidates,
     list_candidates_light,
@@ -211,6 +212,7 @@ class BatchAnalysisCoordinator:
         text_model_name: str | None = None,
         detector_ids: Sequence[str] = (),
     ) -> AnalysisBatchRun:
+        candidates = _dedupe_candidates_by_id(candidates)
         if not candidates:
             raise ValidationError("select at least one notebook to analyse")
         ordered = list(batch_module_order(list(expand_with_hard_parents(list(module_ids)))))

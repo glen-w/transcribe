@@ -32,6 +32,16 @@ _FATAL_MODEL_LOAD_MARKERS = (
     "llama-server process has terminated",
 )
 
+# Minimal 1×1 PNG for vision model load probes (not OCR quality).
+_PROBE_IMAGE_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+# Vision tags that require mllama support in Ollama (broken on 0.30+ per ollama#16547).
+_MLLAMA_MODEL_TOKENS = ("llama3.2-vision",)
+
 
 def is_fatal_model_load_error(message: str) -> bool:
     """True when Ollama cannot load the selected model (architecture/loader crash)."""
@@ -39,20 +49,36 @@ def is_fatal_model_load_error(message: str) -> bool:
     return any(marker in lower for marker in _FATAL_MODEL_LOAD_MARKERS)
 
 
-def friendly_model_load_message(raw: str) -> str:
+def is_mllama_vision_model(model_name: str) -> bool:
+    """True for Llama 3.2 Vision tags that need mllama support in Ollama."""
+    lower = (model_name or "").lower()
+    return any(token in lower for token in _MLLAMA_MODEL_TOKENS)
+
+
+def model_load_fallback_hint(model_name: str) -> str:
+    """Suggest alternate vision models when a tag is known to fail on some Ollama builds."""
+    if is_mllama_vision_model(model_name):
+        return (
+            "Llama 3.2 Vision is broken on Ollama 0.30+ (mllama unsupported). "
+            "Switch to granite3.2-vision, minicpm-v, or qwen2.5vl in Settings, "
+            "or downgrade Ollama to a build that still loads this tag."
+        )
+    return (
+        "Try another vision model (for example granite3.2-vision or qwen2.5vl), "
+        "or upgrade/re-pull the model for this Ollama build."
+    )
+
+
+def friendly_model_load_message(raw: str, *, model_name: str = "") -> str:
     """Plain-language message for fatal model-load HTTP bodies."""
     lower = (raw or "").lower()
+    hint = model_load_fallback_hint(model_name) if model_name else (
+        "Try another vision model, or upgrade/re-pull the model for this Ollama build."
+    )
     if "unknown model architecture" in lower:
-        return (
-            "Ollama cannot load this vision model (architecture unsupported). "
-            "Try another vision model, or upgrade/re-pull the model for this "
-            "Ollama build."
-        )
+        return f"Ollama cannot load this vision model (architecture unsupported). {hint}"
     if "error loading model" in lower or "llama-server process has terminated" in lower:
-        return (
-            "Ollama failed to load this vision model (loader crash). "
-            "Try another vision model, or check Ollama logs / re-pull the model."
-        )
+        return f"Ollama failed to load this vision model (loader crash). {hint}"
     return (raw or "").strip() or "Ollama failed to load this vision model"
 
 
@@ -294,6 +320,15 @@ class OllamaVisionProvider:
                 return None, False
         return None, False
 
+    def probe_vision_model_load(self, *, model: str) -> None:
+        """Fail fast when Ollama cannot load the selected vision model."""
+        self.transcribe_image(
+            model=model,
+            prompt=".",
+            image_bytes=_PROBE_IMAGE_PNG,
+            options={"num_predict": 1},
+        )
+
     def transcribe_image(
         self,
         *,
@@ -448,7 +483,10 @@ class OllamaVisionProvider:
                 # Do not retry every page — JobCoordinator circuits on this code.
                 code = "model_load"
                 retriable = False
-                message = friendly_model_load_message(message)
+                model_hint = ""
+                if body is not None and isinstance(body, dict):
+                    model_hint = str(body.get("model") or "")
+                message = friendly_model_load_message(message, model_name=model_hint)
             raise ProviderError(message, retriable=retriable, code=code) from exc
         except urllib.error.URLError as exc:
             reason = exc.reason

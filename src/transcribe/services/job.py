@@ -56,6 +56,23 @@ _CIRCUIT_MSG_MODEL_LOAD = (
 )
 
 
+def _preflight_vision_model(
+    provider: VisionOCRProvider,
+    *,
+    model_name: str,
+) -> ProviderError | None:
+    """Return a model_load error before scheduling pages, when the provider supports it."""
+    probe = getattr(provider, "probe_vision_model_load", None)
+    if not callable(probe):
+        return None
+    try:
+        probe(model=model_name)
+    except ProviderError as exc:
+        if exc.code == "model_load":
+            return exc
+    return None
+
+
 @dataclass(frozen=True)
 class JobPlan:
     """Immutable execution plan resolved once at job start."""
@@ -120,6 +137,7 @@ class JobState:
     consecutive_timeouts: int = 0
     consecutive_model_loads: int = 0
     circuit_reason: str = ""  # "" | "timeout" | "model_load"
+    circuit_detail: str = ""
 
 
 def _default_progress_log(progress: JobProgress) -> None:
@@ -331,6 +349,9 @@ class JobCoordinator:
 
     def _circuit_skip_message(self, state: JobState) -> str:
         if state.circuit_reason == "model_load":
+            detail = (state.circuit_detail or "").strip()
+            if detail:
+                return detail
             return _CIRCUIT_MSG_MODEL_LOAD
         return _CIRCUIT_MSG_TIMEOUT
 
@@ -425,6 +446,9 @@ class JobCoordinator:
         resolved_model = (model_name or settings.model_name or "").strip()
         if not resolved_model:
             raise ProviderError("No model selected", code="model_missing")
+        from transcribe.services.model_selection import validate_ocr_vision_model
+
+        validate_ocr_vision_model(provider, resolved_model)
         targets = tuple(page_ids or [p.page_id for p in project.pages])
         custom = settings.custom_prompt
         recipe = None
@@ -621,6 +645,26 @@ class JobCoordinator:
             message=f"{len(work)} page(s) to process ({skipped} skipped)",
         )
 
+        if work:
+            preflight_error = _preflight_vision_model(
+                sealed_provider,
+                model_name=plan.model_name,
+            )
+            if preflight_error is not None:
+                for _page_id in work:
+                    self._tally(state, "circuit_skipped")
+                self._update_progress(
+                    state,
+                    on_progress=on_progress,
+                    status="failed",
+                    skipped=skipped + len(work),
+                    message=str(preflight_error),
+                    current_page_ids=[],
+                    current_labels=[],
+                )
+                self._persist_job_record(state, terminal=True)
+                return
+
         if not work:
             self._update_progress(
                 state,
@@ -665,6 +709,12 @@ class JobCoordinator:
                         ),
                     )
                     outcome = process_one(page_id)
+                    if outcome == "model_load":
+                        result = self.projects.load_page_result(page_id)
+                        if result and result.attempts:
+                            err = result.attempts[-1].error
+                            if err and err.message:
+                                state.circuit_detail = err.message
                     self._tally(state, outcome)
                     detail = ""
                     if outcome in {"failed", "timeout"}:

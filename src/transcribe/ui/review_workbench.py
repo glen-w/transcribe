@@ -977,6 +977,11 @@ def _rerun_ocr_dialog(
         preference_hint_for_model,
         rollup_preference_stats,
     )
+    from transcribe.services.model_selection import (
+        is_unsuitable_ocr_vision_model_name,
+        suitable_ocr_vision_model_names,
+        suitable_ocr_vision_models,
+    )
     from transcribe.ui.components.model_info import render_model_information
 
     settings = project.settings
@@ -989,14 +994,17 @@ def _rerun_ocr_dialog(
     )
     if refresh:
         invalidate_discovery_cache(base_url)
-    discovery = provider.list_vision_models(refresh=refresh)
-    if discovery.error:
-        st.caption(f"Discovery: {discovery.error}")
-    names = [m.name for m in discovery.models]
+    all_discovery = provider.list_models(refresh=refresh)
+    if all_discovery.error:
+        st.caption(f"Discovery: {all_discovery.error}")
+    vision_models = suitable_ocr_vision_models(all_discovery.models)
+    names = suitable_ocr_vision_model_names(all_discovery.models)
     current = (settings.model_name or "").strip()
+    if current and is_unsuitable_ocr_vision_model_name(current):
+        st.warning(
+            f"Notebook vision model `{current}` is not OCR-appropriate — pick a model below."
+        )
     model_options = list(names)
-    if current and current not in model_options:
-        model_options.insert(0, current)
     if not model_options:
         st.error("No vision models discovered. Start Ollama or refresh.")
         if st.button("Close", key=f"rw_rerun_close_empty_{page_id}", icon=ic.CANCEL):
@@ -1019,7 +1027,7 @@ def _rerun_ocr_dialog(
         key=f"rw_rerun_model_{page_id}",
     )
     render_model_information(
-        discovery.models,
+        vision_models,
         selected=model or "",
         role="vision",
         key=f"rw_rerun_model_info_{page_id}",

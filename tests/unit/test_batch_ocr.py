@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -68,6 +69,50 @@ def test_select_pending_skips_fully_transcribed(tmp_path: Path) -> None:
     assert {c.title for c in pending} == {"pending-nb"}
     by_id = select_by_ids(candidates, [c.notebook_id for c in candidates])
     assert len(by_id) == 2
+
+
+def test_list_candidates_dedupes_shared_notebook_id(tmp_path: Path) -> None:
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("dup")
+    root = _make_notebook(corpus, "original", clock=clock, ids=ids)
+    shutil.copytree(root, corpus.projects_dir / "copy")
+
+    candidates = list_candidates(corpus, clock=clock, ids=ids)
+    assert len(candidates) == 1
+
+
+def test_select_by_ids_dedupes_repeated_picks(tmp_path: Path) -> None:
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("pick")
+    _make_notebook(corpus, "only", clock=clock, ids=ids)
+    candidates = list_candidates(corpus, clock=clock, ids=ids)
+    nid = candidates[0].notebook_id
+
+    picked = select_by_ids(candidates, [nid, nid, nid])
+    assert len(picked) == 1
+    assert picked[0].notebook_id == nid
+
+
+def test_batch_create_run_dedupes_duplicate_candidates(tmp_path: Path) -> None:
+    from transcribe.services.batch_notebooks import NotebookCandidate
+
+    corpus = _corpus(tmp_path)
+    clock, ids = FakeClock(), SequentialIds("run")
+    root = _make_notebook(corpus, "nb", clock=clock, ids=ids)
+    project = ProjectService(open_project_paths(root), clock=clock, ids=ids).load(
+        reconcile=False
+    )
+    dup = NotebookCandidate(
+        notebook_id=project.id,
+        title="nb",
+        root=root,
+        managed_relpath="nb",
+    )
+    coord = BatchOcrCoordinator(corpus, clock=clock, ids=ids)
+    settings = OCRSettings.from_dict(project.settings.as_dict())
+    settings.model_name = "fake-vision"
+    run = coord.create_run([dup, dup], settings=settings)
+    assert len(run.items) == 1
 
 
 def test_select_from_import_run_uses_committed_notebooks_only(tmp_path: Path) -> None:

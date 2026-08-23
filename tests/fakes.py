@@ -19,6 +19,7 @@ class FakeVisionOCRProvider:
     last_options: dict[str, Any] = field(default_factory=dict)
     last_prompt: str = ""
     fail_codes: list[str] = field(default_factory=list)
+    probe_fail_code: str | None = None
     models: list[ModelInfo] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -51,6 +52,23 @@ class FakeVisionOCRProvider:
             return self.digest, True
         return self.digest, False
 
+    def probe_vision_model_load(self, *, model: str) -> None:
+        if self.probe_fail_code:
+            self._raise_fail(self.probe_fail_code)
+
+    def _raise_fail(self, code: str) -> None:
+        message = code
+        if code == "model_load":
+            message = (
+                "Ollama cannot load this vision model (architecture unsupported). "
+                "Try another vision model."
+            )
+        raise ProviderError(
+            message,
+            retriable=code not in {"timeout", "model_missing", "model_load"},
+            code=code,
+        )
+
     def transcribe_image(
         self,
         *,
@@ -65,11 +83,7 @@ class FakeVisionOCRProvider:
         if self.fail_codes:
             code = self.fail_codes.pop(0)
             if code:
-                raise ProviderError(
-                    code,
-                    retriable=code not in {"timeout", "model_missing", "model_load"},
-                    code=code,
-                )
+                self._raise_fail(code)
         if self.fail_times > 0:
             self.fail_times -= 1
             raise ProviderError("transient", retriable=True, code="timeout")

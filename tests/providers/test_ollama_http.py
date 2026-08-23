@@ -249,6 +249,7 @@ def test_is_fatal_model_load_error_markers():
     from transcribe.providers.ollama import (
         friendly_model_load_message,
         is_fatal_model_load_error,
+        model_load_fallback_hint,
     )
 
     assert is_fatal_model_load_error("unknown model architecture: 'mllama'")
@@ -258,6 +259,7 @@ def test_is_fatal_model_load_error_markers():
         "architecture unsupported"
         in friendly_model_load_message("unknown model architecture: 'mllama'").lower()
     )
+    assert "granite3.2-vision" in model_load_fallback_hint("llama3.2-vision:11b")
 
     invalidate_discovery_cache()
     calls = {"n": 0}

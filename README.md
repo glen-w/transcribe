@@ -44,8 +44,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 ### Prerequisites
 
 - A running Ollama server (`http://localhost:11434` by default)
-- A running Ollama server (`http://localhost:11434` by default)
-- At least one **vision-capable**, OCR-friendly model (e.g. `deepseek-ocr`, `granite3.2-vision`, `qwen2.5vl:7b`). Prefer OCR-oriented tags over general VLMs; `deepseek-ocr` uses a short OCR prompt recipe ([ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md)). Some listed “vision” tags still fail to load on a given Ollama build — see [known_limitations.md](docs/known_limitations.md)
+- At least one **vision-capable**, OCR-friendly model (e.g. `glm-ocr`, `deepseek-ocr`, `granite3.2-vision`, `qwen2.5vl:7b`). Avoid **thinking** tags such as `gemma4` for OCR — they often return empty text ([ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md), [ocr_model_matrix.md](docs/runtime/ocr_model_matrix.md)). Some listed “vision” tags still fail to load on a given Ollama build — see [known_limitations.md](docs/known_limitations.md)
 
 ## How you use it
 

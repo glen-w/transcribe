@@ -31,11 +31,13 @@ def ollama_health_line() -> str:
         base = (get_config().effective.ocr.base_url or "").strip() or "http://localhost:11434"
         provider = OllamaVisionProvider(base, request_timeout=3.0)
         provider.healthcheck()
-        vision = provider.list_vision_models(refresh=False)
-        n = len(vision.models)
-        extra = f" · {n} vision model{'s' if n != 1 else ''}"
-        if vision.error:
-            extra += f" · {vision.error}"
+        all_models = provider.list_models(refresh=False)
+        from transcribe.services.model_selection import suitable_ocr_vision_models
+
+        n = len(suitable_ocr_vision_models(all_models.models))
+        extra = f" · {n} OCR vision model{'s' if n != 1 else ''}"
+        if all_models.error:
+            extra += f" · {all_models.error}"
         return f"Ollama reachable{extra}"
     except Exception as exc:  # noqa: BLE001 — Home must stay cheap
         return f"Ollama not reachable — {exc}"

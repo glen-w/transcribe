@@ -67,7 +67,7 @@ Docker host mounts use `HOST_*` counterparts — see [docker.md](docker.md). Pre
 
 Install and run Ollama separately. Pull at least one **vision-capable**, OCR-friendly model before the first OCR run (prefer OCR-oriented tags over general VLMs). Native default URL: `http://localhost:11434`.
 
-Model discovery and caveats: [ocr.md](ocr.md) · [known_limitations.md](../known_limitations.md).
+Model discovery and caveats: [ocr.md](ocr.md) · [ocr_model_matrix.md](ocr_model_matrix.md) · [known_limitations.md](../known_limitations.md).
 
 ## First checks
 

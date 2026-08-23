@@ -105,6 +105,12 @@ def test_suitable_text_model_names_filters_vision_and_embedding():
             capabilities=[],
         ),
         ModelInfo(
+            name="glm-ocr:latest",
+            digest="g",
+            capability_known=True,
+            capabilities=["vision", "completion"],
+        ),
+        ModelInfo(
             name="image-encoder",
             digest="f",
             family="clip",

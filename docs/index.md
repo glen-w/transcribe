@@ -19,6 +19,7 @@ runtime/installation
 runtime/settings
 runtime/ocr
 runtime/ocr_model_recipes
+runtime/ocr_model_matrix
 runtime/analysis
 runtime/docker
 runtime/export

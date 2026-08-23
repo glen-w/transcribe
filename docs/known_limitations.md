@@ -18,6 +18,7 @@ Operational guide: [runtime/ocr.md](runtime/ocr.md).
 - Cleanup sends OCR text (not page images) to the configured Ollama host; remote hosts still exfiltrate that text by design of that configuration
 - Vision OCR always sends a `num_predict` cap (default **4096**). That stops a looping generate from running until the HTTP timeout. Hitting the cap records `truncated` in allowlisted provider metadata and does **not** fail the page. Default `num_predict` is omitted from skip fingerprints so existing attempts still match
 - **Empty OCR** (whitespace-only model output) is **failed** (`empty_output`) and does not replace a prior succeeded reading. Review **Failed OCR** is the queue; historical empty `succeeded` attempts are repaired on Review
+- **Thinking vision models** (for example `gemma4`, `qwen3-vl`, `gpt-oss`) often consume the full `num_predict` budget in hidden reasoning and return **no text** — the job shows `empty_output` on most pages. Transcribe **excludes** these from vision pickers; prefer OCR-oriented or probed tags — [ocr_model_matrix.md](runtime/ocr_model_matrix.md)
 - **DeepSeek-OCR** (and similar recipe tags) ignore long faithful instructions and often emit one token then stop. Transcribe applies a short `free_ocr` prompt unless you set a custom prompt — [ocr_model_recipes.md](runtime/ocr_model_recipes.md)
 - Ollama **generate timeouts are not retried**. Connection errors and 5xx responses still retry (3 attempts). A hang therefore fails in one HTTP timeout (default 300s), not ~15 minutes
 - **General vision-language models** (for example `llava`) can hang or time out on dense notebook scans even when listed as vision-capable. Prefer OCR-oriented tags for handwriting. After **3 consecutive timeouts** on one frozen vision plan, remaining pages for **that model** are skipped (progress `circuit_open`); a multipass compare continues with the next model
@@ -34,6 +35,7 @@ Operational guide: [runtime/ocr.md](runtime/ocr.md).
 ## Jobs and identity
 
 - Fingerprint skip requires **verified** model identity (digest from Ollama discovery). Unverified tags are always re-run
+- **Model pickers** filter discovery: vision/OCR selectors show OCR-appropriate VLMs only; text selectors show completion LLMs only (see [ocr_model_matrix.md](runtime/ocr_model_matrix.md))
 - Cancelling stops scheduling after the current page; in-flight pages still finish. During compare, remaining vision models are not started; rank/composite still run for pages that already have ≥2 succeeded vision attempts
 - Mid-job settings changes apply to the next job only
 

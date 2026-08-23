@@ -57,6 +57,32 @@ def _managed_relpath(corpus: CorpusPaths, root: Path) -> str:
         return root.name
 
 
+def _dedupe_candidates_by_id(candidates: list[NotebookCandidate]) -> list[NotebookCandidate]:
+    """Keep first discovery order when multiple folders share a notebook_id."""
+    seen: set[str] = set()
+    out: list[NotebookCandidate] = []
+    for cand in candidates:
+        nid = cand.notebook_id.strip()
+        if not nid or nid in seen:
+            continue
+        seen.add(nid)
+        out.append(cand)
+    return out
+
+
+def _unique_notebook_ids(notebook_ids: list[str]) -> list[str]:
+    """Preserve order while dropping blank or repeated ids."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in notebook_ids:
+        nid = raw.strip()
+        if not nid or nid in seen:
+            continue
+        seen.add(nid)
+        out.append(nid)
+    return out
+
+
 def page_counts(projects: ProjectService, project) -> tuple[int, int, int]:
     """Return (total, pending_or_failed, failed) page counts."""
     total, pending, failed, _with_text, _results = collect_page_stats(projects, project)
@@ -441,7 +467,7 @@ def list_candidates(
                 analysis_aggregate=aggregate,
             )
         )
-    return out
+    return _dedupe_candidates_by_id(out)
 
 
 def list_candidates_light(
@@ -500,8 +526,8 @@ def select_needing_analysis(
 def select_by_ids(
     candidates: list[NotebookCandidate], notebook_ids: list[str]
 ) -> list[NotebookCandidate]:
-    wanted = [n.strip() for n in notebook_ids if n.strip()]
-    by_id = {c.notebook_id: c for c in candidates}
+    wanted = _unique_notebook_ids(notebook_ids)
+    by_id = {c.notebook_id: c for c in _dedupe_candidates_by_id(candidates)}
     missing = [nid for nid in wanted if nid not in by_id]
     if missing:
         raise CorpusError(f"notebook(s) not found: {', '.join(missing)}")

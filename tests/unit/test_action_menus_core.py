@@ -133,6 +133,7 @@ def test_section_defaults() -> None:
     assert list(section_default_actions(SectionId.ARCHIVE_NOTEBOOK)) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
     ]
     assert list(section_default_actions(SectionId.VIEW_NOTEBOOK)) == [
@@ -148,6 +149,7 @@ def test_section_defaults() -> None:
     assert configured_actions_for_section(prefs, SectionId.ARCHIVE_NOTEBOOK) == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
     ]
     assert configured_actions_for_section(prefs, SectionId.VIEW_NOTEBOOK) == [
@@ -217,6 +219,7 @@ def test_empty_manual_restores_section_defaults() -> None:
     assert merged.sections[SectionId.ARCHIVE_NOTEBOOK].selected == [
         ActionId.OPEN,
         ActionId.TRANSCRIBE,
+        ActionId.REVIEW,
         ActionId.ANALYSE,
     ]
 
@@ -654,6 +657,7 @@ def test_view_defaults_include_rename_and_delete_not_archive(tmp_path: Path) -> 
         ActionId.DELETE,
     ]
     archive_actions = resolve_section_actions(SectionId.ARCHIVE_NOTEBOOK, ctx, prefs=prefs)
+    assert ActionId.REVIEW in archive_actions
     assert ActionId.RENAME not in archive_actions
     assert ActionId.DELETE not in archive_actions
     assert ActionId.RENAME in SECTION_ALLOWLISTS[SectionId.ARCHIVE_NOTEBOOK]
