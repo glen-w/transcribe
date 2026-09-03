@@ -35,7 +35,7 @@ from transcribe.ui.navigation import (
 
 
 def test_page_spec_table_and_sections() -> None:
-    assert PRIMARY_MODES == ("Home", "Library", "Search", "Archive")
+    assert PRIMARY_MODES == ("Home", "Library", "Search")
     assert WORKFLOW_MODES == (
         "New notebook",
         "Import",
@@ -130,6 +130,7 @@ def test_view_panel_aliases_open_parent_section() -> None:
 def test_legacy_aliases() -> None:
     assert normalize_ui_mode("View") == "Library"
     assert normalize_ui_mode("Notebooks") == "Library"
+    assert normalize_ui_mode("Archive") == "Library"
     assert normalize_ui_mode("Published results") == "Overview"
     assert normalize_ui_mode("Run Analysis") == "Analyse"
     assert normalize_ui_mode("App") == "Settings"
@@ -138,10 +139,10 @@ def test_legacy_aliases() -> None:
     assert normalize_ui_mode("Analyze") == "Analyse"
 
 
-def test_unknown_and_none_normalise_to_archive() -> None:
-    assert normalize_ui_mode(None) == "Archive"
-    assert normalize_ui_mode("bogus") == "Archive"
-    assert normalize_ui_mode("") == "Archive"
+def test_unknown_and_none_normalise_to_library() -> None:
+    assert normalize_ui_mode(None) == "Library"
+    assert normalize_ui_mode("bogus") == "Library"
+    assert normalize_ui_mode("") == "Library"
 
 
 def test_reading_is_view_not_workflow() -> None:
@@ -194,11 +195,14 @@ def test_context_bar_and_wide_layout() -> None:
     assert use_wide_layout("Home")
     assert use_wide_layout("Reading")
     assert use_wide_layout("Review")
+    assert use_wide_layout("Library")
     assert use_wide_layout("Archive")
     assert not use_wide_layout("Themes")
     assert use_wide_layout("People")
     assert not use_wide_layout("Overview")
     assert "Places" in WIDE_LAYOUT_MODES
+    assert "Library" in WIDE_LAYOUT_MODES
+    assert "Archive" not in WIDE_LAYOUT_MODES
     assert "Themes" not in WIDE_LAYOUT_MODES
     assert "People" not in WIDE_LAYOUT_MODES
 

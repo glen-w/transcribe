@@ -25,6 +25,7 @@ from transcribe.services.ocr_compare import (
     validate_composite_against_union,
 )
 from transcribe.services.ocr_preference_stats import (
+    ModelPreferenceStats,
     append_preference_event,
     preference_hint_for_model,
     rollup_preference_stats,
@@ -159,7 +160,17 @@ def test_set_active_does_not_clear_edit(tmp_path: Path) -> None:
 
 def test_rank_parser_rejects_malformed() -> None:
     allowed = {"a", "b"}
-    assert _parse_rank_json('{"order":["a","b"]}', allowed) == ["a", "b"]
+    parsed = _parse_rank_json('{"order":["a","b"]}', allowed)
+    assert parsed is not None
+    assert parsed[0] == ["a", "b"]
+    assert parsed[1] == {}
+    with_rats = _parse_rank_json(
+        '{"order":["a","b"],"rationales":{"a":"fuller","b":"ok"}}',
+        allowed,
+    )
+    assert with_rats is not None
+    assert with_rats[0] == ["a", "b"]
+    assert with_rats[1] == {"a": "fuller", "b": "ok"}
     assert _parse_rank_json('{"order":["a"]}', allowed) is None
     assert _parse_rank_json("not json", allowed) is None
 
@@ -227,6 +238,49 @@ def test_preference_rollup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     hint = preference_hint_for_model("model-a", stats=stats)
     assert hint is not None
     assert "Preferred" in hint
+
+
+def test_preference_hint_includes_promotes_in_share() -> None:
+    stats = {
+        "deepseek-ocr:latest": ModelPreferenceStats(
+            model_name="deepseek-ocr:latest",
+            promote_count=105,
+            pages={f"n:p{i}" for i in range(105)},
+            last_ts="2026-08-18T12:00:00Z",
+        ),
+        "glm-ocr:latest": ModelPreferenceStats(
+            model_name="glm-ocr:latest",
+            promote_count=19,
+            pages={f"n2:p{i}" for i in range(19)},
+            last_ts="2026-08-13T12:00:00Z",
+        ),
+    }
+    hint = preference_hint_for_model("deepseek-ocr:latest", stats=stats, share_mode="all_choices")
+    assert hint is not None
+    assert "84%" in hint or "85%" in hint
+    assert "0%" not in hint
+
+
+def test_preference_hint_prefer_only_ignores_promotes() -> None:
+    stats = {
+        "deepseek-ocr:latest": ModelPreferenceStats(
+            model_name="deepseek-ocr:latest",
+            promote_count=105,
+            pages={f"n:p{i}" for i in range(105)},
+        ),
+    }
+    assert preference_hint_for_model("deepseek-ocr:latest", stats=stats, share_mode="prefer_only") is None
+
+
+def test_preference_hint_off() -> None:
+    stats = {
+        "glm-ocr": ModelPreferenceStats(
+            model_name="glm-ocr",
+            prefer_count=2,
+            pages={"n:p1", "n:p2"},
+        )
+    }
+    assert preference_hint_for_model("glm-ocr", stats=stats, share_mode="off") is None
 
 
 def test_prune_keeps_preferred_and_active() -> None:

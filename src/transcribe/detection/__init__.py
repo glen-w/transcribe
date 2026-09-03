@@ -1,4 +1,4 @@
-"""Notebook content detection (prompt-backed and lexical counters)."""
+"""Notebook content detection (prompt-backed, lexical counters, NER people names)."""
 
 from transcribe.detection.api import DetectionService
 from transcribe.detection.definition import (

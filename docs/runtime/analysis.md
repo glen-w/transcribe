@@ -39,9 +39,9 @@ Chart compare notes: [dev/analysis_visual_compare.md](../dev/analysis_visual_com
 
 ## Detect
 
-**UI:** **View → Detect** — review findings from suite runs (approve/reject, jump to source pages). Ad-hoc / page-scoped runs still launch from **Detect → Run Detection**.
+**UI:** **View → Detect** — review findings from suite runs (**Accept** / **Reject**, jump to source pages). Accept approves the finding and applies remaining span tags. Multi-page findings add per-page Accept / Reject on each page tab; **Accept remaining** skips pages you already rejected. Lexical counters (`first_person`, `swear_words`) show a per-page count table instead of review cards. Ad-hoc / page-scoped runs still launch from **Detect → Run Detection**.
 
-Built-ins: poetry, to-do lists, lists, quotations, beer labels, first-person `I` counts, swear-word counts, plus custom detectors.
+Built-ins: poetry, to-do lists, lists, quotations, beer labels, first-person `I` per-page counts (deterministic from OCR, no LLM), swear-word counts, **names / people** (spaCy `PERSON` from published NER, or a NER run when none is current), plus custom detectors.
 
 ```bash
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
@@ -49,7 +49,7 @@ Built-ins: poetry, to-do lists, lists, quotations, beer labels, first-person `I`
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
 ```
 
-Check **Tag matching pages** (or **Apply tags from findings**) to union the detector’s tag onto span pages; rejected findings are skipped. `--auto-tag` / Detection auto-tag defaults do **not** enter detector cache identity. Catalogue contract: [tag-catalog](../contracts/tag-catalog.md).
+Check **Tag matching pages** (or **Apply tags from findings**) to union tags onto span pages; rejected findings are skipped. Most detectors use the finding type; **names / people** tags each detected person name. `--auto-tag` / Detection auto-tag defaults do **not** enter detector cache identity. Catalogue contract: [tag-catalog](../contracts/tag-catalog.md).
 
 Manage prompts under **Settings → Prompts**; custom detectors and auto-tag defaults under **Settings → Detection**; labels/colours/merge under **Settings → Tags**.
 

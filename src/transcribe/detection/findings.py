@@ -31,6 +31,7 @@ class DetectionFinding:
     detector_data: dict[str, Any] = field(default_factory=dict)
     start_boundary: dict[str, Any] | None = None
     end_boundary: dict[str, Any] | None = None
+    page_reviews: dict[str, str] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -56,6 +57,8 @@ class DetectionFinding:
             out["start_boundary"] = self.start_boundary
         if self.end_boundary is not None:
             out["end_boundary"] = self.end_boundary
+        if self.page_reviews:
+            out["page_reviews"] = dict(self.page_reviews)
         return out
 
     @classmethod
@@ -79,6 +82,7 @@ class DetectionFinding:
             detector_data=dict(data.get("detector_data") or {}),
             start_boundary=data.get("start_boundary"),
             end_boundary=data.get("end_boundary"),
+            page_reviews=parse_page_reviews(data.get("page_reviews")),
         )
 
 
@@ -86,13 +90,51 @@ def findings_to_dicts(findings: list[DetectionFinding]) -> list[dict[str, Any]]:
     return [f.as_dict() for f in findings]
 
 
+def parse_page_reviews(raw: Any) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, str] = {}
+    for key, value in raw.items():
+        page_id = str(key).strip()
+        status = str(value)
+        if page_id and status in ("approved", "rejected"):
+            out[page_id] = status
+    return out
+
+
+def derive_review_status(span_ids: list[str], page_reviews: dict[str, str]) -> str:
+    """Finding-level status from per-page reviews. Empty span stays unreviewed."""
+    if not span_ids:
+        return "unreviewed"
+    statuses = [page_reviews.get(pid, "unreviewed") for pid in span_ids]
+    if all(status == "rejected" for status in statuses):
+        return "rejected"
+    if all(status in ("approved", "rejected") for status in statuses) and any(
+        status == "approved" for status in statuses
+    ):
+        return "approved"
+    return "unreviewed"
+
+
 def review_span_key(
     *,
     finding_type: str,
     start_page_id: str,
     end_page_id: str,
-) -> tuple[str, str, str]:
-    return (finding_type, start_page_id, end_page_id)
+    tag_slug: str = "",
+) -> tuple[str, str, str, str]:
+    return (finding_type, start_page_id, end_page_id, tag_slug)
+
+
+def _tag_slug_from_row(row: dict[str, Any] | DetectionFinding) -> str:
+    if isinstance(row, DetectionFinding):
+        data = row.detector_data or {}
+    else:
+        data = row.get("detector_data") or {}
+    if not isinstance(data, dict):
+        return ""
+    slug = data.get("tag_slug") or data.get("name")
+    return str(slug).strip() if slug else ""
 
 
 def carry_forward_reviews(
@@ -102,12 +144,16 @@ def carry_forward_reviews(
     """Preserve approved/rejected when span identity matches a prior published finding.
 
     Unmatched new findings stay ``unreviewed``. Prior reviews without a match are dropped.
+    Span identity is ``(finding_type, start_page_id, end_page_id, tag_slug)``.
+    ``tag_slug`` distinguishes per-name findings on the same page (names detector).
     """
     if not prior_published:
         return new_findings
     prior_rows = prior_published.get("findings") or []
-    by_span: dict[tuple[str, str, str], str] = {}
+    by_span: dict[tuple[str, str, str, str], tuple[str, dict[str, str]]] = {}
     for row in prior_rows:
+        if not isinstance(row, dict):
+            continue
         status = str(row.get("review_status") or "unreviewed")
         if status not in ("approved", "rejected"):
             continue
@@ -115,19 +161,22 @@ def carry_forward_reviews(
             finding_type=str(row.get("finding_type") or ""),
             start_page_id=str(row.get("start_page_id") or ""),
             end_page_id=str(row.get("end_page_id") or ""),
+            tag_slug=_tag_slug_from_row(row),
         )
-        by_span[key] = status
+        by_span[key] = (status, parse_page_reviews(row.get("page_reviews")))
     out: list[DetectionFinding] = []
     for finding in new_findings:
         key = review_span_key(
             finding_type=finding.finding_type,
             start_page_id=finding.start_page_id,
             end_page_id=finding.end_page_id,
+            tag_slug=_tag_slug_from_row(finding),
         )
-        status = by_span.get(key)
-        if status is None:
+        prior = by_span.get(key)
+        if prior is None:
             out.append(finding)
             continue
+        status, page_reviews = prior
         out.append(
             DetectionFinding(
                 finding_id=finding.finding_id,
@@ -148,6 +197,7 @@ def carry_forward_reviews(
                 detector_data=finding.detector_data,
                 start_boundary=finding.start_boundary,
                 end_boundary=finding.end_boundary,
+                page_reviews=page_reviews,
             )
         )
     return out

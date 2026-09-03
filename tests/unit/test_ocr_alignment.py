@@ -44,6 +44,31 @@ def test_punctuation_and_word_disagreement() -> None:
     assert "conversation" in blob
 
 
+def test_punctuation_only_disagreement_is_not_navigable() -> None:
+    """`.` vs pipes must lower agreement but not emit a Review step."""
+    from transcribe.services.ocr_alignment import region_variants_non_reviewable
+
+    result = align_ocr({"a": ".\n- Use proper punctuation and spacing.", "b": "| | | |\nhello world"})
+    assert result.agreement_ratio < 1.0
+    for region in result.regions:
+        if region.kind != "source":
+            continue
+        assert not region_variants_non_reviewable(region.variants)
+    junk = align_ocr({"a": ".", "b": "| | | |"})
+    assert junk.source_disagreement_count == 0
+    assert junk.regions == ()
+    assert junk.agreement_ratio < 1.0
+
+
+def test_prompt_instruction_span_is_non_reviewable() -> None:
+    from transcribe.services.ocr_alignment import is_non_reviewable_span
+
+    assert is_non_reviewable_span("Use proper punctuation and spacing.")
+    assert is_non_reviewable_span("| | | |")
+    assert is_non_reviewable_span(".")
+    assert not is_non_reviewable_span("hello notebook page")
+
+
 def test_insertion_and_omitted_text_are_subsequence_not_line_count() -> None:
     shared = "Sheets Account for end matter Word counts for scans"
     extra = "Sheets Account for end matter extra omitted sentence here Word counts for scans"

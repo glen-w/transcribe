@@ -91,7 +91,10 @@ def render_composite_prompt(attempts: list[OCRAttempt]) -> tuple[str, str, str]:
     return COMPOSITE_PROMPT.prompt_id, COMPOSITE_PROMPT.version, body
 
 
-def _parse_rank_json(raw: str, allowed: set[str]) -> list[str] | None:
+def _parse_rank_json(
+    raw: str, allowed: set[str]
+) -> tuple[list[str], dict[str, str]] | None:
+    """Parse rank JSON → (order, rationales_by_attempt_id) or None."""
     text = narrow_unwrap_fence(raw).strip()
     try:
         payload = json.loads(text)
@@ -112,7 +115,16 @@ def _parse_rank_json(raw: str, allowed: set[str]) -> list[str] | None:
     ids = [str(x) for x in order]
     if len(ids) != len(allowed) or set(ids) != allowed:
         return None
-    return ids
+    rationales: dict[str, str] = {}
+    raw_rats = payload.get("rationales")
+    if isinstance(raw_rats, dict):
+        for key, value in raw_rats.items():
+            aid = str(key)
+            if aid in allowed and value is not None:
+                note = str(value).strip()
+                if note:
+                    rationales[aid] = note
+    return ids, rationales
 
 
 def validate_composite_against_union(
@@ -172,14 +184,17 @@ def run_rank(
         )
     except Exception:  # noqa: BLE001
         return RankResult(comparison=None, note="provider_failed")
-    order = _parse_rank_json(raw if isinstance(raw, str) else str(raw), allowed)
-    if order is None:
+    parsed = _parse_rank_json(raw if isinstance(raw, str) else str(raw), allowed)
+    if parsed is None:
         # Some clients return structured objects
         if isinstance(raw, dict):
-            order = _parse_rank_json(json.dumps(raw), allowed)
-    if order is None:
+            parsed = _parse_rank_json(json.dumps(raw), allowed)
+    if parsed is None:
         return RankResult(comparison=None, note="malformed_rank")
-    entries = [ComparisonEntry(attempt_id=aid) for aid in order]
+    order, rationales = parsed
+    entries = [
+        ComparisonEntry(attempt_id=aid, rationale=rationales.get(aid)) for aid in order
+    ]
     return RankResult(
         comparison=ComparisonRecord(
             pass_id=pass_id,

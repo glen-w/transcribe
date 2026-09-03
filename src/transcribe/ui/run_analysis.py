@@ -78,8 +78,8 @@ def progress_to_snapshot(progress: AnalysisProgress) -> dict[str, Any]:
     pct = (done / total * 100.0) if total else 0.0
     status = progress.status
     if status == "cancelled":
-        panel_status = "failed"
-        phase = "failed"
+        panel_status = "cancelled"
+        phase = "cancelled"
     elif status in ("completed", "failed"):
         panel_status = status
         phase = status

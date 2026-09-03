@@ -130,3 +130,84 @@ def test_apply_finding_tag_single_page_span_marks_approved(tmp_path: Path, monke
     n = svc.apply_finding_tag(finding, [page_id], approve_finding=True)
     assert n == 1
     assert svc.list_findings("poetry")[0].review_status == "approved"
+
+
+def test_accept_finding_approves_and_tags_span(tmp_path: Path, monkeypatch):
+    projects, svc, _page_ids = _poetry_notebook(tmp_path, monkeypatch)
+    finding = svc.list_findings("poetry")[0]
+    span_ids = svc.span_page_ids(finding)
+    assert finding.review_status == "unreviewed"
+
+    n = svc.accept_finding(finding)
+    assert n == len(span_ids)
+    after = projects.load(reconcile=False)
+    tagged = [p for p in after.pages if "poetry" in p.tags]
+    assert len(tagged) == len(span_ids)
+    assert svc.list_findings("poetry")[0].review_status == "approved"
+
+
+def test_accept_finding_when_already_tagged_only_approves(tmp_path: Path, monkeypatch):
+    projects, svc, _page_ids = _poetry_notebook(tmp_path, monkeypatch)
+    finding = svc.list_findings("poetry")[0]
+    span_ids = svc.span_page_ids(finding)
+    tagged_n = svc.apply_finding_tag(finding, span_ids, approve_finding=False)
+    assert tagged_n == len(span_ids)
+    finding = svc.list_findings("poetry")[0]
+    assert finding.review_status == "unreviewed"
+
+    n = svc.accept_finding(finding)
+    assert n == 0
+    assert svc.list_findings("poetry")[0].review_status == "approved"
+
+
+def test_accept_finding_unrejects(tmp_path: Path, monkeypatch):
+    _projects, svc, _page_ids = _poetry_notebook(tmp_path, monkeypatch)
+    finding = svc.list_findings("poetry")[0]
+    svc.set_review_status("poetry", finding.finding_id, "rejected")
+    finding = svc.list_findings("poetry")[0]
+    assert finding.review_status == "rejected"
+
+    n = svc.accept_finding(finding)
+    assert n >= 1
+    assert svc.list_findings("poetry")[0].review_status == "approved"
+
+
+def test_set_page_review_rejects_one_page_keeps_others(tmp_path: Path, monkeypatch):
+    projects, svc, _page_ids = _poetry_notebook(tmp_path, monkeypatch)
+    finding = svc.list_findings("poetry")[0]
+    span_ids = svc.span_page_ids(finding)
+    assert len(span_ids) >= 2
+    svc.apply_finding_tag(finding, span_ids, approve_finding=False)
+
+    dropped = svc.set_page_review(finding, span_ids[-1], "rejected")
+    assert dropped == 1
+    after = projects.load(reconcile=False)
+    tags = {p.page_id: set(p.tags) for p in after.pages}
+    assert "poetry" not in tags[span_ids[-1]]
+    assert "poetry" in tags[span_ids[0]]
+    refreshed = svc.list_findings("poetry")[0]
+    assert refreshed.page_reviews[span_ids[-1]] == "rejected"
+    assert refreshed.review_status == "unreviewed"
+
+    n = svc.accept_finding(refreshed)
+    assert n == 0
+    done = svc.list_findings("poetry")[0]
+    assert done.review_status == "approved"
+    assert done.page_reviews[span_ids[-1]] == "rejected"
+    assert done.page_reviews[span_ids[0]] == "approved"
+    tagged = [p.page_id for p in projects.load(reconcile=False).pages if "poetry" in p.tags]
+    assert span_ids[-1] not in tagged
+    assert span_ids[0] in tagged
+
+
+def test_set_page_review_accept_one_page(tmp_path: Path, monkeypatch):
+    projects, svc, _page_ids = _poetry_notebook(tmp_path, monkeypatch)
+    finding = svc.list_findings("poetry")[0]
+    span_ids = svc.span_page_ids(finding)
+    n = svc.set_page_review(finding, span_ids[0], "approved")
+    assert n == 1
+    after = {p.page_id: p for p in projects.load(reconcile=False).pages}
+    assert "poetry" in after[span_ids[0]].tags
+    refreshed = svc.list_findings("poetry")[0]
+    assert refreshed.page_reviews[span_ids[0]] == "approved"
+    assert refreshed.review_status == "unreviewed"

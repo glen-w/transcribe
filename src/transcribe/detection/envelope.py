@@ -40,6 +40,7 @@ def build_detection_envelope(
     model_provenance: dict[str, Any] | None = None,
     generation_settings: dict[str, Any] | None = None,
     stale_at_publish: bool | None = None,
+    page_counts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if attempt_state not in ATTEMPT_STATES:
         raise ValueError(f"invalid attempt_state: {attempt_state}")
@@ -81,6 +82,8 @@ def build_detection_envelope(
         env["generation_settings"] = generation_settings
     if stale_at_publish:
         env["stale_at_publish"] = True
+    if page_counts is not None:
+        env["page_counts"] = round_floats(page_counts)
     return require_format(env, DETECTION_FORMAT)
 
 

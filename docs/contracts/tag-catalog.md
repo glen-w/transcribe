@@ -64,7 +64,7 @@ Changing a slug (or merge/delete) is an explicit **rewrite plan** `{from_slug �
 
 Missing file → empty in-memory catalog (normal first run); first save creates the file.
 
-Corrupt JSON, non-object, unknown/`schema_version` ≠ 1, or `format` ≠ `personal_corpus.tag-catalog` → empty in-memory catalog, **file preserved**, bounded diagnostic. Load must not raise into Library / viewer / Archive.
+Corrupt JSON, non-object, unknown/`schema_version` ≠ 1, or `format` ≠ `personal_corpus.tag-catalog` → empty in-memory catalog, **file preserved**, bounded diagnostic. Load must not raise into Library / viewer.
 
 ## Operations
 
@@ -77,7 +77,7 @@ Corrupt JSON, non-object, unknown/`schema_version` ≠ 1, or `format` ≠ `perso
 | merge A→B | drop A; rewrite A.slug→B.slug | host corpus rewrite |
 | delete | drop row; rewrite slug→null | host corpus rewrite |
 
-Filter: **AND** over required slugs (viewer click-to-constrain and Archive page-tag filter). Notebook tags classify the notebook; they do not constrain pages inside the viewer.
+Filter: **AND** over required slugs (viewer click-to-constrain and Library page-tag filter). Notebook tags classify the notebook; they do not constrain pages inside the viewer.
 
 ## Non-goals (v1)
 
@@ -89,6 +89,6 @@ Filter: **AND** over required slugs (viewer click-to-constrain and Archive page-
 
 ## Detection auto-tag (Transcribe host)
 
-Opt-in, **not** part of detector `cache_config` / cache identity. After a successful publish (or from already-published findings), union `normalize_slug(finding_type)` onto every page in each finding span. Skip `rejected` findings. Re-running with auto-tag on re-adds a slug the user removed; turn the checkbox off to stop.
+Opt-in, **not** part of detector `cache_config` / cache identity. After a successful publish (or from already-published findings), union tags onto every page in each finding span. Default slug is `normalize_slug(finding_type)`. The **names** detector unions each detected person name (`detector_data.tag_slug` / `name`) instead of `names`. Skip `rejected` findings. Re-running with auto-tag on re-adds a slug the user removed; turn the checkbox off to stop.
 
 Transcribe prefs file `{TRANSCRIBE_DATA_DIR}/config/detection-auto-tag.json` (`format: transcribe.detection-auto-tag`, schema 1) stores per-detector defaults. It is not fingerprint-relevant.

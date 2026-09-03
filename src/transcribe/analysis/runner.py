@@ -457,6 +457,7 @@ class AnalysisRunner:
         *,
         question_text: str | None = None,
         text_model_name: str | None = None,
+        reconcile_project: bool = True,
     ) -> dict[str, Any]:
         modules = get_registered_modules()
         module = modules.get(module_id)
@@ -470,7 +471,9 @@ class AnalysisRunner:
             message=start_msg,
         )
 
-        project = self.project_service.load(reconcile=True)
+        # Nested callers (names detector) must not reconcile the project: that
+        # would mark the in-flight detection attempt interrupted.
+        project = self.project_service.load(reconcile=reconcile_project)
         self.reconcile()
         snap = snapshot_for_operation(
             project_settings=project.settings,

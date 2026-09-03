@@ -126,6 +126,18 @@ class JobProgress:
     circuit_open: bool = False
 
 
+def cli_run_exit_code(progress: JobProgress) -> int:
+    """Exit status for ``transcribe run``.
+
+    Coordinator status stays ``completed`` when the timeout/model-load circuit
+    skips remaining pages so job records and resume logic stay stable. CLI
+    automation must not treat that as a fully transcribed notebook.
+    """
+    if progress.circuit_open:
+        return 1
+    return 0 if progress.status == "completed" else 1
+
+
 @dataclass
 class JobState:
     progress: JobProgress

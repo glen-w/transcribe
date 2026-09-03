@@ -266,6 +266,37 @@ def test_view_show_advanced_round_trip(runtime: RuntimePaths) -> None:
     assert UiConfig.from_dict({"overview_show_advanced": True}).view_show_advanced is True
 
 
+def test_model_preference_hints_round_trip(runtime: RuntimePaths) -> None:
+    from transcribe.services.ocr_preference_stats import resolve_model_preference_hint_mode
+
+    assert UiConfig.from_dict({}).model_preference_hints == "all_choices"
+    assert (
+        UiConfig.from_dict({"model_preference_hints": "prefer_only"}).model_preference_hints
+        == "prefer_only"
+    )
+    assert (
+        UiConfig.from_dict({"model_preference_hints": "bogus"}).model_preference_hints
+        == "all_choices"
+    )
+    assert resolve_model_preference_hint_mode("off") == "off"
+
+    save_workspace_settings(
+        config={
+            "analysis": {},
+            "llm": {},
+            "ocr": {},
+            "ingest": {},
+            "ui": {"model_preference_hints": "off"},
+        },
+        activations=ProfileActivations(),
+        runtime=runtime,
+    )
+    clear_config_cache()
+    view = get_config(runtime=runtime)
+    assert view.effective.ui.model_preference_hints == "off"
+    assert view.provenance["ui.model_preference_hints"] == "workspace"
+
+
 def test_chart_colors_round_trip(runtime: RuntimePaths) -> None:
     from transcribe.config.models import ChartColorsConfig, UiConfig
     from transcribe.ui.chart_colors import DEFAULT_EMOTION_COLORS, DEFAULT_SENTIMENT_COLORS

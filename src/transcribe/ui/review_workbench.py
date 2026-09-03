@@ -57,6 +57,16 @@ _SAVE_OCR_SETTINGS = "Save OCR settings"
 _SAVE_DATE = "Save date"
 _SAVE_TAGS = "Save tags"
 
+_LANE_TRANSCRIPTION = "Transcription"
+_LANE_DATE = "Date"
+_LANE_TAGS = "Tags"
+_LANE_OCR = "OCR"
+_LANE_CLEANUP = "Cleanup"
+_LANE_OTHER = "Other"
+_LANE_SESSION_KEY = "rw_lane"
+_PREV_DISAGREEMENT_HELP = "Previous disagreement"
+_NEXT_DISAGREEMENT_HELP = "Next disagreement"
+
 
 def _attempt_label(attempt) -> str:
     if (attempt.attempt_kind or "vision") == "composite":
@@ -77,6 +87,8 @@ def _inject_review_hotkeys() -> None:
   const saveTranscription = {_SAVE_TRANSCRIPTION!r};
   const saveMarkReviewed = {_SAVE_MARK_REVIEWED!r};
   const zoomHelp = {_ZOOM_CYCLE_HELP!r};
+  const prevDisagreement = {_PREV_DISAGREEMENT_HELP!r};
+  const nextDisagreement = {_NEXT_DISAGREEMENT_HELP!r};
   function clickLabel(label) {{
     const buttons = parent.document.querySelectorAll("button");
     for (const b of buttons) {{
@@ -123,8 +135,8 @@ def _inject_review_hotkeys() -> None:
       if (typing) return;
       if (e.key === "ArrowLeft") {{ e.preventDefault(); clickAriaLabel("Previous page"); }}
       else if (e.key === "ArrowRight") {{ e.preventDefault(); clickAriaLabel("Next page"); }}
-      else if (e.key === "j" || e.key === "J") {{ clickLabel("Next disagreement"); }}
-      else if (e.key === "k" || e.key === "K") {{ clickLabel("Previous disagreement"); }}
+      else if (e.key === "j" || e.key === "J") {{ clickAriaLabel(nextDisagreement); }}
+      else if (e.key === "k" || e.key === "K") {{ clickAriaLabel(prevDisagreement); }}
       else if (e.key === "1") {{ clickLabel("Use 1"); }}
       else if (e.key === "2") {{ clickLabel("Use 2"); }}
       else if (e.key === "3") {{ clickLabel("Use 3"); }}
@@ -309,9 +321,12 @@ def render_review_page(
     elif review_status == "needs_attention":
         chip = "⚠ needs attention"
 
+    _render_multipass_progress_if_running(projects)
+
+    # Compact page bar: icon prev/next, title·date, N/M jump, thumbs, status, date.
     nav = st.columns(
-        [0.7, 2.6, 0.7, 1.8, 1.2, 1.0, 1.0],
-        gap="medium",
+        [0.55, 2.4, 0.55, 1.6, 0.9, 1.1, 0.7],
+        gap="small",
         vertical_alignment="center",
     )
     if nav[0].button(
@@ -357,7 +372,7 @@ def render_review_page(
             st.rerun()
     with nav[3]:
         with st.form("rw_jump", border=False, clear_on_submit=False):
-            jc = st.columns([1.6, 0.9, 1.3])
+            jc = st.columns([1.4, 0.8, 1.0])
             jump_to = jc[0].number_input(
                 "Page",
                 min_value=1,
@@ -366,7 +381,7 @@ def render_review_page(
                 step=1,
                 label_visibility="collapsed",
             )
-            jc[1].markdown(f"/ {total}")
+            jc[1].caption(f"/ {total}")
             if jc[2].form_submit_button(
                 "Go",
                 key="rw_jump_go",
@@ -384,9 +399,10 @@ def render_review_page(
     nav[5].caption(chip)
     if page.date is not None and not page.date_approved:
         if nav[6].button(
-            "Date",
+            "",
             help="Approve suggested date",
             icon=ic.CHECK,
+            key=f"rw_nav_date_{page_id}",
         ):
             try:
                 projects.approve_page_date(page_id, page.date)
@@ -413,6 +429,7 @@ def render_review_page(
     alignment = _align_for_result(result, canonical)
     resolved: set[str] = set(st.session_state.get(f"rw_resolved_{page_id}") or set())
     remaining = 0
+    signals = None
     if alignment is not None:
         remaining = sum(1 for r in alignment.regions if r.key not in resolved)
         sources = {a.attempt_id: a.raw_text or "" for a in merge_input_vision_attempts(result)}
@@ -436,9 +453,7 @@ def render_review_page(
         failed = failed_vision_attempts(result)
         if len(vision_ok) == 1 and failed:
             n_fail = len(failed)
-            st.caption(
-                f"1 reading, {n_fail} failed — no second source to compare."
-            )
+            st.caption(f"1 reading, {n_fail} failed — no second source to compare.")
         elif not vision_ok and failed:
             n_fail = len(failed)
             st.caption(
@@ -481,88 +496,210 @@ div[data-testid="stImage"] img {
         except Exception:  # noqa: BLE001
             pass
 
-    date_tab_label = "Date"
+    date_lane_label = _LANE_DATE
     if page.date is not None and not page.date_approved:
-        date_tab_label = "Date ⚠"
-    with right:
-        tab_trans, tab_date, tab_tags, tab_other = st.tabs(
-            ["Transcription", date_tab_label, "Tags", "Other"]
+        date_lane_label = f"{_LANE_DATE} ⚠"
+    if st.session_state.get(_rerun_ocr_open_key(page.page_id)):
+        _rerun_ocr_dialog(
+            paths=paths,
+            projects=projects,
+            project=project,
+            page_id=page.page_id,
         )
-        with tab_trans:
-            st.caption(_provenance_line(result=result, origin=origin, dirty=dirty))
-            gen = int(st.session_state.get(f"rw_gen_{page_id}") or 0)
-            text = st.text_area(
-                "Transcription",
-                value=canonical,
-                height=420,
-                key=f"rw_ta_{page_id}_{gen}",
-                label_visibility="collapsed",
+    with right:
+        lane_key = _LANE_SESSION_KEY
+        lane_ids = [
+            _LANE_TRANSCRIPTION,
+            _LANE_DATE,
+            _LANE_TAGS,
+            _LANE_OCR,
+            _LANE_CLEANUP,
+            _LANE_OTHER,
+        ]
+        if st.session_state.get(lane_key) not in lane_ids:
+            leftover = st.session_state.get(f"rw_lane_{page_id}")
+            st.session_state[lane_key] = (
+                leftover if leftover in lane_ids else _LANE_TRANSCRIPTION
             )
-            if text != canonical:
-                st.session_state[f"rw_buf_{page_id}"] = text
-                saved = st.session_state.get(f"rw_saved_{page_id}") or ""
-                if not is_whitespace_only_change(saved, text):
-                    st.session_state[f"rw_origin_{page_id}"] = "human_corrected"
-                canonical = text
-                dirty = _is_dirty(page_id)
-            act = st.columns([1.3, 1.5, 1.15, 1.15], gap="small")
-            if act[0].button(
-                _SAVE_TRANSCRIPTION,
-                type="primary",
-                key=f"rw_save_{page_id}",
-                icon=ic.SAVE,
-            ):
-                if _save_buffer(projects, page_id, mark_reviewed=False):
-                    st.rerun()
-            if act[1].button(
-                _SAVE_MARK_REVIEWED,
-                key=f"rw_save_rev_{page_id}",
-                icon=ic.TASK_ALT,
-            ):
-                if _save_buffer(projects, page_id, mark_reviewed=True):
-                    _advance_after_reviewed(entries, idx)
-                    st.rerun()
-            if act[2].button("Skip", key=f"rw_skip_{page_id}", icon=ic.SKIP):
-                try:
-                    projects.set_page_review_status(page_id, "skipped")
-                except TranscribeError as exc:
-                    st.error(str(exc))
-                else:
-                    _advance_after_reviewed(entries, idx)
-                    st.rerun()
-            if act[3].button(
-                "Undo",
-                disabled=not st.session_state.get(f"rw_undo_{page_id}"),
-                key=f"rw_undo_btn_{page_id}",
-                icon=ic.UNDO,
-            ):
-                stack = st.session_state.get(f"rw_undo_{page_id}") or []
-                if stack:
-                    st.session_state[f"rw_buf_{page_id}"] = stack.pop()
-                    st.session_state[f"rw_gen_{page_id}"] = gen + 1
-                    st.rerun()
+        lane_labels = {
+            _LANE_TRANSCRIPTION: _LANE_TRANSCRIPTION,
+            _LANE_DATE: date_lane_label,
+            _LANE_TAGS: _LANE_TAGS,
+            _LANE_OCR: _LANE_OCR,
+            _LANE_CLEANUP: _LANE_CLEANUP,
+            _LANE_OTHER: _LANE_OTHER,
+        }
+        # Segmented control (not st.tabs): only the selected lane body runs.
+        selected_lane = st.segmented_control(
+            "Review lane",
+            options=lane_ids,
+            format_func=lambda lid: lane_labels.get(lid, lid),
+            key=lane_key,
+            required=True,
+            label_visibility="collapsed",
+            width="stretch",
+        )
+        lane = selected_lane if selected_lane in lane_ids else _LANE_TRANSCRIPTION
 
-            if result.edited_text is not None:
-                if st.button(
-                    "Restore OCR original",
-                    key=f"rw_restore_{page_id}",
-                    icon=ic.HISTORY,
-                ):
-                    projects.adopt_raw_as_edit(page_id)
-                    bump_archive_generation(build_runtime_paths())
-                    for key in list(st.session_state.keys()):
-                        if isinstance(key, str) and key.startswith("rw_") and key.endswith(page_id):
-                            st.session_state.pop(key, None)
-                    st.rerun()
-
-        with tab_date:
+        if lane == _LANE_TRANSCRIPTION:
+            _render_transcription_lane(
+                projects=projects,
+                project=project,
+                page_id=page_id,
+                result=result,
+                entries=entries,
+                idx=idx,
+                canonical=canonical,
+                dirty=dirty,
+                origin=origin,
+                alignment=alignment,
+                resolved=resolved,
+                signals=signals,
+            )
+        elif lane == _LANE_DATE:
             _render_date_tab(projects, project, page, result)
-
-        with tab_tags:
+        elif lane == _LANE_TAGS:
             _render_tags_tab(projects, page)
-
-        with tab_other:
+        elif lane == _LANE_OCR:
+            _render_ocr_tab(projects, project, page)
+        elif lane == _LANE_CLEANUP:
+            _render_cleanup_tab(projects, project, page)
+        else:
             _render_other_tab(paths, projects, project, page)
+
+
+def _render_multipass_progress_if_running(projects: ProjectService) -> None:
+    """Show live multipass / rank-merge progress while Review started a compare."""
+    if not st.session_state.get("_job_was_running"):
+        return
+    if st.session_state.get("_transcribe_post_kind") != "multipass":
+        return
+    try:
+        from transcribe.ui.run_transcribe import (
+            _render_multipass_progress,
+            get_coordinator,
+            get_multipass_coordinator,
+        )
+
+        multi = get_multipass_coordinator(str(projects.paths.root))
+        mp = multi.get_progress()
+        if mp.status == "running":
+            job = get_coordinator(str(projects.paths.root)).get_progress()
+            _render_multipass_progress(mp, job)
+    except Exception:  # noqa: BLE001 — optional strip; never break Review
+        pass
+
+
+def _current_disagreement_excerpt(
+    alignment: AlignmentResult | None,
+    resolved: set[str],
+    page_id: str,
+) -> str | None:
+    if alignment is None or not alignment.regions:
+        return None
+    regions = alignment.regions
+    idx = int(st.session_state.get(f"rw_idx_{page_id}") or 0)
+    idx = max(0, min(idx, len(regions) - 1))
+    region = regions[idx]
+    groups = grouped_source_variants(region)
+    parts = [display for _ids, display in groups[:3] if (display or "").strip()]
+    if region.composite_variant:
+        parts.append(f"Merged draft: {region.composite_variant}")
+    if not parts:
+        return None
+    kind = "Source disagreement" if region.kind == "source" else "Merged-draft departure"
+    joined = "  ·  ".join(escape_markdown_plain(p) for p in parts)
+    return f"**{kind} · {idx + 1}/{len(regions)}** — {joined}"
+
+
+def _render_transcription_lane(
+    *,
+    projects: ProjectService,
+    project: Project,
+    page_id: str,
+    result: PageResult,
+    entries: list[dict[str, str]],
+    idx: int,
+    canonical: str,
+    dirty: bool,
+    origin: str | None,
+    alignment: AlignmentResult | None,
+    resolved: set[str],
+    signals,
+) -> None:
+    st.caption(_provenance_line(result=result, origin=origin, dirty=dirty))
+    if signals is not None and signals.markdown_contamination:
+        st.warning(
+            "OCR text may include prompt instructions or markdown headings — "
+            "check before marking reviewed."
+        )
+    excerpt = _current_disagreement_excerpt(alignment, resolved, page_id)
+    if excerpt:
+        st.caption(excerpt)
+    gen = int(st.session_state.get(f"rw_gen_{page_id}") or 0)
+    text = st.text_area(
+        "Transcription",
+        value=canonical,
+        height=280,
+        key=f"rw_ta_{page_id}_{gen}",
+        label_visibility="collapsed",
+    )
+    if text != canonical:
+        st.session_state[f"rw_buf_{page_id}"] = text
+        saved = st.session_state.get(f"rw_saved_{page_id}") or ""
+        if not is_whitespace_only_change(saved, text):
+            st.session_state[f"rw_origin_{page_id}"] = "human_corrected"
+        canonical = text
+        dirty = _is_dirty(page_id)
+    act = st.columns([1.3, 1.5, 1.15, 1.15], gap="small")
+    if act[0].button(
+        _SAVE_TRANSCRIPTION,
+        type="primary",
+        key=f"rw_save_{page_id}",
+        icon=ic.SAVE,
+    ):
+        if _save_buffer(projects, page_id, mark_reviewed=False):
+            st.rerun()
+    if act[1].button(
+        _SAVE_MARK_REVIEWED,
+        key=f"rw_save_rev_{page_id}",
+        icon=ic.TASK_ALT,
+    ):
+        if _save_buffer(projects, page_id, mark_reviewed=True):
+            _advance_after_reviewed(entries, idx)
+            st.rerun()
+    if act[2].button("Skip", key=f"rw_skip_{page_id}", icon=ic.SKIP):
+        try:
+            projects.set_page_review_status(page_id, "skipped")
+        except TranscribeError as exc:
+            st.error(str(exc))
+        else:
+            _advance_after_reviewed(entries, idx)
+            st.rerun()
+    if act[3].button(
+        "Undo",
+        disabled=not st.session_state.get(f"rw_undo_{page_id}"),
+        key=f"rw_undo_btn_{page_id}",
+        icon=ic.UNDO,
+    ):
+        stack = st.session_state.get(f"rw_undo_{page_id}") or []
+        if stack:
+            st.session_state[f"rw_buf_{page_id}"] = stack.pop()
+            st.session_state[f"rw_gen_{page_id}"] = gen + 1
+            st.rerun()
+
+    if result.edited_text is not None:
+        if st.button(
+            "Restore OCR original",
+            key=f"rw_restore_{page_id}",
+            icon=ic.HISTORY,
+        ):
+            projects.adopt_raw_as_edit(page_id)
+            bump_archive_generation(build_runtime_paths())
+            for key in list(st.session_state.keys()):
+                if isinstance(key, str) and key.startswith("rw_") and key.endswith(page_id):
+                    st.session_state.pop(key, None)
+            st.rerun()
 
     _render_ocr_comparison_band(
         projects,
@@ -584,7 +721,7 @@ def _render_ocr_comparison_band(
     resolved: set[str],
     canonical: str,
 ) -> None:
-    """Full-width OCR evidence and disagreement controls below scan + tabs."""
+    """OCR evidence and disagreement controls inside the Transcription lane."""
     vision = merge_input_vision_attempts(result)
     current = current_composite_attempt(result)
     failed = failed_vision_attempts(result)
@@ -640,24 +777,40 @@ def _render_evidence_strip(
     if not vision and current is None and not failed:
         return
     st.markdown("#### OCR evidence")
+    rank_map: dict[str, int] = {}
+    rationale_by_id: dict[str, str] = {}
+    if result.comparison and result.comparison.ranked_attempt_ids:
+        for i, aid in enumerate(result.comparison.ranked_attempt_ids):
+            rank_map[aid] = i + 1
+        for entry in result.comparison.entries or []:
+            if entry.rationale:
+                rationale_by_id[entry.attempt_id] = entry.rationale
+
     options: list[str] = [a.attempt_id for a in vision]
-    labels = {}
+    labels: dict[str, str] = {}
     for attempt in vision:
         role = []
+        rank = rank_map.get(attempt.attempt_id)
+        if rank is not None:
+            role.append(f"#{rank}")
         if result.active_attempt_id == attempt.attempt_id:
             role.append("Current")
         if result.preferred_attempt_id == attempt.attempt_id:
             role.append("Default")
         suffix = f" · {' · '.join(role)}" if role else ""
         labels[attempt.attempt_id] = f"{_attempt_label(attempt)}{suffix}"
-    for attempt in failed:
-        code = attempt.error.code if attempt.error else "failed"
-        labels[attempt.attempt_id] = f"{_attempt_label(attempt)} · failed ({code})"
-        options.append(attempt.attempt_id)
     if current is not None:
         options.append(current.attempt_id)
         extra = " · Current" if result.active_attempt_id == current.attempt_id else ""
         labels[current.attempt_id] = f"Merged draft{extra}"
+    if failed:
+        codes = []
+        for attempt in failed:
+            code = attempt.error.code if attempt.error else "failed"
+            codes.append(f"{_attempt_label(attempt)} ({code})")
+        st.caption("Failed: " + " · ".join(codes))
+    if not options:
+        return
     selected = st.radio(
         "Attempt",
         options=options,
@@ -668,7 +821,14 @@ def _render_evidence_strip(
     )
     chosen = result.attempt_by_id(selected)
     chosen_ok = chosen is not None and chosen.status == "succeeded"
-    act = st.columns([1.2, 1.2, 2.6], gap="medium")
+    if selected in rationale_by_id:
+        st.caption(f"Rank: {rationale_by_id[selected]}")
+    act = st.columns([1.2, 1.2, 2.6], gap="small")
+    prefer_mode = (
+        project.settings.prefer_mode
+        if project.settings.prefer_mode in PREFER_MODES
+        else DEFAULT_PREFER_MODE
+    )
     if act[0].button(
         "Use as current text",
         key=f"rw_use_{page_id}",
@@ -676,28 +836,46 @@ def _render_evidence_strip(
         disabled=not chosen_ok,
     ):
         try:
-            prefer_mode = (
-                project.settings.prefer_mode
-                if project.settings.prefer_mode in PREFER_MODES
-                else DEFAULT_PREFER_MODE
-            )
-            if prefer_mode == "prefer_is_promote":
-                projects.set_preferred_attempt(page_id, selected, mode=prefer_mode)
-            else:
-                projects.set_active_attempt(page_id, selected)
-            if result.edited_text is not None:
-                projects.save_user_edit(page_id, None, origin=None)
-            bump_archive_generation(build_runtime_paths())
-            for key in (
-                f"rw_buf_{page_id}",
-                f"rw_gen_{page_id}",
-                f"rw_saved_{page_id}",
-                f"rw_origin_{page_id}",
+            edit_choice = None
+            if prefer_mode == "prefer_promote_with_edit_gate" and result.edited_text is not None:
+                edit_choice = st.session_state.get(f"edit_gate_{page_id}")
+                if edit_choice not in ("keep_edit", "adopt_new"):
+                    st.session_state[f"need_edit_gate_{page_id}"] = selected
+                    st.warning("Choose keep edit or adopt new below, then Use again.")
+                    edit_choice = None
+            if (
+                prefer_mode != "prefer_promote_with_edit_gate"
+                or result.edited_text is None
+                or edit_choice in ("keep_edit", "adopt_new")
             ):
-                st.session_state.pop(key, None)
-            st.rerun()
+                if prefer_mode == "prefer_only":
+                    # Button means current text — activate even in prefer_only mode.
+                    projects.set_active_attempt(page_id, selected)
+                else:
+                    projects.set_preferred_attempt(
+                        page_id,
+                        selected,
+                        mode=prefer_mode,
+                        edit_gate_choice=edit_choice,
+                    )
+                if prefer_mode == "prefer_is_promote" and result.edited_text is not None:
+                    projects.save_user_edit(page_id, None, origin=None)
+                st.session_state.pop(f"need_edit_gate_{page_id}", None)
+                bump_archive_generation(build_runtime_paths())
+                for key in (
+                    f"rw_buf_{page_id}",
+                    f"rw_gen_{page_id}",
+                    f"rw_saved_{page_id}",
+                    f"rw_origin_{page_id}",
+                ):
+                    st.session_state.pop(key, None)
+                st.rerun()
         except TranscribeError as exc:
-            st.error(str(exc))
+            if "edit_gate_choice" in str(exc):
+                st.session_state[f"need_edit_gate_{page_id}"] = selected
+                st.warning("Choose keep edit or adopt new below, then Use again.")
+            else:
+                st.error(str(exc))
     if chosen and act[1].button(
         "Copy into editor",
         key=f"rw_copy_{page_id}",
@@ -714,13 +892,51 @@ def _render_evidence_strip(
                 st.caption(f"{len(stale)} previous merged draft(s) retained (stale).")
                 for old in stale[:4]:
                     st.caption(f"stale {old.attempt_id[:8]} · {old.started_at}")
-    if len(vision) >= 2:
+
+    if st.session_state.get(f"need_edit_gate_{page_id}") == selected:
+        choice = st.radio(
+            "Human edit is present — how to set current text?",
+            options=["keep_edit", "adopt_new"],
+            format_func=lambda x: (
+                "Keep edit overlay" if x == "keep_edit" else "Adopt new (clear edit)"
+            ),
+            key=f"edit_gate_{page_id}",
+        )
+        if st.button(
+            "Confirm Use as current text",
+            key=f"confirm_use_{page_id}",
+            icon=ic.CHECK,
+        ):
+            try:
+                projects.set_preferred_attempt(
+                    page_id,
+                    selected,
+                    mode="prefer_promote_with_edit_gate",
+                    edit_gate_choice=choice,
+                )
+                st.session_state.pop(f"need_edit_gate_{page_id}", None)
+                bump_archive_generation(build_runtime_paths())
+                for key in (
+                    f"rw_buf_{page_id}",
+                    f"rw_gen_{page_id}",
+                    f"rw_saved_{page_id}",
+                    f"rw_origin_{page_id}",
+                ):
+                    st.session_state.pop(key, None)
+                st.rerun()
+            except TranscribeError as exc:
+                st.error(str(exc))
+
+    # Build merged draft when ≥2 vision successes and no current composite.
+    if len(vision) >= 2 and current is None:
+        model_names = [_attempt_label(attempt) for attempt in vision]
+        st.caption("Merge inputs: " + " · ".join(model_names))
         _render_rank_merge_button(
             projects,
             project,
             page_ids=[page_id],
-            key=f"rw_rank_{page_id}",
-            label="Rank and merge existing OCR",
+            key=f"rw_build_draft_{page_id}",
+            label="Build merged draft",
         )
 
 
@@ -737,8 +953,6 @@ def _render_rank_merge_button(
     key: str,
     label: str,
 ) -> None:
-    from transcribe.ui.run_transcribe import get_multipass_coordinator
-
     ranker = _ranker_model_name(project)
     if st.button(
         label,
@@ -752,19 +966,7 @@ def _render_rank_merge_button(
             else "Set a text or cleanup model under Transcribe or notebook OCR settings first."
         ),
     ):
-        try:
-            multi = get_multipass_coordinator(str(projects.paths.root))
-            multi.start_compare_existing(
-                page_ids=page_ids,
-                auto_activate_composite=bool(project.settings.auto_activate_composite),
-            )
-            st.session_state["_job_was_running"] = True
-            st.session_state["_transcribe_post_kind"] = "multipass"
-            st.session_state.pop("_transcribe_post_job_id", None)
-            st.toast("Ranking existing OCR…")
-            st.rerun()
-        except (JobConflictError, TranscribeError) as exc:
-            st.error(str(exc))
+        _start_rank_merge(projects, project, page_ids=page_ids)
     if not ranker:
         st.caption("Rank and merge needs a text/cleanup model (Transcribe settings).")
 
@@ -790,25 +992,28 @@ def _render_disagreement_panel(
         f"{alignment.source_disagreement_count} OCR disagreements · "
         f"{len(resolved)} resolved · {remaining} remaining"
     )
-    nav = st.columns([1.2, 1.2, 5.6], gap="medium")
+    nav = st.columns([0.7, 0.7, 6.6], gap="small")
     if nav[0].button(
-        "Previous disagreement",
+        "",
         key=f"rw_dprev_{page_id}",
         icon=ic.CHEVRON_LEFT,
+        help=_PREV_DISAGREEMENT_HELP,
     ):
         st.session_state[f"rw_idx_{page_id}"] = next_unresolved_index(
             regions, resolved, idx, direction=-1
         )
         st.rerun()
     if nav[1].button(
-        "Next disagreement",
+        "",
         key=f"rw_dnext_{page_id}",
         icon=ic.CHEVRON_RIGHT,
+        help=_NEXT_DISAGREEMENT_HELP,
     ):
         st.session_state[f"rw_idx_{page_id}"] = next_unresolved_index(
             regions, resolved, idx, direction=1
         )
         st.rerun()
+    nav[2].caption(f"{idx + 1} / {len(regions)}")
 
     if region.key in resolved:
         st.caption("Resolved in this session — underlying OCR evidence still disagrees.")
@@ -974,6 +1179,7 @@ def _rerun_ocr_dialog(
         invalidate_discovery_cache,
     )
     from transcribe.services.ocr_preference_stats import (
+        effective_model_preference_hint_mode,
         preference_hint_for_model,
         rollup_preference_stats,
     )
@@ -1013,9 +1219,10 @@ def _rerun_ocr_dialog(
         return
 
     pref_stats = rollup_preference_stats()
+    hint_mode = effective_model_preference_hint_mode()
 
     def _model_label(name: str) -> str:
-        hint = preference_hint_for_model(name, stats=pref_stats)
+        hint = preference_hint_for_model(name, stats=pref_stats, share_mode=hint_mode)
         return f"{name} — {hint}" if hint else name
 
     model_index = model_options.index(current) if current in model_options else 0
@@ -1099,6 +1306,10 @@ def _rerun_ocr_dialog(
 
 
 def _render_date_tab(projects, project, page, result) -> None:
+    st.caption(
+        "Unapproved suggested dates still appear in Library timeline. "
+        "Time-of-day stamps are ignored until Future metadata lands."
+    )
     date_default = page.date.format_display() if page.date else ""
     date_in = st.text_input(
         "Date",
@@ -1232,6 +1443,164 @@ def _render_tags_tab(projects, page) -> None:
             st.error(str(exc))
 
 
+def _render_ocr_tab(projects, project, page) -> None:
+    _render_ocr_settings(projects, project, page.page_id)
+
+    result = projects.load_page_result(page.page_id)
+    vision = merge_input_vision_attempts(result) if result is not None else []
+    current = current_composite_attempt(result) if result is not None else None
+    # This-page rank/merge lives on OCR when a current draft already exists
+    # (evidence strip shows Build merged draft when missing).
+    if len(vision) >= 2 and current is not None:
+        _render_rank_merge_button(
+            projects,
+            project,
+            page_ids=[page.page_id],
+            key=f"rw_rank_ocr_{page.page_id}",
+            label="Rank and merge this page",
+        )
+
+    comparable = st.session_state.get("rw_comparable_page_ids")
+    if comparable is None:
+        comparable = [
+            p.page_id
+            for p in project.pages
+            if len(
+                merge_input_vision_attempts(
+                    projects.load_page_result(p.page_id) or PageResult(page_id=p.page_id)
+                )
+            )
+            >= 2
+        ]
+    if len(comparable) > 1:
+        ranker = _ranker_model_name(project)
+        confirm_key = f"rw_rank_all_confirm_{page.page_id}"
+        if st.session_state.get(confirm_key):
+            st.warning(
+                f"Rank and merge {len(comparable)} pages with text model "
+                f"`{ranker or '(none set)'}`. This may take a while."
+            )
+            c1, c2 = st.columns(2)
+            if c1.button(
+                "Confirm rank and merge all",
+                key=f"rw_rank_all_go_{page.page_id}",
+                icon=ic.PLAY,
+                disabled=not ranker,
+                type="primary",
+            ):
+                st.session_state.pop(confirm_key, None)
+                _start_rank_merge(
+                    projects,
+                    project,
+                    page_ids=list(comparable),
+                )
+            if c2.button("Cancel", key=f"rw_rank_all_cancel_{page.page_id}", icon=ic.CANCEL):
+                st.session_state.pop(confirm_key, None)
+                st.rerun()
+        elif st.button(
+            f"Rank and merge all comparable pages ({len(comparable)})",
+            key=f"rw_rank_all_{page.page_id}",
+            icon=ic.PLAY,
+            disabled=not ranker,
+            help=(
+                "Rank competing OCR readings and build merged drafts for every "
+                "page that already has two or more vision models on disk."
+                if ranker
+                else "Set a text or cleanup model under Transcribe first."
+            ),
+        ):
+            st.session_state[confirm_key] = True
+            st.rerun()
+
+    if st.button(
+        "Re-run OCR",
+        key=f"rw_rerun_{page.page_id}",
+        icon=ic.REPLAY,
+    ):
+        st.session_state[_rerun_ocr_open_key(page.page_id)] = True
+        st.rerun()
+
+
+def _start_rank_merge(
+    projects: ProjectService,
+    project: Project,
+    *,
+    page_ids: list[str],
+) -> None:
+    from transcribe.ui.run_transcribe import get_multipass_coordinator
+
+    try:
+        multi = get_multipass_coordinator(str(projects.paths.root))
+        multi.start_compare_existing(
+            page_ids=page_ids,
+            auto_activate_composite=bool(project.settings.auto_activate_composite),
+        )
+        st.session_state["_job_was_running"] = True
+        st.session_state["_transcribe_post_kind"] = "multipass"
+        st.session_state.pop("_transcribe_post_job_id", None)
+        st.toast("Ranking existing OCR…")
+        st.rerun()
+    except (JobConflictError, TranscribeError) as exc:
+        st.error(str(exc))
+
+
+def _run_review_declutter(projects, *, page_ids: list[str] | None) -> None:
+    try:
+        bar = st.progress(0.0, text="Starting cleanup…")
+        status = st.empty()
+
+        def on_progress(done: int, total: int, message: str) -> None:
+            frac = min(1.0, done / max(1, total))
+            bar.progress(
+                frac,
+                text=f"Cleaning {done}/{total}" + (f" · {message}" if message else ""),
+            )
+            if message:
+                status.caption(message)
+
+        stats = projects.reapply_visual_declutter(
+            enabled=True,
+            on_progress=on_progress,
+            page_ids=page_ids,
+        )
+        bump_archive_generation(build_runtime_paths())
+        st.toast(
+            f"Cleanup done: cropped {stats.pages_cropped}, "
+            f"unchanged {stats.pages_unchanged}, "
+            f"errors {stats.pages_error} "
+            f"(of {stats.pages_total})"
+        )
+        st.rerun()
+    except (JobConflictError, TranscribeError) as exc:
+        st.error(str(exc))
+
+
+def _render_cleanup_tab(projects, project, page) -> None:
+    n_pages = len(project.pages)
+    st.caption(
+        "Crop scanner beds, stark-white gutters, and residual corner wedges from "
+        "page images (visual declutter). Does not re-run OCR. Already-cropped "
+        "margins cannot be restored."
+    )
+    this_col, all_col = st.columns(2)
+    with this_col:
+        if st.button(
+            "This page",
+            key=f"rw_declutter_this_{page.page_id}",
+            icon=ic.CLEANING,
+            width="stretch",
+        ):
+            _run_review_declutter(projects, page_ids=[page.page_id])
+    with all_col:
+        if st.button(
+            f"All pages in notebook ({n_pages})",
+            key=f"rw_declutter_all_{page.page_id}",
+            icon=ic.DOCUMENT_SCANNER,
+            width="stretch",
+        ):
+            _run_review_declutter(projects, page_ids=None)
+
+
 def _render_other_tab(paths, projects, project, page) -> None:
     thumbs = ThumbnailService(paths)
     if st.button(
@@ -1254,53 +1623,6 @@ def _render_other_tab(paths, projects, project, page) -> None:
             st.rerun()
         except TranscribeError as exc:
             st.error(str(exc))
-
-    _render_ocr_settings(projects, project, page.page_id)
-
-    result = projects.load_page_result(page.page_id)
-    vision = merge_input_vision_attempts(result) if result is not None else []
-    if len(vision) >= 2:
-        _render_rank_merge_button(
-            projects,
-            project,
-            page_ids=[page.page_id],
-            key=f"rw_rank_other_{page.page_id}",
-            label="Rank and merge this page",
-        )
-        comparable = [
-            p.page_id
-            for p in project.pages
-            if len(
-                merge_input_vision_attempts(
-                    projects.load_page_result(p.page_id) or PageResult(page_id=p.page_id)
-                )
-            )
-            >= 2
-        ]
-        if len(comparable) > 1:
-            _render_rank_merge_button(
-                projects,
-                project,
-                page_ids=comparable,
-                key=f"rw_rank_all_{page.page_id}",
-                label=f"Rank and merge all comparable pages ({len(comparable)})",
-            )
-
-    open_key = _rerun_ocr_open_key(page.page_id)
-    if st.session_state.get(open_key):
-        _rerun_ocr_dialog(
-            paths=paths,
-            projects=projects,
-            project=project,
-            page_id=page.page_id,
-        )
-    if st.button(
-        "Re-run OCR",
-        key=f"rw_rerun_{page.page_id}",
-        icon=ic.REPLAY,
-    ):
-        st.session_state[open_key] = True
-        st.rerun()
 
     st.divider()
     pending_delete = f"rw_delete_pending__{page.page_id}"

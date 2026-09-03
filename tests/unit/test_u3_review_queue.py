@@ -14,6 +14,8 @@ from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui.action_menus.nav import chronological_page_ids, viewer_page_ids
 from transcribe.ui.review_queue import (
     available_review_filters,
+    build_review_queue_index,
+    default_review_filter,
     empty_text_page_ids,
     failed_ocr_page_ids,
     filter_review_page_ids,
@@ -141,6 +143,22 @@ def test_available_review_filters_omit_zero_counts(tmp_path: Path) -> None:
         ("all", 3),
     ]
     assert format_review_filter_label("needs_date", 1) == "Needs date approval (1)"
+    assert default_review_filter(["unreviewed", "needs_date", "all"]) == "unreviewed"
+    assert default_review_filter(["unreviewed", "high_disagreement", "all"]) == "high_disagreement"
+
+    index = build_review_queue_index(
+        project,
+        base_page_ids=base,
+        load_page_result=projects.load_page_result,
+    )
+    assert index.count("no_text") == 2
+    assert index.count("failed_ocr") == 1
+    assert available_review_filters(
+        project,
+        base_page_ids=base,
+        load_page_result=projects.load_page_result,
+        index=index,
+    ) == options
 
 
 def test_batch_approve_and_ignore_suggested_dates(tmp_path: Path) -> None:
@@ -204,13 +222,65 @@ def test_chronological_page_ids_orders_dated_then_undated(tmp_path: Path) -> Non
     assert ordered[2] == p1.page_id
 
 
-def test_high_disagreement_filter_uses_cached_count(tmp_path: Path) -> None:
+def _seed_multi_vision(
+    projects: ProjectService,
+    page_id: str,
+    *,
+    texts: list[str],
+    clock: FakeClock,
+    cached_disagreement: int | None = None,
+) -> None:
+    attempts = [
+        OCRAttempt(
+            attempt_id=f"a{i}",
+            status="succeeded",
+            input_fingerprint=f"fp{i}",
+            fingerprint_payload={"model_name": f"m{i}"},
+            raw_text=text,
+            provenance=None,
+            provider_metadata={},
+            started_at=to_iso(clock.now()),
+            completed_at=to_iso(clock.now()),
+            attempt_kind="vision",
+        )
+        for i, text in enumerate(texts, start=1)
+    ]
+    result = PageResult(
+        page_id=page_id,
+        active_attempt_id=attempts[0].attempt_id,
+        attempts=attempts,
+        updated_at=to_iso(clock.now()),
+        source_disagreement_count=cached_disagreement,
+    )
+    write_json_atomic(projects.paths.result_path(page_id), result.as_dict())
+
+
+def test_high_disagreement_filter_uses_live_align_not_stale_cache(tmp_path: Path) -> None:
     projects, project, clock = _project_with_pages(tmp_path, 2)
     p0, p1 = [p.page_id for p in project.pages]
-    _seed_result(projects, p0, text="hello", status="succeeded", clock=clock)
-    _seed_result(projects, p1, text="hello", status="succeeded", clock=clock)
-    projects.cache_alignment_signals(p0, source_disagreement_count=3, agreement_ratio=0.5)
-    projects.cache_alignment_signals(p1, source_disagreement_count=2, agreement_ratio=0.8)
+    # Three navigable word disagreements (≥ HIGH_DISAGREEMENT_MIN).
+    _seed_multi_vision(
+        projects,
+        p0,
+        texts=[
+            "alpha conversion beta insertion gamma omission delta",
+            "alpha conversation beta omission gamma insertion delta",
+        ],
+        clock=clock,
+        cached_disagreement=0,  # stale under-count must not hide the page
+    )
+    # Agreeing texts; stale over-count must not falsely include the page.
+    _seed_multi_vision(
+        projects,
+        p1,
+        texts=["same text here", "same text here"],
+        clock=clock,
+        cached_disagreement=9,
+    )
+    from transcribe.ui.review_queue import source_disagreement_count
+
+    assert source_disagreement_count(projects.load_page_result(p0)) >= 3
+    assert source_disagreement_count(projects.load_page_result(p1)) == 0
     assert high_disagreement_page_ids(project, projects.load_page_result) == [p0]
     base = viewer_page_ids(project)
     assert filter_review_page_ids(

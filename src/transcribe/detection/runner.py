@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 from transcribe.analysis.cache_identity import config_fingerprint
@@ -37,6 +38,12 @@ from transcribe.detection.findings import (
 )
 from transcribe.detection.inputs import load_render_bytes, scope_fingerprint
 from transcribe.detection.lexical import lexical_prompt_id, run_lexical_matcher
+from transcribe.detection.ner_people import (
+    NER_PEOPLE_PROMPT_ID,
+    filter_hits_to_pages,
+    page_person_names,
+    published_ner_is_current,
+)
 from transcribe.detection.registry import resolve_detector
 from transcribe.detection.routing import resolve_model_route
 from transcribe.detection.scope import plan_windows
@@ -48,6 +55,27 @@ from transcribe.prompt_engine.hub import resolve_for_input_mode, resolve_prompt
 from transcribe.providers.vision_llm import VisionLLMContext, bind_vision_llm_context
 from transcribe.ports import Clock, IdGenerator
 from transcribe.services.project import ProjectService
+
+
+def _detection_progress_log(
+    *,
+    status: str,
+    detector_id: str,
+    done: int = 0,
+    total: int = 0,
+    message: str = "",
+) -> None:
+    """Print detection progress to the process terminal (CLI and Streamlit server)."""
+    current_bit = f" current={detector_id}" if detector_id else ""
+    progress_bit = f" done={done}/{total}" if total else ""
+    print(
+        f"[transcribe:detection] [{status}]"
+        f"{progress_bit}"
+        f"{current_bit}"
+        f"{f' — {message}' if message else ''}",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _detector_data_from_raw(parsed: dict[str, Any], finding_type: str) -> dict[str, Any]:
@@ -79,6 +107,10 @@ def _detector_data_from_raw(parsed: dict[str, Any], finding_type: str) -> dict[s
                 data[key] = parsed[key]
     if finding_type in ("first_person", "swear_words"):
         for key in ("count", "samples", "category_counts"):
+            if key in parsed:
+                data[key] = parsed[key]
+    if finding_type == "names":
+        for key in ("name", "tag_slug", "count", "samples"):
             if key in parsed:
                 data[key] = parsed[key]
     if parsed.get("title") and "title" not in data:
@@ -154,6 +186,22 @@ class DetectionRunner:
             sf = scope_fingerprint(page_inputs)
             return cache_identity_hex(identity_obj), sf, identity_obj
 
+        if detector.engine == DetectorEngine.NER_PEOPLE:
+            from transcribe.analysis.modules.ner import ner_config
+
+            identity_obj = build_cache_identity_object(
+                notebook_id=project.id,
+                detector=detector,
+                prompt_id=NER_PEOPLE_PROMPT_ID,
+                prompt_version=detector.version,
+                page_inputs=page_inputs,
+                model_digest=None,
+                generation_settings={},
+            )
+            identity_obj = {**identity_obj, "ner": ner_config()}
+            sf = scope_fingerprint(page_inputs)
+            return cache_identity_hex(identity_obj), sf, identity_obj
+
         if detector.prompt_ref is None:
             raise ValueError(f"detector {detector.detector_id} missing prompt_ref")
         prompt = resolve_prompt(
@@ -215,7 +263,33 @@ class DetectionRunner:
                 expected_detector_version=detector.version,
             )
             if cached is not None:
+                n = len(cached.get("findings") or [])
+                _detection_progress_log(
+                    status="completed",
+                    detector_id=detector_id,
+                    message=f"cache hit, {n} finding(s)",
+                )
                 return cached
+
+        _detection_progress_log(
+            status="running",
+            detector_id=detector_id,
+            message=f"Running {detector_id}…",
+        )
+
+        def _combined_progress(done: int, total: int) -> None:
+            _detection_progress_log(
+                status="running",
+                detector_id=detector_id,
+                done=done,
+                total=total,
+                message=f"window {done}/{total}",
+            )
+            if progress_callback:
+                try:
+                    progress_callback(done, total)
+                except Exception:  # noqa: BLE001
+                    pass
 
         attempt_id = self.ids.new_id()
         project = self.project_service.load(reconcile=False)
@@ -244,7 +318,7 @@ class DetectionRunner:
                 planned_cache_identity=planned_id,
                 page_ids=page_ids,
                 cancel_check=cancel_check,
-                progress_callback=progress_callback,
+                progress_callback=_combined_progress,
             )
 
         # Snapshot custom detector definition into project on first successful path
@@ -260,6 +334,23 @@ class DetectionRunner:
                 expected_cache_identity=planned_id,
                 current_cache_identity=current_id,
             )
+        attempt_state = str(terminal.get("attempt_state") or "")
+        outcome = str(terminal.get("outcome") or "")
+        n_findings = len(terminal.get("findings") or [])
+        windows = int(terminal.get("windows_scanned") or 0)
+        if attempt_state == "cancelled":
+            status = "cancelled"
+        elif attempt_state == "failed" or outcome == "failed":
+            status = "failed"
+        else:
+            status = "completed"
+        _detection_progress_log(
+            status=status,
+            detector_id=detector_id,
+            done=windows,
+            total=windows,
+            message=f"{detector_id}: {outcome}, {n_findings} finding(s)",
+        )
         return terminal
 
     def _snapshot_custom_detector(self, detector: DetectorDefinition) -> None:
@@ -299,6 +390,15 @@ class DetectionRunner:
     ) -> dict[str, Any]:
         if detector.engine == DetectorEngine.LEXICAL_COUNT:
             return self._execute_lexical_run(
+                detector,
+                attempt_id=attempt_id,
+                planned_cache_identity=planned_cache_identity,
+                page_ids=page_ids,
+                cancel_check=cancel_check,
+                progress_callback=progress_callback,
+            )
+        if detector.engine == DetectorEngine.NER_PEOPLE:
+            return self._execute_ner_people_run(
                 detector,
                 attempt_id=attempt_id,
                 planned_cache_identity=planned_cache_identity,
@@ -372,6 +472,7 @@ class DetectionRunner:
         ordered_page_ids = [p.page_id for p in ordered]
         idx_map = {pid: i for i, pid in enumerate(ordered_page_ids)}
         raw_hits: list[RawDetection] = []
+        page_counts: list[dict[str, Any]] = []
 
         for wi, page in enumerate(ordered):
             if progress_callback:
@@ -396,8 +497,10 @@ class DetectionRunner:
                     attempt_id=attempt_id,
                     prompt_provenance=prompt_prov,
                     model_provenance=model_prov,
+                    page_counts=page_counts,
                 )
             result = run_lexical_matcher(matcher, page.effective_text)
+            page_counts.append({"page_id": page.page_id, "count": int(result.count)})
             if result.count < min_count:
                 continue
             page_idx = idx_map[page.page_id]
@@ -479,6 +582,206 @@ class DetectionRunner:
             prompt_provenance=prompt_prov,
             model_provenance=model_prov,
             generation_settings={},
+            page_counts=page_counts,
+        )
+
+    def _load_or_run_ner(self) -> dict[str, Any]:
+        """Reuse current published NER, or run the ner module without reconciling detection."""
+        from transcribe.analysis.modules.ner import MODULE_ID as NER_MODULE_ID
+        from transcribe.analysis.runner import AnalysisRunner
+
+        runner = AnalysisRunner(
+            self.project_service,
+            clock=self.clock,
+            ids=self.ids,
+        )
+        project = self.project_service.load(reconcile=False)
+        planned = runner.planned_cache_identity(NER_MODULE_ID, project=project)
+        published = runner.storage.read_published(NER_MODULE_ID)
+        if published_ner_is_current(published, planned) and published is not None:
+            return published
+        return runner.run_module(NER_MODULE_ID, reconcile_project=False)
+
+    def _execute_ner_people_run(
+        self,
+        detector: DetectorDefinition,
+        *,
+        attempt_id: str,
+        planned_cache_identity: str,
+        page_ids: list[str] | None,
+        cancel_check: Any | None,
+        progress_callback: Any | None = None,
+    ) -> dict[str, Any]:
+        from transcribe.analysis.modules.ner import ner_config
+
+        project = self.project_service.load(reconcile=False)
+        page_inputs, warnings = select_candidates(
+            detector,
+            project,
+            self.project_service,
+            self.paths,
+            page_ids=page_ids,
+        )
+        scope_fp = scope_fingerprint(page_inputs)
+        prompt_prov = {
+            "prompt_id": NER_PEOPLE_PROMPT_ID,
+            "version": detector.version,
+        }
+        model_name = str(ner_config().get("model_name") or "ner")
+        model_prov = {
+            "model_name": model_name,
+            "model_digest": None,
+            "input_mode": InputMode.TEXT.value,
+        }
+
+        def _envelope(
+            *,
+            attempt_state: str,
+            outcome: str,
+            findings: list[DetectionFinding] | None = None,
+            extra_warnings: list[dict[str, str]] | None = None,
+            capability_reason: str | None = None,
+        ) -> dict[str, Any]:
+            return build_detection_envelope(
+                notebook_id=project.id,
+                detector_id=detector.detector_id,
+                detector_version=detector.version,
+                cache_identity=planned_cache_identity,
+                scope_fingerprint=scope_fp,
+                attempt_state=attempt_state,
+                outcome=outcome,
+                findings=findings_to_dicts(findings or []),
+                pages_scanned=[p.page_id for p in page_inputs],
+                windows_scanned=len(page_inputs),
+                config_fingerprint=config_fingerprint(detector.cache_config()),
+                warnings=warnings + (extra_warnings or []),
+                attempt_id=attempt_id,
+                prompt_provenance=prompt_prov,
+                model_provenance=model_prov,
+                generation_settings={},
+                capability_reason=capability_reason,
+            )
+
+        if progress_callback:
+            try:
+                progress_callback(0, max(1, len(page_inputs)))
+            except Exception:  # noqa: BLE001
+                pass
+        if cancel_check and cancel_check():
+            return _envelope(attempt_state="cancelled", outcome="failed")
+        if not page_inputs:
+            return _envelope(
+                attempt_state="succeeded",
+                outcome="insufficient_data",
+                extra_warnings=[
+                    {"code": "no_pages", "message": "no candidate pages with text"}
+                ],
+            )
+
+        ner_env = self._load_or_run_ner()
+        ner_outcome = str(ner_env.get("outcome") or "")
+        if ner_outcome == "skipped_not_applicable":
+            reason = str(ner_env.get("capability_reason") or "unavailable_extra")
+            ner_warnings = [
+                {"code": str(w.get("code") or "ner"), "message": str(w.get("message") or "")}
+                for w in (ner_env.get("warnings") or [])
+                if isinstance(w, dict)
+            ]
+            return _envelope(
+                attempt_state="succeeded",
+                outcome="skipped_not_applicable",
+                extra_warnings=ner_warnings
+                or [
+                    {
+                        "code": "unavailable_extra",
+                        "message": "spaCy NER model not available",
+                    }
+                ],
+                capability_reason=reason,
+            )
+        if ner_outcome in ("unavailable_dependency", "insufficient_data"):
+            return _envelope(
+                attempt_state="succeeded",
+                outcome=ner_outcome,
+                extra_warnings=[
+                    {
+                        "code": str(w.get("code") or "ner"),
+                        "message": str(w.get("message") or ""),
+                    }
+                    for w in (ner_env.get("warnings") or [])
+                    if isinstance(w, dict)
+                ],
+            )
+        if ner_outcome != "success":
+            return _envelope(
+                attempt_state="failed",
+                outcome="failed",
+                extra_warnings=[
+                    {"code": str(w.get("code") or "ner"), "message": str(w.get("message") or "")}
+                    for w in (ner_env.get("warnings") or [])
+                    if isinstance(w, dict)
+                ]
+                or [{"code": "ner_failed", "message": f"NER outcome {ner_outcome}"}],
+            )
+
+        payload = ner_env.get("payload") if isinstance(ner_env.get("payload"), dict) else {}
+        payload_model = payload.get("model_name")
+        if isinstance(payload_model, str) and payload_model.strip():
+            model_prov = {
+                **model_prov,
+                "model_name": payload_model.strip(),
+            }
+
+        in_scope = {p.page_id for p in page_inputs}
+        fp_by_page = {p.page_id: p.effective_text_sha256 for p in page_inputs}
+        hits = filter_hits_to_pages(page_person_names(payload), in_scope)
+        now = utc_now_iso()
+        findings: list[DetectionFinding] = []
+        for i, hit in enumerate(hits):
+            if progress_callback:
+                try:
+                    progress_callback(i + 1, max(1, len(hits)))
+                except Exception:  # noqa: BLE001
+                    pass
+            if cancel_check and cancel_check():
+                return _envelope(attempt_state="cancelled", outcome="failed")
+            reason = f"PERSON: {hit.surface}"
+            if hit.count > 1:
+                reason = f"{reason} (×{hit.count})"
+            findings.append(
+                DetectionFinding(
+                    finding_id=self.ids.new_id(),
+                    detector_id=detector.detector_id,
+                    detector_version=detector.version,
+                    notebook_id=project.id,
+                    start_page_id=hit.page_id,
+                    end_page_id=hit.page_id,
+                    finding_type=detector.finding_type,
+                    confidence=1.0,
+                    evidence={
+                        "reason": reason,
+                        "snippets": list(hit.samples),
+                    },
+                    prompt_provenance=prompt_prov,
+                    model_provenance=model_prov,
+                    input_fingerprint=fp_by_page.get(hit.page_id, ""),
+                    created_at=now,
+                    updated_at=now,
+                    detector_data={
+                        "name": hit.surface,
+                        "tag_slug": hit.slug,
+                        "count": hit.count,
+                        "samples": list(hit.samples),
+                    },
+                )
+            )
+        findings = carry_forward_reviews(
+            findings, self.storage.read_published(detector.detector_id)
+        )
+        return _envelope(
+            attempt_state="succeeded",
+            outcome="success",
+            findings=findings,
         )
 
     def _execute_prompt_run(

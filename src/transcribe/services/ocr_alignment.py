@@ -14,6 +14,33 @@ from difflib import SequenceMatcher
 _BULLET_NORMS = frozenset({"-", "*", "•"})
 _TOKEN_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 _MIN_OMITTED_TOKENS = 3
+# Punctuation / rule / pipe noise — not worth a Review disagreement step.
+_PUNCT_NOISE_RE = re.compile(r"^[\s\|/\\.\-_*•·,;:'\"`~=+#]+$")
+_PROMPT_INSTRUCTION_RE = re.compile(
+    r"use\s+proper\s+punctuation|"
+    r"format\s+the\s+output|"
+    r"you are an?\s+(ocr|transcription)",
+    re.IGNORECASE,
+)
+
+
+def is_non_reviewable_span(text: str) -> bool:
+    """True when a span is punctuation/rule noise or a prompt-instruction fragment."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    if _PUNCT_NOISE_RE.match(stripped):
+        return True
+    if _PROMPT_INSTRUCTION_RE.search(stripped) and len(stripped) < 160:
+        return True
+    return False
+
+
+def region_variants_non_reviewable(variants: dict[str, str]) -> bool:
+    """True when every source variant is non-reviewable junk."""
+    if not variants:
+        return True
+    return all(is_non_reviewable_span(v) for v in variants.values())
 
 
 @dataclass(frozen=True)
@@ -303,6 +330,10 @@ def align_ocr(
         omitted_from = tuple(
             sorted(aid for aid, variant in variants.items() if not normalize_span(variant))
         )
+        # Keep junk in agreement_ratio (equal_mask already false) but do not
+        # emit navigable Review steps for punctuation-only / prompt-leak spans.
+        if region_variants_non_reviewable(variants):
+            continue
         source_regions.append(
             DisagreementRegion(
                 key=f"src:{i1}:{i2}",

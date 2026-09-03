@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,8 +15,8 @@ from transcribe.detection.custom import (
     load_custom_detectors,
     save_custom_detector,
 )
-from transcribe.detection.definition import DetectorDefinition
-from transcribe.detection.findings import DetectionFinding
+from transcribe.detection.definition import DetectorDefinition, DetectorEngine
+from transcribe.detection.findings import DetectionFinding, derive_review_status
 from transcribe.detection.freshness import FreshnessStatus, detector_freshness
 from transcribe.detection.registry import list_all_detectors, resolve_detector
 from transcribe.detection.runner import DetectionRunner
@@ -32,6 +32,7 @@ class DetectorInfo:
     title: str
     description: str
     finding_type: str
+    engine: DetectorEngine = DetectorEngine.PROMPT
 
 
 class DetectionService:
@@ -64,6 +65,7 @@ class DetectionService:
                 title=d.title,
                 description=d.description,
                 finding_type=d.finding_type,
+                engine=d.engine,
             )
             for d in list_all_detectors()
         ]
@@ -96,17 +98,33 @@ class DetectionService:
         detector_id: str,
         *,
         finding_type: str | None = None,
+        finding: DetectionFinding | None = None,
     ) -> str:
-        custom = load_custom_detectors()
-        detector = resolve_detector(detector_id, custom_detectors=custom)
         from transcribe.tagging.kernel import normalize_slug
 
+        if finding is not None:
+            data = finding.detector_data or {}
+            named = data.get("tag_slug") or data.get("name")
+            if isinstance(named, str) and named.strip():
+                return normalize_slug(named)
+        custom = load_custom_detectors()
+        detector = resolve_detector(detector_id, custom_detectors=custom)
         slug_source = (
             (detector.finding_type if detector is not None else finding_type) or detector_id
         )
         return normalize_slug(slug_source)
 
-    def finding_tag_label(self, detector_id: str, *, slug: str) -> str:
+    def finding_tag_label(
+        self,
+        detector_id: str,
+        *,
+        slug: str,
+        finding: DetectionFinding | None = None,
+    ) -> str:
+        if finding is not None:
+            name = (finding.detector_data or {}).get("name")
+            if isinstance(name, str) and name.strip():
+                return name.strip()
         custom = load_custom_detectors()
         detector = resolve_detector(detector_id, custom_detectors=custom)
         return detector.title if detector is not None else slug
@@ -129,15 +147,20 @@ class DetectionService:
         """Union the finding tag onto ``page_ids``. Returns how many pages changed."""
         if finding.review_status == "rejected":
             return 0
-        slug = self.finding_tag_slug(finding.detector_id, finding_type=finding.finding_type)
-        missing = self.pages_missing_tag(page_ids, slug)
+        eligible = self._eligible_tag_page_ids(finding, page_ids)
+        slug = self.finding_tag_slug(
+            finding.detector_id,
+            finding_type=finding.finding_type,
+            finding=finding,
+        )
+        missing = self.pages_missing_tag(eligible, slug)
         if not missing:
             if approve_finding:
-                self.set_review_status(finding.detector_id, finding.finding_id, "approved")
+                self._persist_review(finding, "approved")
             return 0
         from transcribe.services.tags import TagService
 
-        label = self.finding_tag_label(finding.detector_id, slug=slug)
+        label = self.finding_tag_label(finding.detector_id, slug=slug, finding=finding)
         changed = TagService().union_page_tags(
             self.project_service,
             missing,
@@ -145,11 +168,93 @@ class DetectionService:
             label=label,
         )
         if approve_finding:
-            self.set_review_status(finding.detector_id, finding.finding_id, "approved")
+            self._persist_review(finding, "approved")
         return changed
 
+    def _eligible_tag_page_ids(
+        self, finding: DetectionFinding, page_ids: list[str]
+    ) -> list[str]:
+        rejected = {
+            pid for pid, status in finding.page_reviews.items() if status == "rejected"
+        }
+        return [pid for pid in page_ids if pid not in rejected]
+
+    def drop_finding_tag(self, finding: DetectionFinding, page_ids: list[str]) -> int:
+        slug = self.finding_tag_slug(
+            finding.detector_id,
+            finding_type=finding.finding_type,
+            finding=finding,
+        )
+        from transcribe.services.tags import TagService
+
+        return TagService().drop_page_tags(self.project_service, page_ids, slug)
+
+    def _persist_review(
+        self,
+        finding: DetectionFinding,
+        status: str,
+        *,
+        page_reviews: dict[str, str] | None = None,
+    ) -> bool:
+        return self.storage.update_finding_review(
+            finding.detector_id,
+            finding.finding_id,
+            status,
+            page_reviews=page_reviews,
+        )
+
+    def accept_finding(self, finding: DetectionFinding) -> int:
+        """Approve remaining (non-rejected) span pages and apply their tags."""
+        span_ids = self.span_page_ids(finding)
+        reviews = dict(finding.page_reviews)
+        fully_rejected = finding.review_status == "rejected" and (
+            not reviews or all(reviews.get(pid) == "rejected" for pid in span_ids)
+        )
+        if fully_rejected:
+            targets = list(span_ids)
+        else:
+            targets = [pid for pid in span_ids if reviews.get(pid) != "rejected"]
+        for page_id in targets:
+            reviews[page_id] = "approved"
+        overall = derive_review_status(span_ids, reviews)
+        working = replace(finding, review_status=overall, page_reviews=reviews)
+        self._persist_review(working, overall, page_reviews=reviews)
+        return self.apply_finding_tag(working, targets, approve_finding=False)
+
+    def reject_finding(self, finding: DetectionFinding) -> int:
+        """Reject every span page and drop the finding tag from them."""
+        span_ids = self.span_page_ids(finding)
+        reviews = {pid: "rejected" for pid in span_ids}
+        self._persist_review(finding, "rejected", page_reviews=reviews)
+        return self.drop_finding_tag(finding, span_ids)
+
+    def set_page_review(
+        self,
+        finding: DetectionFinding,
+        page_id: str,
+        status: str,
+    ) -> int:
+        """Accept or reject one page in a span finding. Returns pages whose tags changed."""
+        if status not in ("approved", "rejected"):
+            return 0
+        span_ids = self.span_page_ids(finding)
+        if page_id not in span_ids:
+            return 0
+        reviews = dict(finding.page_reviews)
+        reviews[page_id] = status
+        overall = derive_review_status(span_ids, reviews)
+        working = replace(finding, review_status=overall, page_reviews=reviews)
+        self._persist_review(working, overall, page_reviews=reviews)
+        if status == "approved":
+            return self.apply_finding_tag(working, [page_id], approve_finding=False)
+        return self.drop_finding_tag(working, [page_id])
+
     def apply_tags_from_published(self, detector_id: str) -> int:
-        """Union ``finding_type`` onto span pages for non-rejected published findings."""
+        """Union finding tags onto span pages for non-rejected published findings.
+
+        Most detectors tag ``finding_type``. The names detector tags each
+        detected person name (``detector_data.tag_slug``).
+        """
         findings = self.list_findings(detector_id)
         if not findings:
             return 0

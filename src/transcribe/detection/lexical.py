@@ -130,6 +130,77 @@ def run_lexical_matcher(matcher: str, text: str) -> LexicalCountResult:
     raise ValueError(f"unknown lexical matcher: {matcher}")
 
 
+def _count_from_finding(finding: Any) -> tuple[str, int]:
+    if hasattr(finding, "start_page_id"):
+        page_id = str(getattr(finding, "start_page_id", "") or "")
+        data = getattr(finding, "detector_data", None) or {}
+    elif isinstance(finding, dict):
+        page_id = str(finding.get("start_page_id") or "")
+        data = finding.get("detector_data") or {}
+    else:
+        return "", 0
+    if not isinstance(data, dict):
+        data = {}
+    try:
+        count = int(data.get("count") or 0)
+    except (TypeError, ValueError):
+        count = 0
+    return page_id, count
+
+
+def lexical_page_count_rows(
+    *,
+    page_order: dict[str, int],
+    page_counts: list[Any] | None = None,
+    findings: list[Any] | None = None,
+    pages_scanned: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Build per-page count rows in notebook page order.
+
+    Prefers published ``page_counts`` (includes zeros). Falls back to findings
+    plus ``pages_scanned`` so older artifacts still render a complete series.
+    """
+    counts: dict[str, int] = {}
+    if page_counts:
+        for row in page_counts:
+            if not isinstance(row, dict):
+                continue
+            page_id = str(row.get("page_id") or "")
+            if not page_id:
+                continue
+            try:
+                counts[page_id] = int(row.get("count") or 0)
+            except (TypeError, ValueError):
+                counts[page_id] = 0
+    else:
+        for finding in findings or []:
+            page_id, count = _count_from_finding(finding)
+            if page_id:
+                counts[page_id] = count
+        for page_id in pages_scanned or []:
+            counts.setdefault(str(page_id), 0)
+
+    ordered_ids = sorted(
+        counts,
+        key=lambda pid: (
+            page_order[pid] if pid in page_order else 10**9,
+            pid,
+        ),
+    )
+    rows: list[dict[str, Any]] = []
+    for page_id in ordered_ids:
+        idx = page_order.get(page_id)
+        order = (idx + 1) if isinstance(idx, int) else None
+        rows.append(
+            {
+                "order": order,
+                "page_id": page_id,
+                "count": counts[page_id],
+            }
+        )
+    return rows
+
+
 def lexical_prompt_id(matcher: str) -> str:
     return f"lexical:{matcher}"
 
@@ -155,6 +226,7 @@ __all__ = [
     "SWEAR_WORDS_MATCHER",
     "count_first_person",
     "count_swear_words",
+    "lexical_page_count_rows",
     "lexical_prompt_id",
     "run_lexical_matcher",
     "swear_lexicon_digest",

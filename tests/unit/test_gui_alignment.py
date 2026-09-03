@@ -95,7 +95,8 @@ def test_settings_interface_lists_additive_sections() -> None:
     assert SectionId.ANALYSE_COMPLETE in SECTION_ORDER
     assert ActionId.OVERVIEW.value == "overview"
     assert ActionId.REVIEW.value == "review"
-    assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — notebook row"
+    assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — activity row"
+    assert SECTION_LABELS[SectionId.ARCHIVE_NOTEBOOK] == "Library — cover card"
     assert "overview_cards" in hub
     assert "view_show_advanced" in hub
     assert "Save overview settings" in hub
@@ -122,9 +123,9 @@ def test_settings_hub_tab_labels_and_order() -> None:
     hub = (UI_ROOT / "settings_hub.py").read_text(encoding="utf-8")
     assert "ollama_health_line" in hub
     assert "settings_ocr_preprocess_profile" in hub
+    assert "settings_models_refresh" in hub
+    assert "settings_model_preference_hints" in hub
     assert "Select a notebook to apply." in hub
-    assert "model_info" not in hub
-    assert "render_model_information" not in hub
 
 
 def test_select_heavy_settings_panels_use_fragments() -> None:
@@ -159,12 +160,36 @@ def test_detect_findings_selects_one_type() -> None:
     assert "for info in svc.list_detectors():" not in detect
 
 
+def test_detect_findings_offer_accept_and_reject() -> None:
+    review = (UI_ROOT / "detection_tag_review.py").read_text(encoding="utf-8")
+    detect = (UI_ROOT / "run_detection.py").read_text(encoding="utf-8")
+    assert '"Accept"' in review
+    assert "accept_finding" in review
+    assert "Accept this page" in review
+    assert "Reject this page" in review
+    assert "Accept detection" in review
+    assert "render_span_page_review" in detect
+    assert "det_svc=svc" in detect
+    assert "finding=f" in detect
+
+
+def test_detect_lexical_findings_are_page_counts() -> None:
+    detect = (UI_ROOT / "run_detection.py").read_text(encoding="utf-8")
+    assert "lexical_page_count_rows" in detect
+    assert '_render_lexical_counts' in detect
+    assert "Counted from OCR text" in detect
+    assert "DetectorEngine.LEXICAL_COUNT" in detect
+
+
 def test_search_and_library_open_reading() -> None:
     archive = (UI_ROOT / "archive_views.py").read_text(encoding="utf-8")
     nav = (UI_ROOT / "action_menus" / "nav.py").read_text(encoding="utf-8")
     page_viewer = (UI_ROOT / "page_viewer.py").read_text(encoding="utf-8")
     assert 'st.session_state["ui_mode"] = "Reading"' in archive
     assert 'return_mode="Search"' in archive
+    assert "render_library" in archive
+    assert "LIBRARY_VIEW_COVERS" in archive
+    assert "st.segmented_control" in archive
     assert 'state["ui_mode"] = "Reading"' in nav
     assert "listing_return_mode" in nav
     assert "viewer_nav_scope" in page_viewer

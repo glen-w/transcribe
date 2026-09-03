@@ -49,7 +49,7 @@ def render_compare_period_controls(
     key_prefix: str,
     projects_dir: Path | None,
 ) -> ComparePeriod:
-    """Archive-style period picker for Analyse comparison baselines."""
+    """Library-style period picker for Analyse comparison baselines."""
     years = _years_from_projects(projects_dir)
     options = ["Entire corpus"]
     if years:
@@ -62,7 +62,7 @@ def render_compare_period_controls(
         help=(
             "Bars compare this notebook to the average of other notebooks with "
             "published results. Year / date range use each notebook’s diary "
-            "date span (same idea as Archive period filters)."
+            "date span (same idea as Library period filters)."
         ),
     )
     if choice == "Year" and years:

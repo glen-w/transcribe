@@ -26,14 +26,14 @@ This document is an **index of terms only**. It aggregates terminology from auth
 - **AnalysisHealth** — Derived Analyse freshness/health shared across View consume pages. See [contracts/analysis-result.md](contracts/analysis-result.md).
 - **content_revision** — SHA-256 of exportable notebook content (all pages). See [contracts/project-on-disk.md](contracts/project-on-disk.md) · [notebook-export.md](contracts/notebook-export.md).
 - **`transcribe.notebook`** — Portable export JSON. See [contracts/notebook-export.md](contracts/notebook-export.md).
-- **Library** — GUI cover gallery (legacy sidebar name `View`). Not a domain rename of the notebook corpus. See [public_surfaces.md](public_surfaces.md).
+- **Library** — GUI notebook browser (legacy sidebar names `View` and `Archive`). Default **Covers** thumbnail overview; **Activity** is the per-notebook histogram list. Not a domain rename of the notebook corpus. See [public_surfaces.md](public_surfaces.md).
 - **Ingest journal** — Crash journal for multi-file import commit. See [contracts/project-on-disk.md](contracts/project-on-disk.md).
 - **Archive index** — Rebuildable SQLite FTS cache for the workspace. See [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Doctor** — Integrity check CLI / Diagnostics. See [public_surfaces.md](public_surfaces.md) · [corpus-integrity.md](contracts/corpus-integrity.md).
 - **Prompt Hub** — Settings catalogue for OCR, cleanup, and detection prompts. See [contracts/prompt-definition.md](contracts/prompt-definition.md).
 - **Detector / DetectionFinding** — Prompt-backed scan and derived span finding. See [detection-definition.md](contracts/detection-definition.md) · [detection-finding.md](contracts/detection-finding.md).
 - **Visual declutter** — Import-time (and Settings re-apply) scanner-border crop; not OCR preprocess. See [contracts/source-asset.md](contracts/source-asset.md).
-- **Archive strip paging** — `ui.archive_notebooks_initial` — cards before Show more (`0` = all). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
+- **Library cover-grid paging** — `ui.archive_notebooks_initial` — cover cards before Show more (`0` = all). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
 - **Overview cards** — `ui.overview_cards` — which Overview cards are visible (status strip always on). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
 - **View Advanced expanders** — `ui.view_show_advanced` — show raw module JSON under **Advanced · …** on View pages (default off). See [contracts/workspace-settings.md](contracts/workspace-settings.md).
 - **`transcribe.workspace-backup`** — Full-workspace ZIP (role roots); replace-only restore. See [workspace-backup.md](contracts/workspace-backup.md) · [backup_and_restore.md](backup_and_restore.md).

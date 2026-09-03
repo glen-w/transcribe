@@ -6,8 +6,14 @@ from pathlib import Path
 
 from transcribe.detection.envelope import build_detection_envelope
 from transcribe.detection.storage import DetectionStorage
-from transcribe.persistence.locks import mutation_lock
-from transcribe.services.project import open_project_paths
+from transcribe.persistence.locks import (
+    AnalysisLock,
+    JobLock,
+    analysis_lock_held,
+    job_lock_held,
+    mutation_lock,
+)
+from transcribe.services.project import ProjectService, open_project_paths
 
 
 def _envelope(**kwargs):
@@ -76,3 +82,71 @@ def test_reconcile_interrupted(tmp_path: Path):
     attempt = storage.read_attempt("poetry", "att001")
     assert attempt is not None
     assert attempt.get("attempt_state") == "interrupted"
+
+
+def test_reconcile_interrupted_skips_when_analysis_lock_held(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "proj")
+    storage = DetectionStorage(paths)
+    running = _envelope(attempt_state="running", outcome="success")
+    storage.write_attempt("poetry", running)
+    lock = AnalysisLock(paths.analysis_lock)
+    assert lock.try_acquire()
+    try:
+        assert analysis_lock_held(paths.analysis_lock) is True
+        changed = storage.reconcile_interrupted()
+        assert changed == []
+        attempt = storage.read_attempt("poetry", "att001")
+        assert attempt is not None
+        assert attempt.get("attempt_state") == "running"
+    finally:
+        lock.release()
+    changed = storage.reconcile_interrupted()
+    assert len(changed) == 1
+    attempt = storage.read_attempt("poetry", "att001")
+    assert attempt is not None
+    assert attempt.get("attempt_state") == "interrupted"
+
+
+def test_reconcile_interrupted_skips_when_job_lock_held(tmp_path: Path):
+    paths = open_project_paths(tmp_path / "proj")
+    storage = DetectionStorage(paths)
+    running = _envelope(attempt_state="running", outcome="success")
+    storage.write_attempt("poetry", running)
+    lock = JobLock(paths.job_lock)
+    assert lock.try_acquire()
+    try:
+        assert job_lock_held(paths.job_lock) is True
+        changed = storage.reconcile_interrupted()
+        assert changed == []
+        attempt = storage.read_attempt("poetry", "att001")
+        assert attempt is not None
+        assert attempt.get("attempt_state") == "running"
+    finally:
+        lock.release()
+    changed = storage.reconcile_interrupted()
+    assert len(changed) == 1
+    attempt = storage.read_attempt("poetry", "att001")
+    assert attempt is not None
+    assert attempt.get("attempt_state") == "interrupted"
+
+
+def test_project_load_does_not_interrupt_detection_while_analysis_lock_held(
+    tmp_path: Path,
+):
+    from tests.conftest import FakeClock, SequentialIds
+
+    paths = open_project_paths(tmp_path / "proj")
+    projects = ProjectService(paths, clock=FakeClock(), ids=SequentialIds())
+    projects.create("nb")
+    storage = DetectionStorage(paths)
+    running = _envelope(attempt_state="running", outcome="success")
+    storage.write_attempt("poetry", running)
+    lock = AnalysisLock(paths.analysis_lock)
+    assert lock.try_acquire()
+    try:
+        projects.load(reconcile=True)
+        attempt = storage.read_attempt("poetry", "att001")
+        assert attempt is not None
+        assert attempt.get("attempt_state") == "running"
+    finally:
+        lock.release()

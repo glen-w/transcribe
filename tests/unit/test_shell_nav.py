@@ -70,4 +70,6 @@ def test_first_visit_home_is_app_not_normalize() -> None:
     app = Path("src/transcribe/ui/app.py").read_text(encoding="utf-8")
     assert 'first_visit = "ui_mode" not in st.session_state' in app
     assert 'mode = "Home"' in app
-    assert normalize_ui_mode("nope") == "Archive"
+    assert normalize_ui_mode("nope") == "Library"
+    assert "render_library" in app
+    assert 'mode == "Archive"' not in app

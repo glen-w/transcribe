@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from transcribe.detection.api import DetectionService, DetectorInfo
+from transcribe.detection.definition import DetectorEngine
 from transcribe.detection.findings import DetectionFinding
+from transcribe.detection.lexical import lexical_page_count_rows
 from transcribe.detection.registry import list_all_detectors
 from transcribe.markdown_plain import escape_markdown_plain
 from transcribe.services.project import ProjectService
 from transcribe.ui import icons as ic
-from transcribe.ui.detection_tag_review import render_finding_tag_actions
+from transcribe.ui.detection_tag_review import (
+    render_finding_tag_actions,
+    render_span_page_review,
+)
+from transcribe.ui.page_series_charts import maybe_jump, render_clickable_page_series
 from transcribe.ui.page_viewer import open_page_context
 from transcribe.ui.shell import render_page_shell
 
@@ -26,7 +34,7 @@ def render_detection_workspace(
         render_page_shell(
             "Detect",
             "Scan notebook pages for poetry, lists, to-dos, quotations, beer labels, "
-            "first-person I, swear words, and custom phenomena.",
+            "first-person I, swear words, people names, and custom phenomena.",
         )
 
     @st.fragment
@@ -86,7 +94,8 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
     auto_tag = st.checkbox(
         "Tag matching pages",
         key=auto_key,
-        help="Add each detector’s tag to pages in published findings (additive). "
+        help="Add tags to pages in published findings (additive). Most detectors use "
+        "their finding type; Names / people tags each detected person name. "
         "Does not change detection cache identity. Re-running re-adds tags you removed.",
     )
     progress = st.empty()
@@ -96,6 +105,11 @@ def _render_run(projects: ProjectService, *, project_id: str) -> None:
         if not selected_labels:
             st.warning("Select at least one detector.")
             return
+        st.info(
+            "Detection prints progress in the server terminal as "
+            "`[transcribe:detection] …` lines. Vision-model detectors can "
+            "take several minutes per window while Ollama loads the model."
+        )
         for label in selected_labels:
             did = options[label]
             status.info(f"Running `{did}`…")
@@ -150,6 +164,8 @@ def _render_page_scan_and_text(
     *,
     label: str,
     key_prefix: str,
+    det_svc: DetectionService | None = None,
+    finding: DetectionFinding | None = None,
 ) -> None:
     page = next((p for p in project.pages if p.page_id == page_id), None)
     if page is None:
@@ -182,6 +198,31 @@ def _render_page_scan_and_text(
             )
         else:
             st.caption("No OCR text yet — run Transcribe first.")
+    if det_svc is not None and finding is not None:
+        span_n = len(det_svc.span_page_ids(finding))
+        if span_n > 1:
+            render_span_page_review(
+                det_svc=det_svc,
+                finding=finding,
+                page_id=page_id,
+                key_prefix=key_prefix,
+            )
+
+
+def _page_tab_label(
+    page_id: str,
+    page_order: dict[str, int],
+    finding: DetectionFinding | None,
+) -> str:
+    base = _page_label(page_id, page_order)
+    if finding is None:
+        return base
+    status = finding.page_reviews.get(page_id)
+    if status == "rejected":
+        return f"{base} · rejected"
+    if status == "approved":
+        return f"{base} · accepted"
+    return base
 
 
 def _render_finding_page_context(
@@ -191,6 +232,8 @@ def _render_finding_page_context(
     *,
     page_order: dict[str, int],
     key_prefix: str,
+    det_svc: DetectionService | None = None,
+    finding: DetectionFinding | None = None,
 ) -> None:
     if not page_ids:
         return
@@ -215,9 +258,11 @@ div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
             page_ids[0],
             label=_page_label(page_ids[0], page_order),
             key_prefix=key_prefix,
+            det_svc=det_svc,
+            finding=finding,
         )
         return
-    tabs = st.tabs([_page_label(pid, page_order) for pid in page_ids])
+    tabs = st.tabs([_page_tab_label(pid, page_order, finding) for pid in page_ids])
     for tab, page_id in zip(tabs, page_ids):
         with tab:
             _render_page_scan_and_text(
@@ -226,6 +271,8 @@ div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
                 page_id,
                 label=_page_label(page_id, page_order),
                 key_prefix=f"{key_prefix}_{page_id}",
+                det_svc=det_svc,
+                finding=finding,
             )
 
 
@@ -255,10 +302,17 @@ def _render_findings(projects: ProjectService, project_root: str, *, project_id:
     if selected_id is None or selected_id not in titles:
         selected_id = st.session_state.get(key) or type_ids[0]
     info = next(item for item in infos if item.detector_id == selected_id)
+    published = svc.storage.read_published(info.detector_id)
+    findings = (
+        [DetectionFinding.from_dict(row) for row in (published.get("findings") or [])]
+        if published is not None
+        else []
+    )
     _render_finding_type(
         svc,
         info,
-        svc.list_findings(info.detector_id),
+        findings,
+        published=published,
         projects=projects,
         project_root=project_root,
         project_id=project_id,
@@ -272,11 +326,29 @@ def _default_finding_type(svc: DetectionService, infos: list[DetectorInfo]) -> s
     return infos[0].detector_id
 
 
+def _open_detect_page(
+    *,
+    page_id: str,
+    page_ids: list[str],
+    project_root: str,
+) -> None:
+    open_page_context(
+        page_id=page_id,
+        page_ids=page_ids,
+        project_root=project_root,
+        return_mode="Detect",
+        view_entries=[{"page_id": pid, "project_root": project_root} for pid in page_ids],
+    )
+    st.session_state["ui_mode"] = "Detect"
+    st.rerun()
+
+
 def _render_finding_type(
     svc: DetectionService,
     info: DetectorInfo,
     findings: list[DetectionFinding],
     *,
+    published: dict[str, Any] | None,
     projects: ProjectService,
     project_root: str,
     project_id: str,
@@ -284,6 +356,18 @@ def _render_finding_type(
     project = projects.load()
     page_order = {p.page_id: i for i, p in enumerate(project.pages)}
     fresh = svc.freshness(info.detector_id)
+    if info.engine == DetectorEngine.LEXICAL_COUNT:
+        _render_lexical_counts(
+            svc,
+            info,
+            findings,
+            published=published,
+            page_order=page_order,
+            project_root=project_root,
+            project_id=project_id,
+            fresh=fresh,
+        )
+        return
     if not findings:
         st.caption(
             f"{info.title} `{info.detector_id}` · freshness: **{fresh}** — "
@@ -308,15 +392,25 @@ def _render_finding_type(
             if isinstance(start_i, int) and isinstance(end_i, int)
             else f"{f.start_page_id}…{f.end_page_id}"
         )
-        with st.expander(f"{f.finding_type} · {span} · {f.confidence:.0%} · {f.review_status}"):
+        name = (f.detector_data or {}).get("name")
+        headline = name.strip() if isinstance(name, str) and name.strip() else f.finding_type
+        span_page_ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
+        rejected_n = sum(
+            1 for pid in span_page_ids if f.page_reviews.get(pid) == "rejected"
+        )
+        review_bit = f.review_status
+        if rejected_n:
+            review_bit = f"{f.review_status} · {rejected_n} page(s) rejected"
+        with st.expander(f"{headline} · {span} · {f.confidence:.0%} · {review_bit}"):
             st.write(escape_markdown_plain(str(f.evidence.get("reason") or "")))
-            span_page_ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
             _render_finding_page_context(
                 projects,
                 project,
                 span_page_ids,
                 page_order=page_order,
                 key_prefix=f"find_{project_id}_{f.finding_id}",
+                det_svc=svc,
+                finding=f,
             )
             if f.detector_data:
                 with st.expander("Detector details"):
@@ -333,17 +427,78 @@ def _render_finding_type(
             c1, c2 = st.columns(2)
             if c1.button("Open pages", key=f"open_{project_id}_{f.finding_id}"):
                 ids = svc._page_ids_between(f.start_page_id, f.end_page_id)
-                open_page_context(
+                _open_detect_page(
                     page_id=f.start_page_id,
                     page_ids=ids,
                     project_root=project_root,
-                    return_mode="Detect",
-                    view_entries=[
-                        {"page_id": pid, "project_root": project_root} for pid in ids
-                    ],
                 )
-                st.session_state["ui_mode"] = "Detect"
-                st.rerun()
             if c2.button("Rerun detector", key=f"rr_{project_id}_{f.finding_id}"):
                 svc.run_detector(info.detector_id, force=True)
                 st.rerun()
+
+
+def _render_lexical_counts(
+    svc: DetectionService,
+    info: DetectorInfo,
+    findings: list[DetectionFinding],
+    *,
+    published: dict[str, Any] | None,
+    page_order: dict[str, int],
+    project_root: str,
+    project_id: str,
+    fresh: str,
+) -> None:
+    rows = lexical_page_count_rows(
+        page_order=page_order,
+        page_counts=(published or {}).get("page_counts"),
+        findings=findings,
+        pages_scanned=(published or {}).get("pages_scanned"),
+    )
+    if published is None or not rows:
+        st.caption(
+            f"{info.title} `{info.detector_id}` · freshness: **{fresh}** — "
+            "no published per-page counts yet."
+        )
+        return
+    total = sum(int(r["count"]) for r in rows)
+    head = st.columns([5, 2, 2])
+    head[0].markdown(f"### {info.title} `{info.detector_id}` · freshness: **{fresh}**")
+    if head[1].button(
+        "Apply tags from findings",
+        key=f"apply_tags_{project_id}_{info.detector_id}",
+        help="Tag pages whose count is above the detector minimum.",
+    ):
+        n = svc.apply_tags_from_published(info.detector_id)
+        st.success(f"Tagged {n} page(s)")
+        st.rerun()
+    if head[2].button(
+        "Rerun detector",
+        key=f"rr_lex_{project_id}_{info.detector_id}",
+    ):
+        svc.run_detector(info.detector_id, force=True)
+        st.rerun()
+    st.caption(
+        f"Counted from OCR text (no language model). "
+        f"**{total}** across **{len(rows)}** page(s). Click a bar to open that page."
+    )
+    chart_rows = [r for r in rows if r.get("order") is not None]
+    clicked = render_clickable_page_series(
+        chart_rows,
+        y="count",
+        key=f"detect_counts_{project_id}_{info.detector_id}",
+        chart_type="bar",
+        x_title="Page",
+    )
+    maybe_jump(
+        clicked,
+        lambda page_id: _open_detect_page(
+            page_id=page_id,
+            page_ids=[r["page_id"] for r in rows],
+            project_root=project_root,
+        ),
+    )
+    table = [
+        {"Page": r["order"] if r.get("order") is not None else r["page_id"][:8], "Count": r["count"]}
+        for r in rows
+    ]
+    st.dataframe(table, width="stretch", hide_index=True)

@@ -13,8 +13,8 @@ A **DetectorDefinition** orchestrates scanning notebook content for phenomena. I
 | `version` | yes | Bump on logic/schema/threshold changes |
 | `title` | yes | Catalogue label |
 | `description` | no | Human-readable summary |
-| `prompt_ref` | when `engine=prompt` | `{prompt_id, version}` (v1: single ref); omitted for lexical counters |
-| `engine` | no | `prompt` (default) \| `lexical_count` |
+| `prompt_ref` | when `engine=prompt` | `{prompt_id, version}` (v1: single ref); omitted for lexical counters and `ner_people` |
+| `engine` | no | `prompt` (default) \| `lexical_count` \| `ner_people` |
 | `scope` | yes | `page` \| `page_window` \| `notebook` |
 | `input_mode` | yes | `auto` \| `text` \| `vision` |
 | `candidate_strategy` | yes | v1: `all_pages`; future heuristics |
@@ -28,9 +28,10 @@ A **DetectorDefinition** orchestrates scanning notebook content for phenomena. I
 
 ## Built-in vs custom
 
-- **Built-in detectors** ship in code registry (`transcribe.detection.registry`): `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, plus lexical counters `first_person` and `swear_words`.
+- **Built-in detectors** ship in code registry (`transcribe.detection.registry`): `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical counters `first_person` and `swear_words`, and `names` (people from NER).
 - **Custom detectors** are declarative user definitions compiled to DetectorDefinition + constrained prompt. No arbitrary Python plugins in v1.
-- **Lexical count detectors** (`engine=lexical_count`) match OCR text deterministically (no LLM). They emit one finding per page when the count is above `min_count`, with `detector_data.count` / `samples`.
+- **Lexical count detectors** (`engine=lexical_count`) match OCR text deterministically (no LLM). The published output is a per-page `page_counts` series (including zeros). They also emit one finding per page when the count is at or above `min_count`, with `detector_data.count` / `samples` (used for auto-tag).
+- **Names / people** (`engine=ner_people`) reads spaCy `PERSON` entities from published NER. If NER is missing or stale, the detector runs the `ner` analysis module (publishing it as a side effect). One finding per distinct name per page; `detector_data` holds `name`, `tag_slug`, `count`, `samples`. No LLM. Requires the spaCy extra; otherwise `skipped_not_applicable` / `unavailable_extra`.
 
 ## CustomDetectorDefinition (user-facing, declarative)
 
@@ -51,4 +52,4 @@ Compiled to `detector_id = custom/<slug>` with fixed response schema `custom_fin
 
 - Detectors must not add boolean flags to `PageIndex` (e.g. `contains_poem`).
 - Detectors must not be implemented solely as analysis modules when page/window scanning and cross-page spans are required.
-- Auto-tag (opt-in) may **union** `normalize_slug(finding_type)` onto `PageIndex.tags` for pages in a finding span. That uses the existing tags list — it is not a boolean flag. Auto-tag is **not** part of `cache_config` / cache identity. See [tag-catalog.md](tag-catalog.md).
+- Auto-tag (opt-in) may **union** tags onto `PageIndex.tags` for pages in a finding span. Default is `normalize_slug(finding_type)`. The **names** detector unions each detected person name (`detector_data.tag_slug`) instead. That uses the existing tags list — it is not a boolean flag. Auto-tag is **not** part of `cache_config` / cache identity. See [tag-catalog.md](tag-catalog.md).

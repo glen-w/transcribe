@@ -9,6 +9,8 @@ from transcribe.services.job import (
     MODEL_LOAD_CIRCUIT_THRESHOLD,
     TIMEOUT_CIRCUIT_THRESHOLD,
     JobCoordinator,
+    JobProgress,
+    cli_run_exit_code,
 )
 from transcribe.services.project import ProjectService, open_project_paths
 from tests.conftest import FakeClock, SequentialIds
@@ -46,6 +48,7 @@ def test_three_consecutive_timeouts_skip_remaining(tmp_path: Path):
     assert progress.skipped == 2
     assert provider.calls == TIMEOUT_CIRCUIT_THRESHOLD
     assert "timeout" in progress.message.lower()
+    assert cli_run_exit_code(progress) == 1
 
 
 def test_success_resets_timeout_streak(tmp_path: Path):
@@ -113,6 +116,7 @@ def test_model_load_failure_trips_circuit_immediately(tmp_path: Path):
     assert progress.skipped == 4
     assert provider.calls == MODEL_LOAD_CIRCUIT_THRESHOLD
     assert "cannot load this vision model" in progress.message.lower()
+    assert cli_run_exit_code(progress) == 1
 
 
 def test_model_load_preflight_skips_pages_without_ocr_calls(tmp_path: Path):
@@ -129,6 +133,7 @@ def test_model_load_preflight_skips_pages_without_ocr_calls(tmp_path: Path):
     assert progress.skipped == 5
     assert provider.calls == 0
     assert "cannot load this vision model" in progress.message.lower()
+    assert cli_run_exit_code(progress) == 1
 
 
 def test_model_load_circuit_does_not_trip_on_generic_http_error(tmp_path: Path):
@@ -154,3 +159,31 @@ def test_job_sends_default_num_predict(tmp_path: Path):
     progress = coord.run_blocking(force=True)
     assert progress.status == "completed"
     assert provider.last_options.get("num_predict") == DEFAULT_VISION_NUM_PREDICT
+    assert cli_run_exit_code(progress) == 0
+
+
+def test_cli_run_exit_code_completed_without_circuit() -> None:
+    assert (
+        cli_run_exit_code(
+            JobProgress(job_id="j", status="completed", total=1, completed=1)
+        )
+        == 0
+    )
+    assert cli_run_exit_code(JobProgress(job_id="j", status="cancelled")) == 1
+    assert cli_run_exit_code(JobProgress(job_id="j", status="failed")) == 1
+    assert (
+        cli_run_exit_code(
+            JobProgress(job_id="j", status="completed", circuit_open=True)
+        )
+        == 1
+    )
+
+
+def test_cli_run_uses_circuit_exit_code_multipass_does_not() -> None:
+    main = Path("src/transcribe/__main__.py").read_text(encoding="utf-8")
+    assert "return cli_run_exit_code(progress)" in main
+    run_idx = main.index('if args.cmd == "run":')
+    multi_idx = main.index('if args.cmd == "multipass":')
+    assert "return cli_run_exit_code(progress)" in main[run_idx:multi_idx]
+    assert "return cli_run_exit_code(progress)" not in main[multi_idx:]
+    assert 'return 0 if progress.status == "completed" else 1' in main[multi_idx:]

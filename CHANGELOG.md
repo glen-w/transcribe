@@ -10,16 +10,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.7] - 2026-09-03
+
 ### Added
 
-- Built-in lexical detectors **`first_person`** (count standalone `I`/`i`) and **`swear_words`** (lexicon hit counts). Deterministic OCR text match; no LLM. One finding per page with `detector_data.count` / `samples`.
+- Architecture review from code evidence: [docs/reviews/architecture_from_evidence.md](docs/reviews/architecture_from_evidence.md). Remaining decoupling is on the roadmap as unscheduled candidates.
+- **Settings → Interface:** configurable action-link appearance (icon only, text only, or both) with a global default and per-section overrides. Install default is icon+text everywhere except Library cover cards (icons only).
+- Built-in **`names`** detector (Names / people): spaCy `PERSON` entities per page from published NER, or a NER run when none is current. Auto-tag applies those person names, not a generic `names` tag.
+- Built-in lexical detectors **`first_person`** (count standalone `I`/`i`) and **`swear_words`** (lexicon hit counts). Deterministic OCR text match; no LLM. Published `page_counts` is a per-page series (including zeros); findings still mark pages at/above `min_count` for auto-tag.
+- Reading / Library / Detect page viewer **Compare in Review** deep-link when multiple OCR attempts exist (replaces Prefer/Promote expander).
+- Review **Build merged draft** when two or more vision readings exist and no current composite; rank rationales shown on evidence radios.
+- Detect findings and page-viewer detection rows: **Accept** marks the finding approved and applies remaining span tags (Reject still declines without tagging).
+- Multi-page Detect findings: per-page **Accept this page** / **Reject this page** on each page tab; **Accept remaining** keeps accepted pages and skips rejected ones.
 
 ### Changed
 
+- Single-model **`transcribe run`** exits **1** when the timeout or `model_load` circuit skipped remaining pages (`circuit_open`). Job records still store `status=completed` so skip/resume is unchanged. Multipass overall-complete is unchanged (remaining models still run).
+- Progress chrome distinguishes **Cancelled** and **Completed with gaps** (circuit / batch partial) from Failed. Cancelled runs no longer render as errors. OCR snapshot mapping lives in `transcribe.ui.progress_snapshots` so it can be tested without loading the Transcribe page.
+- Detection `reconcile_interrupted` no-ops while the notebook **analysis** lock is held (as well as the OCR job lock), so Analyse+detect is not false-interrupted by `ProjectService.load()`.
+- After 1.0 roadmap records **UI host** as reopenable decisions (Streamlit through 2.0 remains the working default; no rewrite scheduled). See [docs/ROADMAP.md](docs/ROADMAP.md#ui-host-working-default--reopen-with-evidence).
+- Detect Findings for lexical counters (`first_person`, `swear_words`) is a per-page count table and chart from OCR text, not review-style finding cards.
+- **Library** absorbs the former Archive page: default **Covers** thumbnail overview (filters, clickable activity bins, paging); **Activity** is a selectable per-notebook histogram list. Legacy `Archive` / `View` nav ids still open Library.
+- **Review** workbench: lane switcher (one body at a time); OCR evidence + disagreements live in the **Transcription** lane; compact page chrome and icon disagreement nav; queue defaults to **High disagreement** when present; single-pass filter counts; all-pages rank/merge behind confirm.
+- Review lane switcher is a tab-like segmented control (not radio buttons); Streamlit `st.tabs` is still avoided so only one lane body runs. Changing pages (prev/next, jump, thumbnails, Skip, Save + Mark reviewed) keeps the selected lane.
+- Punctuation-only / prompt-instruction disagreement spans are not navigable Review steps (still affect agreement %). Failed OCR attempts appear as captions, not evidence radios.
+- Transcribe Advanced and multipass rows use the same OCR settings labels as Review (**When setting a notebook default**, **Seed transcription from merged draft after multipass**).
 - **Review → Other → Re-run OCR** opens a vision-model picker and can force OCR on this page, all pages, or pages not marked reviewed.
 - Whitespace-only OCR is **failed** (`empty_output`) and no longer replaces a prior succeeded reading. Review repairs historical empty `succeeded` attempts.
 - **DeepSeek-OCR** (and documented recipe tags) freeze a short `free_ocr` prompt unless a custom prompt is set — [ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md).
 - **Rank and merge existing OCR** (Review and Transcribe) ranks on-disk readings from different jobs and builds a merged draft without a same-session multipass.
+- Cursor slash-command copies under `.cursor/commands/` are gitignored (local filled copies).
+
+### Fixed
+
+- Loading workspace / notebook config no longer imports Streamlit via chart-colour defaults (`ui/chart_colors.py` imports Streamlit only when rendering charts).
 
 ## [0.8.6] - 2026-08-19
 

@@ -11,12 +11,12 @@ Where to change workspace behaviour in the UI and how overlays resolve. Authorit
 
 | Tab | Typical use |
 |-----|-------------|
-| **Configuration** | Folders, **Backup**, import / visual declutter, Archive paging, Overview cards |
+| **Configuration** | Folders, **Backup**, import / visual declutter, Library cover-grid paging, Overview cards |
 | **Analysis** | Preset policies (Quick / Balanced / Thorough; detectors for Thorough / Custom) |
 | **Detection** | Custom detectors and detection auto-tag defaults |
 | **Tags** | Workspace organisation catalogue (labels, colours, rename, merge/delete) — [tag-catalog](../contracts/tag-catalog.md) |
 | **Prompts** | Prompt Hub (OCR, cleanup, detection definitions) |
-| **Interface** | Action-menu prefs |
+| **Interface** | Action-menu prefs (which actions, icon/text appearance) |
 | **Models** | Workspace Ollama URL, OCR preprocess seed, LLM budgets, Apply-OCR to open notebook |
 | **Profiles** | Activate named overlays (`workflow` / `ocr` / `llm` / `export`) |
 | **Export** | Read-only typography defaults; change on **Workflow → Export** or via an export profile |
@@ -44,11 +44,11 @@ Builtin export profiles: `default`, `readable`, `compact`, `large_print`. Editin
 | Knob | Where | Notes |
 |------|-------|-------|
 | Visual declutter | Configuration → Import | Default on for imports; re-apply does not re-OCR — [source-asset](../contracts/source-asset.md) |
-| Archive strip paging | Configuration → Archive | `ui.archive_notebooks_initial` (`0` = show all) |
+| Library cover-grid paging | Configuration → Library | `ui.archive_notebooks_initial` (`0` = show all) |
 | Overview cards | Configuration → Overview | Visibility only; status strip always on |
 | OCR preprocess seed | Models | `none` \| `gentle_contrast` for **new** notebooks |
-| When setting a notebook default | Review → **Other** · Compare OCR attempts · Transcribe Advanced | `prefer_is_promote` (default) \| `prefer_only` \| `prefer_promote_with_edit_gate` — [ocr.md](ocr.md#when-setting-a-notebook-default) |
-| Seed transcription from merged draft after multipass | Review → **Other** · Compare OCR attempts · Transcribe Advanced | `auto_activate_composite` (default **on**) — [ocr.md](ocr.md#seed-transcription-from-merged-draft-after-multipass) |
+| When setting a notebook default | Review → **OCR** · Transcribe Advanced | `prefer_is_promote` (default) \| `prefer_only` \| `prefer_promote_with_edit_gate` — [ocr.md](ocr.md#when-setting-a-notebook-default) |
+| Seed transcription from merged draft after multipass | Review → **OCR** · Transcribe Advanced · Transcribe multipass row | `auto_activate_composite` (default **on**) — [ocr.md](ocr.md#seed-transcription-from-merged-draft-after-multipass) |
 | Full-workspace backup | Configuration → Backup | [backup_and_restore.md](../backup_and_restore.md) |
 
 ## Env overrides

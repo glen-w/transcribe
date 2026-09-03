@@ -16,7 +16,7 @@ Transcribe has no speakers. The spiritual analogue is:
 
 **this notebook vs peer notebooks** — entire corpus average, or a period the
 user selects (year / date range), using each notebook’s diary `date_start` /
-`date_end` (same period language as Archive / Search).
+`date_end` (same period language as Library / Search).
 
 ## What shipped
 

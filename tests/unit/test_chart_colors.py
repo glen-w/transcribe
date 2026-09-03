@@ -33,3 +33,33 @@ def test_color_for_label_casefold() -> None:
     palette = {"joy": "#2f8f4e"}
     assert color_for_label("Joy", palette) == "#2f8f4e"
     assert color_for_label("sadness", palette) == "#888888"
+
+
+def test_chart_color_defaults_do_not_import_streamlit() -> None:
+    """Config/OCR must read palettes without pulling Streamlit into the process."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[2]
+    script = """
+import sys
+from transcribe.config.models import ChartColorsConfig
+from transcribe.ui.chart_colors import sanitise_chart_colors
+
+ChartColorsConfig.from_dict({"sentiment": {"positive": "#2f8f4e"}})
+sanitise_chart_colors(None)
+leaked = [name for name in sys.modules if name == "streamlit" or name.startswith("streamlit.")]
+assert not leaked, leaked
+"""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo / "src")
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

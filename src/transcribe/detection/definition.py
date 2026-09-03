@@ -27,6 +27,7 @@ class AggregationStrategy(str, Enum):
 class DetectorEngine(str, Enum):
     PROMPT = "prompt"
     LEXICAL_COUNT = "lexical_count"
+    NER_PEOPLE = "ner_people"
 
 
 class ModelMode(str, Enum):

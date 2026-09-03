@@ -224,6 +224,8 @@ def test_ocr_model_information_expander_at_pickers():
     tx = Path("src/transcribe/ui/run_transcribe.py").read_text(encoding="utf-8")
     info = Path("src/transcribe/ui/components/model_info.py").read_text(encoding="utf-8")
     assert 'st.expander("Model information"' in info
+    assert "installed_models_table" in info
+    assert "render_installed_models_table" in info
     assert "render_model_information" in tx
     assert "warn_if_first_compare_model_is_general_vlm" in tx
     assert "Clean OCR during compare" in tx
@@ -285,7 +287,9 @@ def test_analyse_batch_target_and_progress_wiring():
     assert "_render_batch_notebook_source" in batch
     assert "_render_batch_preset_and_launch" in batch
     assert 'unit_label="notebooks"' in batch
-    assert "modules in this notebook" in batch
+    assert "modules in this notebook" in Path(
+        "src/transcribe/ui/progress_snapshots.py"
+    ).read_text(encoding="utf-8")
     assert "Stop after current notebook" in batch
     assert "Start batch analysis" in batch
     assert "Text model for this batch" in batch
@@ -303,6 +307,13 @@ def test_analyse_batch_target_and_progress_wiring():
     assert SUPPORTED.get("transcribe.analysis-batch-run") == 1
     assert "Current {detail_noun}" in panel or "Current module" in panel
     assert "detail_unit" in panel
+    assert 'if status == "cancelled":' in panel
+    assert 'elif status == "completed" and str(phase) == "partial":' in panel
+    assert "st.warning" in panel
+    assert '"Cancelled"' in panel
+    assert '"Completed with gaps"' in panel
+    assert 'elif status == "failed":' in panel
+    assert "st.error" in panel
     assert 'set_ui_mode("Library")' in batch
     overview_assigns = [
         line

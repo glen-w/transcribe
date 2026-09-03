@@ -57,6 +57,7 @@ USE_VARIANT = (
 
 # Image viewer
 CROP_FREE = ":material/crop_free:"
+CLEANING = ":material/cleaning_services:"
 WIDTH_NORMAL = ":material/width_normal:"
 ZOOM_IN = ":material/zoom_in:"
 ZOOM_OUT = ":material/zoom_out:"

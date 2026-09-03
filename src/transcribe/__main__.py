@@ -22,7 +22,7 @@ from transcribe.providers.ollama import (
 from transcribe.runtime_paths import PATHS, default_ollama_base_url
 from transcribe.services.export import ExportService
 from transcribe.services.export_options import BODY_FONT_CHOICES
-from transcribe.services.job import build_coordinator
+from transcribe.services.job import build_coordinator, cli_run_exit_code
 from transcribe.services.project import ProjectService, open_project_paths
 
 
@@ -186,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     p_detect.add_argument(
         "--auto-tag",
         action="store_true",
-        help="After publish, tag pages in findings with the detector finding type",
+        help="After publish, tag pages from findings (finding type, or person names for names)",
     )
     p_detect.add_argument(
         "--list",
@@ -503,16 +503,22 @@ def main(argv: list[str] | None = None) -> int:
             prefs = None
             if getattr(args, "prefs", False):
                 from transcribe.services.ocr_preference_stats import (
+                    effective_model_preference_hint_mode,
                     preference_hint_for_model,
                     rollup_preference_stats,
                 )
 
                 prefs = rollup_preference_stats()
+                hint_mode = effective_model_preference_hint_mode()
             for m in result.models:
                 caps = ",".join(m.capabilities) if m.capability_known else "unknown"
                 line = f"{m.name}\tdigest={m.digest or '-'}\tcapabilities={caps}"
                 if prefs is not None:
-                    hint = preference_hint_for_model(m.name, stats=prefs)
+                    hint = preference_hint_for_model(
+                        m.name,
+                        stats=prefs,
+                        share_mode=hint_mode,
+                    )
                     if hint:
                         line = f"{line}\t{hint}"
                 print(line)
@@ -587,7 +593,7 @@ def main(argv: list[str] | None = None) -> int:
             coord.provider = OllamaVisionProvider(settings.base_url)
 
             progress = coord.run_blocking(force=args.force)
-            return 0 if progress.status == "completed" else 1
+            return cli_run_exit_code(progress)
 
         if args.cmd == "multipass":
             from transcribe.services.multipass import MultiPassCoordinator
@@ -641,15 +647,37 @@ def main(argv: list[str] | None = None) -> int:
             svc = DetectionService(projects)
             result = svc.run_detector(args.detector, force=args.force, auto_tag=args.auto_tag)
             findings = result.get("findings") or []
-            print(
-                f"detector={args.detector} outcome={result.get('outcome')} "
-                f"findings={len(findings)} windows={result.get('windows_scanned', 0)}"
-            )
-            for f in findings:
-                print(
-                    f"  {f.get('finding_type')} pages {f.get('start_page_id')}.."
-                    f"{f.get('end_page_id')} confidence={f.get('confidence')}"
+            page_counts = result.get("page_counts") or []
+            if page_counts:
+                from transcribe.detection.lexical import lexical_page_count_rows
+
+                page_order = {p.page_id: i for i, p in enumerate(projects.load().pages)}
+                rows = lexical_page_count_rows(
+                    page_order=page_order,
+                    page_counts=page_counts,
                 )
+                total = sum(int(r["count"]) for r in rows)
+                print(
+                    f"detector={args.detector} outcome={result.get('outcome')} "
+                    f"pages={len(rows)} total={total}"
+                )
+                for row in rows:
+                    label = (
+                        f"page {row['order']}"
+                        if row.get("order") is not None
+                        else str(row["page_id"])[:8]
+                    )
+                    print(f"  {label}\t{row['count']}")
+            else:
+                print(
+                    f"detector={args.detector} outcome={result.get('outcome')} "
+                    f"findings={len(findings)} windows={result.get('windows_scanned', 0)}"
+                )
+                for f in findings:
+                    print(
+                        f"  {f.get('finding_type')} pages {f.get('start_page_id')}.."
+                        f"{f.get('end_page_id')} confidence={f.get('confidence')}"
+                    )
             return (
                 0
                 if result.get("outcome")

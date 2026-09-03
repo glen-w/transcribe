@@ -39,3 +39,24 @@ def test_markdown_contamination_flag() -> None:
     signals = build_review_signals(alignment, sources, remaining=0)
     assert signals.markdown_contamination
     assert "markdown contamination" in signals.header_line()
+
+
+def test_prompt_instruction_leak_sets_markdown_contamination() -> None:
+    sources = {
+        "a": ". - Use proper punctuation and spacing.\nbody",
+        "b": ". - Use proper punctuation and spacing.\nbody",
+    }
+    alignment = align_ocr(sources)
+    signals = build_review_signals(alignment, sources, remaining=0)
+    assert signals.markdown_contamination
+    assert "markdown contamination" in signals.header_line()
+
+
+def test_use_consistent_style_leak_sets_markdown_contamination() -> None:
+    sources = {
+        "a": "Use a consistent style for the page.\nok",
+        "b": "Use a consistent style for the page.\nok",
+    }
+    alignment = align_ocr(sources)
+    signals = build_review_signals(alignment, sources, remaining=0)
+    assert signals.markdown_contamination

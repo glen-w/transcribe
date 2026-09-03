@@ -1,4 +1,4 @@
-"""Archive, notebook browser, and search Streamlit views."""
+"""Library (covers / activity) and search Streamlit views."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from transcribe.services.archive import (
     ArchiveService,
     NotebookSummary,
     TimelineBin,
+    TimelineResult,
 )
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.services.thumbnails import ThumbnailService
@@ -37,19 +38,68 @@ from transcribe.ui.page_viewer import open_page_context
 from transcribe.ui.tag_pills import render_tag_chips
 
 ARCHIVE_STRIP_SESSION_KEY = "archive_strip_n"
+ARCHIVE_COVERS_COLS_KEY = "archive_covers_cols"
+_MIN_ARCHIVE_COVERS_COLS = 3
+_MAX_ARCHIVE_COVERS_COLS = 8
+_DEFAULT_ARCHIVE_COVERS_COLS = 6
+LIBRARY_VIEW_COVERS = "covers"
+LIBRARY_VIEW_ACTIVITY = "activity"
+LIBRARY_VIEW_SESSION_KEY = "library_view"
+LIBRARY_VIEW_LABELS = {
+    LIBRARY_VIEW_COVERS: "Covers",
+    LIBRARY_VIEW_ACTIVITY: "Activity",
+}
 
-# Layout slots (no crop): View pins cover width; chart is full-bleed under the header.
-# Archive pins cover height in the strip.
+# Layout slots (no crop): Activity pins cover width; chart is full-bleed under the header.
+# Covers pins cover height in the grid.
 VIEW_COVER_WIDTH_PX = 112
 VIEW_ROW_CHART_HEIGHT = 120
 ARCHIVE_COVER_HEIGHT_PX = 160
 
 
 def _archive_notebook_page_size(*, configured_initial: int, total: int) -> int:
-    """Return batch size for the archive notebook strip (0 = show all)."""
+    """Return batch size for the Library cover grid (0 = show all)."""
     if configured_initial <= 0:
         return total
     return configured_initial
+
+
+def _archive_covers_cols() -> int:
+    raw = st.session_state.get(ARCHIVE_COVERS_COLS_KEY, _DEFAULT_ARCHIVE_COVERS_COLS)
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        n = _DEFAULT_ARCHIVE_COVERS_COLS
+    return min(max(n, _MIN_ARCHIVE_COVERS_COLS), _MAX_ARCHIVE_COVERS_COLS)
+
+
+def _render_archive_covers_zoom_controls(*, key_prefix: str) -> None:
+    cols_n = _archive_covers_cols()
+    zoom_out, label, zoom_in = st.columns([1, 2, 1])
+    with zoom_out:
+        if st.button(
+            "",
+            key=f"{key_prefix}_zoom_out",
+            help=widget_help("Show more covers (smaller)"),
+            icon=ic.ZOOM_OUT,
+            type="tertiary",
+            disabled=cols_n >= _MAX_ARCHIVE_COVERS_COLS,
+        ):
+            st.session_state[ARCHIVE_COVERS_COLS_KEY] = cols_n + 1
+            st.rerun()
+    with label:
+        st.caption(f"{cols_n} across")
+    with zoom_in:
+        if st.button(
+            "",
+            key=f"{key_prefix}_zoom_in",
+            help=widget_help("Show fewer covers (larger)"),
+            icon=ic.ZOOM_IN,
+            type="tertiary",
+            disabled=cols_n <= _MIN_ARCHIVE_COVERS_COLS,
+        ):
+            st.session_state[ARCHIVE_COVERS_COLS_KEY] = cols_n - 1
+            st.rerun()
 
 
 def _archive_notebook_show_count(
@@ -312,114 +362,37 @@ def _open_notebook_at_bin(
     return True
 
 
-def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
-    from transcribe.config.facade import get_config
-    from transcribe.domain.dates import parse_date_input
-
-    archive.ensure_index()
-    _apply_pending_archive_bin_filter()
-    years = archive.available_years()
-    period_options = ["All", "Year", "Range"] if years else ["All", "Range"]
-    if "archive_period" not in st.session_state:
-        st.session_state["archive_period"] = "All"
-    if st.session_state.get("archive_period") not in period_options:
-        st.session_state["archive_period"] = "All"
-    period = st.selectbox("Period", period_options, key="archive_period")
-    year = None
-    range_start = None
-    range_end = None
-    if period == "Year" and years:
-        if "archive_year" not in st.session_state or st.session_state["archive_year"] not in years:
-            st.session_state["archive_year"] = years[-1]
-        year = st.selectbox("Year", years, key="archive_year")
-        period_key = "year"
-    elif period == "Range":
-        period_key = "range"
-        c1, c2 = st.columns(2)
-        if "archive_range_start" not in st.session_state:
-            st.session_state["archive_range_start"] = ""
-        if "archive_range_end" not in st.session_state:
-            st.session_state["archive_range_end"] = ""
-        start_raw = c1.text_input(
-            "From (YYYY / YYYY-MM / YYYY-MM-DD)",
-            key="archive_range_start",
-        )
-        end_raw = c2.text_input(
-            "To (YYYY / YYYY-MM / YYYY-MM-DD)",
-            key="archive_range_end",
-        )
-        try:
-            range_start = parse_date_input(start_raw) if start_raw.strip() else None
-            range_end = parse_date_input(end_raw) if end_raw.strip() else None
-        except ValueError as exc:
-            st.error(str(exc))
-            return
-    else:
-        period_key = "all"
-
-    query = st.text_input("Search / filter term", value="", key="archive_query")
-    include_undated = st.checkbox("Include undated pages in counts", value=True)
-    tag_filter = st.text_input("Tag filter (comma-separated, AND)", "")
-    selected_tags = [t.strip() for t in tag_filter.split(",") if t.strip()]
-
-    # Type inventory with period/query/tags applied (types unconstrained) for selected/total.
-    base_for_types = _filters_from_widgets(
-        period=period_key,
-        year=year,
-        query=query,
-        selected_media=[],
-        selected_project_tags=[],
-        selected_tags=selected_tags,
-        include_undated=include_undated,
-        range_start=range_start,
-        range_end=range_end,
+def _library_view() -> str:
+    if st.session_state.get(LIBRARY_VIEW_SESSION_KEY) not in LIBRARY_VIEW_LABELS:
+        st.session_state[LIBRARY_VIEW_SESSION_KEY] = LIBRARY_VIEW_COVERS
+    chosen = st.segmented_control(
+        "Library view",
+        options=list(LIBRARY_VIEW_LABELS),
+        format_func=lambda v: LIBRARY_VIEW_LABELS[v],
+        key=LIBRARY_VIEW_SESSION_KEY,
+        required=True,
     )
-    inventory = archive.type_inventory(base_for_types)
-    media_keys = [t.key for t in inventory if t.kind == "media_type"]
-    project_tag_keys = [t.key for t in inventory if t.kind == "project_tag"]
+    if chosen in LIBRARY_VIEW_LABELS:
+        return str(chosen)
+    return LIBRARY_VIEW_COVERS
 
-    selected_media: list[str] = []
-    selected_project_tags: list[str] = []
-    if media_keys or project_tag_keys:
-        st.caption("Types (OR)")
-        cols = st.columns(max(1, min(6, len(media_keys) + len(project_tag_keys))))
-        i = 0
-        for tc in inventory:
-            if tc.kind == "media_type":
-                label = f"{tc.key} ({tc.selected} of {tc.total})"
-                key = f"arc_mt_{tc.key}"
-                default_on = True
-                bucket = selected_media
-            else:
-                label = f"{tc.key} ({tc.selected} of {tc.total})"
-                key = f"arc_pt_{tc.key}"
-                default_on = True
-                bucket = selected_project_tags
-            if cols[i % len(cols)].checkbox(label, value=default_on, key=key):
-                bucket.append(tc.key)
-            i += 1
 
-    if selected_media and media_keys and set(selected_media) == set(media_keys):
-        selected_media = []
-    if (
-        selected_project_tags
-        and project_tag_keys
-        and set(selected_project_tags) == set(project_tag_keys)
-    ):
-        selected_project_tags = []
-
-    filters = _filters_from_widgets(
-        period=period_key,
-        year=year,
-        query=query,
-        selected_media=selected_media,
-        selected_project_tags=selected_project_tags,
-        selected_tags=selected_tags,
-        include_undated=include_undated,
-        range_start=range_start,
-        range_end=range_end,
+def _notebook_order_select() -> str:
+    return str(
+        st.selectbox(
+            "Notebook order",
+            ["oldest", "newest", "most_pages"],
+            format_func=lambda x: {
+                "oldest": "Oldest first",
+                "newest": "Newest first",
+                "most_pages": "Most pages",
+            }[x],
+            key="archive_notebook_order",
+        )
     )
-    timeline = archive.timeline(filters)
+
+
+def _render_showing_caption(timeline: TimelineResult) -> None:
     excluded = timeline.showing - timeline.dated_count
     if excluded <= 0:
         spike_note = ""
@@ -429,38 +402,13 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         spike_note = f" · {excluded} undated/out-of-range (excluded from spikes)"
     st.markdown(f"Showing **{timeline.showing}** of **{timeline.total}** pages" + spike_note)
 
-    if timeline.bins:
-        clicked = _activity_chart(
-            timeline.bins,
-            timeline.grain,
-            height=220,
-            key="archive_timeline",
-        )
-        st.caption(
-            f"Activity by {timeline.grain} (zeros preserve gaps) · "
-            "click a bar to filter to that date"
-        )
-        if clicked:
-            _queue_archive_bin_filter(clicked, timeline.grain)
-            st.rerun()
-    else:
-        st.info("No dated pages match the current filters.")
 
-    st.markdown("#### Notebooks")
-    order = st.selectbox(
-        "Notebook order",
-        ["oldest", "newest", "most_pages"],
-        format_func=lambda x: {
-            "oldest": "Oldest first",
-            "newest": "Newest first",
-            "most_pages": "Most pages",
-        }[x],
-        key="archive_notebook_order",
-    )
-    notebooks = archive.list_notebooks(order=order, filters=filters)  # type: ignore[arg-type]
-    if not notebooks:
-        st.caption("No notebooks match the current filters.")
-        return
+def _render_cover_grid(
+    notebooks: list[NotebookSummary],
+    *,
+    runtime: RuntimePaths,
+) -> None:
+    from transcribe.config.facade import get_config
 
     configured_initial = int(get_config().effective.ui.archive_notebooks_initial)
     total = len(notebooks)
@@ -474,13 +422,17 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
         session_show_n=st.session_state.get(ARCHIVE_STRIP_SESSION_KEY),
     )
     strip = notebooks[:show_n]
-    cols = st.columns(min(6, max(1, len(strip))))
+    cols_n = _archive_covers_cols()
+    toolbar, _ = st.columns([2, 5])
+    with toolbar:
+        _render_archive_covers_zoom_controls(key_prefix="archive_covers")
+    cols = st.columns(cols_n)
     for i, nb in enumerate(strip):
         with cols[i % len(cols)]:
             _notebook_card(
                 nb,
                 projects_dir=runtime.projects_dir,
-                return_mode=ReturnMode.ARCHIVE,
+                return_mode=ReturnMode.LIBRARY,
             )
     if show_n < total:
         if st.button(f"Show more notebooks ({total - show_n} remaining)", icon=ic.SHOW_MORE):
@@ -492,91 +444,11 @@ def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
             st.rerun()
 
 
-def _notebook_card(
-    nb: NotebookSummary,
+def _render_activity_rows(
+    notebooks: list[NotebookSummary],
     *,
-    projects_dir,
-    return_mode: ReturnMode,
+    runtime: RuntimePaths,
 ) -> None:
-    try:
-        ctx = load_live_notebook_context(
-            project_id=nb.project_id,
-            project_root=nb.root,
-            projects_dir=projects_dir,
-            return_mode=return_mode,
-            nav_style=NavStyle.CLICK_RERUN,
-            instance_prefix="archive",
-        )
-    except Exception:  # noqa: BLE001
-        ctx = None
-
-    try:
-        paths = open_project_paths(nb.root)
-        projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
-        project = projects.load(reconcile=False)
-    except Exception as exc:  # noqa: BLE001
-        st.caption(f"{escape_markdown_plain(nb.title)}: {exc}")
-        if ctx is not None:
-            try:
-                render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
-            except Exception:  # noqa: BLE001
-                st.caption("Actions unavailable.")
-        else:
-            st.caption("Actions unavailable.")
-        return
-
-    if ctx is not None:
-        thumbs = ThumbnailService(paths)
-        cover_id = thumbs.cover_page_id(project)
-        if cover_id:
-            thumb = thumbs.ensure_thumb(project, cover_id)
-            if thumb and thumb.exists():
-                _render_clickable_cover(
-                    thumb,
-                    ctx,
-                    key=_cover_open_key("archive", nb.project_id),
-                    width="content",
-                )
-    date_label = "Undated"
-    if nb.date_start or nb.date_end:
-        a = nb.date_start.format_display() if nb.date_start else "?"
-        b = nb.date_end.format_display() if nb.date_end else "?"
-        date_label = f"{a} → {b}"
-    st.caption(escape_markdown_plain(nb.title))
-    if nb.tags:
-        from transcribe.services.tags import TagService
-
-        render_tag_chips(nb.tags, TagService().load_catalog())
-    st.caption(date_label)
-    rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
-    st.caption(f"{nb.page_count} pages · {rate}")
-    if ctx is not None:
-        try:
-            render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
-        except Exception:  # noqa: BLE001
-            st.caption("Actions unavailable.")
-    else:
-        st.caption("Actions unavailable.")
-
-
-def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
-    archive.ensure_index()
-    order = st.selectbox(
-        "Order",
-        ["oldest", "newest", "most_pages"],
-        format_func=lambda x: {
-            "oldest": "Oldest first",
-            "newest": "Newest first",
-            "most_pages": "Most pages",
-        }[x],
-    )
-    notebooks = archive.list_notebooks(order=order)  # type: ignore[arg-type]
-    if not notebooks:
-        st.info(
-            "No notebooks in the projects directory. "
-            "Create one under Workflow → New notebook, or batch-import folders."
-        )
-        return
     for nb in notebooks:
         try:
             ctx = load_live_notebook_context(
@@ -653,6 +525,238 @@ def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
         else:
             st.caption("Rename/delete actions unavailable for this notebook.")
         st.divider()
+
+
+def _render_library_filters(archive: ArchiveService) -> ArchiveFilters | None:
+    from transcribe.domain.dates import parse_date_input
+
+    years = archive.available_years()
+    period_options = ["All", "Year", "Range"] if years else ["All", "Range"]
+    if "archive_period" not in st.session_state:
+        st.session_state["archive_period"] = "All"
+    if st.session_state.get("archive_period") not in period_options:
+        st.session_state["archive_period"] = "All"
+    period = st.selectbox("Period", period_options, key="archive_period")
+    year = None
+    range_start = None
+    range_end = None
+    if period == "Year" and years:
+        if "archive_year" not in st.session_state or st.session_state["archive_year"] not in years:
+            st.session_state["archive_year"] = years[-1]
+        year = st.selectbox("Year", years, key="archive_year")
+        period_key = "year"
+    elif period == "Range":
+        period_key = "range"
+        c1, c2 = st.columns(2)
+        if "archive_range_start" not in st.session_state:
+            st.session_state["archive_range_start"] = ""
+        if "archive_range_end" not in st.session_state:
+            st.session_state["archive_range_end"] = ""
+        start_raw = c1.text_input(
+            "From (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="archive_range_start",
+        )
+        end_raw = c2.text_input(
+            "To (YYYY / YYYY-MM / YYYY-MM-DD)",
+            key="archive_range_end",
+        )
+        try:
+            range_start = parse_date_input(start_raw) if start_raw.strip() else None
+            range_end = parse_date_input(end_raw) if end_raw.strip() else None
+        except ValueError as exc:
+            st.error(str(exc))
+            return None
+    else:
+        period_key = "all"
+
+    query = st.text_input("Search / filter term", value="", key="archive_query")
+    include_undated = st.checkbox("Include undated pages in counts", value=True)
+    tag_filter = st.text_input("Tag filter (comma-separated, AND)", "")
+    selected_tags = [t.strip() for t in tag_filter.split(",") if t.strip()]
+
+    # Type inventory with period/query/tags applied (types unconstrained) for selected/total.
+    base_for_types = _filters_from_widgets(
+        period=period_key,
+        year=year,
+        query=query,
+        selected_media=[],
+        selected_project_tags=[],
+        selected_tags=selected_tags,
+        include_undated=include_undated,
+        range_start=range_start,
+        range_end=range_end,
+    )
+    inventory = archive.type_inventory(base_for_types)
+    media_keys = [t.key for t in inventory if t.kind == "media_type"]
+    project_tag_keys = [t.key for t in inventory if t.kind == "project_tag"]
+
+    selected_media: list[str] = []
+    selected_project_tags: list[str] = []
+    if media_keys or project_tag_keys:
+        st.caption("Types (OR)")
+        cols = st.columns(max(1, min(6, len(media_keys) + len(project_tag_keys))))
+        i = 0
+        for tc in inventory:
+            if tc.kind == "media_type":
+                label = f"{tc.key} ({tc.selected} of {tc.total})"
+                key = f"arc_mt_{tc.key}"
+                default_on = True
+                bucket = selected_media
+            else:
+                label = f"{tc.key} ({tc.selected} of {tc.total})"
+                key = f"arc_pt_{tc.key}"
+                default_on = True
+                bucket = selected_project_tags
+            if cols[i % len(cols)].checkbox(label, value=default_on, key=key):
+                bucket.append(tc.key)
+            i += 1
+
+    if selected_media and media_keys and set(selected_media) == set(media_keys):
+        selected_media = []
+    if (
+        selected_project_tags
+        and project_tag_keys
+        and set(selected_project_tags) == set(project_tag_keys)
+    ):
+        selected_project_tags = []
+
+    return _filters_from_widgets(
+        period=period_key,
+        year=year,
+        query=query,
+        selected_media=selected_media,
+        selected_project_tags=selected_project_tags,
+        selected_tags=selected_tags,
+        include_undated=include_undated,
+        range_start=range_start,
+        range_end=range_end,
+    )
+
+
+def _notebook_card(
+    nb: NotebookSummary,
+    *,
+    projects_dir,
+    return_mode: ReturnMode,
+) -> None:
+    try:
+        ctx = load_live_notebook_context(
+            project_id=nb.project_id,
+            project_root=nb.root,
+            projects_dir=projects_dir,
+            return_mode=return_mode,
+            nav_style=NavStyle.CLICK_RERUN,
+            instance_prefix="archive",
+        )
+    except Exception:  # noqa: BLE001
+        ctx = None
+
+    try:
+        paths = open_project_paths(nb.root)
+        projects = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+        project = projects.load(reconcile=False)
+    except Exception as exc:  # noqa: BLE001
+        st.caption(f"{escape_markdown_plain(nb.title)}: {exc}")
+        if ctx is not None:
+            try:
+                render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+            except Exception:  # noqa: BLE001
+                st.caption("Actions unavailable.")
+        else:
+            st.caption("Actions unavailable.")
+        return
+
+    if ctx is not None:
+        thumbs = ThumbnailService(paths)
+        cover_id = thumbs.cover_page_id(project)
+        if cover_id:
+            thumb = thumbs.ensure_thumb(project, cover_id)
+            if thumb and thumb.exists():
+                _render_clickable_cover(
+                    thumb,
+                    ctx,
+                    key=_cover_open_key("archive", nb.project_id),
+                    width="content",
+                )
+    date_label = "Undated"
+    if nb.date_start or nb.date_end:
+        a = nb.date_start.format_display() if nb.date_start else "?"
+        b = nb.date_end.format_display() if nb.date_end else "?"
+        date_label = f"{a} → {b}"
+    st.caption(escape_markdown_plain(nb.title))
+    if nb.tags:
+        from transcribe.services.tags import TagService
+
+        render_tag_chips(nb.tags, TagService().load_catalog())
+    st.caption(date_label)
+    rate = f"{nb.pages_per_day} pages/day" if nb.pages_per_day is not None else "rate n/a"
+    st.caption(f"{nb.page_count} pages · {rate}")
+    if ctx is not None:
+        try:
+            render_configured_actions(SectionId.ARCHIVE_NOTEBOOK, ctx)
+        except Exception:  # noqa: BLE001
+            st.caption("Actions unavailable.")
+    else:
+        st.caption("Actions unavailable.")
+
+
+def render_library(runtime: RuntimePaths, archive: ArchiveService) -> None:
+    archive.ensure_index()
+    view = _library_view()
+    if not archive.list_notebooks(order="newest"):
+        st.info(
+            "No notebooks in the projects directory. "
+            "Create one under Workflow → New notebook, or batch-import folders."
+        )
+        return
+
+    if view == LIBRARY_VIEW_COVERS:
+        order = str(st.session_state.get("archive_notebook_order", "newest"))
+        notebooks = archive.list_notebooks(order=order)  # type: ignore[arg-type]
+        if not notebooks:
+            st.caption("No notebooks in the projects directory.")
+            return
+        _render_cover_grid(notebooks, runtime=runtime)
+        return
+
+    _apply_pending_archive_bin_filter()
+    filters = _render_library_filters(archive)
+    if filters is None:
+        return
+
+    timeline = archive.timeline(filters)
+    _render_showing_caption(timeline)
+    if timeline.bins:
+        clicked = _activity_chart(
+            timeline.bins,
+            timeline.grain,
+            height=220,
+            key="archive_timeline",
+        )
+        st.caption(
+            f"Activity by {timeline.grain} (zeros preserve gaps) · "
+            "click a bar to filter to that date"
+        )
+        if clicked:
+            _queue_archive_bin_filter(clicked, timeline.grain)
+            st.rerun()
+    else:
+        st.info("No dated pages match the current filters.")
+
+    order = _notebook_order_select()
+    notebooks = archive.list_notebooks(order=order, filters=filters)  # type: ignore[arg-type]
+    if not notebooks:
+        st.caption("No notebooks match the current filters.")
+        return
+    _render_activity_rows(notebooks, runtime=runtime)
+
+
+def render_archive(runtime: RuntimePaths, archive: ArchiveService) -> None:
+    render_library(runtime, archive)
+
+
+def render_notebooks(runtime: RuntimePaths, archive: ArchiveService) -> None:
+    render_library(runtime, archive)
 
 
 def render_search(runtime: RuntimePaths, archive: ArchiveService) -> None:

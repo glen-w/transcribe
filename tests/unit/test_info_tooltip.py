@@ -93,3 +93,11 @@ def test_merge_prefs_show_info_tooltips() -> None:
     assert merge_prefs({}).show_info_tooltips is True
     assert merge_prefs({"show_info_tooltips": False}).show_info_tooltips is False
     assert merge_prefs({"show_info_tooltips": "yes"}).show_info_tooltips is True
+
+
+def test_merge_prefs_action_display() -> None:
+    from transcribe.ui.action_menus.prefs import merge_prefs
+
+    assert merge_prefs({}).action_display == "both"
+    assert merge_prefs({"action_display": "text"}).action_display == "text"
+    assert merge_prefs({"action_display": "bogus"}).action_display == "both"

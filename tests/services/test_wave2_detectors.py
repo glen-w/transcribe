@@ -9,6 +9,8 @@ from pathlib import Path
 from PIL import Image
 
 from transcribe.analysis.llm_runtime import RecordedDoubleClient, TextLLMContext
+from transcribe.detection.definition import ModelMode
+from transcribe.providers.vision_llm import RecordedVisionDoubleClient, VisionLLMContext
 from transcribe.detection.aggregate import (
     merge_adjacent_spans,
     raw_from_window_response,
@@ -239,7 +241,9 @@ def test_quotations_multi_page(tmp_path: Path):
 
 
 def test_beer_labels_detector_runs(tmp_path: Path):
-    assert get_builtin_detector("beer_labels") is not None
+    detector = get_builtin_detector("beer_labels")
+    assert detector is not None
+    assert detector.input_mode == ModelMode.VISION
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds("bl")
     projects = ProjectService(paths, clock=clock, ids=ids)
@@ -251,9 +255,9 @@ def test_beer_labels_detector_runs(tmp_path: Path):
         page.page_id,
         "WHIPLASH\nNORTHERN LIGHTS\nMICRO IPA\n5.2% ABV\nVienna Malt · Mosaic",
     )
-    client = RecordedDoubleClient(
+    client = RecordedVisionDoubleClient(
         responses={
-            "default": _resp(
+            "*": _resp(
                 label_kind="bottle_label",
                 beer_name="Northern Lights",
                 brewery_or_brand="Whiplash",
@@ -263,8 +267,12 @@ def test_beer_labels_detector_runs(tmp_path: Path):
         },
         digest="d",
     )
-    ctx = TextLLMContext(client=client, model_name=client.model_name, resolved_model_digest="d")
-    svc = DetectionService(projects, text_ctx=ctx)
+    ctx = VisionLLMContext(
+        client=client,
+        model_name=client.model_name,
+        resolved_model_digest="d",
+    )
+    svc = DetectionService(projects, vision_ctx=ctx)
     result = svc.run_detector("beer_labels", force=True)
     assert result["outcome"] == "success"
     finding = (result.get("findings") or [])[0]
@@ -299,6 +307,10 @@ def test_first_person_detector_counts_without_llm(tmp_path: Path):
     data = finding.get("detector_data") or {}
     assert data.get("count") == 2
     assert finding["model_provenance"].get("model_name") == "lexical"
+    assert result.get("page_counts") == [
+        {"page_id": project.pages[0].page_id, "count": 2},
+        {"page_id": project.pages[1].page_id, "count": 0},
+    ]
 
 
 def test_swear_words_detector_counts_without_llm(tmp_path: Path):
@@ -319,3 +331,4 @@ def test_swear_words_detector_counts_without_llm(tmp_path: Path):
     data = findings[0].get("detector_data") or {}
     assert data.get("count") == 2
     assert "samples" in data
+    assert result.get("page_counts") == [{"page_id": page.page_id, "count": 2}]

@@ -50,7 +50,7 @@ Details: [docs/runtime/docker.md](docs/runtime/docker.md) · [docs/runtime/insta
 
 | Surface | Role |
 |---------|------|
-| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Home / Library / Search / Archive / Places · Workflow (Import / Transcribe / Review / Analyse / Export) · View (Reading / Overview / …) · System |
+| **Streamlit UI** (`./transcribe.sh ui`) | Primary — Home / Library / Search / Places · Workflow (Import / Transcribe / Review / Analyse / Export) · View (Reading / Overview / …) · System |
 | **CLI** (`./transcribe.sh cli …` / `python -m transcribe`) | Init, import, run, export, status, doctor, backup, restore |
 | **Services API** | Shared by UI and CLI (`transcribe.services`) |
 
@@ -72,7 +72,7 @@ More: [user guide](docs/user_guide.md) · [OCR](docs/runtime/ocr.md) · [analysi
 - Page-preserving projects (`transcribe.project` + per-page `transcribe.page-result`)
 - Local Ollama vision OCR with content fingerprints for skip/resume; multipass compare / prefer / promote / composite / fine-tune export; timeout and model-load fail-fast circuits
 - Immutable OCR attempts; human edits live in `edited_text`; page delete from the viewer
-- Workspace Library / Archive / Search (activity-bin filter, strip paging) over your notebooks directory
+- Workspace Library / Search (cover overview, activity list, activity-bin filter, cover-grid paging) over your notebooks directory
 - Unified Import / Transcribe targets (this notebook vs batch) with live job progress; corpus bulk import supported
 - Visual declutter on import (and explicit re-apply); Prompt Hub + Detect (poetry, lists, beer labels, …)
 - Analyse presets (Quick / Balanced / Thorough / Custom); product read-models under View (corpus/period compare on Overview/Mood; Moments and page-series jump-to-page → Reading)
@@ -88,7 +88,7 @@ File-shaped authoritative storage (project + per-page results + optional `analys
 
 ## Direction
 
-OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** — **U0–U1** and **U3** done; open track **U2** first-run operability; **U4** corpus gate green — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Package **0.8.6** sits on maintainer CI, release hygiene, and Sphinx docs (I0–I4); remaining infra **I5–I6** plus **U2** enable **0.9.0**, then **0.9-1** unfamiliar testing → **1.0**. After 1.0 autobiography is planned and gated. Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
+OCR notebook core is stable (import → run → review → export). **Core analysis modules are shipped**; current product work is the **usability wave** — **U0–U1** and **U3** done; open track **U2** first-run operability; **U4** corpus gate green — [usability_wave_plan.md](docs/usability_wave_plan.md) · [ROADMAP.md](docs/ROADMAP.md). Package **0.8.7** sits on maintainer CI, release hygiene, and Sphinx docs (I0–I4); remaining infra **I5–I6** plus **U2** enable **0.9.0**, then **0.9-1** unfamiliar testing → **1.0**. After 1.0 autobiography is planned and gated. Deferred reinterpretations and `ocr_quality` are **not scheduled**. Transcribe does **not** depend on TranscriptX; a future handoff seam is documented in [INTEGRATION_SEAM.md](docs/INTEGRATION_SEAM.md).
 
 ## Privacy
 

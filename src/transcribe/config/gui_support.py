@@ -15,7 +15,7 @@ class CommonSettingField:
 COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
     CommonSettingField(
         "ui.archive_notebooks_initial",
-        "Archive",
+        "Library",
         "Notebooks shown initially (0 = all)",
     ),
     CommonSettingField(
@@ -27,6 +27,11 @@ COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
         "ui.view_show_advanced",
         "Overview",
         "Show Advanced JSON expanders on View pages",
+    ),
+    CommonSettingField(
+        "ui.model_preference_hints",
+        "Models",
+        "Model picker preference hints",
     ),
     CommonSettingField("ingest.render_dpi", "Import", "PDF render DPI"),
     CommonSettingField(

@@ -21,7 +21,7 @@ from transcribe.services.project import (
 from transcribe.ui import icons as ic
 from transcribe.ui.action_menus.catalog import ACTIONS, help_for, icon_for, label_for
 from transcribe.ui.action_menus.context import ActionContext, ContextCapabilities
-from transcribe.ui.action_menus.ids import ActionId, NavStyle, SectionId, WorkflowMode
+from transcribe.ui.action_menus.ids import ActionDisplay, ActionId, NavStyle, SectionId, WorkflowMode
 from transcribe.ui.action_menus.nav import (
     ProjectRootError,
     clear_page_viewer_state,
@@ -62,26 +62,38 @@ def _button(
     section: SectionId,
     key: str,
     on_activate: Callable[[], None],
+    display: ActionDisplay,
 ) -> None:
     label = label_for(action, section)
     icon = icon_for(action)
     help_text = help_for(action)
     if ctx.nav_style == NavStyle.ON_CLICK:
-        render_action_link(label, key=key, icon=icon, help=help_text, on_click=on_activate)
+        render_action_link(
+            label,
+            key=key,
+            icon=icon,
+            help=help_text,
+            on_click=on_activate,
+            display=display,
+        )
     else:
-        if render_action_link(label, key=key, icon=icon, help=help_text):
+        if render_action_link(label, key=key, icon=icon, help=help_text, display=display):
             on_activate()
             st.rerun()
 
 
-def _render_open(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_open(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_open(ctx, rerun=False)
 
-    _button(ctx, action=ActionId.OPEN, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.OPEN, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_transcribe(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_transcribe(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_workflow(
             project_root_key=ctx.identity.project_root_key,
@@ -90,10 +102,12 @@ def _render_transcribe(ctx: ActionContext, *, section: SectionId, key: str) -> N
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.TRANSCRIBE, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.TRANSCRIBE, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_analyse(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_analyse(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_workflow(
             project_root_key=ctx.identity.project_root_key,
@@ -102,10 +116,12 @@ def _render_analyse(ctx: ActionContext, *, section: SectionId, key: str) -> None
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.ANALYSE, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.ANALYSE, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_detect(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_detect(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_to_mode(
             project_root_key=ctx.identity.project_root_key,
@@ -114,10 +130,12 @@ def _render_detect(ctx: ActionContext, *, section: SectionId, key: str) -> None:
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.DETECT, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.DETECT, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_overview(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_overview(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_to_mode(
             project_root_key=ctx.identity.project_root_key,
@@ -126,10 +144,12 @@ def _render_overview(ctx: ActionContext, *, section: SectionId, key: str) -> Non
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.OVERVIEW, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.OVERVIEW, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_review(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_review(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_to_mode(
             project_root_key=ctx.identity.project_root_key,
@@ -138,10 +158,12 @@ def _render_review(ctx: ActionContext, *, section: SectionId, key: str) -> None:
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.REVIEW, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.REVIEW, section=section, key=key, on_activate=_go, display=display)
 
 
-def _render_export(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_export(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     def _go() -> None:
         navigate_workflow(
             project_root_key=ctx.identity.project_root_key,
@@ -150,7 +172,7 @@ def _render_export(ctx: ActionContext, *, section: SectionId, key: str) -> None:
             rerun=False,
         )
 
-    _button(ctx, action=ActionId.EXPORT, section=section, key=key, on_activate=_go)
+    _button(ctx, action=ActionId.EXPORT, section=section, key=key, on_activate=_go, display=display)
 
 
 def _delete_pending_key(project_id: str) -> str:
@@ -286,7 +308,9 @@ def _open_delete_dialog(ctx: ActionContext) -> None:
     )
 
 
-def _render_delete(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_delete(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     pending = _delete_pending_key(ctx.identity.project_id)
     if st.session_state.pop(pending, False):
         _open_delete_dialog(ctx)
@@ -300,9 +324,11 @@ def _render_delete(ctx: ActionContext, *, section: SectionId, key: str) -> None:
         def _arm() -> None:
             st.session_state[pending] = True
 
-        render_action_link(label, key=key, icon=icon, help=help_text, on_click=_arm)
+        render_action_link(
+            label, key=key, icon=icon, help=help_text, on_click=_arm, display=display
+        )
     else:
-        if render_action_link(label, key=key, icon=icon, help=help_text):
+        if render_action_link(label, key=key, icon=icon, help=help_text, display=display):
             _open_delete_dialog(ctx)
 
 
@@ -377,7 +403,9 @@ def _open_rename_dialog(ctx: ActionContext) -> None:
     )
 
 
-def _render_rename(ctx: ActionContext, *, section: SectionId, key: str) -> None:
+def _render_rename(
+    ctx: ActionContext, *, section: SectionId, key: str, display: ActionDisplay = ActionDisplay.BOTH
+) -> None:
     pending = _rename_pending_key(ctx.identity.project_id)
     if st.session_state.pop(pending, False):
         _open_rename_dialog(ctx)
@@ -391,9 +419,11 @@ def _render_rename(ctx: ActionContext, *, section: SectionId, key: str) -> None:
         def _arm() -> None:
             st.session_state[pending] = True
 
-        render_action_link(label, key=key, icon=icon, help=help_text, on_click=_arm)
+        render_action_link(
+            label, key=key, icon=icon, help=help_text, on_click=_arm, display=display
+        )
     else:
-        if render_action_link(label, key=key, icon=icon, help=help_text):
+        if render_action_link(label, key=key, icon=icon, help=help_text, display=display):
             _open_rename_dialog(ctx)
 
 
@@ -430,5 +460,12 @@ def is_action_available(action: ActionId, ctx: ActionContext, caps: ContextCapab
     return handler.is_available(ctx, caps)
 
 
-def render_action(action: ActionId, ctx: ActionContext, *, section: SectionId, key: str) -> None:
-    HANDLERS[action].render(ctx, section=section, key=key)
+def render_action(
+    action: ActionId,
+    ctx: ActionContext,
+    *,
+    section: SectionId,
+    key: str,
+    display: ActionDisplay = ActionDisplay.BOTH,
+) -> None:
+    HANDLERS[action].render(ctx, section=section, key=key, display=display)

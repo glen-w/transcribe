@@ -184,17 +184,57 @@ def rollup_preference_stats(
     return by_model
 
 
+def _choice_weight(stats: ModelPreferenceStats) -> int:
+    """Ledger events that reflect picking a model (prefer, promote, composite)."""
+    return stats.prefer_count + stats.promote_count
+
+
+MODEL_PREFERENCE_HINT_MODES = frozenset({"off", "prefer_only", "all_choices"})
+DEFAULT_MODEL_PREFERENCE_HINT_MODE = "all_choices"
+
+
+def resolve_model_preference_hint_mode(raw: str | None) -> str:
+    key = str(raw or DEFAULT_MODEL_PREFERENCE_HINT_MODE).strip()
+    if key not in MODEL_PREFERENCE_HINT_MODES:
+        return DEFAULT_MODEL_PREFERENCE_HINT_MODE
+    return key
+
+
+def effective_model_preference_hint_mode() -> str:
+    from transcribe.config import get_config
+
+    return resolve_model_preference_hint_mode(
+        get_config().effective.ui.model_preference_hints
+    )
+
+
+def _prefer_weight(stats: ModelPreferenceStats) -> int:
+    return stats.prefer_count
+
+
+def _weight_for_share_mode(stats: ModelPreferenceStats, share_mode: str) -> int:
+    if share_mode == "prefer_only":
+        return _prefer_weight(stats)
+    return _choice_weight(stats)
+
+
 def preference_hint_for_model(
     model_name: str,
     *,
     stats: dict[str, ModelPreferenceStats] | None = None,
+    share_mode: str | None = None,
 ) -> str | None:
+    mode = resolve_model_preference_hint_mode(
+        share_mode if share_mode is not None else DEFAULT_MODEL_PREFERENCE_HINT_MODE
+    )
+    if mode == "off":
+        return None
     table = stats if stats is not None else rollup_preference_stats()
     row = table.get(model_name)
-    if row is None or (row.prefer_count == 0 and row.promote_count == 0):
+    if row is None or _weight_for_share_mode(row, mode) == 0:
         return None
-    total_prefers = sum(s.prefer_count for s in table.values()) or 1
-    pct = int(round(100.0 * row.prefer_count / total_prefers))
+    total_choices = sum(_weight_for_share_mode(s, mode) for s in table.values()) or 1
+    pct = int(round(100.0 * _weight_for_share_mode(row, mode) / total_choices))
     parts = [
         f"Preferred on {row.pages_covered} pages · {pct}% of your prefers",
     ]

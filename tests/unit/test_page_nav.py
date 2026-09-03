@@ -284,6 +284,18 @@ def test_shows_compare_attempts_true_for_lone_composite():
     assert _shows_compare_attempts(SimpleNamespace(attempts=[comp])) is True
 
 
+def test_page_viewer_compare_in_review_source_contract() -> None:
+    """Reading/Archive deep-link to Review; Prefer/Promote expander removed."""
+    page = Path("src/transcribe/ui/page_viewer.py").read_text(encoding="utf-8")
+    assert "_render_compare_in_review(" in page
+    assert '"Compare in Review"' in page
+    assert "jump_to_review" in page
+    assert "_render_attempt_compare" not in page
+    assert 'button("Prefer"' not in page
+    assert 'button("Promote"' not in page
+    assert "_COMPARE_SCAN_IMAGE_WIDTH_PX" not in page
+
+
 def test_notebook_view_entries_chronological_order():
     p1 = SimpleNamespace(page_id="p1", date=ApproximateDate(2024, 5, 1))
     p2 = SimpleNamespace(page_id="p2", date=ApproximateDate(2024, 1, 1))

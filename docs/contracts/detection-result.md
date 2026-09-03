@@ -43,6 +43,7 @@ Optional when applicable:
 | `model_provenance` | `{model_name, model_digest, input_mode}` |
 | `generation_settings` | Frozen inference parameters |
 | `stale_at_publish` | Set when cache identity drifted at publish gate |
+| `page_counts` | Lexical counters: `[{page_id, count}, …]` for every scanned page (including zeros) |
 
 ## Attempt state vs outcome
 

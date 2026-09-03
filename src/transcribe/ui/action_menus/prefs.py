@@ -25,6 +25,8 @@ from transcribe.ui.action_menus.catalog import (
 from transcribe.ui.action_menus.ids import (
     ACTION_ORDER,
     SECTION_ORDER,
+    ActionDisplay,
+    ActionDisplaySetting,
     ActionId,
     SectionId,
     SectionMenuMode,
@@ -44,6 +46,7 @@ class SectionMenuPrefs(BaseModel):
     show_menu: bool = True
     mode: Literal["use_standard", "section_default", "manual"] = "section_default"
     selected: list[ActionId] = Field(default_factory=list)
+    action_display: Literal["inherit", "icon", "text", "both"] = "inherit"
 
 
 class InterfaceMenuPrefs(BaseModel):
@@ -52,6 +55,7 @@ class InterfaceMenuPrefs(BaseModel):
     sections: dict[SectionId, SectionMenuPrefs] = Field(default_factory=dict)
     # Instructional ⓘ / Streamlit help= tips. Run-id identity ⓘ stays always on.
     show_info_tooltips: bool = True
+    action_display: Literal["icon", "text", "both"] = "both"
 
 
 @dataclass
@@ -109,20 +113,51 @@ def sanitise_action_ids(raw: list[Any] | None) -> list[ActionId]:
     return [a for a in ACTION_ORDER if a in wanted]
 
 
+def sanitise_action_display(raw: Any) -> Literal["icon", "text", "both"]:
+    if raw in ("icon", "text", "both"):
+        return raw  # type: ignore[return-value]
+    return "both"
+
+
+def sanitise_section_action_display(
+    raw: Any,
+    *,
+    default: Literal["inherit", "icon", "text", "both"] = "inherit",
+) -> Literal["inherit", "icon", "text", "both"]:
+    if raw in ("inherit", "icon", "text", "both"):
+        return raw  # type: ignore[return-value]
+    return default
+
+
+def resolve_action_display(
+    prefs: InterfaceMenuPrefs,
+    section: SectionId,
+) -> ActionDisplay:
+    """Effective icon/text chrome for a section (inherit → global)."""
+    sec = prefs.sections.get(section)
+    if sec is None or sec.action_display == ActionDisplaySetting.INHERIT.value:
+        return ActionDisplay(prefs.action_display)
+    return ActionDisplay(sec.action_display)
+
+
 def built_in_prefs() -> InterfaceMenuPrefs:
-    sections = {
-        sid: SectionMenuPrefs(
+    sections: dict[SectionId, SectionMenuPrefs] = {}
+    for sid in SECTION_ORDER:
+        action_display: Literal["inherit", "icon", "text", "both"] = "inherit"
+        if sid is SectionId.ARCHIVE_NOTEBOOK:
+            action_display = "icon"
+        sections[sid] = SectionMenuPrefs(
             show_menu=True,
             mode=SectionMenuMode.SECTION_DEFAULT.value,
             selected=[],
+            action_display=action_display,
         )
-        for sid in SECTION_ORDER
-    }
     return InterfaceMenuPrefs(
         standard_menu_mode=StandardMenuMode.BUILT_IN.value,
         standard_menu=[],
         sections=sections,
         show_info_tooltips=True,
+        action_display="both",
     )
 
 
@@ -182,17 +217,30 @@ def merge_prefs(partial: dict[str, Any] | None) -> InterfaceMenuPrefs:
         show = raw.get("show_menu", True)
         if not isinstance(show, bool):
             show = True
-        sections[sid] = SectionMenuPrefs(show_menu=show, mode=smode, selected=selected)
+        default_display = base.sections[sid].action_display
+        action_display = sanitise_section_action_display(
+            raw.get("action_display", default_display),
+            default=default_display,
+        )
+        sections[sid] = SectionMenuPrefs(
+            show_menu=show,
+            mode=smode,
+            selected=selected,
+            action_display=action_display,
+        )
 
     show_tips = partial.get("show_info_tooltips", True)
     if not isinstance(show_tips, bool):
         show_tips = True
+
+    action_display = sanitise_action_display(partial.get("action_display", "both"))
 
     merged = InterfaceMenuPrefs(
         standard_menu_mode=mode,  # type: ignore[arg-type]
         standard_menu=standard,
         sections=sections,
         show_info_tooltips=show_tips,
+        action_display=action_display,
     )
     return _restore_unusable_menus(merged)
 

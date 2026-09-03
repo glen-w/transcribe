@@ -43,7 +43,7 @@ Long compute must not hold `mutation_lock`.
 
 ### Reopen reconciliation
 
-When project is opened and mutation path is free: `running` attempts → `interrupted`. Reconciliation must not clear valid `published.json`.
+When project is opened and **both** the OCR job lock and the analysis lock are free: `running` attempts → `interrupted`. Reconciliation must not clear valid `published.json`. Skip reconcile while either long lock is held so a live OCR job or Analyse+detect run is not false-interrupted by `ProjectService.load(reconcile=True)`.
 
 Mid-run project loads during an active detection attempt **must** use `reconcile=False` so the in-flight attempt is not marked `interrupted` before the terminal write. Reopen reconciliation remains the path that cleans orphaned `running` attempts after process death.
 
@@ -56,11 +56,12 @@ Mid-run project loads during an active detection attempt **must** use `reconcile
 | `cache_identity_version` | `1` |
 | `notebook_id` | `project.id` |
 | `detector_id`, `detector_version` | DetectorDefinition |
-| `prompt_id`, `prompt_version` | Resolved prompt |
+| `prompt_id`, `prompt_version` | Resolved prompt (`lexical:<matcher>` for lexical counters; `ner:people` for names) |
 | `config_fingerprint` | Threshold, window params, candidate strategy, model_mode |
 | `model_digest` | Resolved text or vision model |
 | `scope_fingerprint` | Sorted target page IDs + per-page input fingerprints |
 | `generation_settings` | Frozen LLM options |
+| `ner` | Names detector only: live NER `cache_config` (model + algorithm) |
 
 ### Per-page input fingerprint
 

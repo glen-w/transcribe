@@ -8,7 +8,7 @@ from typing import Any
 from transcribe.detection.envelope import CACHEABLE_DETECTION_OUTCOMES
 from transcribe.paths import ProjectPaths
 from transcribe.persistence.atomic import read_json, write_json_atomic
-from transcribe.persistence.locks import job_lock_held, mutation_lock
+from transcribe.persistence.locks import analysis_lock_held, job_lock_held, mutation_lock
 from transcribe.persistence.schema import SchemaError, require_format
 
 
@@ -113,7 +113,9 @@ class DetectionStorage:
         root = self.paths.detection_dir
         if not root.exists():
             return changed
-        if job_lock_held(self.paths.job_lock):
+        # Skip while OCR or analysis holds a long lock so a live Analyse+detect
+        # run is not false-interrupted by ProjectService.load(reconcile=True).
+        if job_lock_held(self.paths.job_lock) or analysis_lock_held(self.paths.analysis_lock):
             return changed
         with mutation_lock(self.paths.mutation_lock):
             for detector_dir in sorted(root.iterdir()):
@@ -160,6 +162,8 @@ class DetectionStorage:
         detector_id: str,
         finding_id: str,
         review_status: str,
+        *,
+        page_reviews: dict[str, str] | None = None,
     ) -> bool:
         published = self.read_published(detector_id)
         if published is None:
@@ -171,6 +175,11 @@ class DetectionStorage:
             if row.get("finding_id") == finding_id:
                 row = dict(row)
                 row["review_status"] = review_status
+                if page_reviews is not None:
+                    if page_reviews:
+                        row["page_reviews"] = dict(page_reviews)
+                    else:
+                        row.pop("page_reviews", None)
                 from transcribe.detection.findings import utc_now_iso
 
                 row["updated_at"] = utc_now_iso()

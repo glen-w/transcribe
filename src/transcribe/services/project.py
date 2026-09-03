@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 import shutil
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from transcribe.domain.dates import (
     ApproximateDate,
@@ -56,9 +56,7 @@ def _seed_ocr_settings() -> OCRSettings:
     ocr = view.effective.ocr
     llm = view.effective.llm
     base = (ocr.base_url or "").strip() or default_ollama_base_url()
-    text_model = (ocr.text_model_name or "").strip() or (
-        llm.text_model_preference or ""
-    ).strip()
+    text_model = (ocr.text_model_name or "").strip() or (llm.text_model_preference or "").strip()
     data = {
         "base_url": base,
         "prompt_id": ocr.prompt_id,
@@ -150,10 +148,9 @@ def _review_fingerprints_match(result: PageResult | None) -> bool:
     if not result.reviewed_text_fingerprint or not result.reviewed_evidence_fingerprint:
         return False
     text = result.effective_text() or ""
-    return (
-        result.reviewed_text_fingerprint == reviewed_text_fingerprint(text)
-        and result.reviewed_evidence_fingerprint == evidence_fingerprint(result)
-    )
+    return result.reviewed_text_fingerprint == reviewed_text_fingerprint(
+        text
+    ) and result.reviewed_evidence_fingerprint == evidence_fingerprint(result)
 
 
 def _review_should_invalidate(before: PageResult | None, after: PageResult) -> bool:
@@ -985,13 +982,10 @@ class ProjectService:
                 changed = True
             active = existing.active_attempt()
             prior = _latest_succeeded_with_text(existing.attempts)
-            if (
-                prior is not None
-                and (
-                    active is None
-                    or active.status != "succeeded"
-                    or not (active.raw_text or "").strip()
-                )
+            if prior is not None and (
+                active is None
+                or active.status != "succeeded"
+                or not (active.raw_text or "").strip()
             ):
                 existing.active_attempt_id = prior.attempt_id
                 if existing.edited_text is None:
@@ -1071,13 +1065,16 @@ class ProjectService:
         *,
         enabled: bool = True,
         on_progress: Callable[[int, int, str], None] | None = None,
+        page_ids: Sequence[str] | None = None,
     ) -> DeclutterReapplyStats:
-        """Re-run visual declutter on every active render; replace cropped pages.
+        """Re-run visual declutter on active renders; replace cropped pages.
 
-        Creates a new ``render_id`` when pixels change. Provenance-only updates keep
-        the existing render when bytes are unchanged. Refuses while an OCR job lock
-        is held. Never restores already-cropped margins when ``enabled`` is False —
-        that only records ``disabled`` provenance on current pixels.
+        ``page_ids`` limits the run to those pages (notebook order of the given
+        ids). ``None`` means every page. Creates a new ``render_id`` when pixels
+        change. Provenance-only updates keep the existing render when bytes are
+        unchanged. Refuses while an OCR job lock is held. Never restores
+        already-cropped margins when ``enabled`` is False — that only records
+        ``disabled`` provenance on current pixels.
         """
         from transcribe.declutter import apply_declutter
         from transcribe.domain.fingerprint import sha256_bytes
@@ -1091,11 +1088,22 @@ class ProjectService:
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
-            stats.pages_total = len(current.pages)
+            if page_ids is None:
+                targets = list(current.pages)
+            else:
+                wanted = list(dict.fromkeys(page_ids))
+                if not wanted:
+                    raise ProjectError("page_ids must not be empty")
+                by_id = {p.page_id: p for p in current.pages}
+                missing = next((pid for pid in wanted if pid not in by_id), None)
+                if missing is not None:
+                    raise ProjectError(f"unknown page_id: {missing}")
+                targets = [by_id[pid] for pid in wanted]
+            stats.pages_total = len(targets)
             old_files: list[Path] = []
             thumb_files: list[Path] = []
 
-            for index, page in enumerate(current.pages):
+            for index, page in enumerate(targets):
                 if on_progress is not None:
                     on_progress(
                         index,
@@ -1197,8 +1205,7 @@ class ProjectService:
                 on_progress(
                     stats.pages_total,
                     stats.pages_total,
-                    f"Finished → cropped {stats.pages_cropped}, "
-                    f"unchanged {stats.pages_unchanged}",
+                    f"Finished → cropped {stats.pages_cropped}, unchanged {stats.pages_unchanged}",
                 )
             return stats
 

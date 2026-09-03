@@ -22,7 +22,6 @@ from transcribe.services.batch_ocr import (
 )
 from transcribe.services.job import JobCoordinator
 from transcribe.services.project import ProjectService, open_project_paths
-from transcribe.ui.run_transcribe import _batch_progress_to_snapshot
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
@@ -176,7 +175,9 @@ def test_batch_ocr_progress_names_notebook_and_page(tmp_path: Path) -> None:
     assert "alpha" in blob
     assert "alpha-0.png" in blob
 
-    snap = _batch_progress_to_snapshot(
+    from transcribe.ui.progress_snapshots import batch_ocr_progress_to_snapshot
+
+    snap = batch_ocr_progress_to_snapshot(
         BatchOcrProgress(
             ocr_run_id="x",
             status="running",
@@ -203,7 +204,7 @@ def test_batch_analysis_progress_names_notebook_and_module(tmp_path: Path) -> No
         BatchAnalysisProgress,
         list_analysis_candidates,
     )
-    from transcribe.ui.run_analysis_batch import batch_analysis_progress_to_snapshot
+    from transcribe.ui.progress_snapshots import batch_analysis_progress_to_snapshot
 
     corpus = CorpusPaths(data_dir=tmp_path / "data", projects_dir=tmp_path / "projects")
     corpus.projects_dir.mkdir(parents=True)
@@ -271,3 +272,46 @@ def test_batch_analysis_progress_names_notebook_and_module(tmp_path: Path) -> No
     assert snap["detail_unit"] == "modules in this notebook"
     assert snap["current_item"] == "1/2 · gamma"
     assert 0 < snap["pct"] < 50
+
+
+def test_job_progress_snapshot_maps_cancel_and_circuit() -> None:
+    from transcribe.services.job import JobProgress
+    from transcribe.ui.progress_snapshots import job_progress_to_snapshot
+
+    cancelled = job_progress_to_snapshot(
+        JobProgress(job_id="j", status="cancelled", total=3, completed=1)
+    )
+    assert cancelled["status"] == "cancelled"
+    assert cancelled["phase"] == "cancelled"
+
+    circuit = job_progress_to_snapshot(
+        JobProgress(
+            job_id="j",
+            status="completed",
+            total=5,
+            completed=3,
+            failed=3,
+            skipped=2,
+            circuit_open=True,
+            message="Stopped remaining pages after 3 consecutive Ollama timeouts",
+        )
+    )
+    assert circuit["status"] == "completed"
+    assert circuit["phase"] == "partial"
+
+    done = job_progress_to_snapshot(
+        JobProgress(job_id="j", status="completed", total=2, completed=2)
+    )
+    assert done["status"] == "completed"
+    assert done["phase"] == "completed"
+    assert done["pct"] == 100.0
+
+
+def test_batch_ocr_cancelled_snapshot_is_not_failed() -> None:
+    from transcribe.ui.progress_snapshots import batch_ocr_progress_to_snapshot
+
+    snap = batch_ocr_progress_to_snapshot(
+        BatchOcrProgress(ocr_run_id="x", status="cancelled", total=2, completed=1)
+    )
+    assert snap["status"] == "cancelled"
+    assert snap["phase"] == "cancelled"

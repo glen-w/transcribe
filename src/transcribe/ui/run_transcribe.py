@@ -55,6 +55,10 @@ from transcribe.ui.components.model_info import (
     warn_if_first_compare_model_is_general_vlm,
 )
 from transcribe.ui.components.progress_panel import render_progress_panel
+from transcribe.ui.progress_snapshots import (
+    batch_ocr_progress_to_snapshot as _batch_progress_to_snapshot,
+    job_progress_to_snapshot as _job_progress_to_snapshot,
+)
 from transcribe.ui.corpus_listing_cache import (
     corpus_listing_token,
     get_cached_listing,
@@ -220,37 +224,6 @@ def get_batch_ocr_coordinator(data_dir: str, projects_dir: str) -> BatchOcrCoord
     )
 
 
-def _job_progress_to_snapshot(progress: JobProgress) -> dict[str, Any]:
-    done = progress.completed + progress.failed
-    total = progress.total
-    pct = (done / total * 100.0) if total else 0.0
-    if progress.status == "completed":
-        panel_status, phase = "completed", "completed"
-        pct = 100.0 if total else pct
-    elif progress.status == "failed":
-        panel_status, phase = "failed", "failed"
-    elif progress.status == "cancelled":
-        panel_status, phase = "failed", "cancelled"
-    else:
-        panel_status, phase = "running", "running_pipeline"
-    current = ", ".join(progress.current_labels) or ", ".join(
-        p[:8] for p in progress.current_page_ids
-    )
-    return {
-        "status": panel_status,
-        "phase": phase,
-        "current_item": current,
-        "completed": progress.completed,
-        "skipped": progress.skipped,
-        "failed": progress.failed,
-        "total": total,
-        "pct": pct,
-        "latest_event": progress.message,
-        "recent_logs": [],
-        "error": progress.message if progress.status == "failed" else None,
-    }
-
-
 def _render_job_progress(progress: JobProgress) -> None:
     render_progress_panel(
         _job_progress_to_snapshot(progress),
@@ -361,57 +334,6 @@ def _render_transcribe_complete_actions(
         st.session_state.pop("_transcribe_post_job_id", None)
         st.session_state.pop("_transcribe_post_kind", None)
         st.rerun()
-
-
-def _batch_progress_to_snapshot(progress: BatchOcrProgress) -> dict[str, Any]:
-    done = progress.completed + progress.failed + progress.skipped
-    total = progress.total
-    page_frac = 0.0
-    if progress.status == "running" and progress.pages_total:
-        page_done = progress.pages_completed + progress.pages_failed
-        page_frac = min(1.0, page_done / progress.pages_total)
-    pct = ((done + page_frac) / total * 100.0) if total else 0.0
-    status = progress.status
-    if status == "completed":
-        panel_status, phase = "completed", "completed"
-        pct = 100.0 if total else pct
-    elif status == "partial":
-        panel_status, phase = "completed", "partial"
-    elif status == "cancelled":
-        panel_status, phase = "failed", "cancelled"
-    elif status == "failed":
-        panel_status, phase = "failed", "failed"
-    else:
-        panel_status, phase = "running", "running_pipeline"
-    detail_bits: list[str] = []
-    if progress.mode == "multipass":
-        if progress.phase:
-            detail_bits.append(progress.phase)
-        if progress.current_model:
-            detail_bits.append(progress.current_model)
-        elif progress.model_total:
-            detail_bits.append(f"model {progress.model_index}/{progress.model_total}")
-    if progress.current_page_label:
-        detail_bits.append(progress.current_page_label)
-    return {
-        "status": panel_status,
-        "phase": phase,
-        "current_item": progress.current_item,
-        "detail_current": " · ".join(detail_bits) if detail_bits else "",
-        "detail_completed": progress.pages_completed,
-        "detail_failed": progress.pages_failed,
-        "detail_skipped": progress.pages_skipped,
-        "detail_total": progress.pages_total,
-        "detail_unit": "pages in this notebook",
-        "completed": progress.completed,
-        "skipped": progress.skipped,
-        "failed": progress.failed,
-        "total": total,
-        "pct": pct,
-        "latest_event": progress.message,
-        "recent_logs": [],
-        "error": progress.message if status == "failed" else None,
-    }
 
 
 def _render_batch_progress(coord: BatchOcrCoordinator, runtime: RuntimePaths) -> bool:
@@ -743,10 +665,10 @@ def _render_this_notebook_launch(
         ),
         key="tx_this_compare_cleanup",
     )
-    no_auto_comp = st.checkbox(
-        "Do not auto-activate composite",
-        value=not bool(project.settings.auto_activate_composite),
-        key="tx_this_no_auto_comp",
+    seed_merged = st.checkbox(
+        "Seed transcription from merged draft after multipass",
+        value=bool(project.settings.auto_activate_composite),
+        key="tx_this_seed_merged",
     )
     if st.button("Start multipass compare", key="tx_this_start_multipass", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
@@ -769,7 +691,7 @@ def _render_this_notebook_launch(
                 multi.start(
                     model_names=list(multi_models),
                     force=form["force"],
-                    auto_activate_composite=not no_auto_comp,
+                    auto_activate_composite=bool(seed_merged),
                     cleanup_enabled=bool(compare_cleanup),
                 )
                 st.session_state["_job_was_running"] = True
@@ -808,7 +730,7 @@ def _render_this_notebook_launch(
                     project = projects.save_settings(project, settings)
                 multi = get_multipass_coordinator(str(root))
                 multi.start_compare_existing(
-                    auto_activate_composite=not no_auto_comp,
+                    auto_activate_composite=bool(seed_merged),
                 )
                 st.session_state["_job_was_running"] = True
                 st.session_state["_transcribe_post_kind"] = "multipass"
@@ -1010,10 +932,10 @@ def _render_batch_launch_actions(
         ),
         key="tx_batch_compare_cleanup",
     )
-    batch_no_auto_comp = st.checkbox(
-        "Do not auto-activate composite",
-        value=not bool(seed.auto_activate_composite),
-        key="tx_batch_no_auto_comp",
+    batch_seed_merged = st.checkbox(
+        "Seed transcription from merged draft after multipass",
+        value=bool(seed.auto_activate_composite),
+        key="tx_batch_seed_merged",
     )
     if st.button("Start batch multipass compare", key="tx_batch_start_multipass", icon=ic.PLAY):
         if form["remote"] and not form["allow_remote"]:
@@ -1031,7 +953,7 @@ def _render_batch_launch_actions(
                     settings.cleanup_model_name = form["text_model"]
                 if form["text_model"]:
                     settings.text_model_name = form["text_model"]
-                settings.auto_activate_composite = not batch_no_auto_comp
+                settings.auto_activate_composite = bool(batch_seed_merged)
                 new_run = batch_coord.create_run(
                     selected,
                     settings=settings,
@@ -1118,14 +1040,16 @@ def _render_ocr_settings_form(
         )
     unknown = [m.name for m in all_discovery.models if not m.capability_known]
     from transcribe.services.ocr_preference_stats import (
+        effective_model_preference_hint_mode,
         preference_hint_for_model,
         rollup_preference_stats,
     )
 
     pref_stats = rollup_preference_stats()
+    hint_mode = effective_model_preference_hint_mode()
 
     def _model_label(name: str) -> str:
-        hint = preference_hint_for_model(name, stats=pref_stats)
+        hint = preference_hint_for_model(name, stats=pref_stats, share_mode=hint_mode)
         return f"{name} — {hint}" if hint else name
 
     if not names:
@@ -1258,12 +1182,12 @@ def _render_ocr_settings_form(
             key=f"{key_prefix}_cleanup_model",
         )
         prefer_labels = {
-            "prefer_is_promote": "Prefer = promote",
-            "prefer_only": "Prefer only (no activate)",
-            "prefer_promote_with_edit_gate": "Prefer + promote with edit gate",
+            "prefer_is_promote": "Notebook default = current text",
+            "prefer_only": "Notebook default only (stats / fine-tune)",
+            "prefer_promote_with_edit_gate": "Notebook default + current, with edit gate",
         }
         prefer_mode = st.selectbox(
-            "Prefer mode",
+            "When setting a notebook default",
             options=list(prefer_labels.keys()),
             format_func=lambda m: prefer_labels[m],
             index=(
@@ -1278,7 +1202,7 @@ def _render_ocr_settings_form(
             key=f"{key_prefix}_prefer",
         )
         auto_activate_composite = st.checkbox(
-            "Auto-activate composite after multipass",
+            "Seed transcription from merged draft after multipass",
             value=bool(settings.auto_activate_composite),
             key=f"{key_prefix}_auto_comp",
         )

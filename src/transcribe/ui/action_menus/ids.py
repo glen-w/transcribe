@@ -28,8 +28,8 @@ class ActionId(str, Enum):
 class ReturnMode(str, Enum):
     """Open / jump return targets.
 
-    ``VIEW`` is a legacy listing alias (normalises to Library). Open always
-    lands on Reading; ``page_return_mode`` stores the listing/source page.
+    ``VIEW`` and ``ARCHIVE`` are legacy listing aliases (normalise to Library).
+    Open always lands on Reading; ``page_return_mode`` stores the listing/source page.
     """
 
     ARCHIVE = "Archive"
@@ -70,12 +70,29 @@ class WorkflowMode(str, Enum):
     EXPORT = "Export"
 
 
+class ActionDisplay(str, Enum):
+    """Resolved action-link chrome (icon and/or text label)."""
+
+    ICON = "icon"
+    TEXT = "text"
+    BOTH = "both"
+
+
+class ActionDisplaySetting(str, Enum):
+    """Per-section action-link chrome; ``INHERIT`` follows the global default."""
+
+    INHERIT = "inherit"
+    ICON = "icon"
+    TEXT = "text"
+    BOTH = "both"
+
+
 SECTION_ORDER: tuple[SectionId, ...] = tuple(SectionId)
 ACTION_ORDER: tuple[ActionId, ...] = tuple(ActionId)
 
 SECTION_LABELS: dict[SectionId, str] = {
-    SectionId.ARCHIVE_NOTEBOOK: "Archive — notebook card",
-    SectionId.VIEW_NOTEBOOK: "Library — notebook row",
+    SectionId.ARCHIVE_NOTEBOOK: "Library — cover card",
+    SectionId.VIEW_NOTEBOOK: "Library — activity row",
     SectionId.IMPORT_SUCCESS: "Import — after success",
     SectionId.TRANSCRIBE_COMPLETE: "Transcribe — after complete",
     SectionId.ANALYSE_COMPLETE: "Analyse — after this-notebook complete",
@@ -100,7 +117,7 @@ def parse_return_mode(raw: str | None) -> ReturnMode | None:
 
 
 def listing_return_mode(mode: ReturnMode) -> str:
-    """Session ``page_return_mode`` for Back after Open (Library, not View)."""
-    if mode in {ReturnMode.VIEW, ReturnMode.LIBRARY}:
+    """Session ``page_return_mode`` for Back after Open (Library, not View/Archive)."""
+    if mode in {ReturnMode.VIEW, ReturnMode.LIBRARY, ReturnMode.ARCHIVE}:
         return ReturnMode.LIBRARY.value
     return mode.value

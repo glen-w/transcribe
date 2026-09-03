@@ -24,24 +24,28 @@ A composite is **current** iff its `source_attempt_ids` equal the latest succeed
 
 **Reviewed** means the *current* effective transcription was reviewed (`reviewed_text_fingerprint` + `reviewed_evidence_fingerprint`). New OCR evidence, active-attempt change, merged-draft regen, or effective-text change → `needs_attention`. **Save** stays on the page; **Save + Mark reviewed** is atomic (persist buffer, then fingerprints, then status, then auto-advance).
 
-Reading / Archive / Detect still use the shared page viewer. Only **Workflow → Review** is the workbench.
+Reading / Library / Detect still use the shared page viewer. Only **Workflow → Review** is the workbench.
 
-## Layout (Review page)
+**Layout (Review page)**
 
-Two-pane: **scan** (left) and **tabbed review lanes** (right). Typical pass: **Transcription → Date → Tags → Other** (no scrolling past the image for date or tags).
+Two-pane: **scan** (left) and **lane switcher** (right) so only one review lane body runs. Typical pass: **Transcription → Date → Tags → OCR → Cleanup → Other** (no scrolling past the image for date or tags). Selected lane is session-scoped, so prev/next, jump, thumbnails, Skip, and Save + Mark reviewed stay on Date (or Tags, …) instead of resetting to Transcription.
 
-| Tab | Purpose |
-|-----|---------|
-| **Transcription** | Editor, OCR evidence strip, disagreement navigation, Save / Save + Mark reviewed / Skip / Undo |
+| Lane | Purpose |
+|------|---------|
+| **Transcription** | Editor, current-disagreement excerpt, OCR evidence strip, disagreement navigation, Save / Save + Mark reviewed / Skip / Undo |
 | **Date** | Manual date entry, approve/ignore suggestions (✓ / ✓✓ / ✕), regression confirm; label shows **Date ⚠** when a suggestion is pending |
 | **Tags** | Page tag assignment (catalog + ad-hoc); **💾 Save tags** |
-| **Other** | Notebook cover, per-notebook OCR settings (below), **Re-run OCR** (vision model; this page / all pages / not reviewed), delete page |
+| **OCR** | Per-notebook OCR settings (below), **Re-run OCR** (vision model; this page / all pages / not reviewed), rank and merge this page / all comparable pages (all-pages behind confirm) |
+| **Cleanup** | Visual declutter (scanner beds, white gutters, corner wedges) on this page or all pages in the notebook; does not re-run OCR |
+| **Other** | Notebook cover, delete page |
 
-Nav bar **✓ date** remains for quick approve without opening the Date tab.
+Nav bar **✓ date** remains for quick approve without opening the Date lane.
 
-## OCR settings (Other tab)
+Reading / Library / Detect use the shared page viewer and **Compare in Review** (deep-link) when multiple OCR attempts exist — they are not a second Prefer/Promote GUI.
 
-Per-notebook controls (also in Compare OCR attempts and Transcribe Advanced):
+## OCR settings (OCR lane)
+
+Per-notebook controls (also in Transcribe Advanced and the Transcribe multipass row):
 
 - **When setting a notebook default** — prefer mode for Prefer / auto-composite: notebook default = current text (default), notebook default only (stats / fine-tune), or notebook default + current with edit gate when Transcription has an edit overlay.
 - **Seed transcription from merged draft after multipass** — when on (default), a succeeded merged draft becomes active after multipass and seeds the Transcription buffer; when off, the draft remains evidence-only until you Prefer/Promote or edit.

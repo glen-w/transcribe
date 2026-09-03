@@ -34,7 +34,7 @@ Testers use product docs only. Observers may note blockers; do not coach contrac
 9. **Export** — export Markdown or `transcribe.notebook` JSON; notice revision if shown.
 10. **Backup** — create a workspace backup ZIP via Settings or CLI; optionally verify.
 
-Then **5–10 minutes free exploration** (Search, Archive, Places, Settings — whatever they try).
+Then **5–10 minutes free exploration** (Search, Library, Places, Settings — whatever they try).
 
 ---
 
@@ -46,13 +46,13 @@ File issues (or a single testing notes doc) for:
 |-------|----------|
 | Install | Path mounts, port **8510**, Docker/`extra_hosts`, UID/GID, missing Ollama |
 | Models | Vision vs text confusion; unverified identity; hang/timeout honesty |
-| Review / dates | Unapproved dates on timeline; edit vs Prefer/Promote; empty OCR |
+| Review / dates | Unapproved dates on timeline; edit vs Use as current text / merged draft in Review; empty OCR |
 | Analyse | Empty states; “needs text model”; status strip clarity |
 | Navigation | Library → Reading; Search jump; Home recent list |
 | Backup / restore | Confidence; size; restore refuse messaging |
 | Docs | Gaps between README and first success |
 
-Also note anything that would later block “life around a page” (Reading centrality, Search/Archive date filters, jump-to-page) — **without** asking testers to import WhatsApp or photo libraries.
+Also note anything that would later block “life around a page” (Reading centrality, Search/Library date filters, jump-to-page) — **without** asking testers to import WhatsApp or photo libraries.
 
 ---
 

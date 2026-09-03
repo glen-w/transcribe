@@ -322,3 +322,25 @@ def test_detection_bind_contexts_falls_back_to_reachable_ollama_url(
 
     assert captured["text_base_url"] == "http://host.docker.internal:11434"
     assert captured["vision_base_url"] == "http://host.docker.internal:11434"
+
+
+def test_run_detector_logs_progress_to_stderr(tmp_path: Path, capsys):
+    """In-GUI detection must print like OCR / analysis batch jobs."""
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds("log")
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("log-nb")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p0.png", _png_bytes())
+    page = projects.load().pages[0]
+    projects.save_user_edit(page.page_id, "I went to the market and I bought bread.")
+
+    svc = DetectionService(projects)
+    result = svc.run_detector("first_person", force=True)
+    assert result["outcome"] == "success"
+    err = capsys.readouterr().err
+    assert "[transcribe:detection] [running]" in err
+    assert "current=first_person" in err
+    assert "window 1/1" in err
+    assert "[transcribe:detection] [completed]" in err
+    assert "first_person: success" in err

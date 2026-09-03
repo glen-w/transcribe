@@ -176,7 +176,7 @@ def _sync_snapshots_from_coordinators(
 ) -> tuple[bool, AnalysisTarget | None]:
     """Refresh session snapshots from live coordinators; return (active, target)."""
     from transcribe.ui.run_analysis import progress_to_snapshot
-    from transcribe.ui.run_analysis_batch import batch_analysis_progress_to_snapshot
+    from transcribe.ui.progress_snapshots import batch_analysis_progress_to_snapshot
 
     batch_running = _batch_is_running(batch_coord)
     if batch_coord is not None:

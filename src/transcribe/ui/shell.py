@@ -287,7 +287,7 @@ def inject_global_styles() -> None:
         color: #e8b4b4 !important;
         background: rgba(180, 90, 90, 0.12) !important;
     }
-    /* Compact tertiary action links (Archive / View notebook strips) */
+    /* Compact tertiary action links (Library notebook strips) */
     [class*="st-key-tr_al_"] [data-testid="stButton"] {
         margin: 0 !important;
     }
@@ -315,7 +315,7 @@ def inject_global_styles() -> None:
         background: transparent !important;
     }
     /* Scope to the action-strip row only. :has(tr_al_) alone also matches
-       ancestor grids (Archive notebook columns) and collapses them to
+       ancestor grids (Library cover columns) and collapses them to
        content-width + wrap. Exclude rows that nest another HorizontalBlock. */
     div[data-testid="stHorizontalBlock"]:has([class*="st-key-tr_al_"]):not(
             :has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])
@@ -380,7 +380,7 @@ def inject_global_styles() -> None:
         outline-offset: 2px;
         cursor: pointer;
     }
-    /* View list: fixed-width cover slot (112×160), contain — no crop.
+    /* Activity list: fixed-width cover slot (112×160), contain — no crop.
        Matches VIEW_COVER_WIDTH_PX / chart row in archive_views. */
     div[data-testid="stHorizontalBlock"]:has([class*="st-key-tx_cover_view_"]) {
         align-items: flex-start !important;
@@ -410,7 +410,7 @@ def inject_global_styles() -> None:
         max-height: 160px !important;
         object-fit: contain !important;
     }
-    /* Archive strip: fixed cover height, width follows aspect — no crop.
+    /* Library covers: fixed cover height, width follows aspect — no crop.
        Matches ARCHIVE_COVER_HEIGHT_PX in archive_views. */
     div[data-testid="stVerticalBlock"]:has(> [class*="st-key-tx_cover_archive_"])
         [data-testid="stImage"]

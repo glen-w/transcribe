@@ -12,7 +12,8 @@ Authority: Product roadmap and sequencing. Does not define runtime contracts or 
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
 **Core delivery history (internal):** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
 **Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency). Reverse file-import of TX exports is Transcribe **1.6**, not this seam.  
-**Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)
+**Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)  
+**Architecture follow-ups (candidates, not 0.9):** [reviews/architecture_from_evidence.md](reviews/architecture_from_evidence.md) · [Later — Architecture follow-ups](#later--architecture-follow-ups-from-evidence-review--candidates)
 
 > **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred · [?] candidate (uncommitted)
 
@@ -22,11 +23,11 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.6.** Version ladder to autobiography:
+**Package is 0.8.7.** Version ladder to autobiography:
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-              I0–I1     I2–I3     patch     product     U2 + I5–I6     tag + hosted docs      findings → fixes         freeze     autobiography
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
+              I0–I1     I2–I3     patch     product     patch         U2 + I5–I6     tag + hosted docs      findings → fixes         freeze     autobiography
 ```
 
 | Label | Meaning |
@@ -35,6 +36,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.8.0** | Release hygiene + quality gates (**I2–I3**). `scripts/release/*`, `release_governance.md`, coverage fail-under, pre-commit, CI `release-checks`. |
 | **0.8.5** | Product patch on 0.8.0: cover-page skip in ink metrics; Analyse batch pick labels show published status. |
 | **0.8.6** | Post-U3 product cut: OCR Review workbench, export typography/cover/ignore-pages, Sphinx docs (**I4**), Ask history, Detect → Workflow nav, chart colours, detection tag approval. |
+| **0.8.7** | Product patch: names + lexical detectors, Review/Library polish, Detect accept-per-page, circuit CLI honesty, action-link appearance. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
 | **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
@@ -84,17 +86,17 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 | Track | Status | Intent |
 |-------|--------|--------|
-| **U3 Daily workbench** | [x] | Review as needs-attention queue, Reading mode, Search/Archive filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
+| **U3 Daily workbench** | [x] | Review as needs-attention queue, Reading mode, Search/Library filter parity, organisation polish, model/runtime product copy — **without** requiring bulk corpus activation |
 
-**Also landed with U3:** Archive activity-bin click filter; Archive notebook-strip paging (`ui.archive_notebooks_initial`, default show-all); page delete in the viewer; model-information expander wired to live picker selection on Transcribe panels.
+**Also landed with U3:** Library activity-bin click filter; Library cover-grid paging (`ui.archive_notebooks_initial`, default show-all); page delete in the viewer; model-information expander wired to live picker selection on Transcribe panels.
 
-**Post-U3 deepen-in-place (shipped, not a new wave track):** OCR hang / model-load fail-fast circuits; Compare OCR attempt previews escape markdown so Prefer/Promote stays readable; Analyse Moments jump-to-page; Overview/Mood this-vs-corpus/period charts (PR #25). **OCR Review workbench:** scan + tabbed review lanes (Transcription / Date / Tags / Other), disagreement-centric review, merged draft as recommendation not vote ([ocr_review_workbench_plan.md](dev/ocr_review_workbench_plan.md)).
+**Post-U3 deepen-in-place (shipped, not a new wave track):** OCR hang / model-load fail-fast circuits; Compare OCR attempt previews escape markdown so Prefer/Promote stays readable; Analyse Moments jump-to-page; Overview/Mood this-vs-corpus/period charts (PR #25). **OCR Review workbench:** scan + tabbed review lanes (Transcription / Date / Tags / OCR / Cleanup / Other), disagreement-centric review, merged draft as recommendation not vote ([ocr_review_workbench_plan.md](dev/ocr_review_workbench_plan.md)).
 
 ### U4 — Corpus UX — [x] gate green (Inbox polish may continue)
 
 Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and **Next — Notebook corpus**. Remaining Inbox polish (e.g. richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue without reopening the gate.
 
-Near-future deepen-in-place (planned, Reader-facing): **Ignore pages** — let users mark uninteresting pages as ignored so they are omitted from Reader by default. Make this a toggle with configurable default settings (workspace/user), plus an explicit “show ignored” override in Reader UI. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages** (default on) omits `ignored` pages from reading formats (Markdown/HTML/PDF/EPUB/text); JSON export keeps the full notebook. **Future:** include/exclude export pages by tag (AND filter, same semantics as Reading/Archive).
+Near-future deepen-in-place (planned, Reader-facing): **Ignore pages** — let users mark uninteresting pages as ignored so they are omitted from Reader by default. Make this a toggle with configurable default settings (workspace/user), plus an explicit “show ignored” override in Reader UI. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages** (default on) omits `ignored` pages from reading formats (Markdown/HTML/PDF/EPUB/text); JSON export keeps the full notebook. **Future:** include/exclude export pages by tag (AND filter, same semantics as Reading/Library).
 
 **Page scan fullscreen (Reader / Review):** Today uses Streamlit’s built-in `st.image` hover toolbar (**View fullscreen**). **Candidate — click image → black lightbox:** Streamlit has no API for click-to-fullscreen or a black backdrop ([streamlit#8031](https://github.com/streamlit/streamlit/issues/8031)). Revisit when that lands; until then, optional custom JS below (parent-frame overlay, same pattern as Review hotkeys).
 
@@ -241,7 +243,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | Outcome | Intent | Wave |
 |---------|--------|------|
 | **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity filters → After 1.0 **1.1/1.3**; saved searches still candidate |
-| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Archive strip paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. Workspace tag catalogue (labels, colours, rename/merge) + viewer click-to-filter + detection auto-tag: [tag-catalog.md](contracts/tag-catalog.md). | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped as deepen-in-place; collections/archive-state candidate |
+| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Library cover-grid paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. Workspace tag catalogue (labels, colours, rename/merge) + viewer click-to-filter + detection auto-tag: [tag-catalog.md](contracts/tag-catalog.md). | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped as deepen-in-place; collections/archive-state candidate |
 | **Page reordering & date repair** | Add a drag/drop thumbnail grid to reorder notebook pages after scan upload order errors, plus a “move suspiciously dated page to end of confirmed date cluster” action that updates page-number navigation. See plan: [page reorder plan](../../.cursor/plans/page_reorder_plan_6d561135.plan.md). | candidate |
 | **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
 | **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
@@ -252,7 +254,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 | **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
 | **Detection fine-tune export** | Export approved/rejected detection findings (e.g. to-do list suggestions) as labelled datasets for external detector fine-tuning — same “export only, train elsewhere” model as OCR fine-tune export. | candidate — see **Detection fine-tune export** |
 | **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
-| **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical `first_person` / `swear_words` + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
+| **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical `first_person` / `swear_words`, `names` (people from NER) + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
 | **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
 | **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done); OCR Review workbench deepen-in-place shipped |
 | **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options (25 curated free/system body fonts), export profiles, multi-notebook anthology (provenance via U0 #13), **exclude ignored pages** toggle. Further reading-mode polish remains a separate candidate above. **Candidate:** user-uploaded custom fonts; **future:** include/exclude by tag. | **shipped** |
@@ -275,7 +277,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.6** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.7** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
 **Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
 
@@ -334,7 +336,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs. Remaining infra: **I5–I6**.
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty. Remaining infra: **I5–I6**.
 
 ### 0.9-1 — Unfamiliar user testing
 
@@ -410,7 +412,7 @@ The current architecture is the right core. Post-1.0 **extends** it; it does not
 - ImportRun `scan → plan → validate → commit` ([import-run.md](contracts/import-run.md)).
 - Workspace backup packs authority, excludes `data/cache/` ([workspace-backup.md](contracts/workspace-backup.md)).
 - Ask notebook (`llm_custom_qa`): grounded chunks, citations, **abstain** if unsupported.
-- Streamlit IA and jump-to-Reading. Grow Reading / Archive / Search; do not assume a new frontend.
+- PageSpec IA, stay-don’t-bounce, jump-to-Reading, and the UI/core Streamlit boundary ([ARCHITECTURE.md](ARCHITECTURE.md) · `test_core_no_streamlit`). Grow Reading / Library / Search. **Working default:** Streamlit through 2.0 — do not assume a new frontend in 1.x. The **host** (Streamlit vs a later native/SPA client) is a reopenable decision, not a scheduled track — [UI host](#ui-host-working-default--reopen-with-evidence).
 
 **Derived today, not durable domain objects:** People and Places are NER surface-form read-models (`PlacesService`). Mood → **Moments** is the `moments` salience module (quoted pages) — **not** autobiographical episodes. Analysis delivery “slices” in module registry are unrelated. Do not reuse those names for Slices / Person.
 
@@ -526,9 +528,21 @@ Embeddings / vector DBs are **not** a 1.x dependency. In-notebook `semantic_simi
 
 **1.8 — Life around a page:** Reading stays page-central (scan + effective text). A **Related evidence** panel lists same-day / nearby chats, photos, audio, mood, people, places, Slices, other pages. Wander: page → evidence → Slice → person → place → another page. Not a messaging UI. Cap lists (“14 messages” + sample 3). Empty state if no context imported.
 
-**1.9 — Autobiography:** years → months → weeks → days → pages → evidence. Distinct from Archive (Archive remains the **notebook** diary timeline): show **gaps** (chats/photos without a notebook page, or the reverse); notebook activity as the spine; Slices as labeled bands, not calendar events; Evidence vs Interpretation layers. Not a streak calendar.
+**1.9 — Autobiography:** years → months → weeks → days → pages → evidence. Distinct from Library activity (the **notebook** diary timeline): show **gaps** (chats/photos without a notebook page, or the reverse); notebook activity as the spine; Slices as labeled bands, not calendar events; Evidence vs Interpretation layers. Not a streak calendar.
 
-Stay on Streamlit `PageSpec`s. If density becomes a wall, a narrow HTML component is allowed; a SPA is **post-2.0**.
+Stay on Streamlit `PageSpec`s through 2.0. If density becomes a wall, a narrow HTML/JS island is allowed (same pattern as Review hotkeys); a SPA or native rewrite is **post-2.0** unless the [UI host](#ui-host-working-default--reopen-with-evidence) questions are explicitly reopened with 1.8–1.9 evidence.
+
+### UI host (working default — reopen with evidence)
+
+Not a 1.x track. Do not block **1.0** or **1.1–1.7** on a frontend change. Streamlit remains the supported interactive surface ([public_surfaces.md](public_surfaces.md)).
+
+**Working default through 2.0:** Streamlit `PageSpec`s; stay-don’t-bounce; jump-to-Reading; HTML/JS islands when density or interaction APIs fail (Review hotkeys already; page-scan lightbox is a candidate in **Now**). Core packages still must not import Streamlit. A React / Gradio / native rewrite stays in [Explicitly not to build yet](#explicitly-not-to-build-yet).
+
+**Why this is a decision, not a freeze forever:** the GUI is a large Streamlit product on a clean service boundary (UI ~38k LOC, ~2k `st.` calls; services/CLI already share the kernel; `test_core_no_streamlit` holds). A fully custom native interface is **architecturally feasible** and **not a framework swap**: presentation, navigation state (`st.session_state` / rerun), CSS/DOM overlays, iframe hotkeys, and Altair/`st.map`/wordcloud islands would be reimplemented. Highest Streamlit friction today: **Review**, **Reading / page viewer**, **Library**. There is **no HTTP/IPC API** — UI calls services in-process. TranscriptX is also Streamlit; a Transcribe host change diverges presentation unless both products later share a frontend programme.
+
+**Reopen when (any):** 1.8 Related evidence or 1.9 Autobiography is unusable even with an HTML island; Review/Reading interaction debt (keyboard, lightbox, split pane) blocks the autobiography UX; Docker `transcribe-web` and a future desktop shell cannot share one client. Do not reopen because another stack is fashionable.
+
+**If reopened, decide in this order** (defaults until decided): [Open architectural questions](#open-architectural-questions) 8, 11–16. Sketch: evidence first → optional local API/IPC → one heavy surface (Review/Reading) as a strangler → Settings last. Full parity is a multi-year programme, not a release item.
 
 ### Releases (1.1–2.0)
 
@@ -564,7 +578,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Product goal:** Answer “what else in my notebooks belongs with this page?” without new importers.
 
-**UX:** Reading shows other pages in a date window (this notebook + corpus). Search/Archive: tighter range; optional exclude unapproved dates; and a configurable ignore list so extracted dates from pages whose Detect categories match (e.g. label/packaging) are treated as `rejected`/unapproved by default. Add date-window presets (`same day`, `3 days`, `1 week`, `1 month`) and group related pages by temporal proximity (`same day`, `nearby`, `same week`). Allow previous/next **dated** page jumps across the corpus. Show date-source / confidence badges (explicit on page, inherited, manual correction) and a quick exact-only filter chip so inherited or weak dates can be hidden. Page **time-of-day** from diary stamps (`YYMMDD HHMM`) stored alongside `ApproximateDate`. Optional **estimated writing time** per page/notebook from OCR word count and a user-set average words-per-minute; label as approximate and allow workspace/user override. Entity filters on Search only if a cheap NER join exists; otherwise wait for 1.3.
+**UX:** Reading shows other pages in a date window (this notebook + corpus). Search/Library: tighter range; optional exclude unapproved dates; and a configurable ignore list so extracted dates from pages whose Detect categories match (e.g. label/packaging) are treated as `rejected`/unapproved by default. Add date-window presets (`same day`, `3 days`, `1 week`, `1 month`) and group related pages by temporal proximity (`same day`, `nearby`, `same week`). Allow previous/next **dated** page jumps across the corpus. Show date-source / confidence badges (explicit on page, inherited, manual correction) and a quick exact-only filter chip so inherited or weak dates can be hidden. Page **time-of-day** from diary stamps (`YYMMDD HHMM`) stored alongside `ApproximateDate`. Optional **estimated writing time** per page/notebook from OCR word count and a user-set average words-per-minute; label as approximate and allow workspace/user override. Entity filters on Search only if a cheap NER join exists; otherwise wait for 1.3.
 
 **Architecture:** Additive page time on `PageIndex` (legacy = null). `ArchiveService.related_pages(page_id, window)` plus previous/next dated-page lookups over the same index. Date-source / confidence is a read-model over existing page date state (explicit extraction, inherited notebook date, manual review), not a new autobiography entity. Estimated writing duration is derived, not authored metadata: persist only the configured WPM setting and recompute from approved/current page text. Document ClaimStatus vocabulary in contracts (map existing date/detection/edit states). No `ContextCollection` yet. Relatedness is **computed**, not persisted links.
 
@@ -676,7 +690,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **AI:** None required. Optional panel summary waits for 2.0.
 
-**Risks:** Clutter; Streamlit rerun lag; replacing the scan.
+**Risks:** Clutter; Streamlit rerun lag; replacing the scan. Density here is the first honest test of the Streamlit host — prefer an HTML island over a frontend rewrite ([UI host](#ui-host-working-default--reopen-with-evidence) question 8).
 
 **Exit:** Fixture workspace (notebook + photos + WhatsApp); jumps work; layer honesty.
 
@@ -690,7 +704,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **AI:** None on the canvas. Optional interpreted captions behind a toggle, cited.
 
-**Risks:** Calendar product; streak gamification; hiding notebooks behind chats.
+**Risks:** Calendar product; streak gamification; hiding notebooks behind chats. Grain navigation may stress Streamlit density the same way 1.8 does — HTML island allowed; do not use 1.9 to justify a SPA.
 
 **Exit:** Grain navigation; gap visibility; click to page/Slice/person; notebooks-only still works (other layers empty).
 
@@ -720,7 +734,7 @@ Example questions (retrieve evidence, then optionally interpret): What was happe
 - Reprocessing: parse frozen in collection; re-parse explicit; entity/Slice confirmations carry forward
 - IDs: UUID hex; never path-derived
 - Export `transcribe.notebook` stays **notebook-only** through 2.0 unless a separate autobiography export is designed later
-- Streamlit IA: add `PageSpec`s slowly; stay-don’t-bounce preserved
+- Streamlit IA: add `PageSpec`s slowly; stay-don’t-bounce preserved. Treat PageSpec, interface-menus, action IDs, and workspace settings as **host-agnostic contracts**; do not encode `st.session_state` keys or CSS `:has()` overlays as product rules. Host change is a reopenable decision — [UI host](#ui-host-working-default--reopen-with-evidence)
 
 ### Testing strategy
 
@@ -743,7 +757,7 @@ No live WhatsApp/Telegram/Ollama in default CI. Doctor deep-hash originals. Back
 - Chat-with-your-life as the home screen
 - Face recognition / biometric identity / automatic identity merge
 - Vector DB as default retrieval; SQLite as authority; task-queue worker fleet
-- React / Gradio rewrite
+- React / Gradio / native rewrite as a 1.x or 2.0 delivery item (Streamlit through 2.0 is the working default; reopen only via [UI host](#ui-host-working-default--reopen-with-evidence), not because another stack is fashionable)
 - Treating photos/chats as notebook pages
 - Porting TX speaker/audio modules (`interactions`, `pauses`, `voice_*`)
 - Cloud OCR/sync; multi-user social graph
@@ -771,9 +785,39 @@ Defaults for implementers; revisit with evidence:
 5. Reconstruction runs in backup — confirmed notes only.
 6. TX export pin — frozen fixture if TX 1.0 is late.
 7. Time-of-day in 1.0 vs 1.1 — **1.1**.
-8. Streamlit density at 1.8 — HTML island allowed; SPA not.
+8. Streamlit density at 1.8 — HTML island allowed; SPA not. **Reopen after 1.8/1.9** if Related evidence or Autobiography is unusable even with an island. Options then: more islands vs extract a local API + one heavy surface (Review/Reading) vs a host change. SPA remains post-2.0 unless this question is explicitly reopened.
 9. Conflicts — show both; supersede, don’t erase.
 10. If users dump notebook scans as “photos,” offer **promote photo → notebook page** rather than collapsing models.
+11. **Local API / IPC before a second UI?** UI and CLI call services in-process today. A SPA, Tauri, or other out-of-process client needs a contract (notebook/corpus listing, page read/update, job start/stop/progress, analysis health, settings). Default: **no API** until a host change is decided. If extracted, UI and CLI should share it; do not invent OCR/persistence rules in the client.
+12. **If a second UI is warranted, which host?** Local web SPA (optional Tauri/Electron shell) vs in-process desktop (Qt/PySide) vs another Python web stack. Gradio is not a workbench replacement. Drivers: Docker `transcribe-web` needs a web client; Qt-only splits desktop vs container; NiceGUI/Flet/Reflex are unlikely to beat Streamlit enough to justify a rewrite. TranscriptX stays Streamlit — a Transcribe host change diverges presentation unless both later share a frontend programme.
+13. **Strangler vs cutover.** If migrating, phase by user pain (Review → Reading/page viewer → Library → Transcribe/Analyse launchers + progress → analysis consume → Settings last). Keep Streamlit for Settings/Diagnostics until parity. Do not dual-run two full GUIs without freezing Streamlit feature scope. Full parity is multi-year, not a release row.
+14. **Docker `transcribe-web` vs desktop-only.** Streamlit-in-container is the supported web surface. A Qt-only Review tool is a slice, not a replacement, unless a web client exists for Compose.
+15. **Host-agnostic vs Streamlit accident.** Portable: PageSpec IA and gating, `interface-menus`, action IDs, workspace settings, tagging kernel, review alignment / composite / places / analysis display helpers. Not portable: scattered `st.session_state` keys, CSS `:has()` cover overlays, iframe parent-document hotkeys, Altair/`st.map` wiring. A second UI must re-specify navigation state (today: `ui_mode`, `root`, page-viewer overlay, review buffers) — there is no central state object.
+16. **Are Review/Reading JS islands enough through 2.0?** Prefer islands (lightbox, shortcuts, Related evidence density) over a host change until 1.8 evidence. Click-to-fullscreen is already a **Now** candidate (Streamlit has no API; custom JS safekeeping in this file). Reopen 8 + 16 together if islands accumulate into an unofficial SPA.
+
+---
+
+## Later — Architecture follow-ups from evidence review — [?] candidates
+
+Not on the **0.9.0 / U2** path. Do not schedule these while first-run operability and I5–I6 remain the cut. Evidence, blast radius, and “do not replace JSON-on-disk / add an event bus / split CLI vs UI services” live in [architecture_from_evidence.md](reviews/architecture_from_evidence.md) (2026-09-03).
+
+**Already done from that review (do not re-open as new work):** L1 CLI `transcribe run` exits 1 on `circuit_open` (job record stays `completed`); cancel / “Completed with gaps” chrome; detection `reconcile_interrupted` no-ops while the OCR **or** analysis lock is held; snapshot mappers in `ui/progress_snapshots.py`. Do **not** add a `completed_partial` job status without a schema and test plan — coordinators keep `completed` + `circuit_open`.
+
+| ID | Outcome | Review | Notes |
+|----|---------|--------|-------|
+| **L2** | `ProjectService.load` is a read by default; reconcile interrupted attempts is an explicit reopen path | P2 #3, L2 **partial** | Detection already skips reconcile when either long lock is held. Changing the load default touches every caller of `load()`. |
+| **L3** | Names / people detector consumes **published** NER only — no nested `AnalysisRunner.run_module("ner")` | P2 #4, L3 | Keeps Detect from running Analyse as a side effect. |
+| **L4** | One schema registry for every written `format` (including job-record, settings, profiles, interface-menus) | P2 #7, L4 | `persistence.schema.SUPPORTED` is incomplete today. |
+| **P1 leftover** | Cleanup LLM failure must not seal cleanup into the OCR skip fingerprint while the page keeps raw text | P1 #2 | Skip/resume can assume cleanup that never applied. |
+| **P2 split** | Split `ProjectService` along SoT I/O vs review / dates / declutter / reconcile | P2 #6 | High blast radius; not a Review workbench rewrite and not a database. |
+| **Detect cancel** | Detect can be stopped like OCR/Analyse | P3 | Detect is request-synchronous today; Analyse+detect lock behaviour already tightened. |
+| **Confirms** | Confirm before Reset whole workspace settings and Re-apply visual declutter | P3 | Reset already copies `settings.reset.{stamp}.json`; declutter margin loss is documented. |
+| **Cover Open** | Library cover Open is a visible control | P3 | Opacity-0 overlay today. |
+| **Dirty leave** | Review dirty-leave does not require a second Prev/Next to discard | P3 | `rw_force_leave`. |
+| **Auto-tag** | Re-running auto-tag does not re-apply slugs the user removed | P3 | Current contract: additive re-add; turn the checkbox off to stop. |
+| **Chart palettes** | Config chart-colour defaults do not import `transcribe.ui` | residual | Streamlit no longer loads on `ProjectService.create`; `ChartColorsConfig` still imports `ui.chart_colors`. |
+
+Leave `effective_text()` as the integration bus, session-only routing, and on-disk `completed` + `circuit_open` unless a later review reopens them with evidence.
 
 ---
 
@@ -789,6 +833,7 @@ Worth recording without scheduling. Rows pulled into [After 1.0](#after-10--note
 - Batch metadata editing
 - Image-only / non-OCR page handling
 - **Detection fine-tune export** — scheduled as candidate section above (approved/rejected Detect labels → external training datasets)
+- **Custom / native UI host** (SPA, Tauri, Qt, …) — uncommitted; not a 1.x track. Working default is Streamlit through 2.0. Reopen only with 1.8–1.9 evidence via [UI host](#ui-host-working-default--reopen-with-evidence); do not schedule a rewrite from this list.
 
 ---
 

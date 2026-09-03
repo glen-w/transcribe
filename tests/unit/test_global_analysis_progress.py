@@ -80,6 +80,22 @@ def test_snapshot_summary_prefers_item_and_counts() -> None:
 
 
 @pytest.mark.unit
+def test_snapshot_summary_cancelled_is_not_failed() -> None:
+    title, pct, detail = gap._snapshot_summary(
+        {
+            "phase": "cancelled",
+            "status": "cancelled",
+            "pct": 40.0,
+            "completed": 1,
+            "total": 3,
+        }
+    )
+    assert title == "Cancelled"
+    assert pct == 40.0
+    assert "1/3" in detail
+
+
+@pytest.mark.unit
 def test_app_shell_mounts_global_progress() -> None:
     from transcribe.ui import app as app_mod
     from transcribe.ui import shell as shell_mod

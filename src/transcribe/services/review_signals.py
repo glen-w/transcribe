@@ -11,7 +11,10 @@ from transcribe.services.ocr_alignment import AlignmentResult, normalize_span
 _REPEAT_RE = re.compile(r"(.{12,40}?)\1{2,}", re.DOTALL)
 _MD_HEADING_RE = re.compile(r"(?m)^#{1,6}\s")
 _PROMPT_LEAK_RE = re.compile(
-    r"format\s+the\s+output\s+in\s+markdown|you are an? (ocr|transcription)",
+    r"format\s+the\s+output\s+in\s+markdown|"
+    r"you are an?\s+(ocr|transcription)|"
+    r"use\s+proper\s+punctuation\s+and\s+spacing|"
+    r"use\s+a\s+consistent\s+style",
     re.IGNORECASE,
 )
 

@@ -325,16 +325,16 @@ def render_configuration_panel() -> None:
                 st.error(f"{type(exc).__name__}: {exc}")
 
     st.divider()
-    st.markdown("#### Archive")
-    st.caption("Archive notebook strip paging.")
+    st.markdown("#### Library")
+    st.caption("Cover-grid paging on Library → Covers.")
     archive_initial = st.number_input(
         "Notebooks shown initially",
         min_value=0,
         value=int(view.effective.ui.archive_notebooks_initial),
         key="settings_archive_notebooks_initial",
-        help=widget_help("How many notebook cards load before “Show more”. 0 shows all notebooks."),
+        help=widget_help("How many cover cards load before “Show more”. 0 shows all notebooks."),
     )
-    if st.button("Save archive defaults", type="primary", key="settings_archive_save", icon=ic.SAVE):
+    if st.button("Save library defaults", type="primary", key="settings_archive_save", icon=ic.SAVE):
         try:
             loaded = load_workspace_settings()
             cfg = deep_merge_dict({}, loaded.config)
@@ -509,6 +509,67 @@ def render_configuration_panel() -> None:
 
 
 _PREPROCESS_PROFILES = ("none", "gentle_contrast")
+_MODEL_PREFERENCE_HINT_LABELS = {
+    "all_choices": "Prefers and current-text choices",
+    "prefer_only": "Notebook-default prefers only",
+    "off": "Off",
+}
+
+
+def _render_installed_models_section(
+    base_url: str,
+    *,
+    preference_share_mode: str,
+) -> None:
+    """Live Ollama discovery for the workspace URL (refresh invalidates cache)."""
+    from transcribe.analysis.llm_runtime import suitable_text_model_names
+    from transcribe.providers.ollama import OllamaVisionProvider, invalidate_discovery_cache
+    from transcribe.services.model_selection import suitable_ocr_vision_model_names
+
+    st.markdown("#### Installed models")
+    st.caption(
+        "Tags reported by Ollama at the workspace URL above (save to persist). "
+        "Workflow → Transcribe / Analyse use the open notebook URL when set."
+    )
+    url = (base_url or "").strip() or "http://localhost:11434"
+    _, refresh_col = st.columns([3, 1])
+    with refresh_col:
+        refresh = st.button(
+            "Refresh models",
+            key="settings_models_refresh",
+            icon=ic.REFRESH,
+            use_container_width=True,
+        )
+    if refresh:
+        invalidate_discovery_cache(url)
+    try:
+        provider = OllamaVisionProvider(url, request_timeout=10.0)
+    except Exception as exc:  # noqa: BLE001
+        st.warning(str(exc))
+        return
+    discovery = provider.list_models(refresh=refresh)
+    if discovery.error:
+        st.warning(f"Discovery: {discovery.error}")
+    if not discovery.models:
+        st.info(
+            "No installed Ollama models found. Pull one with `ollama pull …`, "
+            "then refresh."
+        )
+        return
+    ocr_n = len(suitable_ocr_vision_model_names(discovery.models))
+    text_n = len(suitable_text_model_names(discovery.models))
+    st.caption(
+        f"{len(discovery.models)} installed · "
+        f"{ocr_n} OCR-appropriate vision · {text_n} text"
+    )
+    from transcribe.ui.components.model_info import render_installed_models_table
+
+    render_installed_models_table(
+        discovery.models,
+        role="all",
+        key="settings_models_table",
+        preference_share_mode=preference_share_mode,
+    )
 
 
 @st.fragment
@@ -517,6 +578,7 @@ def render_models_panel() -> None:
     view = get_config()
     ocr = view.effective.ocr
     llm = view.effective.llm
+    ui = view.effective.ui
     from transcribe.ui.home import ollama_health_line
 
     st.caption(ollama_health_line())
@@ -526,6 +588,25 @@ def render_models_panel() -> None:
         "Workflow → Transcribe. Live model pickers stay on Transcribe / Analyse."
     )
     base_url = st.text_input("Workspace Ollama base URL", value=ocr.base_url or "")
+    hint_options = list(_MODEL_PREFERENCE_HINT_LABELS.keys())
+    hint_mode = st.selectbox(
+        "Model picker preference hints",
+        options=hint_options,
+        index=(
+            hint_options.index(ui.model_preference_hints)
+            if ui.model_preference_hints in hint_options
+            else hint_options.index("all_choices")
+        ),
+        format_func=lambda key: _MODEL_PREFERENCE_HINT_LABELS[key],
+        key="settings_model_preference_hints",
+        help=widget_help(
+            "History shown beside vision model pickers on Transcribe, Review, "
+            "and in the installed-models table below. "
+            "All choices includes Use as current text; prefers only counts "
+            "explicit notebook-default events."
+        ),
+    )
+    _render_installed_models_section(base_url, preference_share_mode=hint_mode)
     current_preprocess = (
         ocr.preprocess_profile if ocr.preprocess_profile in _PREPROCESS_PROFILES else "none"
     )
@@ -575,6 +656,8 @@ def render_models_panel() -> None:
                     "max_prompt_tokens": int(max_prompt),
                 }
             )
+            ui_cfg = cfg.setdefault("ui", {})
+            ui_cfg["model_preference_hints"] = str(hint_mode)
             acts = loaded.activations
             if acts.llm != "default" or acts.ocr != "default":
                 acts = ProfileActivations(

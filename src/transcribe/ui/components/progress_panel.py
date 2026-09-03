@@ -16,7 +16,7 @@ PANEL_LOG_LINES = 8
 
 
 class ProgressSnapshot(TypedDict, total=False):
-    status: str  # running | completed | failed
+    status: str  # running | completed | failed | cancelled
     phase: str
     current_module: str
     current_item: str
@@ -84,7 +84,11 @@ def render_progress_panel(
     }
     phase_label = phase_labels.get(str(phase), str(phase).replace("_", " ").title())
 
-    if status == "completed":
+    if status == "cancelled":
+        st.warning(f"**{phase_label}**")
+    elif status == "completed" and str(phase) == "partial":
+        st.warning(f"**{phase_label}**")
+    elif status == "completed":
         st.success(f"**{phase_label}**")
     elif status == "failed":
         st.error(f"**{phase_label}**")
@@ -105,7 +109,7 @@ def render_progress_panel(
     if current_module:
         prefix = (
             f"Last {current_label.lower().replace('current ', '')}:"
-            if status in ("completed", "failed")
+            if status in ("completed", "failed", "cancelled")
             else f"{current_label}:"
         )
         st.markdown(f"{prefix} `{current_module}`")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from transcribe.analysis.modules.ner import ALGORITHM_VERSION as NER_ALGORITHM_VERSION
 from transcribe.detection.custom import compile_custom_detector, load_custom_detectors
 from transcribe.detection.definition import (
     AggregationStrategy,
@@ -18,6 +19,7 @@ from transcribe.detection.lexical import (
     SWEAR_WORDS_MATCHER,
     swear_lexicon_digest,
 )
+from transcribe.detection.ner_people import PERSON_LABEL, SOURCE_MODULE as NER_PEOPLE_SOURCE
 
 POETRY_DETECTOR = DetectorDefinition(
     detector_id="poetry",
@@ -87,10 +89,13 @@ BEER_LABELS_DETECTOR = DetectorDefinition(
     detector_id="beer_labels",
     version="1",
     title="Beer labels",
-    description="Detect beer bottle/can labels and beer branding on notebook pages.",
+    description=(
+        "Detect pasted or sketched beer bottle/can labels and beer branding from page images "
+        "(not diary mentions of beer)."
+    ),
     prompt_ref=PromptRef(prompt_id="beer_labels_detect_text_v1", version="1"),
     scope=DetectorScope.PAGE_WINDOW,
-    input_mode=ModelMode.AUTO,
+    input_mode=ModelMode.VISION,
     candidate_strategy=CandidateStrategy.ALL_PAGES,
     window_size=2,
     window_overlap=1,
@@ -103,7 +108,7 @@ FIRST_PERSON_DETECTOR = DetectorDefinition(
     detector_id="first_person",
     version="1",
     title="First person (I)",
-    description="Count standalone first-person 'I' / 'i' references on each page.",
+    description="Count standalone first-person 'I' / 'i' on each page from OCR text (no LLM).",
     scope=DetectorScope.PAGE,
     input_mode=ModelMode.TEXT,
     engine=DetectorEngine.LEXICAL_COUNT,
@@ -116,6 +121,30 @@ FIRST_PERSON_DETECTOR = DetectorDefinition(
     extra_config={
         "lexical_matcher": FIRST_PERSON_MATCHER,
         "min_count": 1,
+    },
+)
+
+NAMES_DETECTOR = DetectorDefinition(
+    detector_id="names",
+    version="1",
+    title="Names / people",
+    description=(
+        "People names (spaCy PERSON) on each page, from published NER or a NER run "
+        "when none is current. Auto-tag applies those names, not a generic names tag."
+    ),
+    scope=DetectorScope.PAGE,
+    input_mode=ModelMode.TEXT,
+    engine=DetectorEngine.NER_PEOPLE,
+    candidate_strategy=CandidateStrategy.ALL_PAGES,
+    window_size=1,
+    window_overlap=0,
+    confidence_threshold=0.0,
+    finding_type="names",
+    aggregation_strategy=AggregationStrategy.NONE,
+    extra_config={
+        "source_module": NER_PEOPLE_SOURCE,
+        "entity_label": PERSON_LABEL,
+        "algorithm_version": NER_ALGORITHM_VERSION,
     },
 )
 
@@ -150,6 +179,7 @@ _BUILTIN: dict[str, DetectorDefinition] = {
         QUOTATIONS_DETECTOR,
         BEER_LABELS_DETECTOR,
         FIRST_PERSON_DETECTOR,
+        NAMES_DETECTOR,
         SWEAR_WORDS_DETECTOR,
     )
 }
@@ -195,6 +225,7 @@ __all__ = [
     "BEER_LABELS_DETECTOR",
     "FIRST_PERSON_DETECTOR",
     "LISTS_DETECTOR",
+    "NAMES_DETECTOR",
     "POETRY_DETECTOR",
     "QUOTATIONS_DETECTOR",
     "SWEAR_WORDS_DETECTOR",

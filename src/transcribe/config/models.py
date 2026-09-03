@@ -458,11 +458,12 @@ class ChartColorsConfig:
 
 @dataclass(frozen=True)
 class UiConfig:
-    """Workspace UI defaults (archive browsing, Overview cards). Does not fingerprint."""
+    """Workspace UI defaults (Library browsing, Overview cards). Does not fingerprint."""
 
     archive_notebooks_initial: int = 0
     overview_cards: tuple[str, ...] = OVERVIEW_CARD_IDS
     view_show_advanced: bool = False
+    model_preference_hints: str = "all_choices"
     chart_colors: ChartColorsConfig = field(default_factory=ChartColorsConfig)
 
     def as_dict(self) -> dict[str, Any]:
@@ -470,11 +471,14 @@ class UiConfig:
             "archive_notebooks_initial": self.archive_notebooks_initial,
             "overview_cards": list(self.overview_cards),
             "view_show_advanced": self.view_show_advanced,
+            "model_preference_hints": self.model_preference_hints,
             "chart_colors": self.chart_colors.as_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> UiConfig:
+        from transcribe.services.ocr_preference_stats import resolve_model_preference_hint_mode
+
         data = data or {}
         raw = data.get("archive_notebooks_initial", 0)
         try:
@@ -491,6 +495,9 @@ class UiConfig:
             archive_notebooks_initial=initial,
             overview_cards=cards,
             view_show_advanced=show_advanced,
+            model_preference_hints=resolve_model_preference_hint_mode(
+                data.get("model_preference_hints")
+            ),
             chart_colors=ChartColorsConfig.from_dict(data.get("chart_colors")),
         )
 

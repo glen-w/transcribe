@@ -88,7 +88,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 | **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
 | **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
-| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation); Archive activity bins + strip paging + page delete + model-info picker wiring | — | **[x] done** |
+| **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation); Library activity bins + cover-grid paging + page delete + model-info picker wiring | — | **[x] done** |
 | **U4** — Corpus UX | Inbox / import recovery / bulk import; acceptance gate green | — | **[x] gate green** (polish open) |
 
 ---
@@ -267,17 +267,17 @@ Distinct from Review (edit) and Analyse:
 - Reuse page viewer data path; presentation mode / route under **View → Reading** — no new on-disk format.
 - Optional “continue reading” remembers last page in session or lightweight UI state (not a new contract).
 
-### U3.3 — Search & Archive deepening (FTS, not corpus index)
+### U3.3 — Search & Library deepening (FTS, not corpus index)
 
 Stay on rebuildable archive SQLite ([known_limitations.md](known_limitations.md)):
 
 | Improvement | Notes |
 |-------------|-------|
-| Date range on Search | Archive already has period/range; bring coherent filters to Search |
+| Date range on Search | Library already has period/range; bring coherent filters to Search |
 | Clearer empty states | Distinguish “no notebooks” vs “no hits” vs “cache rebuilding” |
 | Jump richness | Preserve highlight + open-in-viewer; raise discoverability of jump-to-page |
-| Activity-bin filter | **Landed** on Archive: click a timeline bar to filter to that date bin |
-| Strip paging | **Landed:** `ui.archive_notebooks_initial` (Settings → Configuration → Archive); `0` = show all |
+| Activity-bin filter | **Landed** on Library: click a timeline bar to filter to that date bin |
+| Strip paging | **Landed:** `ui.archive_notebooks_initial` (Settings → Configuration → Library); `0` = show all |
 | Not yet | Entity filters, saved searches — design stubs OK; implement only if cheap on current FTS |
 
 Do **not** treat `archive.sqlite` as backup authority (unchanged support policy).
@@ -286,7 +286,7 @@ Do **not** treat `archive.sqlite` as backup authority (unchanged support policy)
 
 On existing `title` / `tags` / `cover_page_id` (no schema expansion required for MVP):
 
-- View: cover thumbnails, tag chips, sort clarity, rename/delete discoverability (menus already exist — tighten empty/error copy).
+- Library: cover thumbnails, tag chips, sort clarity, rename/delete discoverability (menus already exist — tighten empty/error copy).
 - **Page delete** in the page viewer **landed** (refuses last page / OCR job lock).
 - Optional soft fields only if contract bump is justified: short description — otherwise skip.
 - Collections / archive-state / user sort order → defer to post-U4 or later candidates unless a tiny settings-only sort lands without corpus index.
@@ -304,7 +304,7 @@ Transcribe panel already lists/refreshes models. Deepen:
 
 - [x] Review offers at least one needs-attention filter and batch date approve/ignore.
 - [x] Reading mode ships as a distinct presentation (documented in public surfaces).
-- [x] Search gains date-range (or documented parity with Archive filters) and clearer empties.
+- [x] Search gains date-range (or documented parity with Library filters) and clearer empties.
 - [x] Model panel explains verified identity and text-model needs in product language.
 - [x] No dependency on corpus index / ImportRun activation.
 
@@ -419,8 +419,8 @@ U4 Inbox polish may remain open after the usability wave is declared done for U0
 ### U3
 - [x] Review needs-attention + batch dates
 - [x] Reading mode
-- [x] Search/Archive filter parity + empties (Archive activity-bin filter included)
-- [x] Archive strip paging (`ui.archive_notebooks_initial`) + page delete
+- [x] Search/Library filter parity + empties (Library activity-bin filter included)
+- [x] Library cover-grid paging (`ui.archive_notebooks_initial`) + page delete
 - [x] Model management product copy (picker-wired Model information)
 
 ### U4

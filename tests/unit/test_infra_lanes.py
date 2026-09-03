@@ -58,7 +58,7 @@ def test_package_version_matches_pyproject():
     proj_ver = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
     assert init_ver and proj_ver
     assert init_ver.group(1) == proj_ver.group(1)
-    assert init_ver.group(1) == "0.8.6"
+    assert init_ver.group(1) == "0.8.7"
 
 
 def test_i2_i3_release_kit_files_exist():

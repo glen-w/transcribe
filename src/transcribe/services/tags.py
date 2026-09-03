@@ -149,6 +149,37 @@ class TagService:
             bump_archive_generation(self.runtime)
         return changed
 
+    def drop_page_tags(
+        self,
+        projects: ProjectService,
+        page_ids: Sequence[str],
+        slug: str,
+    ) -> int:
+        """Remove ``slug`` from each page. Returns how many pages changed."""
+        slugs = normalize_slugs([slug])
+        if not slugs:
+            return 0
+        token = slugs[0]
+        changed = 0
+        wanted = set(page_ids)
+        with mutation_lock(projects.paths.mutation_lock):
+            payload = require_format(read_json(projects.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            for page in current.pages:
+                if page.page_id not in wanted:
+                    continue
+                if token not in page.tags:
+                    continue
+                page.tags = [tag for tag in page.tags if tag != token]
+                changed += 1
+            if changed:
+                current.updated_at = to_iso(self.clock.now())
+                validate_project(current)
+                write_json_atomic(projects.paths.manifest, current.as_dict())
+        if changed:
+            bump_archive_generation(self.runtime)
+        return changed
+
     def rename_label(self, tag_id: str, new_label: str) -> TagCatalog:
         loaded = self.store.load()
         if loaded.recovery:

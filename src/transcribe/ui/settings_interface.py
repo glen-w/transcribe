@@ -41,12 +41,24 @@ _MODE_LABELS = {
 }
 _MODE_OPTIONS = list(_MODE_LABELS.keys())
 _PENDING_WIDGET_SYNC_KEY = "iface_pending_widget_sync"
+_DISPLAY_OPTIONS: tuple[str, ...] = ("both", "icon", "text")
+_DISPLAY_LABELS = {
+    "both": "Icon and text",
+    "icon": "Icon only",
+    "text": "Text only",
+}
+_SECTION_DISPLAY_OPTIONS: tuple[str, ...] = ("inherit", "both", "icon", "text")
+_SECTION_DISPLAY_LABELS = {
+    "inherit": "Use global default",
+    **_DISPLAY_LABELS,
+}
 
 
 def _sync_widgets_from_draft() -> None:
     draft = st.session_state[DRAFT_SESSION_KEY]
     prefs = draft.prefs
     st.session_state["iface_show_info_tooltips"] = bool(prefs.show_info_tooltips)
+    st.session_state["iface_action_display"] = prefs.action_display
     st.session_state["iface_std_mode"] = (
         "Built-in" if prefs.standard_menu_mode == "built_in" else "Custom"
     )
@@ -56,6 +68,7 @@ def _sync_widgets_from_draft() -> None:
         sec = prefs.sections[sid]
         st.session_state[f"iface_show_{sid.value}"] = sec.show_menu
         st.session_state[f"iface_mode_{sid.value}"] = sec.mode
+        st.session_state[f"iface_display_{sid.value}"] = sec.action_display
         allow = SECTION_ALLOWLISTS[sid]
         for action_id in allow:
             st.session_state[f"iface_sel_{sid.value}_{action_id.value}"] = action_id in sec.selected
@@ -69,6 +82,10 @@ def _pull_widgets_into_draft() -> None:
     draft = st.session_state[DRAFT_SESSION_KEY]
     prefs = draft.prefs
     prefs.show_info_tooltips = bool(st.session_state.get("iface_show_info_tooltips", True))
+    action_display = st.session_state.get("iface_action_display", "both")
+    if action_display not in _DISPLAY_OPTIONS:
+        action_display = "both"
+    prefs.action_display = action_display  # type: ignore[assignment]
     std_mode = st.session_state.get("iface_std_mode", "Built-in")
     prefs.standard_menu_mode = "built_in" if std_mode == "Built-in" else "custom"
     selected_std: list[ActionId] = []
@@ -84,6 +101,10 @@ def _pull_widgets_into_draft() -> None:
         if mode not in _MODE_OPTIONS:
             mode = "section_default"
         sec.mode = mode  # type: ignore[assignment]
+        section_display = st.session_state.get(f"iface_display_{sid.value}", "inherit")
+        if section_display not in _SECTION_DISPLAY_OPTIONS:
+            section_display = "inherit"
+        sec.action_display = section_display  # type: ignore[assignment]
         selected: list[ActionId] = []
         for action_id in SECTION_ALLOWLISTS[sid]:
             if st.session_state.get(f"iface_sel_{sid.value}_{action_id.value}", False):
@@ -125,6 +146,17 @@ def render_interface_panel() -> None:
         disabled=draft.recovery,
     )
 
+    st.markdown("##### Action link appearance")
+    st.caption("Choose whether action strips show icons, text labels, or both.")
+    st.radio(
+        "Default appearance",
+        options=list(_DISPLAY_OPTIONS),
+        format_func=lambda value: _DISPLAY_LABELS[value],
+        key="iface_action_display",
+        horizontal=True,
+        disabled=draft.recovery,
+    )
+
     st.markdown("##### Standard menu")
     st.radio(
         "Standard menu source",
@@ -159,6 +191,14 @@ def render_interface_panel() -> None:
                 a.value for a in section_default_actions(sid, subject_type="notebook")
             )
             st.caption(f"Built-in section default: {default_preview}")
+
+            st.radio(
+                "Appearance",
+                options=list(_SECTION_DISPLAY_OPTIONS),
+                format_func=lambda value: _SECTION_DISPLAY_LABELS[value],
+                key=f"iface_display_{sid.value}",
+                disabled=draft.recovery or not show,
+            )
 
             st.radio(
                 "Menu mode",

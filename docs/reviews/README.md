@@ -11,6 +11,7 @@ For normative analysis behaviour see [analysis-result.md](../contracts/analysis-
 
 | Review | Date | Subject |
 |--------|------|---------|
+| [architecture_from_evidence.md](architecture_from_evidence.md) | 2026-09-03 | System reconstructed from code — coupling, failure, and minimum decoupling |
 | [moments_analysis_module.md](moments_analysis_module.md) | 2026-08-19 | Mood → Moments salience module — score clustering and user value |
 
 ## Policy

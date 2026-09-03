@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import streamlit as st
-
 from transcribe.tagging.colors import parse_hex_color
 
 DEFAULT_SENTIMENT_COLORS: dict[str, str] = {
@@ -69,6 +67,8 @@ def render_colored_bar_pairs(
     sort_order: Sequence[str] | None = None,
     fallback: str = "#888888",
 ) -> None:
+    import streamlit as st
+
     if not pairs:
         return
     order: list[str] = []

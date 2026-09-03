@@ -3,7 +3,7 @@ Authority: self — normative `interface_menus` envelope, schema versioning, fai
 
 # Interface menus
 
-Durable user configuration for configurable action-link strips in the Streamlit UI (Archive / Library notebook cards; Import / Transcribe / Analyse next-step strips; Settings → Interface).
+Durable user configuration for configurable action-link strips in the Streamlit UI (Library cover cards and activity rows; Import / Transcribe / Analyse next-step strips; Settings → Interface).
 
 **Format identity:** `transcribe.interface-menus` schema version **1**.
 
@@ -17,11 +17,14 @@ Durable user configuration for configurable action-link strips in the Streamlit 
   "prefs": {
     "standard_menu_mode": "built_in",
     "standard_menu": [],
+    "action_display": "both",
+    "show_info_tooltips": true,
     "sections": {
       "archive_notebook": {
         "show_menu": true,
         "mode": "section_default",
-        "selected": []
+        "selected": [],
+        "action_display": "icon"
       }
     }
   },
@@ -37,7 +40,7 @@ Durable user configuration for configurable action-link strips in the Streamlit 
 
 ## Fail-closed load
 
-Missing file, unreadable file, corrupt JSON, non-object envelope, missing/unknown/`schema_version` ≠ 1, or `prefs_hash` mismatch → runtime uses **built-in prefs**, file is **preserved**, and a bounded recovery diagnostic is recorded. Load never raises into Archive/View rendering.
+Missing file, unreadable file, corrupt JSON, non-object envelope, missing/unknown/`schema_version` ≠ 1, or `prefs_hash` mismatch → runtime uses **built-in prefs**, file is **preserved**, and a bounded recovery diagnostic is recorded. Load never raises into Library rendering.
 
 Unsupported / future schema versions are **rejected** (no silent accept). Migration requires an explicit migrator and a schema bump.
 
@@ -48,6 +51,16 @@ Unsupported / future schema versions are **rejected** (no silent accept). Migrat
 - Intersect each section’s `selected` with that section’s allowlist
 - If a shown section’s configured menu is empty after sanitise (e.g. empty manual selection), restore that section’s built-in defaults into `selected`
 - Empty custom `standard_menu` restores the built-in standard menu list
+- Unknown `action_display` values fall back to `both` (global) or the section built-in (`inherit` for most sections; `icon` for `archive_notebook`)
+
+## Action link appearance
+
+| Field | Scope | Values | Built-in default |
+|-------|-------|--------|------------------|
+| `prefs.action_display` | Global default | `icon`, `text`, `both` | `both` |
+| `sections.<id>.action_display` | Per-section override | `inherit`, `icon`, `text`, `both` | `inherit` except `archive_notebook` → `icon` |
+
+Resolution: when a section’s `action_display` is `inherit`, the global `action_display` applies. Icon-only links always expose the action label as a hover tooltip (independent of `show_info_tooltips`). Text and icon+text modes use instructional `help` when `show_info_tooltips` is on.
 
 ## Merge
 
@@ -80,7 +93,7 @@ Do not rename or remove these IDs after release without migration logic and a sc
 | Actions | `overview`, `review` (`detect` was already a v1 action) |
 | Sections | `import_success`, `transcribe_complete`, `analyse_complete` |
 
-`view_notebook` remains the frozen Library row section (label: “Library — notebook row”). Built-in next steps: Import → Transcribe; Transcribe → Review; this-notebook Analyse → Overview (+ Export / Open).
+`archive_notebook` remains the frozen Library cover-card section (label: “Library — cover card”). `view_notebook` remains the frozen Library activity-row section (label: “Library — activity row”). Built-in next steps: Import → Transcribe; Transcribe → Review; this-notebook Analyse → Overview (+ Export / Open).
 
 ## Capability freshness
 

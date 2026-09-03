@@ -47,11 +47,12 @@ See [tag-catalog.md](tag-catalog.md).
 
 | Key | Default | Role |
 |-----|---------|------|
-| `archive_notebooks_initial` | `0` | Archive strip: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
+| `archive_notebooks_initial` | `0` | Library **Covers** grid: how many notebook cards load before **Show more**. `0` shows all. Session “Show more / Show fewer” advances by this page size (or by total when `0`). |
 | `overview_cards` | all frozen ids | Ordered visible Overview cards (`page_metrics`, `stats`, `lexical_diversity`, `understandability`, `wordclouds`, `ner`, `sentiment`, `epistemic_markers`). Unknown/duplicate ids dropped; catalogue order; empty after sanitise restores the default all-ids list. Status strip is always shown. |
 | `view_show_advanced` | `false` | When `true`, View pages show per-module **Advanced · …** expanders with raw published JSON. Default off — ordinary use does not need module/cache literacy. Applies to Overview, Themes, Mood, Moments, Summaries, Ask, and People & Places (entity tone). Analyse launcher Advanced sections are unchanged. Legacy key `overview_show_advanced` is still read on load. |
+| `model_preference_hints` | `all_choices` | History beside vision model pickers on Transcribe / Review and in **Settings → Models** installed-models table. `off` hides hints; `prefer_only` counts explicit notebook-default ledger events; `all_choices` (default) also includes **Use as current text** / promote events in the share percentage. Edited under **Settings → Models**. Does not fingerprint. |
 
-Edited under **Settings → Configuration → Archive** and **Settings → Configuration → Overview**. `ui.*` does not fingerprint.
+Edited under **Settings → Configuration → Library** and **Settings → Configuration → Overview**. `ui.*` does not fingerprint.
 
 ## OCR lifecycle knobs (`ocr.*`)
 
@@ -67,7 +68,7 @@ job authority remains `project.json` → `settings`.
 | `finetune_*` | see [finetune-export.md](finetune-export.md) | Fine-tune export defaults |
 
 Project OCR may override `prefer_mode` and `auto_activate_composite` (and other
-allowlisted OCR fields). **Workflow → Review → Other → OCR settings**, Compare OCR attempts, and Transcribe Advanced write the project override.
+allowlisted OCR fields). **Workflow → Review → OCR → OCR settings** and Transcribe Advanced write the project override.
 
 ## Profiles
 

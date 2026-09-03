@@ -16,7 +16,9 @@ INBOX = Path("src/transcribe/ui/import_inbox.py").read_text(encoding="utf-8")
 
 def test_inbox_is_not_a_sidebar_mode() -> None:
     assert 'PRIMARY_MODES: tuple[str, ...] = tuple(s.id for s in PAGE_SPECS if s.section == "primary")' in NAV
-    assert '"Library"' in NAV and '"Search"' in NAV and '"Archive"' in NAV and '"Places"' in NAV
+    assert '"Library"' in NAV and '"Search"' in NAV and '"Places"' in NAV
+    assert '"Archive": "Library"' in NAV
+    assert 'id="Archive"' not in NAV
     assert '"Inbox": "Import"' in NAV
     assert 'elif mode == "Inbox"' not in APP
     assert "render_run_import" in APP
@@ -38,8 +40,13 @@ def test_import_and_transcribe_use_target_switcher() -> None:
     assert "is_unsuitable_ocr_vision_model_name" in TRANSCRIBE
     assert "Rank and merge existing OCR" in TRANSCRIBE
     assert "start_compare_existing" in TRANSCRIBE
+    assert "Seed transcription from merged draft after multipass" in TRANSCRIBE
+    assert "Do not auto-activate composite" not in TRANSCRIBE
+    assert "When setting a notebook default" in TRANSCRIBE
     assert 'unit_label="notebooks"' in TRANSCRIBE
-    assert "pages in this notebook" in TRANSCRIBE
+    assert "pages in this notebook" in Path(
+        "src/transcribe/ui/progress_snapshots.py"
+    ).read_text(encoding="utf-8")
     assert "_job_progress_to_snapshot" in TRANSCRIBE
     assert "_commit_run_with_progress" in INBOX
     assert "st.progress" in IMPORT

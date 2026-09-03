@@ -44,3 +44,6 @@ docker-compose.override.yml
 *.pdf
 !tests/fixtures/*.pdf
 .cache/
+
+# Cursor slash commands (local filled copies; templates live in cursor_commands)
+.cursor/commands/

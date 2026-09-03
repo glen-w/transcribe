@@ -87,3 +87,43 @@ def test_preference_hint_includes_last_ts() -> None:
     hint = preference_hint_for_model("glm-ocr", stats=stats)
     assert hint is not None
     assert "2026-08-12" in hint
+
+
+def test_installed_models_table_uses_current_guidance() -> None:
+    from transcribe.providers.base import ModelInfo
+    from transcribe.ui.components.model_info import installed_models_table
+
+    models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="abc",
+            size=2_000_000_000,
+            family="glmocr",
+            parameter_size="—",
+            capabilities=("vision", "completion"),
+            capability_known=True,
+        ),
+        ModelInfo(
+            name="gemma4:26b",
+            digest="def",
+            size=30_000_000_000,
+            family="gemma",
+            parameter_size="26B",
+            capabilities=("vision", "completion", "thinking"),
+            capability_known=True,
+        ),
+        ModelInfo(
+            name="llama3.1:8b",
+            digest="ghi",
+            size=4_700_000_000,
+            family="llama",
+            parameter_size="8B",
+            capabilities=("completion",),
+            capability_known=True,
+        ),
+    ]
+    table = installed_models_table(models, role="all")
+    assert table["Model"] == [m.name for m in models]
+    assert table["Kind"] == ["OCR-oriented", "Thinking", "Text"]
+    assert "Suggested for first OCR" in table["Best for"][0]
+    assert "2.0 GB" in table["Size"][0]

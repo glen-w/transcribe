@@ -24,14 +24,16 @@ def render_detection_settings_panel() -> None:
     tag_svc = TagService()
     st.markdown("#### Auto-tag pages")
     st.caption(
-        "When enabled, a successful Detect run (or Apply from findings) adds the "
-        "detector’s tag to matching pages. This does not change detection cache identity."
+        "When enabled, a successful Detect run (or Apply from findings) adds tags to "
+        "matching pages. Most detectors use their finding type; Names / people tags "
+        "each detected person name. This does not change detection cache identity."
     )
     for d in dets:
         key = f"detect_auto_tag_default_{d.detector_id.replace('/', '_')}"
         current = tag_svc.auto_tag_enabled(d.detector_id)
+        tag_hint = "detected names" if d.detector_id == "names" else d.finding_type
         checked = st.checkbox(
-            f"{d.title} (`{d.finding_type}`)",
+            f"{d.title} (`{tag_hint}`)",
             value=current,
             key=key,
         )

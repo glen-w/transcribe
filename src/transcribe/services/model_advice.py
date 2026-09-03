@@ -161,3 +161,25 @@ def use_case_label(advice: ModelAdvice) -> str | None:
     if advice.use_case == "text":
         return "Needs a text model for Analyse LLM modules"
     return None
+
+
+_CHOOSER_CAPTIONS = {
+    "vision": (
+        "Installed Ollama tags and OCR fit. Prefer OCR-oriented models "
+        "(glm-ocr, deepseek-ocr) for first transcription; general VLMs can hang "
+        "on dense scans — do not put them first when comparing."
+    ),
+    "text": (
+        "Installed Ollama tags for text pickers. Vision, embedding, and OCR tags "
+        "are excluded from Analyse / cleanup selectors."
+    ),
+    "all": (
+        "Installed Ollama tags and fit for Transcribe / Analyse pickers. "
+        "OCR-oriented vision tags suit first transcription; general VLMs are "
+        "better as later compare passes; Analyse needs a non-vision text tag."
+    ),
+}
+
+
+def chooser_caption(role: str = "all") -> str:
+    return _CHOOSER_CAPTIONS.get(role, _CHOOSER_CAPTIONS["all"])

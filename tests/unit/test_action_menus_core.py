@@ -35,6 +35,7 @@ from transcribe.ui.action_menus.handlers import (
 )
 from transcribe.ui.action_menus.ids import (
     SECTION_LABELS,
+    ActionDisplay,
     ActionId,
     NavStyle,
     ReturnMode,
@@ -63,11 +64,15 @@ from transcribe.ui.action_menus.prefs import (
     merge_prefs,
     prefs_integrity_hash,
     raw_file_revision,
+    resolve_action_display,
     restore_built_in_defaults,
     sanitise_action_ids,
+    sanitise_action_display,
+    sanitise_section_action_display,
     save_interface_prefs,
     validate_draft_for_save,
 )
+from transcribe.ui.components.action_links import action_link_chrome, action_link_help
 from transcribe.ui.action_menus.render import action_widget_key
 from transcribe.ui.action_menus.resolve import (
     configured_actions_for_section,
@@ -168,7 +173,8 @@ def test_section_defaults() -> None:
         ActionId.OPEN,
         ActionId.EXPORT,
     ]
-    assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — notebook row"
+    assert SECTION_LABELS[SectionId.VIEW_NOTEBOOK] == "Library — activity row"
+    assert SECTION_LABELS[SectionId.ARCHIVE_NOTEBOOK] == "Library — cover card"
     assert "Reading" in help_for(ActionId.OPEN)
 
 
@@ -245,7 +251,7 @@ def test_load_non_object_fail_closed(tmp_path: Path) -> None:
 def test_render_isolation_swallows_resolve_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """One strip failure must not raise into the Archive/View loop."""
+    """One strip failure must not raise into the Library notebook loop."""
     import transcribe.ui.action_menus.render as render_mod
 
     captions: list[str] = []
@@ -540,6 +546,7 @@ def test_open_return_modes_independent(tmp_path: Path) -> None:
         assert session["view_page_id"] in session["view_page_ids"]
     assert listing_return_mode(ReturnMode.VIEW) == "Library"
     assert listing_return_mode(ReturnMode.LIBRARY) == "Library"
+    assert listing_return_mode(ReturnMode.ARCHIVE) == "Library"
     assert parse_return_mode("View") == ReturnMode.VIEW
     assert parse_return_mode("Library") == ReturnMode.LIBRARY
     assert parse_return_mode("Search") == ReturnMode.SEARCH
@@ -761,7 +768,9 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "render_configured_actions" in source
     assert "SectionId.ARCHIVE_NOTEBOOK" in source
     assert "SectionId.VIEW_NOTEBOOK" in source
-    assert "ReturnMode.ARCHIVE" in source
+    assert "render_library" in source
+    assert "LIBRARY_VIEW_COVERS" in source
+    assert "LIBRARY_VIEW_ACTIVITY" in source
     assert "ReturnMode.LIBRARY" in source
     assert "navigate_open" in source
     assert "_render_clickable_cover" in source
@@ -773,7 +782,7 @@ def test_archive_view_wire_uses_configured_actions() -> None:
     assert "white-space: nowrap" in shell
     # Cover hover/hit-target must require a direct-child cover key (not any ancestor).
     assert '> [class*="st-key-tx_cover_"] button:not(:disabled)' in shell
-    # Action-strip flex overrides must exclude ancestor Archive notebook grids.
+    # Action-strip flex overrides must exclude ancestor Library cover-grid columns.
     assert ':has(> [data-testid="stColumn"] [data-testid="stHorizontalBlock"])' in shell
     nav = Path("src/transcribe/ui/navigation.py").read_text(encoding="utf-8")
     assert 'id="Settings"' in nav
@@ -844,3 +853,74 @@ def test_settings_state_machine_save_reload_restore(tmp_path: Path) -> None:
     assert loaded.sections[SectionId.VIEW_NOTEBOOK].selected == [ActionId.TRANSCRIBE]
     assert draft_is_dirty(draft_c, path=path) is False
     assert restore_built_in_defaults(draft_c, path=path).ok
+
+
+def test_built_in_action_display_defaults() -> None:
+    prefs = built_in_prefs()
+    assert prefs.action_display == "both"
+    assert prefs.sections[SectionId.ARCHIVE_NOTEBOOK].action_display == "icon"
+    assert prefs.sections[SectionId.VIEW_NOTEBOOK].action_display == "inherit"
+    assert resolve_action_display(prefs, SectionId.ARCHIVE_NOTEBOOK) is ActionDisplay.ICON
+    assert resolve_action_display(prefs, SectionId.VIEW_NOTEBOOK) is ActionDisplay.BOTH
+
+
+def test_merge_action_display_missing_and_invalid() -> None:
+    merged = merge_prefs({})
+    assert merged.action_display == "both"
+    assert merged.sections[SectionId.ARCHIVE_NOTEBOOK].action_display == "icon"
+
+    merged = merge_prefs({"action_display": "bogus"})
+    assert merged.action_display == "both"
+
+    merged = merge_prefs(
+        {
+            "sections": {
+                "view_notebook": {
+                    "show_menu": True,
+                    "mode": "section_default",
+                    "selected": [],
+                    "action_display": "text",
+                }
+            }
+        }
+    )
+    assert merged.sections[SectionId.VIEW_NOTEBOOK].action_display == "text"
+    assert resolve_action_display(merged, SectionId.VIEW_NOTEBOOK) is ActionDisplay.TEXT
+
+    merged = merge_prefs(
+        {
+            "action_display": "icon",
+            "sections": {
+                "view_notebook": {
+                    "show_menu": True,
+                    "mode": "section_default",
+                    "selected": [],
+                    "action_display": "inherit",
+                }
+            },
+        }
+    )
+    assert resolve_action_display(merged, SectionId.VIEW_NOTEBOOK) is ActionDisplay.ICON
+
+
+def test_sanitise_action_display_helpers() -> None:
+    assert sanitise_action_display("both") == "both"
+    assert sanitise_action_display("icon") == "icon"
+    assert sanitise_action_display("nope") == "both"
+    assert sanitise_section_action_display("inherit") == "inherit"
+    assert sanitise_section_action_display("bogus", default="icon") == "icon"
+
+
+def test_action_link_chrome_modes(monkeypatch: pytest.MonkeyPatch) -> None:
+    label, icon = "Open", ":material/folder_open:"
+    assert action_link_chrome(label, icon, ActionDisplay.BOTH) == (label, icon)
+    assert action_link_chrome(label, icon, ActionDisplay.TEXT) == (label, None)
+    btn_label, btn_icon = action_link_chrome(label, icon, ActionDisplay.ICON)
+    assert btn_icon == icon
+    assert btn_label != label
+    assert action_link_help(label, "Longer help", ActionDisplay.ICON) == label
+    monkeypatch.setattr(
+        "transcribe.ui.components.info_tooltip.info_tooltips_enabled",
+        lambda: False,
+    )
+    assert action_link_help(label, "Longer help", ActionDisplay.BOTH) is None

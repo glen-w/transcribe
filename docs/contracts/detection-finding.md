@@ -18,7 +18,7 @@ A **DetectionFinding** is derived state referencing stable notebook/page IDs. Fi
 | `finding_type` | yes | e.g. `poetry`, `custom:dreams` |
 | `confidence` | yes | 0–1 |
 | `evidence` | yes | `{reason, snippets[]}`; optional bounded `window_raw` |
-| `detector_data` | no | Schema-specific (e.g. optional `title`) |
+| `detector_data` | no | Schema-specific (e.g. optional `title`; names detector: `name`, `tag_slug`, `count`, `samples`) |
 | `start_boundary` | no | `{page_id, char_start?, char_end?, line_hint?}` |
 | `end_boundary` | no | Same shape as start_boundary |
 | `prompt_provenance` | yes | `{prompt_id, version}` |
@@ -27,6 +27,7 @@ A **DetectionFinding** is derived state referencing stable notebook/page IDs. Fi
 | `created_at` | yes | ISO-8601 UTC |
 | `updated_at` | yes | ISO-8601 UTC |
 | `review_status` | yes | `unreviewed` \| `approved` \| `rejected` |
+| `page_reviews` | no | `{page_id: "approved"\|"rejected"}` for per-page review of a multi-page span. Unlisted span pages are unreviewed. Omit when empty. |
 
 ## Index
 
@@ -37,6 +38,8 @@ The published artifact for `(notebook_id, detector_id)` contains a `findings[]` 
 - One finding may have `start_page_id != end_page_id`.
 - Partial-page boundaries are optional hints for human review.
 - Aggregation merges overlapping window observations deterministically (see [detection-run-storage.md](detection-run-storage.md)).
+- Per-page **Accept** / **Reject** records `page_reviews` without changing the detector span. Rejected pages lose the finding tag; accepted pages keep it. Finding-level **Accept remaining** approves every span page that is not already rejected.
+- Finding-level `review_status` is derived: all span pages rejected → `rejected`; every span page reviewed and at least one accepted → `approved`; otherwise `unreviewed`.
 
 ## Identity rules
 
@@ -44,4 +47,4 @@ The published artifact for `(notebook_id, detector_id)` contains a `findings[]` 
 
 ## Review carry-forward
 
-On a successful republish for the same detector, preserve `approved` / `rejected` when the new finding matches a prior published finding on span identity `(finding_type, start_page_id, end_page_id)`. Unmatched new findings start as `unreviewed`. Prior reviews without a match are dropped with the old published set.
+On a successful republish for the same detector, preserve `approved` / `rejected` and `page_reviews` when the new finding matches a prior published finding on span identity `(finding_type, start_page_id, end_page_id, tag_slug)`. `tag_slug` is empty except for the names detector (per-name findings on one page). Unmatched new findings start as `unreviewed`. Prior reviews without a match are dropped with the old published set.

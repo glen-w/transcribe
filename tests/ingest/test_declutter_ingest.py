@@ -5,10 +5,12 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageDraw
 
 from transcribe.declutter import identity_sha256_for
 from transcribe.domain.fingerprint import sha256_bytes
+from transcribe.errors import ProjectError
 from transcribe.ingest import IngestService
 from transcribe.persistence.atomic import write_json_atomic
 from transcribe.services.project import ProjectService, open_project_paths
@@ -213,3 +215,42 @@ def test_build_coordinator_honours_workspace_declutter_flag(tmp_path: Path, monk
     )
     assert ingest.visual_declutter_enabled is False
     assert ingest.default_dpi == 175
+
+
+def test_reapply_visual_declutter_can_target_one_page(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=False)
+    ingest.import_bytes("a.png", _paper_png(bed=80))
+    ingest.import_bytes("b.png", _paper_png(bed=80))
+    project = projects.load(reconcile=False)
+    first_id = project.pages[0].page_id
+    first_w = project.renders[project.pages[0].active_render_id].width
+    second_w = project.renders[project.pages[1].active_render_id].width
+
+    stats = projects.reapply_visual_declutter(enabled=True, page_ids=[first_id])
+    assert stats.pages_total == 1
+    assert stats.pages_cropped == 1
+
+    project = projects.load(reconcile=False)
+    first = project.renders[project.pages[0].active_render_id]
+    second = project.renders[project.pages[1].active_render_id]
+    assert first.declutter_state == "enabled_cropped"
+    assert first.width < first_w
+    assert second.declutter_state == "disabled"
+    assert second.width == second_w
+
+
+def test_reapply_visual_declutter_rejects_unknown_page(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids, visual_declutter_enabled=False)
+    ingest.import_bytes("a.png", _paper_png(bed=80))
+    with pytest.raises(ProjectError, match="unknown page_id"):
+        projects.reapply_visual_declutter(enabled=True, page_ids=["missing"])
+    with pytest.raises(ProjectError, match="page_ids must not be empty"):
+        projects.reapply_visual_declutter(enabled=True, page_ids=[])

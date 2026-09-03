@@ -10,7 +10,11 @@ import streamlit as st
 from transcribe.ui.action_menus.context import ActionContext
 from transcribe.ui.action_menus.handlers import render_action
 from transcribe.ui.action_menus.ids import ActionId, SectionId
-from transcribe.ui.action_menus.prefs import InterfaceMenuPrefs
+from transcribe.ui.action_menus.prefs import (
+    InterfaceMenuPrefs,
+    get_cached_runtime_prefs,
+    resolve_action_display,
+)
 from transcribe.ui.action_menus.resolve import resolve_section_actions
 
 logger = logging.getLogger(__name__)
@@ -56,6 +60,9 @@ def render_configured_actions(
     if not actions:
         return []
 
+    effective_prefs = prefs if prefs is not None else get_cached_runtime_prefs()
+    display = resolve_action_display(effective_prefs, section)
+
     try:
         cols = st.columns(len(actions), gap="small")
         for col, action in zip(cols, actions):
@@ -67,7 +74,7 @@ def render_configured_actions(
             )
             with col:
                 try:
-                    render_action(action, ctx, section=section, key=key)
+                    render_action(action, ctx, section=section, key=key, display=display)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "action render failed %s for %s: %s",

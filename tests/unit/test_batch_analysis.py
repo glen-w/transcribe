@@ -466,7 +466,7 @@ def test_analysis_batch_run_round_trip(tmp_path: Path) -> None:
 
 
 def test_progress_snapshot_maps_modules_and_terminals() -> None:
-    from transcribe.ui.run_analysis_batch import batch_analysis_progress_to_snapshot
+    from transcribe.ui.progress_snapshots import batch_analysis_progress_to_snapshot
 
     snap = batch_analysis_progress_to_snapshot(
         BatchAnalysisProgress(
@@ -516,7 +516,7 @@ def test_progress_snapshot_maps_modules_and_terminals() -> None:
     cancelled = batch_analysis_progress_to_snapshot(
         BatchAnalysisProgress(analysis_batch_id="x", status="cancelled", total=2)
     )
-    assert cancelled["status"] == "failed"
+    assert cancelled["status"] == "cancelled"
     assert cancelled["phase"] == "cancelled"
 
 

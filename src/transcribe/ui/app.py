@@ -27,7 +27,7 @@ from transcribe.services.project import (
     open_project_paths,
 )
 from transcribe.ui import icons as ic
-from transcribe.ui.archive_views import render_archive, render_notebooks, render_search
+from transcribe.ui.archive_views import render_library, render_search
 from transcribe.ui.components.context_bar import render_context_bar
 from transcribe.ui.home import render_home
 from transcribe.ui.layout import apply_page_width
@@ -301,6 +301,8 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     from transcribe.ui.review_queue import (
         ReviewFilter,
         available_review_filters,
+        build_review_queue_index,
+        default_review_filter,
         filter_review_page_ids,
         format_review_filter_label,
     )
@@ -316,22 +318,24 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
             pass
     project = projects.load(reconcile=False)
 
-    st.caption(
-        "Unapproved suggested dates still appear in Archive timeline. "
-        "Time-of-day stamps are ignored until Future metadata lands."
-    )
-
     base_ids = viewer_page_ids(project)
+    queue_index = build_review_queue_index(
+        project,
+        base_page_ids=base_ids,
+        load_page_result=projects.load_page_result,
+    )
+    st.session_state["rw_comparable_page_ids"] = list(queue_index.comparable_page_ids)
     filter_options_with_counts = available_review_filters(
         project,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
+        index=queue_index,
     )
     filter_options = [key for key, _ in filter_options_with_counts]
     filter_counts = dict(filter_options_with_counts)
     current_filter = st.session_state.get("review_needs_filter")
     if current_filter not in filter_options and filter_options:
-        st.session_state["review_needs_filter"] = filter_options[0]
+        st.session_state["review_needs_filter"] = default_review_filter(filter_options)
     filter_key: ReviewFilter = st.selectbox(
         "Queue",
         filter_options,
@@ -343,6 +347,7 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
         filter_key=filter_key,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
+        index=queue_index,
     )
 
     if not page_ids:
@@ -554,7 +559,7 @@ def main() -> None:
 
     spec = page_spec_for(mode)
     if spec is None:
-        spec = page_spec_for("Archive")
+        spec = page_spec_for("Library")
         assert spec is not None
 
     if mode == "Home":
@@ -563,15 +568,11 @@ def main() -> None:
         return
     if mode == "Library":
         render_page_shell(spec.title, spec.description)
-        render_notebooks(runtime, archive)
+        render_library(runtime, archive)
         return
     if mode == "Search":
         render_page_shell(spec.title, spec.description)
         render_search(runtime, archive)
-        return
-    if mode == "Archive":
-        render_page_shell(spec.title, spec.description)
-        render_archive(runtime, archive)
         return
     if mode == "Settings":
         render_page_shell(spec.title, spec.description)

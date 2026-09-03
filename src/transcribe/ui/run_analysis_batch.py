@@ -44,6 +44,7 @@ from transcribe.ui.analysis_display_helpers import (
 from transcribe.ui import icons as ic
 from transcribe.ui.components.action_links import render_action_link
 from transcribe.ui.components.progress_panel import render_progress_panel
+from transcribe.ui.progress_snapshots import batch_analysis_progress_to_snapshot
 from transcribe.ui.corpus_listing_cache import (
     corpus_listing_token,
     get_cached_listing,
@@ -141,51 +142,6 @@ def _cached_recent_analyse_runs(corpus: CorpusPaths) -> list:
         token=corpus_listing_token(corpus),
         loader=lambda: AnalysisBatchRunStore(corpus).list_runs()[:8],
     )
-
-
-def batch_analysis_progress_to_snapshot(progress: BatchAnalysisProgress) -> dict[str, Any]:
-    """Map BatchAnalysisProgress into the shared progress panel snapshot."""
-    done = progress.completed + progress.failed + progress.skipped
-    total = progress.total
-    module_frac = 0.0
-    if progress.status == "running" and progress.modules_total:
-        module_done = progress.modules_completed + progress.modules_failed
-        module_frac = min(1.0, module_done / progress.modules_total)
-    pct = ((done + module_frac) / total * 100.0) if total else 0.0
-    status = progress.status
-    if status == "completed":
-        panel_status, phase = "completed", "completed"
-        pct = 100.0 if total else pct
-    elif status == "partial":
-        panel_status, phase = "completed", "partial"
-    elif status == "cancelled":
-        panel_status, phase = "failed", "cancelled"
-    elif status == "failed":
-        panel_status, phase = "failed", "failed"
-    else:
-        panel_status, phase = "running", "running_pipeline"
-    return {
-        "status": panel_status,
-        "phase": phase,
-        "current_item": progress.current_item,
-        "current_module": progress.current_module_id,
-        "detail_current": progress.current_module_id,
-        "detail_completed": progress.modules_completed,
-        "detail_failed": progress.modules_failed,
-        "detail_skipped": progress.modules_skipped,
-        "detail_total": progress.modules_total,
-        "detail_unit": "modules in this notebook",
-        "completed": progress.completed,
-        "skipped": progress.skipped,
-        "failed": progress.failed,
-        "total": total,
-        "pct": pct,
-        "latest_event": progress.message,
-        "recent_logs": [],
-        "error": progress.error
-        if status == "failed"
-        else (progress.message if status == "failed" else None),
-    }
 
 
 def render_batch_analysis_progress(coord: BatchAnalysisCoordinator, runtime: RuntimePaths) -> bool:

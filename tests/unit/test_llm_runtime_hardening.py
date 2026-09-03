@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
 from typing import Any
 
 from transcribe.analysis.llm_runtime import (
@@ -166,3 +170,22 @@ def test_parse_json_object_and_unavailable_helper():
     result = unavailable_model_result()
     assert result["outcome"] == "skipped_not_applicable"
     assert result["capability_reason"] == "unavailable_model"
+
+
+def test_llm_runtime_import_does_not_circular_import_via_services():
+    """UI boot: llm_runtime → model_advice must not re-enter via services.job."""
+    src = str(Path(__file__).resolve().parents[2] / "src")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = src + os.pathsep + env.get("PYTHONPATH", "")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from transcribe.analysis.llm_runtime import OllamaTextClient, TextLLMClient",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr

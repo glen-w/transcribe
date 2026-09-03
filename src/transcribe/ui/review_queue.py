@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from typing import Literal
 
 from transcribe.domain.models import PageResult, Project
@@ -44,6 +45,20 @@ REVIEW_FILTER_ORDER: list[ReviewFilter] = [
 ]
 
 HIGH_DISAGREEMENT_MIN = 3
+
+
+@dataclass
+class ReviewQueueIndex:
+    """One-pass page classification for Review filters and OCR comparable counts."""
+
+    by_filter: dict[ReviewFilter, list[str]] = field(default_factory=dict)
+    comparable_page_ids: list[str] = field(default_factory=list)
+
+    def count(self, filter_key: ReviewFilter) -> int:
+        return len(self.by_filter.get(filter_key, ()))
+
+    def page_ids(self, filter_key: ReviewFilter) -> list[str]:
+        return list(self.by_filter.get(filter_key, ()))
 
 
 def unapproved_date_page_ids(project: Project) -> list[str]:
@@ -115,11 +130,13 @@ def rerun_ocr_page_ids(
 
 
 def source_disagreement_count(result: PageResult | None) -> int:
-    """Cached count when present; otherwise align current merge-input vision texts."""
+    """Live align of merge-input vision texts (reviewable spans only).
+
+    Do not trust persisted ``result.source_disagreement_count`` for queue filters:
+    older caches may predate the junk-span filter and over-count navigable steps.
+    """
     if result is None:
         return 0
-    if result.source_disagreement_count is not None:
-        return int(result.source_disagreement_count)
     from transcribe.services.ocr_alignment import align_ocr
     from transcribe.services.ocr_composite_state import merge_input_vision_attempts
 
@@ -146,14 +163,61 @@ def high_disagreement_page_ids(
     return out
 
 
+def build_review_queue_index(
+    project: Project,
+    *,
+    base_page_ids: Sequence[str],
+    load_page_result: Callable[[str], PageResult | None],
+    disagreement_minimum: int = HIGH_DISAGREEMENT_MIN,
+) -> ReviewQueueIndex:
+    """Classify every base page in a single load_page_result pass."""
+    from transcribe.services.ocr_composite_state import merge_input_vision_attempts
+
+    base = [pid for pid in base_page_ids if any(p.page_id == pid for p in project.pages)]
+    page_by_id = {p.page_id: p for p in project.pages}
+
+    buckets: dict[ReviewFilter, list[str]] = {key: [] for key in REVIEW_FILTER_ORDER}
+    buckets["all"] = list(base)
+    comparable: list[str] = []
+
+    for page_id in base:
+        page = page_by_id[page_id]
+        status = page.review_status or "unreviewed"
+        if status in {"unreviewed", "needs_attention", "reviewed", "skipped"}:
+            buckets[status].append(page_id)  # type: ignore[index]
+        if page.date is not None and not page.date_approved:
+            buckets["needs_date"].append(page_id)
+
+        result = load_page_result(page_id)
+        text = result.effective_text() if result is not None else None
+        if not (text or "").strip():
+            buckets["no_text"].append(page_id)
+        if result is not None and result.status == "failed":
+            buckets["failed_ocr"].append(page_id)
+        if source_disagreement_count(result) >= disagreement_minimum:
+            buckets["high_disagreement"].append(page_id)
+        if result is not None and len(merge_input_vision_attempts(result)) >= 2:
+            comparable.append(page_id)
+
+    return ReviewQueueIndex(by_filter=buckets, comparable_page_ids=comparable)
+
+
 def filter_review_page_ids(
     project: Project,
     *,
     filter_key: ReviewFilter,
     base_page_ids: Sequence[str],
     load_page_result: Callable[[str], PageResult | None],
+    index: ReviewQueueIndex | None = None,
 ) -> list[str]:
     """Return ``base_page_ids`` restricted to the selected needs-attention filter."""
+    if index is not None:
+        wanted = set(index.page_ids(filter_key))
+        base = [pid for pid in base_page_ids if any(p.page_id == pid for p in project.pages)]
+        if filter_key == "all":
+            return list(base)
+        return [pid for pid in base if pid in wanted]
+
     base = [pid for pid in base_page_ids if any(p.page_id == pid for p in project.pages)]
     if filter_key == "all":
         return list(base)
@@ -178,8 +242,11 @@ def review_filter_count(
     filter_key: ReviewFilter,
     base_page_ids: Sequence[str],
     load_page_result: Callable[[str], PageResult | None],
+    index: ReviewQueueIndex | None = None,
 ) -> int:
     """Number of pages matching ``filter_key`` within ``base_page_ids``."""
+    if index is not None:
+        return index.count(filter_key)
     return len(
         filter_review_page_ids(
             project,
@@ -195,19 +262,29 @@ def available_review_filters(
     *,
     base_page_ids: Sequence[str],
     load_page_result: Callable[[str], PageResult | None],
+    index: ReviewQueueIndex | None = None,
 ) -> list[tuple[ReviewFilter, int]]:
     """Filter options with non-zero counts, in display order."""
+    idx = index or build_review_queue_index(
+        project,
+        base_page_ids=base_page_ids,
+        load_page_result=load_page_result,
+    )
     out: list[tuple[ReviewFilter, int]] = []
     for key in REVIEW_FILTER_ORDER:
-        count = review_filter_count(
-            project,
-            filter_key=key,
-            base_page_ids=base_page_ids,
-            load_page_result=load_page_result,
-        )
+        count = idx.count(key)
         if count > 0:
             out.append((key, count))
     return out
+
+
+def default_review_filter(filter_options: Sequence[ReviewFilter]) -> ReviewFilter | None:
+    """Prefer high disagreement when present; else first available option."""
+    if not filter_options:
+        return None
+    if "high_disagreement" in filter_options:
+        return "high_disagreement"
+    return filter_options[0]
 
 
 def format_review_filter_label(filter_key: ReviewFilter, count: int) -> str:

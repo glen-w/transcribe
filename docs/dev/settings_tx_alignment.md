@@ -22,7 +22,7 @@ or Overview wordcloud cards except existing `ui.overview_cards` copy.
 | Profiles | Separate System page. `ProfileManager` targets: `workflow`, `topic_modeling`, `semantic_similarity`, `acts`, `tag_extraction`, `qa_analysis`, `temporal_dynamics`, `vectorization`, `llm_models`. Copy-into facade, then env |
 | Models tab | Ollama **text** tags; live `/api/tags`; `llm_models` preset CRUD; “Set as project active”; Run Analysis “Custom (this run)” |
 | Prompts | No hub. Templates in Python modules. Settings → Questions is a `llm_custom_qa` **question library** |
-| Interface | Action menus + info tooltips; recovery preserves file; Replace writes `.bak.` |
+| Interface | Action menus + info tooltips + icon/text appearance; recovery preserves file; Replace writes `.bak.` |
 | Theme | No `.streamlit/config.toml`; CSS in `web/shell.py` (`#1f77b4`, dark-theme nav). No Settings theme picker |
 | Reset | Unsaved **Reset** (reload scope baseline) / **Revert to defaults**. `test_config_reset.py` is process-global test isolation |
 | Language | Subject is **transcript**; “Project” is a config layer |

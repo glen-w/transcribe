@@ -40,7 +40,9 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         id="Library",
         nav_label="Library",
         title="Library",
-        description="Browse notebook covers and jump into Reading or a workflow.",
+        description=(
+            "Browse notebook covers or per-notebook activity, then jump into Reading or a workflow."
+        ),
         section="primary",
         required_context="none",
     ),
@@ -49,14 +51,6 @@ PAGE_SPECS: tuple[PageSpec, ...] = (
         nav_label="Search",
         title="Search",
         description="Find text across transcribed notebook pages.",
-        section="primary",
-        required_context="none",
-    ),
-    PageSpec(
-        id="Archive",
-        nav_label="Archive",
-        title="Archive",
-        description="Browse notebooks by timeline, tags, and recent activity.",
         section="primary",
         required_context="none",
     ),
@@ -220,12 +214,13 @@ CONTEXT_BAR_HIDDEN_MODES: frozenset[str] = frozenset(
 
 # Maps and the page viewer need width more than Overview.
 WIDE_LAYOUT_MODES: frozenset[str] = frozenset(
-    {"Home", "Reading", "Review", "Archive", "Places"}
+    {"Home", "Library", "Reading", "Review", "Places"}
 )
 
 _LEGACY_MODE_ALIASES: dict[str, str] = {
     "Notebooks": "Library",
     "View": "Library",
+    "Archive": "Library",
     "Workflow": "Import",
     "Create": "New notebook",
     "New": "New notebook",
@@ -346,16 +341,16 @@ def notebook_has_detection_results(root: Path | str | None) -> bool:
 
 
 def normalize_ui_mode(raw: str | None) -> str:
-    """Map aliases and known ids. Unknown (including None) → Archive.
+    """Map aliases and known ids. Unknown (including None) → Library.
 
     First visit is *not* this function: ``main()`` treats a missing session key
-    as Home. Passing an unknown string still lands on Archive.
+    as Home. Passing an unknown string still lands on Library.
     """
     if raw in _LEGACY_MODE_ALIASES:
         return _LEGACY_MODE_ALIASES[raw]
     if raw in PAGE_SPECS_BY_ID:
         return raw
-    return "Archive"
+    return "Library"
 
 
 def destination_for_mode(raw: str | None) -> tuple[str, str | None]:
