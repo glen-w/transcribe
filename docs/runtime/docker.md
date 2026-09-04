@@ -1,9 +1,9 @@
 # Docker
 
-Recommended way to run Transcribe without installing Python packages on the host.
-Ollama stays on the host (or another service); the container only runs the app + Streamlit UI.
+**Preferred** install path. No host Python packages. Ollama stays on the host (or
+another service); the container only runs the app + Streamlit UI.
 
-Native install: [installation.md](installation.md).
+Overview and advanced host/Python install: [installation.md](installation.md).
 
 ## Quick start
 

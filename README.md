@@ -46,12 +46,23 @@ Five everyday jobs: [import and transcribe](docs/user_guide.md#from-a-scan-to-a-
 
 ## Installation
 
-**Native (recommended on the host).** Python 3.10+. Copy `.env.example` to `.env`
-if you want path or Ollama overrides.
+**Docker (recommended).** No host Python packages. Copy `.env.example` to `.env`
+and set **`HOST_PROJECTS_DIR`** to an absolute path **outside this repository**.
+You still need [Ollama](https://ollama.com) on the host with an OCR-friendly vision
+model.
 
 ```bash
 git clone https://github.com/glen-w/transcribe.git
 cd transcribe
+cp .env.example .env          # set HOST_PROJECTS_DIR
+docker compose up --build transcribe-web
+# → http://127.0.0.1:8510/
+```
+
+**Advanced — native on the host.** Python 3.10+. Copy `.env.example` to `.env`
+if you want path or Ollama overrides.
+
+```bash
 chmod +x transcribe.sh
 ./transcribe.sh setup         # creates .venv and installs the UI
 ./transcribe.sh ui            # → http://127.0.0.1:8510/
@@ -60,15 +71,6 @@ chmod +x transcribe.sh
 Point notebooks, scans, and exports outside the clone when you want data to
 survive repo wipes — set `TRANSCRIBE_PROJECTS_DIR`, `TRANSCRIBE_INBOX_DIR`, and
 `TRANSCRIBE_EXPORT_DIR` in `.env`.
-
-**Docker.** Copy `.env.example` to `.env` and set **`HOST_PROJECTS_DIR`** to an
-absolute path **outside this repository**.
-
-```bash
-cp .env.example .env          # set HOST_PROJECTS_DIR
-docker compose up --build transcribe-web
-# → http://127.0.0.1:8510/
-```
 
 Details: [installation](docs/runtime/installation.md). Docker notes: [docker](docs/runtime/docker.md). Choosing a vision model: [OCR model matrix](docs/runtime/ocr_model_matrix.md).
 

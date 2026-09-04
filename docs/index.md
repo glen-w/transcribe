@@ -20,6 +20,7 @@ The GitHub [README](https://github.com/glen-w/transcribe#readme) is the same fir
 PRODUCT
 user_guide
 runtime/installation
+runtime/docker
 runtime/ocr
 known_limitations
 ```
@@ -31,7 +32,6 @@ known_limitations
 runtime/analysis
 runtime/export
 runtime/settings
-runtime/docker
 backup_and_restore
 runtime/ocr_model_recipes
 runtime/ocr_model_matrix

@@ -20,12 +20,12 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.7.** Version ladder to autobiography:
+**Package is 0.8.8.** Version ladder to autobiography:
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-              I0–I1     I2–I3     patch     product     patch         U2 + I6          tag + hosted docs      findings → fixes         freeze     autobiography
-                                                                      (I5 Pages landed)```
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
+              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      findings → fixes         freeze     autobiography
+                                                                                   (Pages)```
 
 | Label | Meaning |
 |-------|---------|
@@ -34,6 +34,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.8.5** | Product patch on 0.8.0: cover-page skip in ink metrics; Analyse batch pick labels show published status. |
 | **0.8.6** | Post-U3 product cut: OCR Review workbench, export typography/cover/ignore-pages, Sphinx docs (**I4**), Ask history, Detect → Workflow nav, chart colours, detection tag approval. |
 | **0.8.7** | Product patch: names + lexical detectors, Review/Library polish, Detect accept-per-page, circuit CLI honesty, action-link appearance. |
+| **0.8.8** | Docs/ops patch: GitHub Pages landing (**I5**), Docker-preferred install path, public docs reframe for first-time users. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
 | **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
@@ -274,7 +275,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.7** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
 **Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
 
@@ -291,7 +292,7 @@ I0–I6 (infra wave)           ─┘
 | U2.1 Home | [x] | Create / Import + Ollama health |
 | U2.3 Diagnostics | [x] | Workspace / notebook doctor in UI |
 | **U2.2 Sample notebook** | [ ] | Fixture under `samples/`; one-click Open sample via existing init/import; offline Analyse Quick without LLM |
-| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README; port **8510**, mounts, Ollama, known first-run bites |
+| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, mounts, Ollama, known first-run bites |
 
 **U2 exit:** sample path smoke; README / user_guide first-run without reading contracts. Detail: [usability_wave_plan.md](usability_wave_plan.md) §6.
 
@@ -333,7 +334,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty. Remaining infra: **I6** (I5 Pages landing landed).
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**.
 
 ### 0.9-1 — Unfamiliar user testing
 

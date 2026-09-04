@@ -4,7 +4,7 @@ This document is the **authoritative release gate** for public version tags. It 
 
 **Do not create the next version tag until every item below is green.**
 
-Distribution (v1): versioned git tags; local install via `pip install -e .` / `./transcribe.sh`; Docker Compose. There is **no** PyPI publish automation.
+Distribution (v1): versioned git tags; **Docker Compose preferred** for end users; host/Python via `./transcribe.sh` / `pip install -e .` for development. There is **no** PyPI publish automation.
 
 ## Checklist
 

@@ -4,7 +4,7 @@
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.7** (I0–I5 plus post-U3 product cuts). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty. **I5** Pages landing landed after 0.8.7. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.8.8** (I0–I5 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -33,7 +33,7 @@ Developer lanes     →     PR CI honesty     →     Release evidence
 | Usability **U2** product copy (sample notebook, first-run docs path) | Owned by [usability_wave_plan.md](usability_wave_plan.md) — this wave may *host* docs, not write U2 content |
 | TranscriptX Theme C workspaces / Vitest / Playwright browser packs | Different product surface |
 | spaCy / `[nlp]` CI matrix lane | Transcribe has no spaCy install profile |
-| PyPI publish automation | Local / Docker install remains the v1 distribution story |
+| PyPI publish automation | Docker Compose preferred; host/Python for development remains the v1 distribution story |
 | Full TX 0.9.x product themes (schema epoch, Guided mode, Overview chrome) | Wrong product; borrow *infra patterns* only |
 | Blocking U2 on this wave | Parallel programme; do not serialize product usability behind CI scaffolding |
 

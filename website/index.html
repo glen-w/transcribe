@@ -166,22 +166,22 @@
         <div class="wrap narrow">
           <h2>Install</h2>
           <p>
-            Native helper on the host (Python 3.10+). You also need a running
-            <a href="https://ollama.com">Ollama</a> server and an OCR-friendly
-            vision model.
+            Docker is the recommended path (no host Python packages). You also
+            need a running
+            <a href="https://ollama.com">Ollama</a> server on the host and an
+            OCR-friendly vision model.
           </p>
           <pre class="code"><code>git clone https://github.com/glen-w/transcribe.git
 cd transcribe
-chmod +x transcribe.sh
-./transcribe.sh setup
-./transcribe.sh ui</code></pre>
+cp .env.example .env          # set HOST_PROJECTS_DIR outside the repo
+docker compose up --build transcribe-web</code></pre>
           <p>
             Open <a href="http://localhost:8510">http://localhost:8510</a>.
           </p>
           <p>
-            Docker: copy <code>.env.example</code> to <code>.env</code>, set
-            <code>HOST_PROJECTS_DIR</code> to a folder outside the repository,
-            then <code>docker compose up --build transcribe-web</code>.
+            Advanced — native on the host (Python 3.10+):
+            <code>./transcribe.sh setup</code> then
+            <code>./transcribe.sh ui</code>.
           </p>
           <p class="fine">
             Details:
@@ -199,7 +199,7 @@ chmod +x transcribe.sh
 
     <footer class="site-footer">
       <div class="wrap footer-inner">
-        <p>© Transcribe contributors. Local-first software. Version 0.8.7.</p>
+        <p>© Transcribe contributors. Local-first software. Version 0.8.8.</p>
         <p>
           <a href="https://github.com/glen-w/transcribe">GitHub</a>
           ·

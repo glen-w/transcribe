@@ -11,6 +11,9 @@ Shape: [ARCHITECTURE.md](ARCHITECTURE.md). Rules: [CONTRACT_INDEX.md](CONTRACT_I
 
 ## Setup
 
+End users: prefer Docker — [installation](runtime/installation.md). This page is the
+host/Python path for development.
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate

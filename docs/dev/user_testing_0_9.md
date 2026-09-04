@@ -20,7 +20,7 @@ This is **not** an infrastructure track (not I7). It is **not** autobiography te
 
 Testers use product docs only. Observers may note blockers; do not coach contract vocabulary.
 
-1. **Install** — follow the first-run install path (local venv or Docker as documented).
+1. **Install** — follow the first-run install path (Docker preferred; host Python only if testing that advanced path).
 2. **Open sample** (or import a few of their own scans if they prefer).
 3. **Confirm Ollama** — Home / Diagnostics one-line health; pull or select a vision model if needed.
 4. **Transcribe** — run OCR on the sample (or skip if sample is pre-seeded with text for offline Analyse).

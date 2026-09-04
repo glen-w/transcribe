@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.8] - 2026-09-04
+
 ### Added
 
 - Maintainer **I5:** public landing site (`website/`) plus GitHub Pages assemble (`make pages-site`, `scripts/release/assemble_pages_site.sh`, `.github/workflows/pages.yml`). Sphinx `/guide/` shares the sticky header chrome from `website/chrome/`.
 
 ### Changed
 
+- Public install docs (README, installation, Docker, website landing) prefer **Docker**; host/Python (`./transcribe.sh`) is documented as advanced.
 - Public docs (README, Sphinx Start here, website, user guide, installation) lead with outcomes and GUI steps for a first-time user. Classification `Type:` / `Authority:` headers are removed so they no longer render on hosted pages.
 
 ## [0.8.7] - 2026-09-03

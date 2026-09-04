@@ -185,7 +185,7 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 ## 6. U2 — First-run & operability
 
-**Outcome:** A motivated non-expert reaches a first exported notebook without digging into contracts or Docker archaeology.
+**Outcome:** A motivated non-expert reaches a first exported notebook via Docker (preferred) without digging into contracts or host Python setup.
 
 ### U2.1 — Home (shipped; replaces the setup-wizard sketch)
 
@@ -220,7 +220,7 @@ Speaker-profile repair is out of scope.
 
 ### U2.4 — Docs & install path
 
-- Tighten [runtime/installation.md](runtime/installation.md) / [runtime/docker.md](runtime/docker.md) into a **“first notebook in 15 minutes”** path linked from README empty-state.
+- Tighten [runtime/installation.md](runtime/installation.md) / [runtime/docker.md](runtime/docker.md) into a **“first notebook in 15 minutes”** path linked from README empty-state — **Docker preferred**, host/Python under Advanced.
 - Document port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID once in the first-run doc — not scattered only in deep runtime notes.
 - Surface [known_limitations.md](known_limitations.md) items that bite first run (encrypted PDF, large budgets, cleanup latency).
 

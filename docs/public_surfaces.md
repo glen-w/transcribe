@@ -8,9 +8,9 @@ entrypoints.
 
 | Surface | How to invoke | Notes |
 |---------|---------------|-------|
-| Streamlit UI | `./transcribe.sh ui` · `transcribe-ui` · `streamlit run src/transcribe/ui/app.py` | Default port **8510** (`TRANSCRIBE_PORT`) |
-| CLI | `./transcribe.sh cli …` · `python -m transcribe …` · `transcribe …` | Same services as the UI |
-| Docker Compose web | `docker compose up transcribe-web` | Published at `127.0.0.1:8510` by default |
+| Docker Compose web | `docker compose up transcribe-web` | **Preferred** everyday install; published at `127.0.0.1:8510` by default |
+| Streamlit UI (host) | `./transcribe.sh ui` · `transcribe-ui` · `streamlit run src/transcribe/ui/app.py` | Advanced / development; default port **8510** (`TRANSCRIBE_PORT`) |
+| CLI | `./transcribe.sh cli …` · `python -m transcribe …` · `transcribe …` · Compose `exec` | Same services as the UI |
 
 ### CLI commands
 
