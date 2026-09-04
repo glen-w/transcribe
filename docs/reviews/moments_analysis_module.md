@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: product review — does not own analysis contracts or module algorithms
-
 # Review: Mood → Moments analysis module
 
 **Date:** 2026-08-19  

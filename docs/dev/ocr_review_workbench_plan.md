@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: post-U3 OCR Review workbench sequencing; schemas stay in page-result / ocr-multipass / project-on-disk
-
 # OCR Review workbench
 
 **Status:** [x] landed as post-U3 deepen-in-place (not a new wave track; does not block U2 / 0.9).

@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — workspace OcrBatchRun lifecycle for sequential multi-notebook OCR. Does not replace per-notebook JobCoordinator / page-result authority.
-
 # OCR batch runs
 
 Related: [page-result.md](page-result.md), [import-run.md](import-run.md), [notebook-corpus.md](notebook-corpus.md), [ocr-multipass.md](ocr-multipass.md), [public_surfaces.md](../public_surfaces.md).

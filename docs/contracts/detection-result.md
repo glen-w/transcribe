@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — durable detection result envelope, attempt vs outcome separation, and capability presentation
-
 # Detection result
 
 Durable envelope for a detector run (published or historical). Storage rules: [detection-run-storage.md](detection-run-storage.md). Findings: [detection-finding.md](detection-finding.md).

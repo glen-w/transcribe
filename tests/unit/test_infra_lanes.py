@@ -21,6 +21,7 @@ def test_makefile_exposes_named_lanes():
         "docker-smoke",
         "docs",
         "docs-clean",
+        "pages-site",
         "release-hygiene",
     ):
         assert re.search(rf"^{re.escape(target)}:", text, re.M), f"Makefile missing {target}"
@@ -77,7 +78,13 @@ def test_i2_i3_release_kit_files_exist():
         "docs/dev/rtd_go_live_checklist.md",
         "docs/conf.py",
         "scripts/release/build_docs.sh",
+        "scripts/release/assemble_pages_site.sh",
         ".readthedocs.yml",
+        ".github/workflows/pages.yml",
+        "website/index.html",
+        "website/chrome/site_chrome.css",
+        "website/chrome/site_nav.js",
+        "docs/_templates/page.html",
         ".coveragerc",
         ".pre-commit-config.yaml",
     ):
@@ -87,5 +94,10 @@ def test_i2_i3_release_kit_files_exist():
     assert "fail_under" in cover
     assert "transcribe/ui" in cover
     gov = (ROOT / "docs" / "dev" / "release_governance.md").read_text(encoding="utf-8")
-    assert "Type: GUIDE" in gov
     assert "authoritative release gate" in gov.lower() or "authoritative" in gov.lower()
+    conf = (ROOT / "docs" / "conf.py").read_text(encoding="utf-8")
+    assert "../website/chrome" in conf
+    assert "site_chrome.css" in conf
+    pages = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    assert "assemble_pages_site.sh" in pages
+    assert "deploy-pages" in pages

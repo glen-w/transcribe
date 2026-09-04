@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: non-authoritative glossary — meanings are owned by CONTRACT / PRODUCT docs
-
 # Terms
 
 This document is an **index of terms only**. It aggregates terminology from authoritative CONTRACT documents and points back to them.

@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: 0.9-1 unfamiliar-user testing protocol — does not own product sequencing (see ROADMAP) or runtime contracts
-
 # 0.9-1 unfamiliar user testing
 
 **Status:** planned — runs **after** the **0.9.0** package cut (U2 + I0–I6). Sequencing: [ROADMAP.md](../ROADMAP.md) [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10).

@@ -1,70 +1,84 @@
-Type: GUIDE
-Authority: Analyse / Detect / View operations — summarizes analysis and detection contracts; does not redefine schemas
-
 # Analysis and Detect
 
-Run notebook analysis on transcribed text, consume results under **View**, and scan for phenomena with Detect. Product framing: [PRODUCT.md](../PRODUCT.md). Entrypoints / IA: [public_surfaces.md](../public_surfaces.md). Limits: [known_limitations.md](../known_limitations.md).
+Run analysis on transcribed text, read the results under **View**, and scan for
+patterns with Detect.
 
-**Contracts:** [analysis-document](../contracts/analysis-document.md) · [analysis-result](../contracts/analysis-result.md) · [analysis-run-storage](../contracts/analysis-run-storage.md) · [analysis-batch-run](../contracts/analysis-batch-run.md) · [notebook-eligibility](../contracts/notebook-eligibility.md) · detection contracts via [CONTRACT_INDEX](../CONTRACT_INDEX.md).
+First-time path: [user guide](../user_guide.md). Limits:
+[known limitations](../known_limitations.md).
 
-## This notebook Analyse
+## This notebook
 
 **UI:** **Workflow → Analyse**
 
-1. Choose a preset (**Quick** / **Balanced** / **Thorough** / **Custom**).
+1. Choose a preset (**Quick** / **Balanced** / **Thorough** / **Custom**). First-time: keep **Balanced**.
 2. Optionally enable an Ask-notebook question.
-3. Run analysis. On success, open **View → Overview** (or **Detect** when the plan is detector-only).
+3. Run analysis. On success, open **View → Overview**.
 
-| Preset | Includes (summary) |
-|--------|-------------------|
-| **Quick** | Light/medium only — no LLM, no heavy modules, no detectors |
-| **Balanced** | Adds `semantic_similarity` + `llm_summary` |
-| **Thorough** | All suitable core modules (including heavy + LLM suite) + all detectors |
-| **Custom** | Pick modules and detectors (modules seeded from Balanced) |
+| Preset | What you get |
+|--------|----------------|
+| **Quick** | Fast lexical / structural modules — no LLM, no heavy modules, no detectors |
+| **Balanced** | Adds similarity clustering and an LLM summary |
+| **Thorough** | All suitable core modules plus every detector |
+| **Custom** | Pick modules and detectors (starts from Balanced) |
 
-Detectors freeze into `AnalysisRunPlan.detector_ids` and run via `DetectionService` **after** modules (not as analysis modules). Use a **text** Ollama model for LLM modules and detectors (workspace default under **Settings → Models**, per-notebook Analyse, or Batch pick). Deterministic synthesis works without it. Missing model/extras surface as plain capability messages (for example “Needs a text model”).
+Use a **text** Ollama model for LLM modules and detectors (**Settings → Models**,
+or pick one on Analyse / Batch). Deterministic modules work without it. Missing
+pieces show as plain messages such as “Needs a text model”.
 
-Edit preset policies under **Settings → Analysis**. Mid-run settings changes apply to the **next** run only.
+Edit what each preset includes under **Settings → Analysis**. Mid-run settings
+changes apply to the **next** run only.
 
-## View consume
+## View
 
-Inspect published results under **View**: Overview / Themes / Mood / Summaries / People & Places. Mood includes **Moments**; Summaries includes **Ask**. A shared status strip shows whether results are current.
+Inspect results under **View**: Overview / Themes / Mood / Summaries /
+People & Places. Mood includes **Moments**; Summaries includes **Ask**. A status
+strip shows whether results are current.
 
-- Overview / Mood: **Compare with corpus / period** for numeric metrics vs other notebooks
+- Overview / Mood: **Compare with corpus / period** against other notebooks
 - Mood → Moments and page-series charts: **Jump to page** → Reading
-- **People & Places**: People / Places with This notebook | All notebooks scope (opt-in geocoding)
-- Technical module details under **Advanced**
+- **People & Places**: This notebook | All notebooks (opt-in map geocoding)
+- Technical module details under **Advanced** (enable in **Settings → Configuration → Overview**)
 
-Chart compare notes: [dev/analysis_visual_compare.md](../dev/analysis_visual_compare.md).
+Chart notes: [visual compare](../dev/analysis_visual_compare.md).
 
 ## Detect
 
-**UI:** **View → Detect** — review findings from suite runs (**Accept** / **Reject**, jump to source pages). Accept approves the finding and applies remaining span tags. Multi-page findings add per-page Accept / Reject on each page tab; **Accept remaining** skips pages you already rejected. Lexical counters (`first_person`, `swear_words`) show a per-page count table instead of review cards. Ad-hoc / page-scoped runs still launch from **Detect → Run Detection**.
+**UI:** **View → Detect** — review findings (**Accept** / **Reject**, jump to
+source pages). Accept applies remaining page tags. Multi-page findings add
+per-page Accept / Reject; **Accept remaining** keeps the others.
 
-Built-ins: poetry, to-do lists, lists, quotations, beer labels, first-person `I` per-page counts (deterministic from OCR, no LLM), swear-word counts, **names / people** (spaCy `PERSON` from published NER, or a NER run when none is current), plus custom detectors.
+Built-ins: poetry, to-do lists, other lists, quotations, beer labels,
+first-person `I` counts, swear-word counts, **names / people**, plus custom
+detectors. Count detectors show a per-page table instead of review cards.
+
+Ad-hoc runs still launch from **Detect → Run Detection**.
 
 ```bash
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry
-./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --detector poetry --auto-tag
 ./transcribe.sh cli detect "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --list
 ```
 
-Check **Tag matching pages** (or **Apply tags from findings**) to union tags onto span pages; rejected findings are skipped. Most detectors use the finding type; **names / people** tags each detected person name. `--auto-tag` / Detection auto-tag defaults do **not** enter detector cache identity. Catalogue contract: [tag-catalog](../contracts/tag-catalog.md).
+**Tag matching pages** unions tags onto span pages; rejected findings are
+skipped. **Names / people** tags each detected person name rather than a generic
+`names` tag.
 
-Manage prompts under **Settings → Prompts**; custom detectors and auto-tag defaults under **Settings → Detection**; labels/colours/merge under **Settings → Tags**.
+Manage prompts under **Settings → Prompts**; custom detectors under
+**Settings → Detection**; labels under **Settings → Tags**.
 
 ## Batch Analyse
+
+**UI:** **Workflow → Analyse → Batch** — pick notebooks, a preset, optional
+shared text model, **Start batch analysis**. Empty-text notebooks are skipped.
 
 ```bash
 ./transcribe.sh cli bulk-analyse pending|import-run|notebooks --preset balanced
 ./transcribe.sh cli bulk-analyse status|resume <analysis_batch_id>
 ```
 
-**UI:** **Workflow → Analyse → Batch** — pick notebooks, preset, optional shared text model (when the plan includes LLM modules or detectors), **Start batch analysis**. Dual progress (notebooks + steps: modules then detectors). Empty-text notebooks are skipped. Orchestration only — publish stays per-notebook ([analysis-batch-run](../contracts/analysis-batch-run.md)).
-
 ## Related
 
 - Settings / presets: [settings.md](settings.md)
 - OCR first: [ocr.md](ocr.md)
 - Golden path: [user_guide.md](../user_guide.md)
-- Roadmap / focus: [ROADMAP.md](../ROADMAP.md) · [usability_wave_plan.md](../usability_wave_plan.md)
+- Roadmap: [ROADMAP.md](../ROADMAP.md) · [usability wave](../usability_wave_plan.md)
+- Contracts: [CONTRACT_INDEX.md](../CONTRACT_INDEX.md) (analysis-* and detection-*)

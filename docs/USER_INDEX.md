@@ -1,51 +1,59 @@
-Type: GUIDE
-Authority: curated navigation only — does not own product rules or contracts
+# User documentation sitemap
 
-# User docs index
+Every user-facing page, grouped by job. This is a **list**, not a second start page.
 
-Curated entry points for people using Transcribe (not repository historians).
+First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [DEV_INDEX.md](DEV_INDEX.md).
 
-## Start here
+## Product and first run
 
 | Doc | Purpose |
 |-----|---------|
-| [README.md](../README.md) | Product landing and quickstart |
+| [README.md](../README.md) | What it is, first notebook, install |
+| [Website](../website/index.html) | Public landing (GitHub Pages) |
+| [docs home](index.md) | Hosted docs start |
 | [PRODUCT.md](PRODUCT.md) | What Transcribe is and is not |
-| [user_guide.md](user_guide.md) | Golden path: import → OCR → review → analyse → export |
-| [Installation](runtime/installation.md) | Local install, extras, environment |
-| [Docker](runtime/docker.md) | Compose mounts and Ollama from Docker |
-| [Settings & knobs](runtime/settings.md) | Configuration scopes, profiles, UI knobs |
-| [OCR / transcription](runtime/ocr.md) | Single-run, multipass, batch, cleanup |
-| [OCR model recipes](runtime/ocr_model_recipes.md) | Per-tag prompt lanes (DeepSeek-OCR `Free OCR.`) |
-| [OCR model matrix](runtime/ocr_model_matrix.md) | Local probe results and first-OCR recommendations |
-| [Analysis & Detect](runtime/analysis.md) | Analyse presets, View consume, Detect |
-| [Export](runtime/export.md) | Notebook formats, anthology, fine-tune pointer |
-| [Backup & restore](backup_and_restore.md) | Full-workspace ZIP create / verify / restore |
-| [Known limitations](known_limitations.md) | Public honesty page |
+| [User guide](user_guide.md) | Import → transcribe → review → analyse → export |
+| [Known limitations](known_limitations.md) | Model quality, privacy, honesty |
+| [Terminology](TERMS.md) | Term index |
+
+## Install and run
+
+| Doc | Purpose |
+|-----|---------|
+| [Installation](runtime/installation.md) | Native helper and Docker |
+| [Docker](runtime/docker.md) | Compose mounts and host Ollama |
+| [Settings](runtime/settings.md) | Configuration, presets, knobs |
+
+## Transcribe pages
+
+| Doc | Purpose |
+|-----|---------|
+| [OCR and transcription](runtime/ocr.md) | This notebook, multipass, batch, review |
+| [OCR model recipes](runtime/ocr_model_recipes.md) | Per-tag prompt lanes |
+| [OCR model matrix](runtime/ocr_model_matrix.md) | Local probe results and first-OCR picks |
+
+## Analyse and detect
+
+| Doc | Purpose |
+|-----|---------|
+| [Analysis and Detect](runtime/analysis.md) | Presets, View, Detect, batch |
+
+## Export and backup
+
+| Doc | Purpose |
+|-----|---------|
+| [Export](runtime/export.md) | Notebook formats, anthology |
+| [Backup and restore](backup_and_restore.md) | Full-workspace ZIP |
+| [Fine-tune export](finetune_export.md) | Images + text for external training |
 
 ## Reference
 
 | Doc | Purpose |
 |-----|---------|
 | [Public surfaces](public_surfaces.md) | Supported CLI / UI / scripts |
-| [Terminology](TERMS.md) | Non-authoritative glossary → contracts |
-| [Fine-tune export](finetune_export.md) | Product outline for external training |
-| [Roadmap](ROADMAP.md) | Product priorities (0.8.7 → 0.9.0 → 0.9-1 testing → 1.0; After 1.0 autobiography planned) |
-| [Usability wave](usability_wave_plan.md) | Active product focus: U0–U4 (U2 required for 0.9.0) |
-
-## Contracts (rules, not tutorials)
-
-Prefer the [Contract index](CONTRACT_INDEX.md) for invariants. Key user-visible contracts:
-
-- [Public surfaces](public_surfaces.md)
-- [Project on disk](contracts/project-on-disk.md)
-- [Page results](contracts/page-result.md)
-- [Notebook export](contracts/notebook-export.md)
-- [Workspace settings](contracts/workspace-settings.md)
-- [Workspace backup](contracts/workspace-backup.md)
+| [Roadmap](ROADMAP.md) | Product priorities (0.8.7 → 0.9.0 → 1.0) |
+| [Usability wave](usability_wave_plan.md) | Active product focus (U2 open) |
 
 ## Not in this index
 
 Developer plans, inventories, and historical archives live under [DEV_INDEX.md](DEV_INDEX.md) and [archive/ARCHIVE_INDEX.md](archive/ARCHIVE_INDEX.md).
-
-Start here if you are new: [../README.md](../README.md) → [user_guide.md](user_guide.md).

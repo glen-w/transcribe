@@ -1,28 +1,28 @@
-Type: PRODUCT
-Authority: self — product definition and audience; does not own schemas or runtime invariants
-
 # Transcribe product
 
-**Transcribe** is a local-first personal workbench for turning handwritten notebook pages into editable, portable text.
+**Transcribe** is a local-first workbench for turning handwritten notebook pages into editable, portable text.
+
+## Is this for me?
+
+Yes if you keep paper notebooks (or scans of them) and want searchable, editable
+text while keeping images and results on disk you control.
+
+No if you need cloud OCR, audio transcription, or speaker diarization — those
+are out of scope. Transcribe does not depend on TranscriptX.
 
 ## Promise
 
 On your machine you can:
 
-1. Import JPEG/PNG/PDF pages into a durable managed notebook directory
-2. Run local vision OCR via Ollama
+1. Import JPEG/PNG/PDF pages into a notebook folder
+2. Transcribe them with a local Ollama vision model
 3. Review and correct text page by page
-4. Run notebook analysis on transcribed text (Overview, Themes, Mood & tone, Summaries, Detect, People & Places under **View**; Detect also launches from Analyse presets; Moments on Mood, Ask notebook on Summaries; People & Places scope This notebook | All notebooks)
-5. Export Markdown, plain text, and a portable `transcribe.notebook` JSON artifact
-6. Back up and restore the full workspace (notebooks + corpus + config) as a local ZIP
+4. Optionally analyse the text (Overview, Themes, Mood, Summaries, Detect, People & Places)
+5. Export Markdown, plain text, HTML/EPUB/PDF, and a portable notebook JSON file
+6. Back up and restore the full workspace as a local ZIP
 
-without requiring a cloud OCR provider or a TranscriptX dependency.
-
-Transcribe’s product direction is a **durable notebook corpus** (identity, managed originals, and human edits survive renames and re-OCR). OCR is one derived process over that corpus — including multipass compare, prefer/promote, and fine-tune export for external training. Bulk multi-notebook import is supported under: [notebook-corpus](contracts/notebook-corpus.md), [source-asset](contracts/source-asset.md), [import-run](contracts/import-run.md), [corpus-integrity](contracts/corpus-integrity.md).
-
-## Audience
-
-People who keep paper notebooks (or scans of them) and want searchable, editable text while keeping images and results on disk they control.
+Notebook identity, original scans, and human edits survive renames and re-OCR.
+Bulk import of many folders is supported. Contracts: [notebook-corpus](contracts/notebook-corpus.md), [source-asset](contracts/source-asset.md), [import-run](contracts/import-run.md), [corpus-integrity](contracts/corpus-integrity.md).
 
 ## Surfaces today
 

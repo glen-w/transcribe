@@ -1,9 +1,8 @@
-Type: GUIDE
-Authority: settings / profiles / UI knobs operations — summarizes [workspace-settings](../contracts/workspace-settings.md); does not redefine schema
-
 # Settings, profiles, and knobs
 
-Where to change workspace behaviour in the UI and how overlays resolve. Authoritative schema and precedence: [contracts/workspace-settings.md](../contracts/workspace-settings.md). Interface menus: [contracts/interface-menus.md](../contracts/interface-menus.md). Alignment notes vs TranscriptX: [dev/settings_tx_alignment.md](../dev/settings_tx_alignment.md).
+Where to change workspace behaviour in the UI. Schema and precedence:
+[workspace-settings](../contracts/workspace-settings.md). Interface menus:
+[interface-menus](../contracts/interface-menus.md).
 
 ## Where to start
 
@@ -61,3 +60,4 @@ See [installation.md](installation.md). Env allowlist does not replace project O
 - OCR operations: [ocr.md](ocr.md)
 - Analysis operations: [analysis.md](analysis.md)
 - Export operations: [export.md](export.md)
+- TranscriptX alignment (maintainers): [settings_tx_alignment.md](../dev/settings_tx_alignment.md)

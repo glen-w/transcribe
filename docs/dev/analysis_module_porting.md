@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: TranscriptX → Transcribe analysis-module porting dispositions and notebook reinterpret notes. Does not define runtime contracts or shipped module IDs. Core delivery history (internal slices): [analysis_wave1_plan.md.
-
 # Analysis module porting (from TranscriptX)
 
 Planning map for which TranscriptX analysis modules to bring into Transcribe, how to adapt them for page/notebook text, and which to leave behind.

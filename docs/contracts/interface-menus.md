@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — normative `interface_menus` envelope, schema versioning, fail-closed load, sanitisation, and lock+revision CAS write rules for durable user-owned action-menu preferences.
-
 # Interface menus
 
 Durable user configuration for configurable action-link strips in the Streamlit UI (Library cover cards and activity rows; Import / Transcribe / Analyse next-step strips; Settings → Interface).

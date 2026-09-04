@@ -13,7 +13,6 @@ def test_usability_wave_plan_exists_with_tracks():
     plan = DOCS / "usability_wave_plan.md"
     assert plan.is_file(), "docs/usability_wave_plan.md missing"
     text = plan.read_text(encoding="utf-8")
-    assert "Type: PRODUCT" in text
     assert "[~] active" in text
     for track in ("U0", "U1", "U2", "U3", "U4"):
         assert track in text, f"plan missing track {track}"
@@ -118,7 +117,6 @@ def test_roadmap_path_to_0_9_foundation():
     protocol = DOCS / "dev" / "user_testing_0_9.md"
     assert protocol.is_file()
     proto = protocol.read_text(encoding="utf-8")
-    assert "Type: GUIDE" in proto
     assert "0.9-1" in proto
     assert "autobiography" in proto.lower()
     assert "Explicitly out of script" in proto or "out of script" in proto.lower()

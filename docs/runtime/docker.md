@@ -1,12 +1,9 @@
-Type: GUIDE
-Authority: operational Docker / Compose layout only — does not define project-format invariants
-
 # Docker
 
 Recommended way to run Transcribe without installing Python packages on the host.
 Ollama stays on the host (or another service); the container only runs the app + Streamlit UI.
 
-Native install alternative: [installation.md](installation.md). Product entry: [../PRODUCT.md](../PRODUCT.md).
+Native install: [installation.md](installation.md).
 
 ## Quick start
 
@@ -34,7 +31,7 @@ docker compose up --build transcribe-web
 
 Open http://127.0.0.1:8510 (Transcribe uses **8510**, not 8501).
 
-## Path pattern (same idea as TranscriptX)
+## Where files live
 
 | Host (Compose) | Container mount | App env |
 |----------------|-----------------|---------|

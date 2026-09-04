@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — detection persistence, publish/cache rules, cache identity, and aggregation
-
 # Detection run storage
 
 Durable detection artifacts live inside the managed notebook project. Top-level paths: [project-on-disk.md](project-on-disk.md). Envelope: [detection-result.md](detection-result.md). Finding shape: [detection-finding.md](detection-finding.md).

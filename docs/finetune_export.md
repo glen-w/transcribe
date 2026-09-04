@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: product outline for external fine-tuning using Transcribe exports — does not define training code
-
 # Fine-tune export (external training)
 
 Transcribe can export a local dataset of page images + preferred/active transcriptions for **external** fine-tuning. Training is not performed inside this project.

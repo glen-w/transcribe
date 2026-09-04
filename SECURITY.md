@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: self
-
 # Security Policy
 
 Transcribe is a **local-first, single-user** handwritten notebook OCR workbench. The trust domain is the machine user who runs the process, plus the default loopback web bind.

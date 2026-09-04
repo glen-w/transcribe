@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: docs_architecture.md
-
 # Read the Docs go-live checklist
 
 **Status:** prep only (**I4**) — do **not** publish a live Read the Docs hostname in-repo until the project exists.

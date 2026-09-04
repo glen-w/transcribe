@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — analysis persistence, publish/cache rules, cache identity composition, and dependency compatibility. References project layout; does not redefine it.
-
 # Analysis run storage
 
 Durable analysis artifacts live inside the managed notebook project. Top-level paths are owned solely by [project-on-disk.md](project-on-disk.md). Result envelope semantics: [analysis-result.md](analysis-result.md). Input fingerprint: [analysis-document.md](analysis-document.md). Eligibility contribution: [notebook-eligibility.md](notebook-eligibility.md).

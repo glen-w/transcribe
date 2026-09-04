@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — OCR preference ledger and rollup stats
-
 # OCR preference ledger
 
 Related: [page-result.md](page-result.md), [ocr-multipass.md](ocr-multipass.md), [finetune-export.md](finetune-export.md).

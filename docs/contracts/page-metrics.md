@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — page ink/blankness/hue metrics schema, cache identity, and publish rules. Top-level project paths: [project-on-disk.md](project-on-disk.md). Does not redefine analysis or detection envelopes.
-
 # Page metrics (ink / blankness / hue)
 
 Deterministic **Pillow-only** visual metrics over each page’s **active render** PNG. Separate from text Analyse modules ([analysis-document.md](analysis-document.md)) and from visual declutter ([source-asset.md](source-asset.md) declutter provenance).

@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — corpus hierarchy, notebook identity, ownership, ordering, corpus index wire format, and workspace locking. **Runtime-normative** for bulk-import generation (activation gate satisfied). Layout paths subordinate to this contract are described in [project-on-disk.md](project-on-disk.md). Source bytes/provenance: [source-asset.md](source-asset.md). Import lifecycle: [import-run.md](import-run.md). Integrity/doctor: [corpus-integrity.md](corpus-integrity.md).
-
 # Notebook corpus
 
 ## Activation gate

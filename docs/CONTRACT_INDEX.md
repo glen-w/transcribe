@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: navigation map only — each contract owns its own rules
-
 # Contract index
 
 Truth hierarchy: **on-disk project + page results** are authoritative for each notebook today. Archive SQLite is disposable derived state (rebuildable search/timeline cache). Analysis outputs are authoritative only inside the managed project’s `analysis/` tree. **Bulk-import generation** adds a workspace corpus index + ImportRun authority (**runtime-normative**; see [activation gate](contracts/notebook-corpus.md#activation-gate)). Invariants live in the CONTRACT docs below — not in README, guides, or architecture.

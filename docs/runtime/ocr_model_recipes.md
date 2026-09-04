@@ -1,7 +1,6 @@
-Type: GUIDE
-Authority: how to add a per-model OCR prompt/options lane — does not redefine page-result or prompt-definition contracts
-
 # OCR model recipes
+
+Everyday users: pick a tag from the [model matrix](ocr_model_matrix.md). This page is the recipe registry for tags that ignore a generic “extract all text” prompt.
 
 Some Ollama vision tags do not follow generic VLM “extract all text…” instructions. Transcribe keeps a small **recipe registry** so those tags get a frozen prompt (and optional generation-option patches) at job start, without a different HTTP template.
 

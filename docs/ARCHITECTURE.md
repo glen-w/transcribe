@@ -1,6 +1,3 @@
-Type: ARCHITECTURE
-Authority: system shape and ownership boundaries only — invariants live in CONTRACT docs
-
 # Architecture
 
 Transcribe keeps a small ownership model on purpose.

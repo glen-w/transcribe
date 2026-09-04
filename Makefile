@@ -1,5 +1,5 @@
 # Transcribe maintainer lanes. CI and `# pre-release` call these names.
-# Pages assemble / full Docker image smoke grow in I5–I6.
+# Full Docker image smoke grows in I6.
 
 .DEFAULT_GOAL := help
 
@@ -10,7 +10,7 @@ PYTHON ?= .venv/bin/python
 endif
 PYTEST ?= $(PYTHON) -m pytest
 
-.PHONY: help lint test-smoke test-fast test-contracts test-acceptance test-coverage docker-smoke docs docs-clean release-hygiene
+.PHONY: help lint test-smoke test-fast test-contracts test-acceptance test-coverage docker-smoke docs docs-clean pages-site release-hygiene
 
 help:
 	@echo "Transcribe Makefile"
@@ -30,9 +30,11 @@ help:
 	@echo "Docs:"
 	@echo "  docs              Build Sphinx HTML into docs/_build/html (requires .[docs])"
 	@echo "  docs-clean        Remove Sphinx build artifacts"
+	@echo "  pages-site        Assemble website/ + Sphinx guide into _site/ (GitHub Pages)"
 	@echo ""
 	@echo "Usage: make test-smoke && make test-fast"
 	@echo "       make docs   # Sphinx HTML (pip install -e '.[docs]')"
+	@echo "       make pages-site"
 
 lint:
 	@echo "Ruff critical + unused on src/transcribe..."
@@ -76,3 +78,6 @@ docs-clean:
 	@echo "Cleaning Sphinx build artifacts..."
 	@rm -rf docs/_build
 	@echo "Documentation build cleaned."
+
+pages-site:
+	@bash scripts/release/assemble_pages_site.sh

@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: docs/DEV_INDEX.md
-
 # Documentation archive
 
 Historical design and delivery records. **Not** live product or support policy.

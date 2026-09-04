@@ -5,7 +5,7 @@ Checks (warn by default; exit 0 unless --strict):
   1. root_md — Root markdown allowlist (scripts/release/root_docs_allowlist.toml)
   2. owner_paths — Owner absolute paths (/Users/...) in tracked scripts/docs
   3. archive_banners — Archive banners under docs/archive/
-  4. type_headers — Live docs under docs/ (excl. archive) missing Type: header
+  4. type_headers — Live docs under docs/ (excl. archive) must not start with Type: / Authority:
   5. dated_dev_index — Dated docs/dev/*_20*.md not mentioned in docs/DEV_INDEX.md
   6. supported_scripts — Supported public scripts mentioned in user-facing docs
 
@@ -138,6 +138,7 @@ def check_archive_banners() -> list[str]:
 
 def check_type_headers() -> list[str]:
     warns: list[str] = []
+    header_re = re.compile(r"^(?:run)?Type:\s|^Authority:\s", re.M)
     for rel in _tracked(["docs/**/*.md"]):
         if rel.startswith("docs/archive/"):
             continue
@@ -145,8 +146,8 @@ def check_type_headers() -> list[str]:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")[:400]
-        if not re.search(r"^Type:\s*\S+", text, re.M):
-            warns.append(f"live doc missing Type: header: {rel}")
+        if header_re.search(text):
+            warns.append(f"live doc has Type:/Authority: header (renders on Sphinx): {rel}")
     return warns
 
 
@@ -188,7 +189,7 @@ CHECK_TITLES = {
     "root_md": "root markdown allowlist",
     "owner_paths": "owner absolute paths",
     "archive_banners": "archive banners",
-    "type_headers": "Type: headers",
+    "type_headers": "no Type: page headers",
     "dated_dev_index": "dated plans in DEV_INDEX",
     "supported_scripts": "supported scripts in user docs",
 }

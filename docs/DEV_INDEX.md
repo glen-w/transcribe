@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: curated maintainer navigation only — does not own contracts
-
 # Developer docs index
 
 Active developer and maintainer docs. Historical material is listed only via [ARCHIVE_INDEX](archive/ARCHIVE_INDEX.md).

@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: curated index for product and module reviews — does not own contracts or roadmap
-
 # Reviews
 
 Ad-hoc product and module reviews: intended user value, observed behaviour, gaps, and follow-up options. Reviews **summarize and critique** shipped behaviour; they do not redefine schemas or support policy.

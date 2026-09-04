@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — workspace AnalysisBatchRun lifecycle for sequential multi-notebook Analyse. Does not replace per-notebook AnalysisCoordinator / analysis-run-storage authority.
-
 # Analysis batch runs
 
 Related: [analysis-run-storage.md](analysis-run-storage.md), [import-run.md](import-run.md), [notebook-corpus.md](notebook-corpus.md), [ocr-batch-run.md](ocr-batch-run.md), [public_surfaces.md](../public_surfaces.md).

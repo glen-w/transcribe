@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: pin registry template and process for TranscriptX analysis ports — not a runtime contract. Normative result provenance: [../contracts/analysis-result.md](../contracts/analysis-result.md).
-
 # Analysis port pins
 
 Exact TranscriptX source pins for modules copied into Transcribe. A core module must not be marked done without a filled row and a `semantic_class`.

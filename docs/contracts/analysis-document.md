@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — canonical analysis input schema, validation, `source_ref` form, span indexing, and content fingerprint construction
-
 # Analysis document
 
 Canonical input to ported analysis modules. Built by Transcribe adapters from a managed notebook project. Cores consume this document only — never `Page` objects, Streamlit state, or filesystem paths.

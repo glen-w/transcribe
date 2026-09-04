@@ -36,13 +36,21 @@ def test_sphinx_kit_files_exist():
     for rel in (
         "docs/conf.py",
         "scripts/release/build_docs.sh",
+        "scripts/release/assemble_pages_site.sh",
         ".readthedocs.yml",
+        ".github/workflows/pages.yml",
         "docs/dev/rtd_go_live_checklist.md",
         "docs/_static/.gitkeep",
+        "docs/_templates/page.html",
+        "website/index.html",
+        "website/chrome/site_chrome.css",
+        "website/chrome/site_nav.js",
     ):
         assert (ROOT / rel).is_file(), f"missing {rel}"
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "scripts/release/build_docs.sh" in makefile
+    assert "pages-site" in makefile
+    assert "assemble_pages_site.sh" in makefile
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r"^docs\s*=\s*\[", pyproject, re.M)
     assert "myst-parser" in pyproject
@@ -51,6 +59,12 @@ def test_sphinx_kit_files_exist():
     assert "myst_parser" in conf
     assert "furo" in conf
     assert "archive/**" in conf
+    assert "../website/chrome" in conf
+    assert "site_chrome.css" in conf
+    landing = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
+    assert "Transcribe" in landing
+    assert "localhost:8510" in landing
+    assert "./guide/" in landing
 
 
 def test_live_markdown_is_in_hosted_toctree():

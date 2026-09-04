@@ -14,6 +14,7 @@ coverage.xml
 coverage.json
 htmlcov/
 docs/_build/
+_site/
 .docs-verify-venv/
 artifacts/
 .DS_Store
@@ -37,6 +38,7 @@ docker-compose.override.yml
 *.png
 !tests/fixtures/*.png
 !src/transcribe/ui/assets/*.png
+!website/images/*.png
 *.jpg
 !tests/fixtures/*.jpg
 *.jpeg

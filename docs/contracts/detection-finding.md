@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — persisted detection finding shape and review semantics
-
 # Detection finding
 
 A **DetectionFinding** is derived state referencing stable notebook/page IDs. Findings may span consecutive pages (e.g. a poem continuing across pages).

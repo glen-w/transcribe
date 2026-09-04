@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: self
-
 # Changelog
 
 All notable changes to Transcribe will be documented in this file.
@@ -9,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+
+- Maintainer **I5:** public landing site (`website/`) plus GitHub Pages assemble (`make pages-site`, `scripts/release/assemble_pages_site.sh`, `.github/workflows/pages.yml`). Sphinx `/guide/` shares the sticky header chrome from `website/chrome/`.
+
+### Changed
+
+- Public docs (README, Sphinx Start here, website, user guide, installation) lead with outcomes and GUI steps for a first-time user. Classification `Type:` / `Authority:` headers are removed so they no longer render on hosted pages.
 
 ## [0.8.7] - 2026-09-03
 

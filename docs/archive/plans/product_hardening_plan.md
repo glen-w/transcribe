@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: Product hardening checklist and phase sequencing for Analyse robustness/UX. Does not redefine runtime contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](../../ROADMAP.md) **Now — Usability wave** and the full track plan [usability_wave_plan.md](../../usability_wave_plan.md) (U0 = Phases 3–5, U1 = Phase 6).
-
 > **Archived / superseded.** U0/U1 hardening checklist (done). Active focus: usability_wave_plan.md. Current authority: [docs/usability_wave_plan.md](../../usability_wave_plan.md). Do not treat as live roadmap or support policy.
 
 # Product hardening plan

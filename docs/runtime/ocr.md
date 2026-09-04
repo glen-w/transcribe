@@ -1,101 +1,112 @@
-Type: GUIDE
-Authority: OCR / multipass / batch operations — summarizes page-result and OCR contracts; does not redefine schemas
-
 # OCR and transcription
 
-Run local vision OCR via Ollama on notebook pages. Product framing: [PRODUCT.md](../PRODUCT.md). Limits and model caveats: [known_limitations.md](../known_limitations.md).
+Read notebook pages with a local Ollama vision model, then correct the text
+beside the scan.
 
-**Contracts:** [page-result](../contracts/page-result.md) · [ocr-multipass](../contracts/ocr-multipass.md) · [ocr-preference](../contracts/ocr-preference.md) · [ocr-batch-run](../contracts/ocr-batch-run.md).
+First-time path: [user guide](../user_guide.md). Model caveats:
+[known limitations](../known_limitations.md). Choosing a tag:
+[model matrix](ocr_model_matrix.md).
 
-## Prerequisites
+## This notebook
 
-- Running Ollama (`TRANSCRIBE_OLLAMA_BASE_URL`, default `http://localhost:11434`)
-- At least one vision-capable, OCR-oriented model
+**UI:** **Workflow → Transcribe** → Target **This notebook** → pick a vision
+model → optional **Clean OCR with a text model** → Start.
+
+Open **Model information** under the picker for family, size, and OCR-fit notes.
+Vision pickers list OCR-appropriate models only (thinking tags, text-only tags,
+and broken loaders are hidden). Prefer OCR-oriented tags over general VLMs.
+
+Matching pages are skipped when the same model already succeeded. Settings saved
+mid-job apply to the **next** job. Cleanup failures keep the raw OCR and do not
+fail the page. Whitespace-only output is failed and does not overwrite a prior
+reading.
+
+After **3 consecutive timeouts** or **1 fatal model-load** error, remaining pages
+for **that** model are skipped so a bad tag does not burn the notebook.
+
+**CLI:**
 
 ```bash
 ./transcribe.sh cli models
-./transcribe.sh cli models --refresh --prefs
-```
-
-Prefer OCR-oriented tags over general VLMs. After **3 consecutive timeouts** or **1 fatal model-load** error on a frozen vision plan, remaining pages for **that** model are skipped (`circuit_open`) so a bad tag does not burn the notebook. Single-model **`transcribe run`** then exits **1** (the job record may still say `completed`). Multipass continues with remaining models and may still complete overall. Some tags (DeepSeek-OCR) use a **model recipe** for the frozen prompt — [ocr_model_recipes.md](ocr_model_recipes.md). Whitespace-only OCR is **failed** (`empty_output`) and does not overwrite a prior reading. **Thinking vision models** (for example `gemma4`) often burn `num_predict` internally and return empty text — see [ocr_model_matrix.md](ocr_model_matrix.md).
-
-## This notebook (single model)
-
-```bash
-./transcribe.sh cli run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model gemma3:4b
+./transcribe.sh cli run "$TRANSCRIBE_PROJECTS_DIR/my-notebook" --model glm-ocr
 # force re-OCR: add --force
 ```
 
-**UI:** **Workflow → Transcribe** → Target **This notebook** → vision model → optional **Clean OCR with text model** → Start. Open **Model information** under a picker for family, size, capabilities, and OCR-fit caveats. Vision pickers list **OCR-appropriate VLMs only** (thinking models, text-only tags, and broken loaders excluded); text pickers list **completion LLMs only** (vision/embedding/OCR tags excluded).
+## Review after OCR
 
-Matching fingerprints on succeeded pages are skipped when model identity was verified. Settings saved mid-job apply to the **next** job; the active run uses a frozen plan. Cleanup failures keep raw OCR and do not fail the page.
+**Review** is the work queue (unreviewed, empty text, failures, date approval).
+Scan on the left; one lane at a time on the right: **Transcription**, **Date**,
+**Tags**, **OCR**, **Cleanup**, **Other**.
 
-## Multipass compare
+- **OCR → Re-run OCR** — this page, all pages, or pages not marked reviewed
+- **Rank and merge** — build a merged draft from existing readings
+- **Cleanup** — re-apply visual declutter without re-running OCR
+
+**Reading** is the same pages chronologically, read-only. On Reading or Library,
+**Compare in Review** opens the workbench when several OCR attempts exist.
+
+Layout notes: [ocr review workbench](../dev/ocr_review_workbench_plan.md).
+
+## Compare models
+
+**UI:** **Compare models** (multi-select) → Start (runs in the background).
+Vision-phase cleanup defaults **off**. Rank and an optional **merged draft** use
+the text model.
+
+If two or more models already have text on disk, **Rank and merge existing OCR**
+on Transcribe or Review builds a draft without re-running vision.
+
+**CLI:**
 
 ```bash
 ./transcribe.sh cli multipass "$TRANSCRIBE_PROJECTS_DIR/my-notebook" \
-  --model gemma3:4b --model qwen2.5vl:7b --text-model qwen2.5:7b
+  --model glm-ocr --model granite3.2-vision --text-model qwen2.5:7b
 ```
 
-**UI:** **Compare models** (multi-select) → Start multipass compare (background). Vision-phase cleanup defaults **off** unless you opt in. Rank + optional **merged draft** (composite) use the text/cleanup model. If two or more models already have succeeded text on disk (separate Transcribe jobs), **Rank and merge existing OCR** on Transcribe or Review runs rank/composite without re-running vision. Review the draft in the **Transcription** tab beside the scan: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). Notebook OCR settings (below) and contract detail: [page-result](../contracts/page-result.md). Preference ledger: [ocr-preference](../contracts/ocr-preference.md).
+Some tags (DeepSeek-OCR) use a short frozen prompt — [model recipes](ocr_model_recipes.md).
 
 ## Notebook OCR settings
 
-Per-notebook overrides for **When setting a notebook default** (prefer mode) and **Seed transcription from merged draft after multipass** (`auto_activate_composite`). Workspace defaults seed new notebooks; these fields live on `project.json` → `settings`.
-
-| Where in UI | Notes |
-|-------------|-------|
-| **Workflow → Review** → **OCR** tab | **OCR settings** — labels match the Review workbench |
-| **Workflow → Transcribe** → **Advanced** (single-model / batch) | Same labels as Review |
-| **Workflow → Transcribe** → multipass row | Same **Seed transcription from merged draft after multipass** checkbox (default on) |
-
-Reading / Library page viewer no longer edits these settings; use **Compare in Review** instead.
-
-Changes apply to the **next** multipass or Prefer action; an active job keeps its frozen plan.
+Per-notebook overrides live under **Review → OCR** and **Transcribe → Advanced**.
+Workspace defaults seed new notebooks. Changes apply to the **next** job.
 
 ### When setting a notebook default
 
-Controls what happens when you **Prefer** an OCR attempt (or when multipass auto-activates a merged draft under `prefer_is_promote`). **Promote** always sets the active attempt without clearing your edit overlay.
+What happens when you **Prefer** an OCR attempt (or when a merged draft
+auto-activates).
 
-| UI label (Review) | Mode | Behaviour |
-|-------------------|------|-----------|
-| **Notebook default = current text** (default) | `prefer_is_promote` | Prefer sets both notebook default (`preferred_attempt_id`) and **current text** (`active_attempt_id`). Effective text follows the active attempt unless you have an edit in Transcription. |
-| **Notebook default only (stats / fine-tune)** | `prefer_only` | Prefer records the notebook default and preference stats only — **does not** change current text or what Transcription shows. Use when tagging a favourite model for export / ledger without switching the live reading. |
-| **Notebook default + current, with edit gate** | `prefer_promote_with_edit_gate` | Like the default, but if Transcription already has a human edit, Prefer asks **Keep edit overlay** vs **Adopt new (clear edit)** before applying. |
-
-Preference history and rollup stats: [ocr-preference](../contracts/ocr-preference.md).
+| UI label (Review) | Behaviour |
+|-------------------|-----------|
+| **Notebook default = current text** (default) | Prefer updates both the notebook default and the text you see |
+| **Notebook default only (stats / fine-tune)** | Records a favourite model without changing current text |
+| **Notebook default + current, with edit gate** | Like the default, but asks before replacing a human edit |
 
 ### Seed transcription from merged draft after multipass
 
-When **on** (default), multipass activation after a successful **merged draft** (composite):
+**On** (default): the merged draft becomes current text and seeds Review when
+there is no edit. **Off**: rank and draft still run, but you activate the draft
+yourself.
 
-1. Sets the merged draft as the **active** attempt (and notebook default when prefer mode is **Notebook default = current text**).
-2. Seeds the Review **Transcription** buffer from that draft when there is no edit overlay.
-3. Records an `auto_composite` event in the preference ledger.
-
-When **off**, multipass still ranks vision attempts and builds a merged draft for review, but does **not** auto-activate it. Pages with no prior active attempt fall back to the best-ranked raw vision output. Use this when you want every page reviewed manually before the merged draft becomes current text.
-
-CLI equivalent: omit `--no-auto-composite` (default seeds) or pass `--no-auto-composite` to disable.
+CLI: omit `--no-auto-composite` (default on) or pass `--no-auto-composite`.
 
 ## Batch OCR
 
+**UI:** **Workflow → Transcribe → Batch** (also after Import → Batch via
+**Transcribe imported notebooks**). Single-model or compare across notebooks;
+live progress.
+
 ```bash
-./transcribe.sh cli bulk-run pending --model llama3.2-vision
-./transcribe.sh cli bulk-run import-run <import_run_id> --model llama3.2-vision
+./transcribe.sh cli bulk-run pending --model glm-ocr
+./transcribe.sh cli bulk-run import-run <import_run_id> --model glm-ocr
 ./transcribe.sh cli bulk-run pending --model vision-a --model vision-b --text-model qwen2.5
 ./transcribe.sh cli bulk-run status|resume <ocr_run_id>
 ```
 
-**UI:** **Workflow → Transcribe → Batch** (also reachable after Import → Batch via **Transcribe imported notebooks**). Single-model or multipass compare across notebooks; live progress panel. Contract: [ocr-batch-run](../contracts/ocr-batch-run.md).
-
-## Review after OCR
-
-**Review** is the needs-attention queue (dates, empty text, failures). Right-pane tabs walk **Transcription → Date → Tags → OCR → Cleanup → Other** beside the scan; layout and evidence hierarchy: [ocr_review_workbench_plan.md](../dev/ocr_review_workbench_plan.md). **OCR → Re-run OCR** picks a vision model and can force this page, all pages, or pages not marked reviewed. **Rank and merge** (this page / all comparable pages) runs rank + merged draft on existing readings. **Cleanup** re-applies visual declutter (scanner-bed / gutter / corner-wedge crop) on this page or all pages in the notebook without re-running OCR. Failed attempts appear in OCR evidence. Golden path detail: [user_guide.md](../user_guide.md).
-
 ## Related
 
 - Settings / preprocess seed: [settings.md](settings.md)
-- Model recipes (DeepSeek-OCR `Free OCR.` lane): [ocr_model_recipes.md](ocr_model_recipes.md)
-- Local probe matrix (first-OCR picks): [ocr_model_matrix.md](ocr_model_matrix.md)
-- Import / bulk import: [user_guide.md](../user_guide.md)
+- Model recipes: [ocr_model_recipes.md](ocr_model_recipes.md)
+- Local probe matrix: [ocr_model_matrix.md](ocr_model_matrix.md)
+- Import / bulk import: [user_guide.md](../user_guide.md#bulk-import-and-batch-jobs)
 - Docker Ollama URL: [docker.md](docker.md)
+- Contracts: [page-result](../contracts/page-result.md) · [ocr-multipass](../contracts/ocr-multipass.md) · [ocr-preference](../contracts/ocr-preference.md) · [ocr-batch-run](../contracts/ocr-batch-run.md)

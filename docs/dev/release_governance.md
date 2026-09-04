@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: self
-
 # Release governance (manual next-tag checklist)
 
 This document is the **authoritative release gate** for public version tags. It is **not** enforced by `.cursor/commands/pre-release.md` (local developer confidence only).

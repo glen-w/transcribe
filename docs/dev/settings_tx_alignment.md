@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: developer note — does not redefine runtime contracts; settings owned by workspace-settings.md
-
 # Settings / profiles / models alignment (TranscriptX ↔ Transcribe)
 
 TX source pin (read, not imported): `glen-w/TranscriptX` `main` at

@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — corpus/notebook integrity invariants, doctor scopes, repair/rebuild boundaries, migration enforcement points, and the executable acceptance gate for bulk-import generation. **Runtime-normative**; activation gate in [notebook-corpus.md](notebook-corpus.md). Peers: [source-asset.md](source-asset.md), [import-run.md](import-run.md), [project-on-disk.md](project-on-disk.md).
-
 # Corpus integrity
 
 ## Activation gate

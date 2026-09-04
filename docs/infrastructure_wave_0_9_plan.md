@@ -1,13 +1,10 @@
-Type: PRODUCT
-Authority: 0.9 infrastructure-wave delivery plan (CI, tests, docs hosting, release hygiene). Does not define runtime schemas or product UX — those stay in CONTRACT / usability docs. Companion to [ROADMAP.md](ROADMAP.md). Parity target: [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) maintainer infrastructure (not TranscriptX product features).
-
 # 0.9 Infrastructure wave plan
 
-**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I4** landed (0.7.0 / 0.8.0 / Sphinx). Remaining: **I5–I6**.
+**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I5** landed (0.7.0 / 0.8.0 / Sphinx / public landing). Remaining: **I6**.
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.7** (I0–I4 plus post-U3 product cuts). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
+**Version note:** Package is **0.8.7** (I0–I5 plus post-U3 product cuts). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty. **I5** Pages landing landed after 0.8.7. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** freeze, then After 1.0 autobiography.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -56,10 +53,10 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 | Area | TranscriptX | Transcribe today | Wave track |
 |------|-------------|------------------|------------|
-| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** + **I4** docs job (0.7–0.8). Nightly / Docker image still **I6**; Pages **I5** | **I1**, **I3**, **I4**, **I6** |
+| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** + **I4** docs job (0.7–0.8). Nightly / Docker image still **I6**; Pages landed **I5** | **I1**, **I3**, **I4**, **I6** |
 | **Nightly** | `nightly.yml` → `make test-integration-core` | None | **I6** |
-| **Pages** | `pages.yml` → website + Sphinx assemble | None | **I5** |
-| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); `make docs` / `docs-clean` via `build_docs.sh` (**I4**); pages-site waits for I5 | **I0** |
+| **Pages** | `pages.yml` → website + Sphinx assemble | Landed **I5** | **I5** |
+| **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); `make docs` / `docs-clean` via `build_docs.sh` (**I4**); `make pages-site` (**I5**) | **I0** |
 | **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
 | **Markers** | smoke / contract / integration(_core|_extended) / heavy / gui_* / release_only / quarantined / requires_* | smoke / unit / integration / slow / requires_* / quarantined | **I0**, **I3** |
 | **Coverage** | `.coveragerc` `fail_under = 70`; `make test-coverage` | Landed **I3** (`fail_under = 70`; UI omitted; current suite ~85%) | **I3** |
@@ -67,7 +64,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 | **Release kit** | `scripts/release/*` + `scripts/secrets_check.sh` | Landed **I2** | **I2** |
 | **Release governance** | `docs/dev/release_governance.md` + severity/ops docs | Landed **I2** (tag checklist; `# pre-release` stays local confidence) | **I2** |
 | **Sphinx / RTD** | `docs/conf.py`, `.readthedocs.yml`, `.[docs]`, CI docs job | Landed **I4** (MyST over `docs/`; RTD hostname go-live still owner-gated) | **I4** |
-| **Website** | `website/` + Pages | None | **I5** |
+| **Website** | `website/` + Pages | Landed **I5** | **I5** |
 | **Workflow media** | `docs/workflows/` + `_static/workflows/` | Deferred | **I5** (optional after Pages) |
 | **Issue templates** | bug / feature + config | None | **I6** |
 | **Docs authority / archive / indexes** | Mature | Largely landed (CHANGELOG note) | keep; inventory pass in **I0** |
@@ -80,7 +77,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 ## 3. Tracks (I0–I6)
 
-Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting releases: land **I0–I1** before claiming CI honesty; land **I2** before the next public tag; land **I4–I5** before advertising a hosted guide. **I4** Sphinx/CI is landed; **I5** Pages still required before advertising a public landing.
+Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting releases: land **I0–I1** before claiming CI honesty; land **I2** before the next public tag; land **I4–I5** before advertising a hosted guide. **I4** Sphinx/CI and **I5** Pages landing are landed; advertise the public URL after GitHub Pages is enabled on the repo.
 
 ### I0 — Developer lanes & inventory — [x] done
 
@@ -152,16 +149,16 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** `make docs` produces HTML from the Markdown corpus; CI `docs` job proves the build. Glob toctrees (`contracts/`, `dev/`) plus `tests/unit/test_sphinx_docs.py` keep the hosted tree aligned with live `docs/**/*.md`. RTD hostname go-live: [dev/rtd_go_live_checklist.md](dev/rtd_go_live_checklist.md).
 
-### I5 — Public landing + workflow media — [ ] planned
+### I5 — Public landing + workflow media — [x] done (screenshots optional)
 
 | Deliverable | Notes |
 |-------------|--------|
 | `website/` modest landing | Product promise + install pointer + link to guide |
 | `.github/workflows/pages.yml` | Assemble website + Sphinx → `_site`; deploy Pages |
-| `scripts/release/assemble_pages_site.sh` | TX pattern |
+| `scripts/release/assemble_pages_site.sh` | TX pattern; `make pages-site` |
 | Optional: `docs/workflows/` | Screenshot/GIF walkthroughs for golden path (can trail Pages) |
 
-**Exit:** Push to `main` publishes a public landing + guide; RTD go-live remains owner-gated.
+**Exit:** Push to `main` publishes a public landing + guide once GitHub Pages is enabled; RTD go-live remains owner-gated. Workflow screenshot gallery remains optional.
 
 ### I6 — Sustaining lanes & community surfaces — [ ] planned
 

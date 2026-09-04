@@ -1,47 +1,51 @@
-Type: GUIDE
-Authority: docs landing hub only — indexes own their navigation tables
-
 # Transcribe documentation
 
-Local-first handwritten notebook OCR workbench. Start with the product definition, then installation and task guides.
+Transcribe is a local-first workbench for handwritten notebooks. You import
+scans you already have, transcribe them on your machine, and keep the results.
 
-Sphinx builds **this Markdown tree** (no second corpus). Archive plans stay in-repo under `docs/archive/` and are excluded from hosted navigation.
+OCR uses a local [Ollama](https://ollama.com) vision model. Transcribe does
+**not** send pages to a cloud OCR service.
+
+**See how it works:** [user guide](user_guide.md) — import scans, transcribe, review beside the page.  
+**Everyday jobs:** import and transcribe, review, analyse, detect, export — [user guide](user_guide.md).  
+**Is this for me?** [What Transcribe is](PRODUCT.md).  
+**Privacy:** files stay on your computer; Ollama is local and off the public internet by default.
+
+The GitHub [README](https://github.com/glen-w/transcribe#readme) is the same first-run story.
 
 ```{toctree}
 :maxdepth: 2
 :caption: Start here
 
 PRODUCT
-USER_INDEX
 user_guide
-known_limitations
 runtime/installation
-runtime/settings
 runtime/ocr
-runtime/ocr_model_recipes
-runtime/ocr_model_matrix
-runtime/analysis
-runtime/docker
-runtime/export
-backup_and_restore
+known_limitations
 ```
 
 ```{toctree}
 :maxdepth: 2
-:caption: Reference
+:caption: Using Transcribe
 
-public_surfaces
+runtime/analysis
+runtime/export
+runtime/settings
+runtime/docker
+backup_and_restore
+runtime/ocr_model_recipes
+runtime/ocr_model_matrix
 TERMS
-finetune_export
-CONTRACT_INDEX
 ```
 
 ```{toctree}
 :maxdepth: 1
-:caption: Contracts
-:glob:
+:caption: Advanced
 
-contracts/*
+USER_INDEX
+public_surfaces
+finetune_export
+CONTRACT_INDEX
 ```
 
 ```{toctree}
@@ -55,6 +59,14 @@ developer_quickstart
 usability_wave_plan
 infrastructure_wave_0_9_plan
 INTEGRATION_SEAM
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Contracts
+:glob:
+
+contracts/*
 ```
 
 ```{toctree}
@@ -73,15 +85,9 @@ dev/*
 reviews/*
 ```
 
-## Indexes
+## Full lists
 
-- [User documentation index](USER_INDEX.md)
+- [User documentation sitemap](USER_INDEX.md)
 - [Developer documentation index](DEV_INDEX.md)
 - [Contract index](CONTRACT_INDEX.md)
-- [Archive index](archive/ARCHIVE_INDEX.md)
-- [Reviews index](reviews/README.md)
 - [Usability wave](usability_wave_plan.md) (active product focus)
-
-Operational guides live under [runtime/](runtime/installation.md). Docs authority model: [dev/CONTRIBUTING.md](dev/CONTRIBUTING.md). Surfaces map: [dev/docs_architecture.md](dev/docs_architecture.md).
-
-Historical delivery plans are tracked under `docs/archive/` and are excluded from user navigation.

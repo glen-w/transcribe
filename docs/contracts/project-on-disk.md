@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — on-disk project layout, `project.json` wire fields, per-notebook ingest durability, and per-notebook locks. Sole authority for top-level managed-notebook directory paths. Corpus identity, workspace ordering, ImportRun orchestration, and cross-notebook integrity are owned by the bulk-import contracts: [notebook-corpus.md](notebook-corpus.md), [source-asset.md](source-asset.md), [import-run.md](import-run.md), [corpus-integrity.md](corpus-integrity.md).
-
 # Project on-disk format
 
 This contract owns the durable **per-notebook** directory layout. Page-result JSON details: [page-result.md](page-result.md). Export interchange: [notebook-export.md](notebook-export.md). Analysis artifact rules under `analysis/`: [analysis-run-storage.md](analysis-run-storage.md).

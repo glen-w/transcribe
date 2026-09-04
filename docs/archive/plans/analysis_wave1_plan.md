@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: Wave 1 analysis-port delivery plan (architecture, sub-waves, dependency map, checklists, test intent, exit criteria). **Internal delivery history only** — product language uses “core module set”, not “Wave 1”. Does **not** define runtime contracts, schemas, storage rules, cache identity, refusal/outcome enums, or atomicity. Those live only in CONTRACT docs — this plan must not silently become a second authority. Disposition table: [analysis_module_porting.md](../../dev/analysis_module_porting.md); roadmap: [ROADMAP.md](../../ROADMAP.md).
-
 > **Archived / superseded.** Core analysis delivery history (shipped). Current product focus: usability wave. Current authority: [docs/ROADMAP.md](../../ROADMAP.md). Do not treat as live roadmap or support policy.
 
 # Wave 1 plan — TranscriptX analysis ports (internal)

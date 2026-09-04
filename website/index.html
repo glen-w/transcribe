@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transcribe — handwritten notebooks, on your machine</title>
+    <meta
+      name="description"
+      content="Transcribe is a local-first workbench for turning handwritten notebook pages into editable, portable text with local Ollama OCR, review, analysis, and export."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="chrome/site_chrome.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header tx-site-chrome">
+      <div class="wrap header-inner">
+        <a class="brand" href="./">Transcribe</a>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          data-nav-toggle
+        >
+          Menu
+        </button>
+        <nav id="site-nav" class="site-nav" data-nav>
+          <a href="#product">See how it works</a>
+          <a href="./guide/">Docs</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/glen-w/transcribe">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-atmosphere" aria-hidden="true"></div>
+        <div class="wrap hero-copy">
+          <p class="brand-mark">Transcribe</p>
+          <h1>Handwritten notebooks → text you keep.</h1>
+          <p class="lede">
+            Import page photos or PDFs. Read them with a vision model that runs
+            on your computer. Correct the text beside the scan. Optionally look
+            at themes, mood, and people — then export Markdown, HTML, or a
+            notebook file you keep. No cloud OCR service.
+          </p>
+          <div class="cta-row">
+            <a class="btn primary" href="#product">See how it works</a>
+            <a class="btn ghost" href="#install">Install</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="product">
+        <div class="wrap">
+          <h2>The application</h2>
+          <p class="section-lead">
+            Library and Search over your notebooks. Workflow for import,
+            transcribe, review, analyse, and export. View for reading and
+            results.
+          </p>
+          <div class="feature-grid">
+            <div class="feature">
+              <h3>Import</h3>
+              <p>
+                Bring JPEG, PNG, or PDF pages into a notebook on your machine.
+                Optional visual declutter crops scanner beds and gutters.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>Transcribe</h3>
+              <p>
+                Run a local Ollama vision model. Compare two models on the same
+                pages when you want a second reading.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>Review</h3>
+              <p>
+                Correct the text beside the scan. Keep your edits separate from
+                the raw OCR.
+              </p>
+            </div>
+            <div class="feature">
+              <h3>Analyse &amp; export</h3>
+              <p>
+                Themes, mood, people and places — then export Markdown, HTML,
+                EPUB, PDF, or a portable notebook file.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section muted" id="what">
+        <div class="wrap narrow">
+          <h2>What can I do with it?</h2>
+          <ul class="outcomes">
+            <li>Turn scans into editable text</li>
+            <li>Correct a page beside the original image</li>
+            <li>Find themes, mood, people, and places in a notebook</li>
+            <li>Spot poetry, lists, names, and other patterns</li>
+            <li>Export a notebook you can keep (Markdown, HTML, EPUB, PDF)</li>
+          </ul>
+          <p>
+            Walkthrough:
+            <a href="./guide/user_guide.html">user guide</a>.
+            Not sure if this is the right tool?
+            <a href="./guide/PRODUCT.html">What Transcribe is</a>.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="wrap narrow">
+          <h2>On your machine</h2>
+          <p>
+            Page images and results stay on disk you control. OCR and optional
+            text analysis use a local Ollama server — nothing here is a hosted
+            OCR or analysis service. Non-local Ollama hosts require an explicit
+            acknowledgement because images would leave the machine.
+          </p>
+        </div>
+      </section>
+
+      <section class="section muted" id="how">
+        <div class="wrap narrow">
+          <h2>From a scan to a readable notebook</h2>
+          <ol class="steps">
+            <li>
+              Open <strong>Workflow → New notebook</strong> and import JPEG,
+              PNG, or PDF pages.
+            </li>
+            <li>
+              Open <strong>Workflow → Transcribe</strong>, pick an OCR-friendly
+              vision model, and start.
+            </li>
+            <li>
+              Open <strong>Workflow → Review</strong> and correct the text
+              beside the scan.
+            </li>
+            <li>
+              Optionally open <strong>Workflow → Analyse</strong>, keep
+              <strong>Balanced</strong>, and read <strong>View → Overview</strong>.
+            </li>
+          </ol>
+          <p>
+            <a href="./guide/user_guide.html">Full user guide</a>
+            ·
+            <a href="./guide/runtime/ocr.html">OCR runtime</a>
+            ·
+            <a href="./guide/runtime/analysis.html">Analysis</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="install">
+        <div class="wrap narrow">
+          <h2>Install</h2>
+          <p>
+            Native helper on the host (Python 3.10+). You also need a running
+            <a href="https://ollama.com">Ollama</a> server and an OCR-friendly
+            vision model.
+          </p>
+          <pre class="code"><code>git clone https://github.com/glen-w/transcribe.git
+cd transcribe
+chmod +x transcribe.sh
+./transcribe.sh setup
+./transcribe.sh ui</code></pre>
+          <p>
+            Open <a href="http://localhost:8510">http://localhost:8510</a>.
+          </p>
+          <p>
+            Docker: copy <code>.env.example</code> to <code>.env</code>, set
+            <code>HOST_PROJECTS_DIR</code> to a folder outside the repository,
+            then <code>docker compose up --build transcribe-web</code>.
+          </p>
+          <p class="fine">
+            Details:
+            <a href="./guide/runtime/installation.html">Installation</a>
+            ·
+            <a href="./guide/runtime/docker.html">Docker</a>
+            ·
+            <a href="https://github.com/glen-w/transcribe/blob/main/README.md"
+              >README</a
+            >
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <p>© Transcribe contributors. Local-first software. Version 0.8.7.</p>
+        <p>
+          <a href="https://github.com/glen-w/transcribe">GitHub</a>
+          ·
+          <a
+            href="https://ko-fi.com/C0C1XK8G"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><img
+              height="36"
+              style="border: 0; height: 36px"
+              src="https://storage.ko-fi.com/cdn/kofi6.png?v=6"
+              alt="Buy Me a Coffee at ko-fi.com"
+          /></a>
+        </p>
+      </div>
+    </footer>
+    <script src="chrome/site_nav.js" defer></script>
+  </body>
+</html>

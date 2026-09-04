@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: documentation authority model and maintainer checklist for doc changes
-
 # Contributing (docs and code orientation)
 
 ## Documentation layers
@@ -12,16 +9,19 @@ Authority: documentation authority model and maintainer checklist for doc change
 | **ARCHITECTURE** | Shape and boundaries | Define persisted schemas or support policy |
 | **PRODUCT** | Vision, roadmap, status | Own on-disk schema details |
 
-Every live doc starts with:
-
-```text
-Type: CONTRACT | GUIDE | ARCHITECTURE | PRODUCT
-Authority: …
-```
-
-Exception: root `README.md` stays a lightweight entry guide (no Type/Authority banner) and links out.
+Do **not** put `Type:` / `Authority:` rows at the top of Markdown files. The layers are writing rules, not page headers — they rendered on hosted Sphinx pages. Classification is by location and index. Authority lives in [CONTRACT_INDEX.md](../CONTRACT_INDEX.md) and the contract files themselves.
 
 Archived docs under `docs/archive/` carry an **Archived / superseded** banner and link to a current authority. Do not list them as live product docs in `USER_INDEX`.
+
+## Three voices
+
+| Voice | Surfaces | Job |
+|-------|----------|-----|
+| **User guide** | README, website, Sphinx “Start here”, `user_guide.md`, runtime how-tos | Outcomes, GUI labels, what to do first |
+| **Technical reference** | Contracts, `public_surfaces.md`, TERMS, model matrix/recipes | Invariants, schemas, support policy |
+| **Maintainer** | ROADMAP, `docs/dev/`, archive, reviews | Sequencing, alignment, delivery history |
+
+README is a user-guide entry: product, outcomes, first notebook, install, privacy. Do not put public-surfaces tables, schema names, or release-history paragraphs on the first screen.
 
 ## Indexes
 
@@ -66,8 +66,8 @@ Fix by moving the rule into the contract and replacing the original with a short
 
 1. Confirm CLI / UI examples in README and [public_surfaces.md](../public_surfaces.md) match code
 2. Confirm [runtime/docker.md](../runtime/docker.md) matches `docker-compose.yml` mounts and ports
-3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README Direction
-4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure indexes still link the active focus plan. Keep [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10) and [After 1.0](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) distinct — do not present After 1.0 as current core while U2 / I0–I6 remain open.
+3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README
+4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure README Advanced + [USER_INDEX](../USER_INDEX.md) / [DEV_INDEX](../DEV_INDEX.md) / [index.md](../index.md) still link the active focus plan. Keep [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10) and [After 1.0](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) distinct — do not present After 1.0 as current core while U2 / I6 remain open.
 
 ### 4. When code changes (quick map)
 

@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: contributor orientation and workflows — does not own contracts
-
 # Developer quickstart
 
 ## Mental model

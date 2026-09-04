@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — full-workspace backup ZIP package and restore semantics. Peers: [notebook-corpus.md](notebook-corpus.md), [project-on-disk.md](project-on-disk.md), [corpus-integrity.md](corpus-integrity.md), [workspace-settings.md](workspace-settings.md). Does not redefine per-notebook or corpus schemas.
-
 # Workspace backup
 
 ## Purpose

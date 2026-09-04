@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: self — CVE / dependency waiver log; does not own install extras (see runtime/installation.md)
-
 # Dependency audit
 
 Runtime and extra dependencies are declared in `pyproject.toml`. There is **no** lockfile in v1; CI installs current compatible wheels on each run.

@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: Core analysis infrastructure hardening checklist (delivery). Does **not** redefine cache identity, outcomes, or storage atomics — those stay in CONTRACT docs. Companion to [analysis_wave1_plan.md](analysis_wave1_plan.md) §8/§10 residual exit work. Filename retains historical `wave1` as internal delivery id.
-
 > **Archived / superseded.** Post-ship analysis infra checklist (done). Do not reopen as live UI work. Current authority: [docs/ROADMAP.md](../../ROADMAP.md). Do not treat as live roadmap or support policy.
 
 # Analysis infrastructure hardening

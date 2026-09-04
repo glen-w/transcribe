@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — persisted page results, attempt lifecycle, edits, fingerprints, preference, and multipass comparison
-
 # Page results and provenance
 
 On-disk location and naming: [project-on-disk.md](project-on-disk.md). Export projection of these fields: [notebook-export.md](notebook-export.md). Multipass orchestration: [ocr-multipass.md](ocr-multipass.md). Preference ledger: [ocr-preference.md](ocr-preference.md).

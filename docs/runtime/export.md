@@ -1,9 +1,10 @@
-Type: GUIDE
-Authority: export operations — summarizes [notebook-export](../contracts/notebook-export.md); does not redefine schema
-
 # Export
 
-Write portable notebook artifacts from a frozen snapshot. Contract: [contracts/notebook-export.md](../contracts/notebook-export.md). Fine-tune dataset packaging: [finetune_export.md](../finetune_export.md) · [contracts/finetune-export.md](../contracts/finetune-export.md). Full-workspace ZIP backup is separate: [backup_and_restore.md](../backup_and_restore.md).
+Save a notebook as Markdown, HTML, EPUB, PDF, and/or a portable JSON file.
+
+**UI:** **Workflow → Export** — pick formats and typography. Workspace ZIP backup
+is separate: [backup and restore](../backup_and_restore.md). Fine-tune image+text
+packages: [fine-tune export](../finetune_export.md).
 
 ## This notebook
 
@@ -12,8 +13,6 @@ Write portable notebook artifacts from a frozen snapshot. Contract: [contracts/n
 # … export <project> /path/to/dest
 # … export <project> --format pdf --format epub --profile large_print
 ```
-
-**UI:** **Workflow → Export** (formats, typography, profiles).
 
 ### Formats produced
 
@@ -55,3 +54,4 @@ See [finetune_export.md](../finetune_export.md).
 - Settings: [settings.md](settings.md)
 - Workspace backup (not notebook export): [backup_and_restore.md](../backup_and_restore.md)
 - Golden path: [user_guide.md](../user_guide.md)
+- Contract: [notebook-export](../contracts/notebook-export.md) · [finetune-export](../contracts/finetune-export.md)

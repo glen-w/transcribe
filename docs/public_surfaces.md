@@ -1,7 +1,8 @@
-Type: CONTRACT
-Authority: self — supported public entrypoints and support policy for how users invoke Transcribe
-
 # Public surfaces
+
+Supported ways to start Transcribe and a map of the UI. Everyday path:
+[user guide](user_guide.md). This page is the support-policy contract for
+entrypoints.
 
 ## Supported
 

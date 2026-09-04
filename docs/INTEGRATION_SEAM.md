@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: future handoff intent only — not shipped behaviour; export schema owned by contracts/notebook-export.md
-
 # Future TranscriptX integration seam
 
 Transcribe does **not** depend on TranscriptX and must not be integrated into TranscriptX before its 1.0 release.

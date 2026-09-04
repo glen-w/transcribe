@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — managed originals, fingerprints, provenance, duplicate taxonomy/policy, and source/page/render linkage invariants. **Runtime-normative** for bulk-import generation; activation gate in [notebook-corpus.md](notebook-corpus.md). Layout: [project-on-disk.md](project-on-disk.md). Import policies/runs: [import-run.md](import-run.md). Doctor checks: [corpus-integrity.md](corpus-integrity.md).
-
 # Source assets
 
 ## Activation gate

@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: architecture critique from code evidence — does not own contracts, schemas, or roadmap
-
 # Review: architecture from evidence
 
 **Date:** 2026-09-03  

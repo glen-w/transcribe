@@ -1,54 +1,95 @@
-Type: GUIDE
-Authority: local install and environment operations only — does not define project-format invariants
-
 # Installation
 
-Operational guide only (installation, extras, environment, Ollama prereqs). For on-disk project layout see [contracts/project-on-disk.md](../contracts/project-on-disk.md). For behaviour and invariants, see [CONTRACT_INDEX.md](../CONTRACT_INDEX.md). Supported entrypoints: [public_surfaces.md](../public_surfaces.md).
+**Most people:** the native helper below, then the [user guide](../user_guide.md).
+This page is the normal install path. Pip extras, environment variables, and
+developer installs are under [Advanced](#advanced).
 
-For a quick start, see the [README](../../README.md).
+You also need a running [Ollama](https://ollama.com) server and at least one
+**OCR-friendly vision model** before the first transcription.
 
-## Native (venv)
+## Native (recommended on the host)
 
-Python **3.10+** (`requires-python` in `pyproject.toml`).
+Python **3.10+**. There is no published PyPI package — clone this repository.
 
 ```bash
 cd /path/to/transcribe
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e '.[ui]'     # Streamlit UI (wordcloud is a default dependency)
-# or
-pip install -e '.[dev]'    # pytest + UI extras
-# optional EPUB export without full UI:
-pip install -e '.[export]' # ebooklib only
+cp .env.example .env          # optional path / Ollama overrides
+chmod +x transcribe.sh
+./transcribe.sh setup         # creates .venv and installs the UI extra
+./transcribe.sh ui            # → http://127.0.0.1:8510/
 ```
 
-Helper (creates `.venv` and installs `.[ui]`):
+Point notebooks, scans, and exports **outside the clone** when you want data to
+survive repo wipes:
 
 ```bash
-chmod +x transcribe.sh
-./transcribe.sh setup
-./transcribe.sh ui
+# in .env
+TRANSCRIBE_PROJECTS_DIR=/Users/you/Documents/transcribe-projects
+TRANSCRIBE_INBOX_DIR=/Users/you/Documents/notebook-scans
+TRANSCRIBE_EXPORT_DIR=/Users/you/Documents/transcribe-exports
 ```
 
-Developer extras: `./transcribe.sh install-dev`.
+## Docker
 
-Console scripts after install: `transcribe`, `transcribe-ui`.
+No host Python packages. Copy `.env.example` to `.env` and set
+**`HOST_PROJECTS_DIR`** to an absolute path **outside this repository**.
 
-### Install extras (honesty)
+```bash
+cp .env.example .env          # set HOST_PROJECTS_DIR
+docker compose up --build transcribe-web
+# → http://127.0.0.1:8510/
+```
+
+Ollama stays on the host. Compose notes: [docker.md](docker.md).
+
+## After install
+
+1. Confirm Ollama is up: **System → Diagnostics**, or `./transcribe.sh cli models`.
+2. Follow [From a scan to a readable notebook](../user_guide.md#from-a-scan-to-a-readable-notebook).
+3. If the first model returns empty text or times out, pick an OCR-oriented tag
+   from the [model matrix](ocr_model_matrix.md) rather than a general VLM.
+
+## Troubleshooting
+
+- **Nothing in the vision picker** — Ollama is not reachable, or no vision tag is
+  installed. Default URL: `http://localhost:11434`. Pull an OCR-friendly model,
+  then **Refresh** on the Transcribe page.
+- **Empty OCR / `empty_output`** — thinking vision models (for example `gemma4`)
+  often return no text. Prefer OCR-oriented tags. [Known limitations](../known_limitations.md).
+- **Docker cannot see notebooks** — `HOST_PROJECTS_DIR` must be an absolute path
+  outside the repo. [docker.md](docker.md).
+- **"No module named streamlit"** after a manual pip install — install the UI
+  extra: `pip install -e '.[ui]'`, or re-run `./transcribe.sh setup`.
+
+## Advanced
+
+### Manual venv
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[ui]'
+# developer extras: pip install -e '.[dev]'
+# EPUB without Streamlit: pip install -e '.[export]'
+```
+
+`./transcribe.sh install-dev` installs `.[dev]`. Console scripts after install:
+`transcribe`, `transcribe-ui`.
+
+### Install extras
 
 | Extra | What it adds |
 |-------|----------------|
-| *(core)* | Pillow, PyMuPDF, wordcloud — CLI OCR / export text+PDF without Streamlit |
+| *(core)* | Pillow, PyMuPDF, wordcloud — CLI OCR / text+PDF export without Streamlit |
 | `[ui]` | Streamlit + pydantic + ebooklib (primary interactive surface) |
 | `[export]` | ebooklib for EPUB without pulling Streamlit |
-| `[dev]` | pytest, pytest-cov, pytest-timeout, ruff, tomli (Python 3.10) + UI extras |
-| `[docs]` | Sphinx + MyST + Furo (`make docs`); not required to run the app |
+| `[dev]` | pytest, ruff, coverage + UI extras |
+| `[docs]` | Sphinx (`make docs`); not required to run the app |
 
-There is no published PyPI package today — install from this repository.
+### Environment variables
 
-## Environment variables
-
-Copy `.env.example` → `.env`. Repo-root `.env` is loaded by `transcribe._bootstrap` without overriding variables already set in the shell/Compose.
+Copy `.env.example` → `.env`. Repo-root `.env` is loaded without overriding
+variables already set in the shell or Compose.
 
 | Variable | Role |
 |----------|------|
@@ -61,15 +102,9 @@ Copy `.env.example` → `.env`. Repo-root `.env` is loaded by `transcribe._boots
 | `TRANSCRIBE_BIND_HOST` | Compose publish bind (default `127.0.0.1`) |
 | `TRANSCRIBE_PYTHON` | Interpreter for `transcribe.sh` venv creation |
 
-Docker host mounts use `HOST_*` counterparts — see [docker.md](docker.md). Prefer absolute paths **outside the git clone** for projects, inbox, and exports.
+Docker host mounts use `HOST_*` counterparts — [docker.md](docker.md).
 
-## Ollama
-
-Install and run Ollama separately. Pull at least one **vision-capable**, OCR-friendly model before the first OCR run (prefer OCR-oriented tags over general VLMs). Native default URL: `http://localhost:11434`.
-
-Model discovery and caveats: [ocr.md](ocr.md) · [ocr_model_matrix.md](ocr_model_matrix.md) · [known_limitations.md](../known_limitations.md).
-
-## First checks
+### First checks (CLI)
 
 ```bash
 ./transcribe.sh cli models
@@ -77,14 +112,4 @@ Model discovery and caveats: [ocr.md](ocr.md) · [ocr_model_matrix.md](ocr_model
 ./transcribe.sh cli corpus-doctor
 ```
 
-In the UI: **System → Diagnostics**.
-
-## Next
-
-- Golden path: [../user_guide.md](../user_guide.md)
-- Settings: [settings.md](settings.md)
-- OCR: [ocr.md](ocr.md)
-- Analysis: [analysis.md](analysis.md)
-- Export: [export.md](export.md)
-- Docker: [docker.md](docker.md)
-- Developer loops: [../developer_quickstart.md](../developer_quickstart.md)
+Developer loops: [developer quickstart](../developer_quickstart.md).

@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — durable analysis result envelope, attempt vs outcome separation, provenance, evidence/refusal, capability presentation, and corpus edge-case outcomes
-
 # Analysis result
 
 Durable envelope for a single module’s published or historical analysis run. Storage/publish rules: [analysis-run-storage.md](analysis-run-storage.md). Input document: [analysis-document.md](analysis-document.md). Eligibility: [notebook-eligibility.md](notebook-eligibility.md).

@@ -1,9 +1,10 @@
-Type: GUIDE
-Authority: public honesty page for limits and caveats — does not redefine contracts
-
 # Known limitations
 
-Single place for “what can go wrong / what we are not promising.” Product promise: [PRODUCT.md](PRODUCT.md).
+Handwriting quality varies. Some vision models return empty text or fail to
+load. Remote Ollama sends page images off this machine. This page is the honest
+list — not a promise that OCR will be perfect.
+
+Product promise: [PRODUCT.md](PRODUCT.md).
 
 ## OCR quality
 

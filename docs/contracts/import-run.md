@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — ImportRun / ImportPlan lifecycle, idempotency, crash/resume, cancellation, and orchestration vs per-notebook ingest journal. **Runtime-normative** for bulk-import generation; activation gate in [notebook-corpus.md](notebook-corpus.md). Sources/duplicates: [source-asset.md](source-asset.md). Integrity: [corpus-integrity.md](corpus-integrity.md). Per-notebook journal/layout: [project-on-disk.md](project-on-disk.md).
-
 # Import runs
 
 ## Activation gate

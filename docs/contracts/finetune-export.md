@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — fine-tune dataset export package (no in-app training)
-
 # Fine-tune export
 
 Related: [ocr-preference.md](ocr-preference.md), [notebook-export.md](notebook-export.md), product outline [../finetune_export.md](../finetune_export.md).

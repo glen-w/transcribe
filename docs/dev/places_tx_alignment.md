@@ -1,6 +1,3 @@
-Type: GUIDE
-Authority: developer note — does not redefine runtime contracts; NER pins in analysis_port_pins.md
-
 # Places / NER map alignment (TranscriptX ↔ Transcribe)
 
 ## What TranscriptX does

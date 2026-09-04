@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — workspace `settings.json`, profiles, precedence, recovery, and analysis config fingerprinting. Project OCR authority remains [project-on-disk.md](project-on-disk.md).
-
 # Workspace settings
 
 ## Layout

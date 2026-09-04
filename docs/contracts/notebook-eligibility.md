@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — normative `notebook_eligibility_v1` policy inputs, outputs, versioning, and cache-identity contribution. Sole notebook eligibility compatibility policy replacing TranscriptX `insight_eligibility`.
-
 # Notebook eligibility
 
 **Compatibility policy name:** `notebook_eligibility_v1`

@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — organisation tag catalog wire format, slug/label/color identity, assignment rules, rewrite semantics, and the host-agnostic kernel copy-boundary. Assignment storage on Transcribe notebooks/pages remains `tags: string[]` in [project-on-disk.md](project-on-disk.md). Export snapshot: [notebook-export.md](notebook-export.md). Detection may *union* slugs onto pages but must not add boolean flags to `PageIndex` ([detection-definition.md](detection-definition.md)).
-
 # Organisation tag catalog
 
 Organisation tags are **library metadata** (notebook / page in Transcribe; transcript library items in TranscriptX). They are not analysis modules, not TX Groups, and not detection finding records.

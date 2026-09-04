@@ -1,6 +1,3 @@
-Type: PRODUCT
-Authority: Usability-wave delivery plan (sequencing, tracks, acceptance criteria, exit gates). Does not define runtime schemas or contracts — those stay in CONTRACT docs. Companion to [ROADMAP.md](ROADMAP.md) and [product_hardening_plan.md](archive/plans/product_hardening_plan.md). Product language: **usability wave** (not “Wave 2” — Detection already uses that label).
-
 # Usability wave plan
 
 **Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home and Diagnostics shipped; sample notebook and first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.

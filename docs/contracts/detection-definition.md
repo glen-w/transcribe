@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — detector definitions, scope, candidate strategy, and orchestration metadata
-
 # Detection definition
 
 A **DetectorDefinition** orchestrates scanning notebook content for phenomena. It references one or more **PromptDefinition** identities but is not equivalent to a saved prompt.

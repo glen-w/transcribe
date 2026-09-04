@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — versioned prompt definitions, rendering boundaries, hub storage, and structured-output schema identity
-
 # Prompt definition
 
 Generic prompt infrastructure for Transcribe (Prompt Hub). Detection, OCR, and cleanup prompts are addressable as `PromptDefinition` values.

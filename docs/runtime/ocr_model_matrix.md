@@ -1,7 +1,6 @@
-Type: GUIDE
-Authority: local probe results for OCR model pickers — does not redefine page-result contracts
-
 # OCR model matrix (local probes)
+
+Which vision tags to try first. Everyday path: [OCR](ocr.md) · [installation](installation.md).
 
 Live probe of installed Ollama vision tags on `tests/fixtures/mini_page.png` plus spot checks on the **green** notebook (handwriting). Re-run after pulling new models:
 

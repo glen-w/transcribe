@@ -1,6 +1,3 @@
-Type: CONTRACT
-Authority: self — MultiPass OCR orchestration, job records, rank/composite phases
-
 # OCR multipass
 
 Related: [page-result.md](page-result.md), [ocr-preference.md](ocr-preference.md).
