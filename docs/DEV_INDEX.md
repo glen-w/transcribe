@@ -22,7 +22,7 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: **I0–I4** landed; I5–I6 remaining; required for 0.9.0 |
 | [dev/release_governance.md](dev/release_governance.md) | Authoritative next-tag checklist (I2); `# pre-release` is local confidence only |
 | [dev/dependency_audit.md](dev/dependency_audit.md) | CVE / waiver log |
-| [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | 0.9-1 unfamiliar-user testing protocol (after 0.9.0 cut) |
+| [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | Stranger-testing is not a release gate |
 | [dev/smoke_kit_import_ocr.md](dev/smoke_kit_import_ocr.md) | Design only: import → OCR smoke; `edited_text` survives re-OCR. Not a PR CI vision run |
 | [public_surfaces.md](public_surfaces.md) | GUI IA and supported entrypoints |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |

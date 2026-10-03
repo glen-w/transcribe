@@ -80,7 +80,7 @@ Fix by moving the rule into the contract and replacing the original with a short
 | Export / backup | notebook-export · workspace-backup · runtime guides |
 | CLI/UI entrypoints | public_surfaces + README links |
 | Ownership / shape | ARCHITECTURE |
-| Vision / roadmap | PRODUCT · ROADMAP (0.9.0 / 0.9-1 / 1.0 + After 1.0) · usability_wave_plan · user_testing_0_9 |
+| Vision / roadmap | PRODUCT · ROADMAP (0.9.0 / 1.0) · usability_wave_plan |
 
 
 Then skim guides for stale summaries.
