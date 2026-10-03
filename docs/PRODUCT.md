@@ -46,7 +46,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 - Core notebook analysis modules and Analyse (optional local text Ollama for LLM modules)
 - Deepen-in-place: usability wave — trust, Analyse product UX, first-run operability (**U2** open except Home/Diagnostics from GUI alignment), daily workbench (**U3** done); OCR fail-fast, Analyse corpus-compare, Moments/chart jump → Reading, and Analyse/View split are shipped deepen-in-place ([ROADMAP.md](ROADMAP.md) · [usability_wave_plan.md](usability_wave_plan.md))
 
-**Path to 1.0:** package **0.8.8** (I0–I5 landed plus post-U3 product cuts and Docker-preferred install docs) → remaining **U2** + **I6** → cut **0.9.0** → **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)) → **1.0** freeze. Detail: [ROADMAP.md](ROADMAP.md) Path to 0.9.0.
+**Path to 1.0:** package **0.8.8** (I0–I5 landed plus post-U3 product cuts and Docker-preferred install docs) → remaining **U2** + **I6** → cut **0.9.0** → **1.0** freeze. A stranger-testing round is not a release gate. Detail: [ROADMAP.md](ROADMAP.md) Path to 0.9.0.
 
 **Out of scope for current core**
 
@@ -59,7 +59,7 @@ Supported entrypoints: [public_surfaces.md](public_surfaces.md).
 
 ## Not this product (on file)
 
-**1.0 is** this notebook workbench: transcribe handwritten pages, compare vision models, export a fine-tune set and bring a hand-specific model back, read / tag / explore notebooks. Reach a public cut via **0.9.0** (U2 + infra) then **0.9-1** unfamiliar testing if a stranger should install it ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10)).
+**1.0 is** this notebook workbench: transcribe handwritten pages, compare vision models, export a fine-tune set and bring a hand-specific model back, read / tag / explore notebooks. Reach a public cut via **0.9.0** (U2 + infra) ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--10)). A stranger-testing round is not a release gate.
 
 Transcribe does not grow into an autobiography workbench after that cut. The old 1.1–2.0 sequencing stays in [ROADMAP.md](ROADMAP.md) **on file** for a future separate product. It is not shipped behaviour and it is not this repo’s backlog.
 

@@ -3,8 +3,7 @@
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
 **Usability wave (active product focus):** [usability_wave_plan.md](usability_wave_plan.md)  
 **0.9 infrastructure wave (in progress):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
-**Path to 0.9 / 1.0:** [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10)  
-**0.9-1 unfamiliar testing (planned):** [dev/user_testing_0_9.md](dev/user_testing_0_9.md)  
+**Path to 0.9 / 1.0:** [Path to 0.9.0 / 1.0](#path-to-090--10)  
 **Scope lean (24 Sep 2026):** [Scope lean](#scope-lean--24-sep-2026) — this product stops at the notebook workbench. The autobiography write-up stays on file for a **future separate product**.  
 **On file, not this product:** [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) (formerly planned as Transcribe 1.1–2.0).  
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
@@ -33,7 +32,7 @@
 - Detection fine-tune export stays a candidate. It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a 0.9.0 tag and unfamiliar testing if a stranger should be able to install it. Personal use of the four jobs above does not wait on that cut.
+**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a 0.9.0 tag. A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
@@ -46,8 +45,8 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 **Package is 0.8.8.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0 notebook freeze
-              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      findings → fixes         hand + read/tag
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  1.0 notebook freeze
+              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      hand + read/tag
                                                                                    (Pages)```
 
 | Label | Meaning |
@@ -59,11 +58,10 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.8.7** | Product patch: names + lexical detectors, Review/Library polish, Detect accept-per-page, circuit CLI honesty, action-link appearance. |
 | **0.8.8** | Docs/ops patch: GitHub Pages landing (**I5**), Docker-preferred install path, public docs reframe for first-time users. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
-| **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
-| **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. |
+| **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. A stranger-testing round is not a release gate. |
 | **Parked** | Autobiography write-up — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file). Future separate product. Not Transcribe 1.1–2.0. |
 
-A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10).
+A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 1.0](#path-to-090--10).
 
 The autobiography write-up is **on file, not planned for this repo**. Do not schedule context importers, Slices, People-as-identity, reconstruction, or page time-of-day in Transcribe at all — not after U2, not after 1.0.
 
@@ -296,15 +294,15 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ---
 
-## Path to 0.9.0 / 0.9-1 / 1.0
+## Path to 0.9.0 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
 
-**Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing if a stranger should install it, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
+**Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
 
 ```text
 U2 (sample + first-run docs)  ─┐
-                               ├─► 0.9.0 cut ─► 0.9-1 testing ─► 1.0 notebook freeze
+                               ├─► 0.9.0 cut ─► 1.0 notebook freeze
 I0–I6 (infra wave)           ─┘
 ```
 
@@ -361,18 +359,6 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**.
 
-### 0.9-1 — Unfamiliar user testing
-
-**Purpose:** Strangers (or deliberately unfamiliar testers) complete install → sample or own scans → OCR → compare or review → read / tag → export → backup using only hosted/README docs — not contracts. Analyse Quick may be in the script because it is shipped. “Life around a page” is not a test goal.
-
-**Inputs:** 0.9.0 build + hosted guide (I4/I5) + sample notebook (U2.2).
-
-**Protocol:** [dev/user_testing_0_9.md](dev/user_testing_0_9.md) — scripted happy path (15–30 min) + free exploration; capture install blockers, model confusion, Review/date honesty, Analyse empty states, backup/restore confidence, and navigation that would block later “life around a page” UX. **No autobiography features in the script.**
-
-**Outputs:** issue list; fix train on 0.9.x; go/no-go note for **1.0**.
-
-**Exit (0.9-1 → 1.0):** critical install/OCR/review/export/backup issues closed or documented as [known_limitations.md](known_limitations.md); foundation checklist signed off; PRODUCT still page-first.
-
 ### 1.0 freeze
 
 **1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
@@ -381,7 +367,7 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 ## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)
 
-Detail lives in [Path to 0.9.0](#path-to-090--09-1--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut; unfamiliar testing is **0.9-1**, not an I7 track.
+Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate.
 
 ---
 
@@ -418,7 +404,7 @@ relationships / Slices
 autobiographical interpretation (cited, never a substitute for the page)
 ```
 
-**1.0 stays notebook-first.** Finish the [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10) (U2, I0–I6, unfamiliar testing, foundation checklist). No WhatsApp, photo libraries, Slices, reconstruction, or time-of-day storage in 1.0.
+**1.0 stays notebook-first.** Finish the [Path to 0.9.0 / 1.0](#path-to-090--10) (U2, I0–I6, foundation checklist). No WhatsApp, photo libraries, Slices, reconstruction, or time-of-day storage in 1.0.
 
 ### What to preserve
 
@@ -573,7 +559,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 | Release | Purpose | Status |
 |---------|---------|--------|
-| **1.0** | Harden notebook/OCR/analysis (U2 + I0–I6 → **0.9.0** → **0.9-1** testing → freeze). No context corpus | [ ] path (current) |
+| **1.0** | Harden notebook/OCR/analysis (U2 + I0–I6 → **0.9.0** → freeze). No context corpus | [ ] path (current) |
 | **1.1** | Time around a page — related notebook pages by date window | [ ] planned |
 | **1.2** | Photographs as contextual evidence (proves sibling corpus) | [ ] planned |
 | **1.3** | People as confirmed identities (aliases, merge/split, privacy) | [ ] planned |
@@ -589,13 +575,13 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Product goal:** A trustworthy local notebook/OCR/analysis product a non-expert can install, transcribe, review, search, analyse, export, and back up.
 
-**UX:** Finish U2 (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. **0.9-1** unfamiliar testing ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)). Inbox polish optional.
+**UX:** Finish U2 (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. Inbox polish optional. A stranger-testing round is not a release gate.
 
 **Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--09-1--10) signed off.
 
 **Risks:** Starting autobiography before the gate. Do not sneak WhatsApp into 1.0.
 
-**Exit:** U2 acceptance; I0–I6 exit gate; 0.9.0 tagged; 0.9-1 notes + critical fixes; foundation checklist; PRODUCT still page-first; corpus/hardening gates green.
+**Exit:** U2 acceptance; I0–I6 exit gate; 0.9.0 tagged; foundation checklist; PRODUCT still page-first; corpus/hardening gates green.
 
 #### 1.1 — Time around a page (notebook-only)
 
@@ -791,7 +777,7 @@ No live WhatsApp/Telegram/Ollama in default CI. Doctor deep-hash originals. Back
 
 ### Implementation order
 
-1. Finish **1.0** via [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10). Freeze notebook core.
+1. Finish **1.0** via [Path to 0.9.0 / 1.0](#path-to-090--10). Freeze notebook core.
 2. Contracts for ClaimStatus + TemporalClaim + context-index **before** photo code (1.1–1.2).
 3. **1.1** related pages → **1.2** photos → **1.3** people → **1.4** WhatsApp → **1.5** CSV/mood → **1.6** Telegram + TX → **1.7** Slices → **1.8** evidence panel → **1.9** Autobiography → **2.0** reconstruction (LLM last).
 
@@ -937,7 +923,7 @@ Summary:
 - **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX
 - **Longevity** — **workspace backup/restore shipped**; upgrade/migration story and archive-readable-without-Transcribe remain candidates
 - **Operability** — model/runtime management UX; release/onboarding/diagnostics; prompt management; local quality/evaluation loop (thumbs + fixtures)
-- **Maintainer infrastructure** — CI, release hygiene, hosted docs — [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (**0.9.0** cut with U2; then **0.9-1** testing → **1.0**)
+- **Maintainer infrastructure** — CI, release hygiene, hosted docs — [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (**0.9.0** cut with U2, then **1.0**)
 - **Export** — notebook readability and sharing (`transcribe.notebook`)
 - **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
 - **Future TranscriptX export handoff** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)

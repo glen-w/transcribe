@@ -4,7 +4,7 @@
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.8** (I0–I5 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. **Wave exit + U2** enable the package cut **0.9.0**. Unfamiliar-user testing is **0.9-1** ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--09-1--10) · [dev/user_testing_0_9.md](dev/user_testing_0_9.md)) — **not** an I7 track. After 0.9-1: **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). Autobiography is not the next track.
+**Version note:** Package is **0.8.8** (I0–I5 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. **Wave exit + U2** enable the package cut **0.9.0**, then the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -29,7 +29,7 @@ Developer lanes     →     PR CI honesty     →     Release evidence
 |--------------|-----|
 | New analysis modules / deferred reinterpretations | ROADMAP deferral stands |
 | Autobiography (context corpus, Slices, reconstruction) | On file in [ROADMAP.md](ROADMAP.md) for a future separate product — this wave does not schedule it |
-| Unfamiliar-user testing (**0.9-1**) | Owned by [ROADMAP.md](ROADMAP.md) Path to 0.9.0 / [dev/user_testing_0_9.md](dev/user_testing_0_9.md) — runs **after** the 0.9.0 cut; not I7 |
+| Stranger-testing round | Not a release gate and not I7 |
 | Usability **U2** product copy (sample notebook, first-run docs path) | Owned by [usability_wave_plan.md](usability_wave_plan.md) — this wave may *host* docs, not write U2 content |
 | TranscriptX Theme C workspaces / Vitest / Playwright browser packs | Different product surface |
 | spaCy / `[nlp]` CI matrix lane | Transcribe has no spaCy install profile |
@@ -213,7 +213,7 @@ The 0.9 infrastructure wave is **done** when all are true:
 5. **Coverage** and **secrets/denylist** gates are enforced (coverage threshold may still be modest).
 6. **Nightly** (or documented equivalent) exercises acceptance / heavier offline suites without live Ollama.
 
-Product **0.9.0** requires this wave’s exit gate **and** usability **U2**. Unfamiliar testing is **0.9-1** ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)), then **1.0** notebook freeze. The autobiography write-up stays [on file](ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----on-file). Do not start it in this repo.
+Product **0.9.0** requires this wave’s exit gate **and** usability **U2**, then the **1.0** notebook freeze. A stranger-testing round is not a release gate. The autobiography write-up stays [on file](ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----on-file). Do not start it in this repo.
 
 ---
 
@@ -221,9 +221,9 @@ Product **0.9.0** requires this wave’s exit gate **and** usability **U2**. Unf
 
 | Artifact | Role |
 |----------|------|
-| [ROADMAP.md](ROADMAP.md) | Path to 0.9.0 / 0.9-1 / 1.0; product sequencing stays usability-first through 0.9.0 |
+| [ROADMAP.md](ROADMAP.md) | Path to 0.9.0 / 1.0; product sequencing stays usability-first through 0.9.0 |
 | [usability_wave_plan.md](usability_wave_plan.md) | Owns U2 first-run *content*; this wave owns hosting/CI that may publish it; U2 required for 0.9.0 cut |
-| [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | 0.9-1 unfamiliar testing protocol (after 0.9.0) |
+| [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | Stranger-testing is not a release gate |
 | [docs_architecture.md](dev/docs_architecture.md) | Hosted-docs checkboxes flip here as I4/I5 land |
 | [developer_quickstart.md](developer_quickstart.md) | Points at Makefile / tests README after I0 |
 | `.cursor/commands/pre-release.md` | Stays local confidence; gains real scripts via I2 |

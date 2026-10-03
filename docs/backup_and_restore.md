@@ -26,7 +26,7 @@ Archives use format `transcribe.workspace-backup` (schema v1). Members are **rol
 
 ### Before upgrading Transcribe (0.9 path longevity minimum)
 
-For unfamiliar testers and maintainers cutting toward **1.0**:
+For maintainers cutting toward **1.0**:
 
 1. `transcribe backup create` (or Settings → Configuration → Backup) while the workspace is idle.
 2. `transcribe backup verify <archive.zip>`.

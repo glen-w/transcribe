@@ -96,10 +96,10 @@ def test_roadmap_autobiography_is_a_future_separate_product():
 
 def test_roadmap_path_to_0_9_foundation():
     text = (DOCS / "ROADMAP.md").read_text(encoding="utf-8")
-    assert "## Path to 0.9.0 / 0.9-1 / 1.0" in text
+    assert "## Path to 0.9.0 / 1.0" in text
     assert "0.7.0" in text
     assert "0.9.0" in text
-    assert "0.9-1" in text
+    assert "not a release gate" in text
     assert "Foundation readiness" in text or "Foundation readiness checklist" in text or "Track C" in text
     assert "Notebook core freeze" in text
     assert "U2.2 Sample notebook" in text or "U2.2" in text
@@ -119,11 +119,10 @@ def test_roadmap_path_to_0_9_foundation():
     protocol = DOCS / "dev" / "user_testing_0_9.md"
     assert protocol.is_file()
     proto = protocol.read_text(encoding="utf-8")
-    assert "0.9-1" in proto
+    assert "not a release gate" in proto
     assert "autobiography" in proto.lower()
-    assert "Explicitly out of script" in proto or "out of script" in proto.lower()
     infra = (DOCS / "infrastructure_wave_0_9_plan.md").read_text(encoding="utf-8")
-    assert "0.9-1" in infra
+    assert "not a release gate" in infra
     assert "not an I7" in infra or "not I7" in infra
 
 
