@@ -49,3 +49,6 @@ docker-compose.override.yml
 
 # Cursor slash commands (local filled copies; templates live in cursor_commands)
 .cursor/commands/
+
+# Local watch / assessment run logs
+assessments/
