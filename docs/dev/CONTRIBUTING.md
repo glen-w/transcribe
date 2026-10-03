@@ -67,7 +67,7 @@ Fix by moving the rule into the contract and replacing the original with a short
 1. Confirm CLI / UI examples in README and [public_surfaces.md](../public_surfaces.md) match code
 2. Confirm [runtime/docker.md](../runtime/docker.md) matches `docker-compose.yml` mounts and ports
 3. Confirm no archived plans are presented as active roadmaps in `USER_INDEX` / README
-4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure README Advanced + [USER_INDEX](../USER_INDEX.md) / [DEV_INDEX](../DEV_INDEX.md) / [index.md](../index.md) still link the active focus plan. Keep [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10) and [After 1.0](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----planned) distinct — do not present After 1.0 as current core while U2 / I6 remain open.
+4. When changing ROADMAP **Now** / product-focus copy, keep [usability_wave_plan.md](../usability_wave_plan.md) in sync and ensure README Advanced + [USER_INDEX](../USER_INDEX.md) / [DEV_INDEX](../DEV_INDEX.md) / [index.md](../index.md) still link the active focus plan. The [scope lean](../ROADMAP.md#scope-lean--24-sep-2026) is the product boundary. The [on-file autobiography write-up](../ROADMAP.md#after-10--notebook-anchored-autobiography-workbench----on-file) is not current core and not the next release.
 
 ### 4. When code changes (quick map)
 

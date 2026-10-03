@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Scope lean (24 Sep 2026): this product stops at the notebook workbench (transcribe, compare models, external fine-tune for one hand, read / tag / explore). The autobiography programme stays on file in the roadmap for a future separate product. It is not Transcribe 1.1–2.0.
+- Design note for an import→OCR smoke kit ([docs/dev/smoke_kit_import_ocr.md](docs/dev/smoke_kit_import_ocr.md)). Not implemented. PR CI still does not run a vision model.
+
 ## [0.8.8] - 2026-09-04
 
 ### Added
