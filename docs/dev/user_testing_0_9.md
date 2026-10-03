@@ -2,7 +2,7 @@
 
 **Status:** planned — runs **after** the **0.9.0** package cut (U2 + I0–I6). Sequencing: [ROADMAP.md](../ROADMAP.md) [Path to 0.9.0 / 0.9-1 / 1.0](../ROADMAP.md#path-to-090--09-1--10).
 
-**Purpose:** Strangers (or deliberately unfamiliar testers) complete a first successful notebook using only hosted/README docs — not contracts — so findings can harden Transcribe before **1.0** and leave an additive-ready foundation for After 1.0 autobiography work.
+**Purpose:** Strangers (or deliberately unfamiliar testers) complete a first successful notebook using only hosted/README docs — not contracts — so findings can harden Transcribe before **1.0**. The job under test is the notebook workbench (import, OCR, review, read / tag, export, backup). Autobiography is not a test goal ([ROADMAP scope lean](../ROADMAP.md#scope-lean--24-sep-2026)).
 
 This is **not** an infrastructure track (not I7). It is **not** autobiography testing.
 

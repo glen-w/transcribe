@@ -17,12 +17,13 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 
 | Doc | Purpose |
 |-----|---------|
-| [ROADMAP.md](ROADMAP.md) | Product roadmap: Path to 0.9.0 / 0.9-1 / 1.0; After 1.0 autobiography (planned, gated) |
+| [ROADMAP.md](ROADMAP.md) | Product roadmap: notebook contract through 1.0. Autobiography write-up is on file for a future separate product (scope lean 24 Sep 2026), not 1.1–2.0 |
 | [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (active; U2 open; required for 0.9.0) |
 | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: **I0–I4** landed; I5–I6 remaining; required for 0.9.0 |
 | [dev/release_governance.md](dev/release_governance.md) | Authoritative next-tag checklist (I2); `# pre-release` is local confidence only |
 | [dev/dependency_audit.md](dev/dependency_audit.md) | CVE / waiver log |
 | [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | 0.9-1 unfamiliar-user testing protocol (after 0.9.0 cut) |
+| [dev/smoke_kit_import_ocr.md](dev/smoke_kit_import_ocr.md) | Design only: import → OCR smoke; `edited_text` survives re-OCR. Not a PR CI vision run |
 | [public_surfaces.md](public_surfaces.md) | GUI IA and supported entrypoints |
 | [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) | Future notebook handoff (not shipped) |
 

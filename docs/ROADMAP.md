@@ -5,14 +5,37 @@
 **0.9 infrastructure wave (in progress):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
 **Path to 0.9 / 1.0:** [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10)  
 **0.9-1 unfamiliar testing (planned):** [dev/user_testing_0_9.md](dev/user_testing_0_9.md)  
-**After 1.0 (planned):** notebook-anchored autobiography workbench (1.1–2.0) — gated on 1.0; see [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned)  
+**Scope lean (24 Sep 2026):** [Scope lean](#scope-lean--24-sep-2026) — this product stops at the notebook workbench. The autobiography write-up stays on file for a **future separate product**.  
+**On file, not this product:** [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) (formerly planned as Transcribe 1.1–2.0).  
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
 **Core delivery history (internal):** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
-**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency). Reverse file-import of TX exports is Transcribe **1.6**, not this seam.  
+**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency). A reverse file-import of TX exports is **not** a Transcribe release. It lives in the parked autobiography write-up (old label 1.6).  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)  
 **Architecture follow-ups (candidates, not 0.9):** [reviews/architecture_from_evidence.md](reviews/architecture_from_evidence.md) · [Later — Architecture follow-ups](#later--architecture-follow-ups-from-evidence-review--candidates)
 
 > **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred · [?] candidate (uncommitted)
+
+## Scope lean — 24 Sep 2026
+
+**Lean, not a closed tag.** Glen is contracting this product. Do not schedule the autobiography programme as Transcribe 1.1–2.0. The long write-up under [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) stays in this file so a later product can use it. It is not a backlog for this repo.
+
+**This product is:**
+
+1. **Transcribe handwritten pages** — import scans, local vision OCR, review and correct, export.
+2. **Test models** — multipass compare, prefer/promote, the model matrix and picker. Shipped. Keep using it; refresh probes when models change.
+3. **Fine-tune for one person’s hand** — export page images + corrected text, train **outside** this app, install the model in Ollama, verify with multipass. Export is shipped ([finetune_export.md](finetune_export.md)). An in-app training loop is still a non-goal. The open job is a model that reads that handwriting reliably, not a trainer inside Transcribe.
+4. **Read, tag, and explore notebooks** — Reading, Library, search, tag catalogue. Shipped with the daily workbench (U3). Maintain this. Do not grow it into a life view.
+
+**Freeze (stop growing):**
+
+- Context importers, photos-as-evidence, People-as-identity, Slices, reconstruction, page time-of-day, and the old 1.1–2.0 release table.
+- New analysis modules. The 25-module set stays as shipped. Deferred reinterpretations stay deferred.
+- Detection fine-tune export stays a candidate. It is not the hand-model job.
+- A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
+
+**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a 0.9.0 tag and unfamiliar testing if a stranger should be able to install it. Personal use of the four jobs above does not wait on that cut.
+
+Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
 ## Current state
 
@@ -20,11 +43,11 @@ Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/a
 
 The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.8.** Version ladder to autobiography:
+**Package is 0.8.8.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0  →  After 1.0 (1.1–2.0)
-              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      findings → fixes         freeze     autobiography
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  0.9-1 unfamiliar testing  →  1.0 notebook freeze
+              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      findings → fixes         hand + read/tag
                                                                                    (Pages)```
 
 | Label | Meaning |
@@ -37,12 +60,12 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.8.8** | Docs/ops patch: GitHub Pages landing (**I5**), Docker-preferred install path, public docs reframe for first-time users. |
 | **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
 | **0.9-1** | **Unfamiliar-user testing** programme on 0.9.0 (or a 0.9.x patch train). Not a second infrastructure wave. Produces findings, fix PRs, and a go/no-go for **1.0**. Protocol: [dev/user_testing_0_9.md](dev/user_testing_0_9.md). |
-| **1.0** | Notebook workbench declared complete for its promise; architecture freeze for additive After 1.0 extension. |
-| **After 1.0** | Autobiography programme (1.1–2.0) — [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned). |
+| **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. |
+| **Parked** | Autobiography write-up — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file). Future separate product. Not Transcribe 1.1–2.0. |
 
 A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10).
 
-**After 1.0** is planned, not started. Do not schedule context importers, Slices, People-as-identity, reconstruction, or page time-of-day while U2 / I0–I6 / 0.9-1 remain the path to 1.0.
+The autobiography write-up is **on file, not planned for this repo**. Do not schedule context importers, Slices, People-as-identity, reconstruction, or page time-of-day in Transcribe at all — not after U2, not after 1.0.
 
 ---
 
@@ -275,13 +298,13 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 0.9-1 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ready for After 1.0. Does not schedule autobiography features. Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6), [dev/user_testing_0_9.md](dev/user_testing_0_9.md) (0.9-1).
 
-**Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing, then declare **1.0** with an additive-ready foundation. Harden and freeze the existing notebook/OCR/analysis/corpus stack. Do **not** ship After 1.0 features (photos-as-context, WhatsApp, People store, Slices, reconstruction, time-of-day storage) before **1.0**.
+**Thesis:** Cut an operable **0.9.0**, run **0.9-1** unfamiliar-user testing if a stranger should install it, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
 
 ```text
 U2 (sample + first-run docs)  ─┐
-                               ├─► 0.9.0 cut ─► 0.9-1 testing ─► 1.0 freeze ─► After 1.0
+                               ├─► 0.9.0 cut ─► 0.9-1 testing ─► 1.0 notebook freeze
 I0–I6 (infra wave)           ─┘
 ```
 
@@ -316,9 +339,11 @@ Suggested cut order: **I0+I1** (0.7.0, landed) → **I2+I3** (0.8.0, landed) →
 
 **Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**.
 
-### Track C — Foundation readiness for After 1.0 (docs + freeze rules)
+### Track C — Notebook freeze checks (docs + rules)
 
-No runtime context schema and no `data/context/` tree before **1.0**. Before autobiography implementation starts, all of the following must be true:
+**Lean 24 Sep 2026:** This track was written so an autobiography extension could bolt on inside Transcribe. That extension is parked. Rows that only serve a context corpus (2 ClaimStatus-for-later, 4 context lock order, 7 “non-goals until autobiography” as a schedule) are **not** 1.0 gates. Rows that serve the notebook product (1 core stays loadable, 3 rebuildability, 5 backup, 6 known limitations) still belong on the path to a freeze.
+
+No runtime context schema and no `data/context/` tree in this repo. The checklist below is historical intent; do not treat it as permission to start the parked programme:
 
 | # | Checklist item | Intent |
 |-----|----------------|--------|
@@ -338,7 +363,7 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 ### 0.9-1 — Unfamiliar user testing
 
-**Purpose:** Strangers (or deliberately unfamiliar testers) complete install → sample or own scans → OCR → review → Analyse Quick → export → backup using only hosted/README docs — not contracts.
+**Purpose:** Strangers (or deliberately unfamiliar testers) complete install → sample or own scans → OCR → compare or review → read / tag → export → backup using only hosted/README docs — not contracts. Analyse Quick may be in the script because it is shipped. “Life around a page” is not a test goal.
 
 **Inputs:** 0.9.0 build + hosted guide (I4/I5) + sample notebook (U2.2).
 
@@ -350,7 +375,7 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 ### 1.0 freeze
 
-**1.0** declares the notebook/OCR/analysis workbench complete for its [PRODUCT.md](PRODUCT.md) promise. Architecture freeze for additive After 1.0 extension. Autobiography may then start with ClaimStatus / TemporalClaim / context-index **contracts** (After 1.0 implementation order step 2) — not with importers.
+**1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
 
 ---
 
@@ -373,9 +398,9 @@ Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.
 | **A3** Handoffs + CLI + docs | [x] | CLI `bulk-analyse`; public surfaces / user guide / limitations |
 ---
 
-## After 1.0 — Notebook-anchored autobiography workbench — [ ] planned
+## After 1.0 — Notebook-anchored autobiography workbench — [−] on file
 
-**Status:** planned; **gated on 1.0**. Authority for post-1.0 product sequencing and architecture intent. Does not define shipped schemas — contracts land with each release. Do not implement this programme while [Path to 0.9.0 / 0.9-1 / 1.0](#path-to-090--09-1--10) remains open (U2, I0–I6, unfamiliar testing).
+**Status (lean 24 Sep 2026):** **on file for a future separate product.** Not planned, not gated, not Transcribe 1.1–2.0. Do not implement any of it in this repository. Do not delete it. Release numbers below (1.1–2.0) are labels from when this was the next Transcribe programme; they are not this repo’s version ladder. Authority for *that future product’s* sequencing, if it is ever started elsewhere. Does not define shipped schemas.
 
 **Thesis:** Handwritten notebooks are the primary source material. Everything else becomes evidence, context, and memory around them. The system helps reconstruct a life from surviving evidence while preserving a clear distinction between what was actually recorded, what was extracted, and what the machine infers.
 
@@ -821,7 +846,7 @@ Leave `effective_text()` as the integration bus, session-only routing, and on-di
 
 ## Later candidates — uncommitted — [?]
 
-Worth recording without scheduling. Rows pulled into [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) are marked.
+Worth recording without scheduling. Rows that used to point at the autobiography programme are marked. That programme is [on file](#after-10--notebook-anchored-autobiography-workbench----on-file), not this repo’s backlog.
 
 - Cross-notebook links / related pages — **scheduled 1.1** (notebook date windows; computed, not a graph)
 - **Context import candidates (post-1.6)** — Spotify/Last.fm exports, Amazon purchase history, browser/search history, Google Maps Timeline, calendar exports — [Future context import candidates](#future-context-import-candidates--uncommitted) in After 1.0
@@ -902,7 +927,7 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 ## Product scope beyond analysis modules
 
-Still the more central product surface than speculative analysis work. Detail and sequencing for **through 1.0** live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above. Post-1.0 autobiography sequencing lives in [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned).
+Still the more central product surface than speculative analysis work. Detail and sequencing for **through 1.0** live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above. The autobiography write-up is [on file](#after-10--notebook-anchored-autobiography-workbench----on-file) for a future separate product ([scope lean](#scope-lean--24-sep-2026)).
 
 Summary:
 
@@ -916,7 +941,7 @@ Summary:
 - **Export** — notebook readability and sharing (`transcribe.notebook`)
 - **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
 - **Future TranscriptX export handoff** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
-- **After 1.0 autobiography workbench** — contextual evidence around notebooks, Slices, cited reconstruction — [After 1.0](#after-10--notebook-anchored-autobiography-workbench----planned) (gated on 1.0; not current core)
+- **Autobiography workbench** — contextual evidence around notebooks, Slices, cited reconstruction — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file) for a future separate product. Not this repo’s backlog.
 
 ---
 
