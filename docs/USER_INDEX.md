@@ -44,7 +44,7 @@ First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [
 |-----|---------|
 | [Export](runtime/export.md) | Notebook formats, anthology |
 | [Backup and restore](backup_and_restore.md) | Full-workspace ZIP |
-| [Fine-tune export](finetune_export.md) | Images + text for external training |
+| [Fine-tune export](finetune_export.md) | OCR and detection fine-tune packs for external training |
 
 ## Reference
 

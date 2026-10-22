@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
@@ -74,3 +76,18 @@ def test_set_page_ignored_round_trip_and_reading_filter(tmp_path: Path):
     assert len(visible) == 1
     projects.set_page_ignored(page_id, False)
     assert projects.load().pages[1].ignored is False
+
+
+def test_set_page_ignored_refuses_when_job_lock_held(tmp_path: Path):
+    from transcribe.errors import JobConflictError
+    from transcribe.persistence.locks import JobLock
+
+    paths, projects = _two_page_notebook(tmp_path)
+    page_id = projects.load().pages[0].page_id
+    held = JobLock(paths.job_lock)
+    held.acquire()
+    try:
+        with pytest.raises(JobConflictError):
+            projects.set_page_ignored(page_id, True)
+    finally:
+        held.release()
