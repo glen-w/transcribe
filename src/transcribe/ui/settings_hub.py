@@ -237,39 +237,56 @@ def render_configuration_panel() -> None:
             options=labels,
             key="settings_declutter_reapply_notebook",
         )
-        if st.button(
+        confirm_declutter = "settings_declutter_reapply_confirm"
+        if st.session_state.get(confirm_declutter):
+            st.warning(
+                f"Re-apply visual declutter on **{choice}**? "
+                "Already-cropped margins cannot be restored by turning declutter off."
+            )
+            c_yes, c_no = st.columns(2)
+            if c_yes.button("Confirm re-apply", key="settings_declutter_reapply_yes", type="primary"):
+                root = Path(runtime.projects_dir) / choice
+                try:
+                    paths = open_project_paths(root)
+                    svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
+                    bar = st.progress(0.0, text="Starting declutter…")
+                    status = st.empty()
+
+                    def on_progress(done: int, total: int, message: str) -> None:
+                        frac = min(1.0, done / max(1, total))
+                        bar.progress(
+                            frac,
+                            text=(
+                                f"Decluttering {done}/{total}"
+                                + (f" · {message}" if message else "")
+                            ),
+                        )
+                        if message:
+                            status.caption(message)
+
+                    stats = svc.reapply_visual_declutter(
+                        enabled=bool(declutter), on_progress=on_progress
+                    )
+                    st.session_state.pop(confirm_declutter, None)
+                    st.success(
+                        f"Done on **{choice}**: cropped {stats.pages_cropped}, "
+                        f"noop {stats.pages_noop}, unchanged {stats.pages_unchanged}, "
+                        f"errors {stats.pages_error} "
+                        f"(of {stats.pages_total} pages)."
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"{type(exc).__name__}: {exc}")
+            if c_no.button("Cancel", key="settings_declutter_reapply_no"):
+                st.session_state.pop(confirm_declutter, None)
+                st.rerun()
+        elif st.button(
             "Re-apply visual declutter",
             key="settings_declutter_reapply_run",
             type="secondary",
             icon=ic.REPLAY,
         ):
-            root = Path(runtime.projects_dir) / choice
-            try:
-                paths = open_project_paths(root)
-                svc = ProjectService(paths, clock=SystemClock(), ids=UuidGenerator())
-                bar = st.progress(0.0, text="Starting declutter…")
-                status = st.empty()
-
-                def on_progress(done: int, total: int, message: str) -> None:
-                    frac = min(1.0, done / max(1, total))
-                    bar.progress(
-                        frac,
-                        text=f"Decluttering {done}/{total}" + (f" · {message}" if message else ""),
-                    )
-                    if message:
-                        status.caption(message)
-
-                stats = svc.reapply_visual_declutter(
-                    enabled=bool(declutter), on_progress=on_progress
-                )
-                st.success(
-                    f"Done on **{choice}**: cropped {stats.pages_cropped}, "
-                    f"noop {stats.pages_noop}, unchanged {stats.pages_unchanged}, "
-                    f"errors {stats.pages_error} "
-                    f"(of {stats.pages_total} pages)."
-                )
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"{type(exc).__name__}: {exc}")
+            st.session_state[confirm_declutter] = True
+            st.rerun()
 
     st.markdown("#### Thumbnails")
     st.caption(
@@ -344,6 +361,32 @@ def render_configuration_panel() -> None:
             clear_config_cache()
             reload_config()
             st.session_state.pop("archive_strip_n", None)
+            st.success("Saved.")
+            st.rerun()
+        except ConfigError as exc:
+            st.error(f"{exc.code}: {exc}")
+
+    st.divider()
+    st.markdown("#### Reading")
+    st.caption("Ignored pages are omitted from Reader by default; Review can mark/unmark them.")
+    hide_ignored = st.checkbox(
+        "Hide ignored pages in Reader",
+        value=bool(view.effective.ui.hide_ignored_pages),
+        key="settings_hide_ignored_pages",
+        help=widget_help(
+            "When on, Reading skips pages marked ignored unless the Reader "
+            "“Show ignored pages” override is enabled."
+        ),
+    )
+    if st.button("Save reading defaults", type="primary", key="settings_reading_save", icon=ic.SAVE):
+        try:
+            loaded = load_workspace_settings()
+            cfg = deep_merge_dict({}, loaded.config)
+            ui_cfg = cfg.setdefault("ui", {})
+            ui_cfg["hide_ignored_pages"] = bool(hide_ignored)
+            save_workspace_settings(config=cfg, activations=loaded.activations)
+            clear_config_cache()
+            reload_config()
             st.success("Saved.")
             st.rerun()
         except ConfigError as exc:
@@ -498,14 +541,28 @@ def render_configuration_panel() -> None:
     with st.expander("Provenance (diagnostics)"):
         st.json(view.provenance)
 
-    if st.button("Reset whole workspace settings", key="settings_reset_workspace", icon=ic.RESET):
-        try:
-            reset_whole_workspace()
-            clear_config_cache()
-            st.success("Workspace settings archived and reset to defaults.")
+    confirm_reset = "settings_reset_workspace_confirm"
+    if st.session_state.get(confirm_reset):
+        st.warning(
+            "Reset **all** workspace settings to defaults? "
+            "A timestamped copy is kept under `settings.reset.*.json`."
+        )
+        r_yes, r_no = st.columns(2)
+        if r_yes.button("Confirm reset", key="settings_reset_workspace_yes", type="primary"):
+            try:
+                reset_whole_workspace()
+                clear_config_cache()
+                st.session_state.pop(confirm_reset, None)
+                st.success("Workspace settings archived and reset to defaults.")
+                st.rerun()
+            except ConfigError as exc:
+                st.error(f"{exc.code}: {exc}")
+        if r_no.button("Cancel", key="settings_reset_workspace_no"):
+            st.session_state.pop(confirm_reset, None)
             st.rerun()
-        except ConfigError as exc:
-            st.error(f"{exc.code}: {exc}")
+    elif st.button("Reset whole workspace settings", key="settings_reset_workspace", icon=ic.RESET):
+        st.session_state[confirm_reset] = True
+        st.rerun()
 
 
 _PREPROCESS_PROFILES = ("none", "gentle_contrast")

@@ -47,11 +47,25 @@ Separate CLI for images + preferred/active text packages for external training:
 ./transcribe.sh cli export-finetune "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 ```
 
-See [finetune_export.md](../finetune_export.md).
+**Detection fine-tune** exports page images + approved/rejected finding labels
+(unreviewed excluded by default):
+
+```bash
+./transcribe.sh cli export-detection-finetune "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
+```
+
+UI: **Workflow → Export → Detection fine-tune**.
+
+See [finetune_export.md](../finetune_export.md). Contracts:
+[finetune-export](../contracts/finetune-export.md) ·
+[detection-finetune-export](../contracts/detection-finetune-export.md).
+
+Reading exports can **Exclude ignored pages** (default on). JSON keeps the full
+notebook including the `ignored` flag.
 
 ## Related
 
 - Settings: [settings.md](settings.md)
 - Workspace backup (not notebook export): [backup_and_restore.md](../backup_and_restore.md)
 - Golden path: [user_guide.md](../user_guide.md)
-- Contract: [notebook-export](../contracts/notebook-export.md) · [finetune-export](../contracts/finetune-export.md)
+- Contract: [notebook-export](../contracts/notebook-export.md) · [finetune-export](../contracts/finetune-export.md) · [detection-finetune-export](../contracts/detection-finetune-export.md)

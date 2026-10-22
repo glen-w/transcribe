@@ -57,6 +57,28 @@ def test_import_pdf(tmp_path: Path):
     assert "pages/" in project.renders[project.pages[0].active_render_id].image_relpath
 
 
+def test_rejects_encrypted_pdf(tmp_path: Path):
+    """Encrypted PDFs fail closed at ingest (architecture review §J)."""
+    doc = pymupdf.open()
+    page = doc.new_page(width=200, height=200)
+    page.insert_text((20, 40), "secret")
+    enc_path = tmp_path / "enc.pdf"
+    doc.save(
+        enc_path,
+        encryption=pymupdf.PDF_ENCRYPT_AES_256,
+        user_pw="user",
+        owner_pw="owner",
+    )
+    doc.close()
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    with pytest.raises(IngestError, match="encrypted"):
+        ingest.import_bytes("enc.pdf", enc_path.read_bytes())
+
+
 def test_import_path_does_not_modify_user_file(tmp_path: Path):
     user = tmp_path / "original.png"
     user.write_bytes(_png_bytes())

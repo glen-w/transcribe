@@ -1,10 +1,10 @@
 # 0.9 Infrastructure wave plan
 
-**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I5** landed (0.7.0 / 0.8.0 / Sphinx / public landing). Remaining: **I6**.
+**Status:** [x] done — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I6** landed (0.7.0 / 0.8.0 / Sphinx / public landing / nightly + Docker smoke + issue templates).
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.8** (I0–I5 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. **Wave exit + U2** enable the package cut **0.9.0**, then the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
+**Version note:** Package is **0.8.8** (I0–I6 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe; **I6** nightly / Docker smoke / issue templates landed. **Wave exit + U2** enable the package cut **0.9.0**, then the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -53,8 +53,8 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 
 | Area | TranscriptX | Transcribe today | Wave track |
 |------|-------------|------------------|------------|
-| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** + **I4** docs job (0.7–0.8). Nightly / Docker image still **I6**; Pages landed **I5** | **I1**, **I3**, **I4**, **I6** |
-| **Nightly** | `nightly.yml` → `make test-integration-core` | None | **I6** |
+| **PR CI** | `.github/workflows/ci.yml`: compose-config, ruff critical, tests 3.10–3.12 (smoke → fast), release-checks | Landed **I1** + **I3** + **I4** docs job + **I6** Docker smoke in release-checks; Pages landed **I5** | **I1**, **I3**, **I4**, **I6** |
+| **Nightly** | `nightly.yml` → `make test-integration-core` | Landed **I6** (`nightly.yml` offline acceptance + contracts) | **I6** |
 | **Pages** | `pages.yml` → website + Sphinx assemble | Landed **I5** | **I5** |
 | **Makefile lanes** | Rich `test-*`, `docs`, `docs-gen`, `docker-smoke`, `pages-site` | `Makefile` + `tests/README.md` (**I0**, 0.7.0); `make docs` / `docs-clean` via `build_docs.sh` (**I4**); `make pages-site` (**I5**) | **I0** |
 | **Test docs** | `tests/README.md` lane budgets + marker policy | Landed **I0** | **I0** |
@@ -66,7 +66,7 @@ Snapshot against [glen-w/TranscriptX](https://github.com/glen-w/TranscriptX) mai
 | **Sphinx / RTD** | `docs/conf.py`, `.readthedocs.yml`, `.[docs]`, CI docs job | Landed **I4** (MyST over `docs/`; RTD hostname go-live still owner-gated) | **I4** |
 | **Website** | `website/` + Pages | Landed **I5** | **I5** |
 | **Workflow media** | `docs/workflows/` + `_static/workflows/` | Deferred | **I5** (optional after Pages) |
-| **Issue templates** | bug / feature + config | None | **I6** |
+| **Issue templates** | bug / feature + config | Landed **I6** | **I6** |
 | **Docs authority / archive / indexes** | Mature | Largely landed (CHANGELOG note) | keep; inventory pass in **I0** |
 | **SECURITY / CONTRIBUTING / CHANGELOG** | Present | Present | deepen reporting link in **I2** |
 | **Agent SOPs** | `# pre-release`, `# deep-test`, `# tests`, … | Present; wire to real scripts as they land | continuous |
@@ -160,7 +160,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Push to `main` publishes a public landing + guide once GitHub Pages is enabled; RTD go-live remains owner-gated. Workflow screenshot gallery remains optional.
 
-### I6 — Sustaining lanes & community surfaces — [ ] planned
+### I6 — Sustaining lanes & community surfaces — [x] done
 
 | Deliverable | Notes |
 |-------------|--------|

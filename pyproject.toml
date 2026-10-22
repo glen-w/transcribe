@@ -66,7 +66,7 @@ markers = [
 ]
 # Default suite is offline: exclude live/heavy markers. Offline detector/service
 # doubles live under tests/services/ and must NOT use the integration marker.
-addopts = "-m 'not quarantined and not requires_ollama and not requires_docker and not requires_network and not slow and not integration and not release_only'"
+addopts = "-m 'not quarantined and not requires_ollama and not requires_docker and not requires_network and not slow and not integration and not release_only' --timeout=60"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff]

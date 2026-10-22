@@ -49,6 +49,22 @@ class CleanupPlanConfig:
         }
 
 
+def cleanup_fingerprint_for_attempt(
+    plan: CleanupPlanConfig,
+    record: CleanupRecord | None,
+) -> dict[str, Any] | None:
+    """Return cleanup identity to seal into the OCR skip fingerprint.
+
+    Soft ``provider_failed`` keeps raw vision text — omit cleanup so a later run
+    with cleanup enabled does not skip as if cleanup had applied.
+    """
+    if not plan.enabled:
+        return None
+    if record is not None and record.execution_status == "provider_failed":
+        return None
+    return plan.fingerprint_dict()
+
+
 def _disabled_record() -> CleanupRecord:
     return CleanupRecord(
         execution_status="disabled",

@@ -1,0 +1,21 @@
+{
+  "format": "transcribe.sample-notebook",
+  "schema_version": 1,
+  "title": "Sample notebook",
+  "slug": "sample-notebook",
+  "pages": [
+    {
+      "file": "page_01.png",
+      "text": "Monday. Walked to the market with Anna. Bought bread and apples. Felt calm after rain."
+    },
+    {
+      "file": "page_02.png",
+      "text": "Tuesday. Sketched the riverbank. Ideas for a longer trip next month. Paris keeps coming up."
+    },
+    {
+      "file": "page_03.png",
+      "text": "Wednesday. Quiet evening. Listed tasks: write letters, sort photos, call Bob."
+    }
+  ],
+  "notes": "Synthetic handwriting placeholders for first-run offline demos. Page PNGs are generated on Open sample."
+}

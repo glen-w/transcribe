@@ -16,6 +16,7 @@ Truth hierarchy: **on-disk project + page results** are authoritative for each n
 | OCR multipass job records, rank/composite phases | [contracts/ocr-multipass.md](contracts/ocr-multipass.md) |
 | OCR preference ledger / rollup | [contracts/ocr-preference.md](contracts/ocr-preference.md) |
 | Fine-tune dataset export package | [contracts/finetune-export.md](contracts/finetune-export.md) |
+| Detection fine-tune export package | [contracts/detection-finetune-export.md](contracts/detection-finetune-export.md) |
 | Portable notebook export | [contracts/notebook-export.md](contracts/notebook-export.md) |
 | Canonical analysis input, content fingerprint, `source_ref`, spans | [contracts/analysis-document.md](contracts/analysis-document.md) |
 | Analysis result envelope, outcomes vs attempts, capability UI states, provenance, evidence | [contracts/analysis-result.md](contracts/analysis-result.md) |

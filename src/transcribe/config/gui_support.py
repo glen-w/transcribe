@@ -19,6 +19,11 @@ COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
         "Notebooks shown initially (0 = all)",
     ),
     CommonSettingField(
+        "ui.hide_ignored_pages",
+        "Reading",
+        "Hide ignored pages in Reader by default",
+    ),
+    CommonSettingField(
         "ui.overview_cards",
         "Overview",
         "Visible Overview cards",

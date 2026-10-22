@@ -121,6 +121,39 @@ def test_batch_mixed_cleanup_outcomes(tmp_path: Path):
     assert cleanup.generate_calls == 4  # apply, unchanged, reject, fail — not empty
 
 
+def test_cleanup_provider_failed_does_not_seal_skip_fingerprint(tmp_path: Path):
+    """P1: soft cleanup failure must not skip on resume while cleanup remains enabled."""
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("p1-cleanup")
+    IngestService(paths, clock=clock, ids=ids).import_bytes("p.png", _png_bytes())
+    _enable_cleanup(projects)
+    vision = "PAGE_FAIL real handwritten page about the metro weather notebooks"
+    provider = FakeVisionOCRProvider(text_by_call=[vision, vision], digest="digest-aaa")
+    cleanup = CountingCleanupClient(
+        responses={"default": CLEAN_PAGE},
+        digest="fixed-digest",
+        model_name="recorded-double:v1",
+    )
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, cleanup_client=cleanup
+    )
+    progress = coord.run_blocking()
+    assert progress.status == "completed"
+    assert progress.completed == 1
+    page_id = projects.load().pages[0].page_id
+    attempt = projects.load_page_result(page_id).active_attempt()
+    assert attempt is not None
+    assert attempt.cleanup is not None
+    assert attempt.cleanup.execution_status == "provider_failed"
+    assert "cleanup" not in (attempt.fingerprint_payload or {})
+    # Resume with cleanup still enabled must re-run, not skip as if cleanup applied.
+    progress2 = coord.run_blocking()
+    assert progress2.skipped == 0
+    assert provider.calls == 2
+
+
 def test_cleanup_fail_fast_empty_model(tmp_path: Path):
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()

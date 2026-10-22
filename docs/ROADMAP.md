@@ -1,8 +1,8 @@
 # Transcribe roadmap
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
-**Active product focus:** [usability_wave_plan.md](usability_wave_plan.md) (U2 open)  
-**Active infra focus:** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I6 open)  
+**Active product focus:** [Path to 0.9.0 / 1.0](#path-to-090--10) — U2 + I0–I6 landed; remaining cut is the **0.9.0** tag + Track C freeze  
+**Wave plans (done tracks):** [usability_wave_plan.md](usability_wave_plan.md) · [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
 **Critical path:** [Path to 0.9.0 / 1.0](#path-to-090--10)  
 **Scope boundary:** [Scope lean — 24 Sep 2026](#scope-lean--24-sep-2026)  
 **On file, not this product:** [After 1.0 — autobiography](#after-10--notebook-anchored-autobiography-workbench----on-file)  
@@ -39,7 +39,7 @@
 
 ## Status at a glance
 
-**Package:** **0.8.8**. Next public cut: **0.9.0** (U2 + I6), then **1.0** notebook freeze.
+**Package:** **0.8.8**. U2 + I0–I6 are landed. Next public cut: **0.9.0** (tag when release governance is run), then **1.0** notebook freeze.
 
 ```text
 0.6.x → 0.7.0 → 0.8.0 → 0.8.5 → 0.8.6 → 0.8.7 → 0.8.8 (now) → 0.9.0 → 1.0
@@ -49,8 +49,8 @@
 
 | Horizon | Status | What it means |
 |---------|--------|---------------|
-| **Now** | [~] | Close **U2** (sample notebook + first-run docs) and **I6** (nightly / Docker release-checks / issue templates) |
-| **0.9.0** | [ ] | Tag when U2 acceptance **and** I0–I6 exit gate are green |
+| **Now** | [~] | Run release governance and tag **0.9.0**; finish Track C freeze checks toward **1.0** |
+| **0.9.0** | [ ] | Tag — U2 acceptance and I0–I6 exit gate are green; cut when governance checklist is run |
 | **1.0** | [ ] | Declare the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) |
 | **Parked** | [−] | Autobiography programme — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file), future separate product |
 
@@ -62,9 +62,10 @@
 | Usability **U0–U1** (trust + Analyse UX) | [x] | [usability_wave_plan.md](usability_wave_plan.md) |
 | Usability **U3** (daily workbench) | [x] | same |
 | Usability **U4** (corpus / inbox gate) | [x] gate green | [corpus-integrity](contracts/corpus-integrity.md); Inbox polish may continue |
-| Usability **U2** (first-run) | [~] | Home + Diagnostics shipped; **U2.2** sample + **U2.4** docs remain |
-| Infra **I0–I5** | [x] | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) |
-| Infra **I6** | [ ] | Nightly, Docker in release-checks, issue templates |
+| Usability **U2** (first-run) | [x] | Home, Diagnostics, sample notebook (`samples/demo-notebook/`), first-run docs |
+| Infra **I0–I6** | [x] | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) — I6 nightly / Docker smoke / issue templates |
+| Detection fine-tune export | [x] | [detection-finetune-export](contracts/detection-finetune-export.md) |
+| Ignore pages (Reader) | [x] | `ui.hide_ignored_pages`; Show ignored; Review mark/unmark |
 | Notebook corpus / bulk import | [x] | [notebook-corpus](contracts/notebook-corpus.md) |
 | Bulk Analyse (GUI + CLI) | [x] | [analysis-batch-run](contracts/analysis-batch-run.md) |
 | Workspace backup / restore | [x] | [workspace-backup](contracts/workspace-backup.md) |
@@ -90,10 +91,10 @@ A stranger-testing round is **not** a release gate ([dev/user_testing_0_9.md](de
 
 - Context importers, photos-as-evidence, People-as-identity, Slices, reconstruction, page time-of-day, and the old 1.1–2.0 release table as *this* product’s ladder.
 - New analysis modules. The 25-module set stays as shipped. Deferred reinterpretations stay deferred.
-- Detection fine-tune export stays a candidate. It is not the hand-model job.
+- Detection fine-tune export is shipped (approved/rejected labels). It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a **0.9.0** tag, then **1.0**. Personal use of the four jobs above does not wait on that cut.
+**Still on the path to a public cut, and not autobiography:** U2 and I6 are landed. Remaining: run release governance for a **0.9.0** tag, then **1.0** freeze (Track C). A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
@@ -117,22 +118,18 @@ Older sentences in this repo that say “after 1.0, Transcribe grows into an aut
 
 ## Active backlog — ranked
 
-Work that may land before or with **0.9.0 / 1.0**. Do not reorder past #2 without updating the cut criteria.
+U2 and I6 no longer block the cut. Rank 1 is the next maintainer action; candidates must not delay the tag.
 
 | Rank | Item | Status | Blocks 0.9.0? | Detail |
 |------|------|--------|---------------|--------|
-| 1 | **U2.2 Sample notebook** | [ ] | Yes | Fixture under `samples/`; one-click Open sample; offline Analyse Quick |
-| 2 | **U2.4 First-run docs** | [ ] | Yes | “First notebook in 15 minutes” from README; Docker preferred; port 8510 |
-| 3 | **I6 Sustaining lanes** | [ ] | Yes | Nightly offline acceptance; Docker in release-checks; issue templates |
-| 4 | **Track C freeze checks** | [ ] docs | Soft | Notebook core freeze, rebuildability, longevity minimum, known-limitations honesty |
-| 5 | **Hand-model loop (external)** | [~] | No | Export exists; iterate models outside app; verify with multipass |
-| 6 | **U4 Inbox polish** | [?] | No | Richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan |
-| 7 | **Ignore pages in Reader** | [?] | No | Export exclude shipped; Reader toggle + defaults remain |
-| 8 | **Visual declutter expansion** | [?] | No | Binding gutter → edge shadows (Pillow-only, outside page area) |
-| 9 | **Page reorder / date repair** | [?] | No | Drag/drop grid + suspicious-date cluster action |
-| 10 | **Detection fine-tune export** | [?] | No | Approved/rejected Detect labels → external datasets |
+| 1 | **0.9.0 package cut** | [ ] | Yes | Run [release_governance.md](dev/release_governance.md); bump version / CHANGELOG |
+| 2 | **Track C freeze checks** | [ ] docs | Soft | Notebook core freeze, rebuildability, longevity minimum, known-limitations honesty |
+| 3 | **Hand-model loop (external)** | [~] | No | Export exists; iterate models outside app; verify with multipass |
+| 4 | **U4 Inbox polish** | [?] | No | Richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan |
+| 5 | **Visual declutter expansion** | [?] | No | Binding gutter → edge shadows (Pillow-only, outside page area) |
+| 6 | **Page reorder / date repair** | [?] | No | Drag/drop grid + suspicious-date cluster action |
 
-Items 6–10 are candidates. They must not steal review bandwidth from ranks 1–3 while the 0.9.0 cut is open.
+**Landed (no longer backlog):** U2.2 sample notebook · U2.4 first-run docs · I6 sustaining lanes · Ignore pages (Reader) · Detection fine-tune export.
 
 ---
 
@@ -150,21 +147,16 @@ I0–I6 (infra wave)           ─┘
 
 ### Track A — U2 (product; required for 0.9.0)
 
-**Status:** [~] in progress. Full acceptance detail: [usability_wave_plan.md](usability_wave_plan.md) §6. Home and Diagnostics already shipped via GUI alignment; the cut still needs sample + first-run docs.
+**Status:** [x] done. Full acceptance detail: [usability_wave_plan.md](usability_wave_plan.md) §6.
 
 | Item | Status | Work |
 |------|--------|------|
 | U2.1 Home | [x] | Create / Import + Ollama health; no sample wizard on empty Home |
 | U2.3 Diagnostics | [x] | Workspace / notebook doctor in System → Diagnostics |
-| **U2.2 Sample notebook** | [ ] | Fixture under `samples/` (public-domain or synthetic handwriting, or text-backed pages with placeholders); one-click **Open sample** via existing init/import into `TRANSCRIBE_PROJECTS_DIR`; offline Analyse Quick without LLM; optional OCR skip if pre-seeded text |
-| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID, Ollama + OCR-friendly vision model; surface first-run bites from [known_limitations.md](known_limitations.md) (encrypted PDF, large budgets, cleanup latency, thinking vision tags) |
+| **U2.2 Sample notebook** | [x] | Fixture under `samples/demo-notebook/`; Home **Open sample** via init/import; pre-seeded text for offline Analyse Quick |
+| **U2.4 First-run docs** | [x] | “First notebook in 15 minutes” in README (**Docker preferred**); port **8510**, known first-run bites |
 
-**U2 exit (all must be true):**
-
-1. Sample path smoke: import → (optional OCR) → Analyse Quick → Export without live LLM for deterministic modules.
-2. README / user guide lead a first-time user through Docker install without reading contracts.
-3. Empty Home stays Create + Import (no resurrected setup wizard).
-4. Diagnostics remain the doctor surface (workspace always; notebook when selected).
+**U2 exit:** sample path smoke; README / user guide first-run without reading contracts — **met**.
 
 **Risks / anti-patterns**
 
@@ -187,25 +179,23 @@ Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.
 | **I3** Quality gates | [x] | Coverage fail-under, pre-commit, partial CI `release-checks` |
 | **I4** Hosted docs | [x] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
 | **I5** Public landing | [x] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
-| **I6** Sustaining lanes | [ ] | See below |
+| **I6** Sustaining lanes | [x] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
 
-Suggested cut order (historical): **I0+I1** (0.7.0) → **I2+I3** (0.8.0) → **I4** → **I5** (0.8.8) → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
+Suggested cut order (historical): **I0+I1** (0.7.0) → **I2+I3** (0.8.0) → **I4** → **I5** (0.8.8) → **I6**. All tracks landed; U2 + I0–I6 enable the **0.9.0** package cut.
 
-#### I6 — Sustaining lanes — [ ] planned (last infra gate)
+#### I6 — Sustaining lanes — [x] done
 
-| Deliverable | Intent | Notes |
+| Deliverable | Status | Notes |
 |-------------|--------|-------|
-| `nightly.yml` (or equivalent) | Scheduled heavier offline lane | Acceptance / marked heavy suites **without** live Ollama |
-| Docker in `release-checks` | Fresh `docker compose build` + `make docker-smoke` | Optional image pip check when the runner has Docker |
-| Issue templates | Bug + feature + `config.yml` | Community surface for a public cut |
-| Optional install verification matrix | Cells for release evidence | [runtime](runtime/installation.md) / release governance |
-| Optional complexity / perf smoke | Only if useful | Not a cut blocker |
+| `nightly.yml` | [x] | Offline acceptance + contracts (no live Ollama) |
+| Docker in `release-checks` | [x] | `docker compose build` + `make docker-smoke` |
+| Issue templates | [x] | Bug + feature + `config.yml` |
 
-**I6 exit:** Nightly green on schedule (or documented equivalent); release-checks cover Docker when available; issues use templates.
+**I6 exit:** met.
 
 **Infra exit gate (whole wave):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
 
-**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**, **I5 Pages landing**.
+**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**, **I5 Pages landing**, **I6 nightly / Docker smoke / issue templates**.
 
 ### Track C — Notebook freeze checks (docs + rules)
 
@@ -227,7 +217,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**. Remaining product: **U2.2** + **U2.4**.
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. **I6** sustaining lanes and **U2** sample/first-run docs are landed — ready for the **0.9.0** package cut when release governance is run.
 
 ### 1.0 freeze — definition of done
 
@@ -257,7 +247,7 @@ Priority after shipping the core module set. **Do not** schedule deferred-reinte
 |-------|--------|---------|
 | **U0** Trust foundation | [x] | Preset identity, plan-hash bind, content revision, shared health, export provenance |
 | **U1** Analyse product UX | [x] | Product views, status strip, OCR Advanced |
-| **U2** First-run & operability | [~] | Home + Diagnostics done; sample + first-run docs open — **required for 0.9.0** |
+| **U2** First-run & operability | [x] | Sample notebook + first-run docs landed — enables **0.9.0** with I0–I6 |
 | **U3** Daily workbench | [x] | Review queues, Reading, Search/Library polish, model copy |
 | **U4** Corpus UX | [x] gate green | Bulk import / inbox supported; Inbox polish may continue |
 
@@ -285,13 +275,13 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 **Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
-### U2 — First-run & operability — [~] in progress
+### U2 — First-run & operability — [x] done
 
 | Track | Status | Intent |
 |-------|--------|--------|
-| **U2 First-run & operability** | [~] | Setup path, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
+| **U2 First-run & operability** | [x] | Setup path, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
 
-Detail and acceptance: [Path to 0.9.0 — Track A](#track-a--u2-product-required-for-090) · [usability_wave_plan.md](usability_wave_plan.md) §6. Do not treat U2 as “not started” — Home and Diagnostics already ship.
+Detail: [Path to 0.9.0 — Track A](#track-a--u2-product-required-for-090) · [usability_wave_plan.md](usability_wave_plan.md) §6. **Shipped:** Home (Create / Import / **Open sample**), Diagnostics, `samples/demo-notebook/`, first-run install docs.
 
 ### U3 — Daily workbench — [x] done
 
@@ -307,20 +297,21 @@ Detail and acceptance: [Path to 0.9.0 — Track A](#track-a--u2-product-required
 
 Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and [Shipped — Notebook corpus](#shipped--notebook-corpus--bulk-import--x). Remaining Inbox polish (e.g. richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue without reopening the gate.
 
----
-
-## Next — 0.9 Infrastructure wave — [~] (I6 open; parallel with U2)
-
-Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate. **I0–I5** are done; remaining work is **I6**.
+**Ignore pages — shipped:** mark/unmark in Review; Reader omits ignored by default (`ui.hide_ignored_pages`) with **Show ignored** override; export **Exclude ignored pages** (default on) for reading formats; JSON keeps the full notebook. **Future:** include/exclude export pages by tag (AND filter, same semantics as Reading/Library).
 
 ---
 
-## Next — Release / onboarding / operability — [~] (via U2)
+## Next — 0.9 Infrastructure wave — [x] done (I0–I6)
+
+Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate. **I0–I6** are done.
+
+---
+
+## Next — Release / onboarding / operability — [x] done (via U2)
 
 Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut**:
 
-- **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
-- **Remaining:** first-run install docs path (U2.4), sample notebook (U2.2)
+- **Shipped:** Home (Create / Import / **Open sample** + Ollama health), System → Diagnostics, sample notebook (U2.2), first-run install docs path (U2.4)
 
 Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is on the 0.9 path foundation checklist above. Full “archive readable without Transcribe” stays a lifecycle candidate.
 
@@ -373,6 +364,18 @@ Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.
 | **A2** GUI Target + live progress | [x] | Analyse This notebook \| Batch; same three sources; dual progress bars + stop + post-run summary |
 | **A3** Handoffs + CLI + docs | [x] | CLI `bulk-analyse`; public surfaces / user guide / limitations |
 
+### Shipped — Detection fine-tune export — [x]
+
+Extend the shipped OCR **fine-tune export** pattern to **prompt-backed Detection**: export page images + effective text with **approved / rejected** finding labels as a local dataset for **external** detector fine-tuning (Transcribe does not train in-app).
+
+Contracts: [finetune-export](contracts/finetune-export.md), [detection-finetune-export](contracts/detection-finetune-export.md), [finetune_export.md](finetune_export.md). CLI `export-detection-finetune` + Export UI tab.
+
+| Outcome | Intent |
+|---------|--------|
+| **Review-labelled export** | Approved findings = positives; rejected = negatives/hard negatives; unreviewed excluded by default |
+| **Finding-aware samples** | JSONL rows tie image + text window to span boundaries, `finding_type`, detector + prompt provenance, `review_status` |
+| **Per-detector datasets** | Filter by `detector_id` / `finding_type`; same privacy model as OCR export — user copies the folder; no network upload |
+
 ### Shipped — Detection + Prompt Hub — [x]
 
 Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical `first_person` / `swear_words`, `names` (people from NER) + declarative custom detectors; View → Detect; findings under `detection/`. Settings → Prompts hub for OCR, cleanup, and detection prompts. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts.
@@ -407,7 +410,7 @@ Further declutter ops stay under [Near-term candidates](#near-term-candidates--n
 
 ## Near-term candidates — not on the 0.9.0 path
 
-Uncommitted deepen-in-place. May land before or after 1.0, but **must not** delay U2/I6.
+Uncommitted deepen-in-place. May land before or after 1.0, but **must not** delay the **0.9.0** tag.
 
 ### Preprocessing expansion — [?]
 
@@ -416,18 +419,6 @@ Uncommitted deepen-in-place. May land before or after 1.0, but **must not** dela
 Stay outside the page: high-confidence, edge-anchored artefacts only — never alter pixels inside the detected page area. That keeps declutter distinct from document restoration (no bleed-through, whitening, stains, ruled lines, hole punching, creases, page-wide shadow fix, or handwritten-margin cleanup).
 
 Suggested sequence after scanner-bed borders + stark-white overscan + corner wedges: **binding gutter** → **edge shadows**. Other safe candidates when detection is conservative: scanner lid/background slivers (non-white/non-grey uniform edge bands), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
-
-### Detection fine-tune export — [?]
-
-Extend the shipped OCR **fine-tune export** pattern ([finetune-export](contracts/finetune-export.md), [finetune_export.md](finetune_export.md)) to **prompt-backed Detection**: export page images + effective text with **approved / rejected** finding labels as a local dataset for **external** detector fine-tuning (Transcribe does not train in-app).
-
-| Outcome | Intent |
-|---------|--------|
-| **Review-labelled export** | Turn user review of detection suggestions — e.g. `todo_lists`, `lists`, `poetry`, custom detectors — into positive/negative training pairs. Approved findings = positive examples; rejected = negatives or hard negatives. Unreviewed findings excluded by default. |
-| **Finding-aware samples** | Each JSONL row ties image + text window to span boundaries, `finding_type`, detector + prompt provenance, and `review_status` ([detection-finding](contracts/detection-finding.md)). Reuse existing carry-forward semantics so re-runs do not orphan labels. |
-| **Per-detector datasets** | Filter by `detector_id` / `finding_type`; optional include neighbouring page context for cross-page spans. Same privacy model as OCR export — user copies the folder; no network upload. |
-
-**Rules of thumb:** Detection export is a deepen-in-place on the evaluation loop, not a new detection runtime. Ship after detection review UX is stable enough to accumulate trustworthy labels. Not on the **0.9.0** path.
 
 ### Corpus & product lifecycle — remaining rows — [?]
 
@@ -445,7 +436,8 @@ Primary direction for living with many notebooks. **U3** pulled Review UX, readi
 | **Model & runtime management** | Product abstraction over installed OCR/text models | **U3** (done) |
 | **Quality / evaluation loop** | Sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures | candidate |
 | **Quality ratings (thumbs)** | Collect-only local ratings; shape from TranscriptX LLM feedback v1 | candidate |
-| **Ignore pages (Reader)** | Mark uninteresting pages ignored; omit from Reader by default; workspace/user default + “show ignored” override. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages**. **Future:** include/exclude export pages by tag | candidate (Reader) / export done |
+| **Ignore pages (Reader)** | Mark/unmark in Review; Reader hide-by-default + **Show ignored**; export exclude ignored | **[x] done** |
+| **Detection fine-tune export** | Approved/rejected Detect labels → external training datasets | **[x] done** — see [Shipped — Detection fine-tune export](#shipped--detection-fine-tune-export--x) |
 | **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module | candidate |
 | **People & places / Patterns** | Places map shipped; Patterns tab only if usage justifies. First-class Person identity is After 1.0 **1.3** | Places shipped; Patterns optional |
 | **Page scan fullscreen** | Today: Streamlit `st.image` hover toolbar (**View fullscreen**). **Candidate — click image → black lightbox:** Streamlit has no API for click-to-fullscreen or a black backdrop ([streamlit#8031](https://github.com/streamlit/streamlit/issues/8031)). Revisit when that lands; until then, optional custom JS below (parent-frame overlay, same pattern as Review hotkeys). | candidate |
@@ -581,13 +573,13 @@ Intrinsically transcript-, speaker-, or audio-specific. Documented so they are n
 
 Still the more central product surface than speculative analysis work:
 
-- OCR pipeline — import, vision OCR, optional second-pass cleanup; multipass / prefer / promote / composite / fine-tune export (**shipped**); detection fine-tune export (**candidate**)
+- OCR pipeline — import, vision OCR, optional second-pass cleanup; multipass / prefer / promote / composite / fine-tune export (**shipped**); detection fine-tune export (**shipped**)
 - Preprocessing — visual declutter vs OCR optimisation — see [Shipped — Preprocessing](#shipped--preprocessing-visual-declutter-lane--x-partial)
 - Notebook corpus — bulk import supported; inbox polish optional
 - Living with notebooks — organisation, search, reading, review (**U3** shipped)
 - Longevity — workspace backup/restore **shipped**; broader archive-without-Transcribe remains candidate
-- Operability — **U2** open; model/runtime management shipped with U3
-- Maintainer infrastructure — I0–I5 shipped; **I6** open → **0.9.0** → **1.0**
+- Operability — **U2** shipped; model/runtime management shipped with U3
+- Maintainer infrastructure — I0–I6 shipped → **0.9.0** tag → **1.0**
 - Autobiography — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file), not this repo’s backlog ([scope lean](#scope-lean--24-sep-2026))
 
 ---
@@ -1020,19 +1012,19 @@ Defaults for implementers; revisit with evidence:
 
 ## Later — Architecture follow-ups from evidence review — [?] candidates
 
-Not on the **0.9.0 / U2** path. Do not schedule these while first-run operability and **I6** remain the cut. Evidence, blast radius, and “do not replace JSON-on-disk / add an event bus / split CLI vs UI services” live in [architecture_from_evidence.md](reviews/architecture_from_evidence.md) (2026-09-03).
+Not on the critical path to the **0.9.0** tag (U2 + I0–I6 already landed). Evidence, blast radius, and “do not replace JSON-on-disk / add an event bus / split CLI vs UI services” live in [architecture_from_evidence.md](reviews/architecture_from_evidence.md) (2026-09-03).
 
-**Already done from that review (do not re-open as new work):** L1 CLI `transcribe run` exits 1 on `circuit_open` (job record stays `completed`); cancel / “Completed with gaps” chrome; detection `reconcile_interrupted` no-ops while the OCR **or** analysis lock is held; snapshot mappers in `ui/progress_snapshots.py`. Do **not** add a `completed_partial` job status without a schema and test plan — coordinators keep `completed` + `circuit_open`.
+**Already done from that review (do not re-open as new work):** L1 CLI `transcribe run` exits 1 on `circuit_open` (job record stays `completed`); cancel / “Completed with gaps” chrome; detection `reconcile_interrupted` no-ops while the OCR **or** analysis lock is held; snapshot mappers in `ui/progress_snapshots.py`; **L3** published-NER-only names detector; **P1** cleanup soft-failure fingerprint; **Confirms** before Reset settings / Re-apply declutter. Do **not** add a `completed_partial` job status without a schema and test plan — coordinators keep `completed` + `circuit_open`.
 
 | ID | Outcome | Review | Notes |
 |----|---------|--------|-------|
 | **L2** | `ProjectService.load` is a read by default; reconcile interrupted attempts is an explicit reopen path | P2 #3, L2 **partial** | Detection already skips reconcile when either long lock is held. Changing the load default touches every caller of `load()`. |
-| **L3** | Names / people detector consumes **published** NER only — no nested `AnalysisRunner.run_module("ner")` | P2 #4, L3 | Keeps Detect from running Analyse as a side effect. |
+| **L3** | Names / people detector consumes **published** NER only — no nested `AnalysisRunner.run_module("ner")` | P2 #4, L3 | **[x] done** — Detect returns `unavailable_dependency` when NER is missing/stale. |
 | **L4** | One schema registry for every written `format` (including job-record, settings, profiles, interface-menus) | P2 #7, L4 | `persistence.schema.SUPPORTED` is incomplete today. |
-| **P1 leftover** | Cleanup LLM failure must not seal cleanup into the OCR skip fingerprint while the page keeps raw text | P1 #2 | Skip/resume can assume cleanup that never applied. |
+| **P1 leftover** | Cleanup LLM failure must not seal cleanup into the OCR skip fingerprint while the page keeps raw text | P1 #2 | **[x] done** — `cleanup_fingerprint_for_attempt` omits cleanup on `provider_failed`. |
 | **P2 split** | Split `ProjectService` along SoT I/O vs review / dates / declutter / reconcile | P2 #6 | High blast radius; not a Review workbench rewrite and not a database. |
 | **Detect cancel** | Detect can be stopped like OCR/Analyse | P3 | Detect is request-synchronous today; Analyse+detect lock behaviour already tightened. |
-| **Confirms** | Confirm before Reset whole workspace settings and Re-apply visual declutter | P3 | Reset already copies `settings.reset.{stamp}.json`; declutter margin loss is documented. |
+| **Confirms** | Confirm before Reset whole workspace settings and Re-apply visual declutter | P3 | **[x] done** — Settings confirmation step before both actions. |
 | **Cover Open** | Library cover Open is a visible control | P3 | Opacity-0 overlay today. |
 | **Dirty leave** | Review dirty-leave does not require a second Prev/Next to discard | P3 | `rw_force_leave`. |
 | **Auto-tag** | Re-running auto-tag does not re-apply slugs the user removed | P3 | Current contract: additive re-add; turn the checkbox off to stop. |
@@ -1053,7 +1045,7 @@ Worth recording without scheduling. Rows that used to point at the autobiography
 - Annotations distinct from OCR corrections
 - Batch metadata editing
 - Image-only / non-OCR page handling
-- **Detection fine-tune export** — scheduled as candidate section above (approved/rejected Detect labels → external training datasets)
+- **Detection fine-tune export** — shipped (approved/rejected Detect labels → external training datasets)
 - **Custom / native UI host** (SPA, Tauri, Qt, …) — uncommitted; not a 1.x track. Working default is Streamlit through 2.0. Reopen only with 1.8–1.9 evidence via [UI host](#ui-host-working-default--reopen-with-evidence); do not schedule a rewrite from this list.
 
 ---
@@ -1069,4 +1061,5 @@ Worth recording without scheduling. Rows that used to point at the autobiography
 | 2026-09-04 | 0.8.8: I5 Pages + Docker-preferred first-run docs framing | Host/Python as the only documented path |
 | 24 Sep 2026 | **Scope lean:** product stops at notebook workbench; autobiography on file for a future separate product | “After 1.0 Transcribe becomes autobiography” as this repo’s ladder |
 | 2026-09+ | Stranger-testing is **not** a release gate | Stranger-testing as I7 / path-to-1.0 step |
+| Expansion wave (#47) | U2.2/U2.4, ignore-pages Reader, detection fine-tune export, I6 landed | Treating those as open 0.9.0 blockers |
 

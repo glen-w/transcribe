@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
 from transcribe.ingest import IngestService
-from transcribe.persistence.atomic import read_json, write_json_atomic
-from transcribe.persistence.locks import mutation_lock
-from transcribe.persistence.schema import require_format
-from transcribe.domain.models import Project
 from transcribe.services.export import ExportService
 from transcribe.services.export_document import build_document
 from transcribe.services.export_options import ExportOptions
 from transcribe.services.job import JobCoordinator
 from transcribe.services.project import ProjectService, open_project_paths
+from transcribe.ui.action_menus.nav import chronological_page_ids
 
 
 def _two_page_notebook(tmp_path: Path) -> tuple:
@@ -35,11 +34,8 @@ def _two_page_notebook(tmp_path: Path) -> tuple:
 
 
 def _mark_page_ignored(projects: ProjectService, page_index: int) -> None:
-    with mutation_lock(projects.paths.mutation_lock):
-        payload = require_format(read_json(projects.paths.manifest), "transcribe.project")
-        current = Project.from_dict(payload)
-        current.pages[page_index].ignored = True
-        write_json_atomic(projects.paths.manifest, current.as_dict())
+    page_id = projects.load().pages[page_index].page_id
+    projects.set_page_ignored(page_id, True)
 
 
 def test_export_excludes_ignored_pages_from_reading_formats(tmp_path: Path):
@@ -64,3 +60,34 @@ def test_export_json_keeps_ignored_flag(tmp_path: Path):
     assert len(notebook["pages"]) == 2
     assert notebook["pages"][0].get("ignored") is True
     assert "ignored" not in notebook["pages"][1]
+
+
+def test_set_page_ignored_round_trip_and_reading_filter(tmp_path: Path):
+    _paths, projects = _two_page_notebook(tmp_path)
+    project = projects.load()
+    page_id = project.pages[1].page_id
+    projects.set_page_ignored(page_id, True)
+    project = projects.load()
+    assert project.pages[1].ignored is True
+    all_ids = chronological_page_ids(project, include_ignored=True)
+    visible = chronological_page_ids(project, include_ignored=False)
+    assert page_id in all_ids
+    assert page_id not in visible
+    assert len(visible) == 1
+    projects.set_page_ignored(page_id, False)
+    assert projects.load().pages[1].ignored is False
+
+
+def test_set_page_ignored_refuses_when_job_lock_held(tmp_path: Path):
+    from transcribe.errors import JobConflictError
+    from transcribe.persistence.locks import JobLock
+
+    paths, projects = _two_page_notebook(tmp_path)
+    page_id = projects.load().pages[0].page_id
+    held = JobLock(paths.job_lock)
+    held.acquire()
+    try:
+        with pytest.raises(JobConflictError):
+            projects.set_page_ignored(page_id, True)
+    finally:
+        held.release()

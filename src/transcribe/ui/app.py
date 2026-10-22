@@ -17,7 +17,7 @@ from transcribe.analysis.coordinator import (
     build_analysis_coordinator,
 )
 from transcribe.corpus.paths import CorpusPaths
-from transcribe.errors import ProjectError, TranscribeError
+from transcribe.errors import TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import ArchiveService, bump_archive_generation
@@ -298,10 +298,10 @@ def render_analyse_workspace(
 
 def _render_review_workbench(runtime, paths, projects, project) -> None:
     from transcribe.ui.action_menus.nav import viewer_page_ids
+    from transcribe.ui.rerun_cache import get_cached_review_queue_index, review_queue_token
     from transcribe.ui.review_queue import (
         ReviewFilter,
         available_review_filters,
-        build_review_queue_index,
         default_review_filter,
         filter_review_page_ids,
         format_review_filter_label,
@@ -311,20 +311,22 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
         st.info("No pages yet.")
         return
 
-    for page in project.pages:
-        try:
-            projects.repair_empty_successes(page.page_id)
-        except (TranscribeError, ProjectError):
-            pass
-    project = projects.load(reconcile=False)
-
     base_ids = viewer_page_ids(project)
-    queue_index = build_review_queue_index(
-        project,
+    queue_index = get_cached_review_queue_index(
+        st.session_state,
+        root=paths.root,
+        project=project,
+        results_dir=paths.results_dir,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
+        repair_page=projects.repair_empty_successes,
     )
+    # Repair may have rewritten historical empty successes — reload once.
+    project = projects.load(reconcile=False)
     st.session_state["rw_comparable_page_ids"] = list(queue_index.comparable_page_ids)
+    st.session_state["rw_queue_token"] = review_queue_token(
+        project, results_dir=paths.results_dir
+    )
     filter_options_with_counts = available_review_filters(
         project,
         base_page_ids=base_ids,
@@ -378,13 +380,32 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
 
 
 def _render_reading_mode(paths, projects, project) -> None:
+    from transcribe.config.facade import get_config
     from transcribe.ui.action_menus.nav import chronological_page_ids
 
     if not project.pages:
         st.info("No pages yet.")
         return
 
-    page_ids = chronological_page_ids(project)
+    hide_default = bool(get_config().effective.ui.hide_ignored_pages)
+    ignored_n = sum(1 for p in project.pages if p.ignored)
+    show_ignored = True
+    if hide_default and ignored_n:
+        show_ignored = st.checkbox(
+            f"Show ignored pages ({ignored_n})",
+            value=bool(st.session_state.get("reading_show_ignored")),
+            key="reading_show_ignored",
+            help="Ignored pages are hidden in Reader by default. Export can still exclude them.",
+        )
+    include_ignored = (not hide_default) or show_ignored
+    page_ids = chronological_page_ids(project, include_ignored=include_ignored)
+    if not page_ids:
+        st.info(
+            "All pages in this notebook are ignored. "
+            "Enable **Show ignored pages** above, or clear ignored in Review."
+        )
+        return
+
     root_key = str(paths.root)
     by_root = dict(st.session_state.get("reading_page_by_root") or {})
     remembered = by_root.get(root_key)
@@ -392,7 +413,11 @@ def _render_reading_mode(paths, projects, project) -> None:
     if default_id not in page_ids:
         default_id = page_ids[0]
 
-    dated = [p for p in project.pages if p.date is not None]
+    dated = [
+        p
+        for p in project.pages
+        if p.date is not None and (include_ignored or not p.ignored)
+    ]
     if dated:
         jump_labels = {
             p.page_id: (
@@ -536,7 +561,11 @@ def main() -> None:
 
     with st.sidebar:
         render_brand()
-        mode = render_mode_nav(mode, notebook_options=notebook_options)
+        mode = render_mode_nav(
+            mode,
+            notebook_options=notebook_options,
+            data_dir=runtime.data_dir,
+        )
 
     root = st.session_state.get("root") or ""
     apply_page_width(mode)
