@@ -17,7 +17,7 @@ from transcribe.analysis.coordinator import (
     build_analysis_coordinator,
 )
 from transcribe.corpus.paths import CorpusPaths
-from transcribe.errors import ProjectError, TranscribeError
+from transcribe.errors import TranscribeError
 from transcribe.ports import SystemClock, UuidGenerator
 from transcribe.runtime_paths import build_runtime_paths
 from transcribe.services.archive import ArchiveService, bump_archive_generation
@@ -298,10 +298,10 @@ def render_analyse_workspace(
 
 def _render_review_workbench(runtime, paths, projects, project) -> None:
     from transcribe.ui.action_menus.nav import viewer_page_ids
+    from transcribe.ui.rerun_cache import get_cached_review_queue_index, review_queue_token
     from transcribe.ui.review_queue import (
         ReviewFilter,
         available_review_filters,
-        build_review_queue_index,
         default_review_filter,
         filter_review_page_ids,
         format_review_filter_label,
@@ -311,20 +311,22 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
         st.info("No pages yet.")
         return
 
-    for page in project.pages:
-        try:
-            projects.repair_empty_successes(page.page_id)
-        except (TranscribeError, ProjectError):
-            pass
-    project = projects.load(reconcile=False)
-
     base_ids = viewer_page_ids(project)
-    queue_index = build_review_queue_index(
-        project,
+    queue_index = get_cached_review_queue_index(
+        st.session_state,
+        root=paths.root,
+        project=project,
+        results_dir=paths.results_dir,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
+        repair_page=projects.repair_empty_successes,
     )
+    # Repair may have rewritten historical empty successes — reload once.
+    project = projects.load(reconcile=False)
     st.session_state["rw_comparable_page_ids"] = list(queue_index.comparable_page_ids)
+    st.session_state["rw_queue_token"] = review_queue_token(
+        project, results_dir=paths.results_dir
+    )
     filter_options_with_counts = available_review_filters(
         project,
         base_page_ids=base_ids,
@@ -559,7 +561,11 @@ def main() -> None:
 
     with st.sidebar:
         render_brand()
-        mode = render_mode_nav(mode, notebook_options=notebook_options)
+        mode = render_mode_nav(
+            mode,
+            notebook_options=notebook_options,
+            data_dir=runtime.data_dir,
+        )
 
     root = st.session_state.get("root") or ""
     apply_page_width(mode)
