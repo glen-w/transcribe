@@ -84,7 +84,7 @@ U2 may start in parallel with U1 once U0 is merged (onboarding does not depend o
 |-------|--------|---------------|--------|
 | **U0** — Trust foundation | Preset identity, plan-hash bind, content revision, shared health, export provenance | #5 #6 #11 #12 #13 | **[x] done** ([PR #5](https://github.com/glen-w/transcribe/pull/5)) |
 | **U1** — Analyse product UX | Product views, shared status strip, OCR Advanced | #7 #8 #9 | **[x] done** |
-| **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | Planned |
+| **U2** — First-run & operability | Install path, sample notebook, model guidance, doctor/diagnostics in UI | — | [~] in progress (Home + Diagnostics shipped; U2.2 sample + U2.4 docs open) |
 | **U3** — Daily workbench | Review queues, reading mode, search/org polish (no bulk corpus activation); Library activity bins + cover-grid paging + page delete + model-info picker wiring | — | **[x] done** |
 | **U4** — Corpus UX | Inbox / import recovery / bulk import; acceptance gate green | — | **[x] gate green** (polish open) |
 

@@ -1,53 +1,105 @@
 # Transcribe roadmap
 
 **Product definition:** [PRODUCT.md](PRODUCT.md)  
-**Usability wave (active product focus):** [usability_wave_plan.md](usability_wave_plan.md)  
-**0.9 infrastructure wave (in progress):** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)  
-**Path to 0.9 / 1.0:** [Path to 0.9.0 / 1.0](#path-to-090--10)  
-**Scope lean (24 Sep 2026):** [Scope lean](#scope-lean--24-sep-2026) — this product stops at the notebook workbench. The autobiography write-up stays on file for a **future separate product**.  
-**On file, not this product:** [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) (formerly planned as Transcribe 1.1–2.0).  
+**Active product focus:** [usability_wave_plan.md](usability_wave_plan.md) (U2 open)  
+**Active infra focus:** [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I6 open)  
+**Critical path:** [Path to 0.9.0 / 1.0](#path-to-090--10)  
+**Scope boundary:** [Scope lean — 24 Sep 2026](#scope-lean--24-sep-2026)  
+**On file, not this product:** [After 1.0 — autobiography](#after-10--notebook-anchored-autobiography-workbench----on-file)  
 **Analysis porting map:** [dev/analysis_module_porting.md](dev/analysis_module_porting.md)  
-**Core delivery history (internal):** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
-**Future TranscriptX handoff:** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (post–TX 1.0; not a dependency). A reverse file-import of TX exports is **not** a Transcribe release. It lives in the parked autobiography write-up (old label 1.6).  
+**Core delivery history:** [archive/plans/analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)  
+**TranscriptX handoff (future):** [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) — post–TX 1.0; not a dependency. A reverse file-import of TX exports is **not** a Transcribe release; it lives in the parked autobiography write-up (old label 1.6).  
 **Indexes:** [USER_INDEX.md](USER_INDEX.md) · [DEV_INDEX.md](DEV_INDEX.md) · [CONTRACT_INDEX.md](CONTRACT_INDEX.md)  
-**Architecture follow-ups (candidates, not 0.9):** [reviews/architecture_from_evidence.md](reviews/architecture_from_evidence.md) · [Later — Architecture follow-ups](#later--architecture-follow-ups-from-evidence-review--candidates)
+**Architecture candidates (not 0.9):** [reviews/architecture_from_evidence.md](reviews/architecture_from_evidence.md) · [Later — Architecture follow-ups](#later--architecture-follow-ups-from-evidence-review--candidates)
 
-> **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred · [?] candidate (uncommitted)
+> **Status legend:** [ ] planned · [~] in progress · [x] done · [−] deferred / parked · [?] candidate (uncommitted)
+
+---
+
+## How to read this document
+
+| If you need… | Go to |
+|--------------|--------|
+| What this product is (and is not) | [Scope lean](#scope-lean--24-sep-2026) · [PRODUCT.md](PRODUCT.md) |
+| What to build next | [Active backlog](#active-backlog--ranked) · [Path to 0.9.0 / 1.0](#path-to-090--10) |
+| Track detail for usability | [usability_wave_plan.md](usability_wave_plan.md) (authority for U0–U4) |
+| Track detail for maintainer infra | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (authority for I0–I6) |
+| What already shipped | [Status at a glance](#status-at-a-glance) · [Shipped programmes](#shipped-programmes) |
+| Ideas not scheduled | [Near-term candidates](#near-term-candidates--not-on-the-090-path) · [Later candidates](#later-candidates--uncommitted--) |
+| Autobiography / context corpus | [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) — **on file only** |
+
+**Authority rules**
+
+1. This file sequences product priorities. It does **not** define runtime schemas — contracts under `docs/contracts/` do.
+2. Companion wave plans own acceptance checklists for open tracks. When status drifts, update the wave plan **and** this file in the same change.
+3. Archived plans under `docs/archive/plans/` are delivery history. Do not treat them as live backlog.
+4. Do not schedule work from the [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) write-up in this repository.
+
+---
+
+## Status at a glance
+
+**Package:** **0.8.8**. Next public cut: **0.9.0** (U2 + I6), then **1.0** notebook freeze.
+
+```text
+0.6.x → 0.7.0 → 0.8.0 → 0.8.5 → 0.8.6 → 0.8.7 → 0.8.8 (now) → 0.9.0 → 1.0
+         I0–I1    I2–I3   patch   product  patch   I5+docs    U2+I6     freeze
+                                  cut      cut              cut
+```
+
+| Horizon | Status | What it means |
+|---------|--------|---------------|
+| **Now** | [~] | Close **U2** (sample notebook + first-run docs) and **I6** (nightly / Docker release-checks / issue templates) |
+| **0.9.0** | [ ] | Tag when U2 acceptance **and** I0–I6 exit gate are green |
+| **1.0** | [ ] | Declare the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) |
+| **Parked** | [−] | Autobiography programme — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file), future separate product |
+
+| Programme | Status | Authority |
+|-----------|--------|-----------|
+| Core analysis (25 modules) | [x] | [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md) |
+| OCR lifecycle (multipass / prefer / fine-tune export) | [x] | [ocr-multipass](contracts/ocr-multipass.md) · PR #15 |
+| Detection Prompt Hub + Detect | [x] | [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) |
+| Usability **U0–U1** (trust + Analyse UX) | [x] | [usability_wave_plan.md](usability_wave_plan.md) |
+| Usability **U3** (daily workbench) | [x] | same |
+| Usability **U4** (corpus / inbox gate) | [x] gate green | [corpus-integrity](contracts/corpus-integrity.md); Inbox polish may continue |
+| Usability **U2** (first-run) | [~] | Home + Diagnostics shipped; **U2.2** sample + **U2.4** docs remain |
+| Infra **I0–I5** | [x] | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) |
+| Infra **I6** | [ ] | Nightly, Docker in release-checks, issue templates |
+| Notebook corpus / bulk import | [x] | [notebook-corpus](contracts/notebook-corpus.md) |
+| Bulk Analyse (GUI + CLI) | [x] | [analysis-batch-run](contracts/analysis-batch-run.md) |
+| Workspace backup / restore | [x] | [workspace-backup](contracts/workspace-backup.md) |
+| Visual declutter (scanner bed / overscan / wedges) | [x] | deepen-in-place candidates remain |
+| Hand-specific model (external fine-tune) | [~] ongoing | Export shipped; training stays outside the app |
+
+A stranger-testing round is **not** a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
+
+---
 
 ## Scope lean — 24 Sep 2026
 
 **Lean, not a closed tag.** Glen is contracting this product. Do not schedule the autobiography programme as Transcribe 1.1–2.0. The long write-up under [After 1.0](#after-10--notebook-anchored-autobiography-workbench----on-file) stays in this file so a later product can use it. It is not a backlog for this repo.
 
-**This product is:**
+**This product is four jobs:**
 
 1. **Transcribe handwritten pages** — import scans, local vision OCR, review and correct, export.
 2. **Test models** — multipass compare, prefer/promote, the model matrix and picker. Shipped. Keep using it; refresh probes when models change.
-3. **Fine-tune for one person’s hand** — export page images + corrected text, train **outside** this app, install the model in Ollama, verify with multipass. Export is shipped ([finetune_export.md](finetune_export.md)). An in-app training loop is still a non-goal. The open job is a model that reads that handwriting reliably, not a trainer inside Transcribe.
+3. **Fine-tune for one person’s hand** — export page images + corrected text, train **outside** this app, install the model in Ollama, verify with multipass. Export is shipped ([finetune_export.md](finetune_export.md)). An in-app training loop is a non-goal. The open job is a model that reads that handwriting reliably, not a trainer inside Transcribe.
 4. **Read, tag, and explore notebooks** — Reading, Library, search, tag catalogue. Shipped with the daily workbench (U3). Maintain this. Do not grow it into a life view.
 
 **Freeze (stop growing):**
 
-- Context importers, photos-as-evidence, People-as-identity, Slices, reconstruction, page time-of-day, and the old 1.1–2.0 release table.
+- Context importers, photos-as-evidence, People-as-identity, Slices, reconstruction, page time-of-day, and the old 1.1–2.0 release table as *this* product’s ladder.
 - New analysis modules. The 25-module set stays as shipped. Deferred reinterpretations stay deferred.
 - Detection fine-tune export stays a candidate. It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a 0.9.0 tag. A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
+**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a **0.9.0** tag, then **1.0**. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
-## Current state
+---
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) and daily workbench (**U3**) are **done**; remaining focus is first-run operability (**U2**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](archive/plans/analysis_wave1_plan.md#9-implementation-gate).
-
-The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
-
-**Package is 0.8.8.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
-
-```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  1.0 notebook freeze
-              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      hand + read/tag
-                                                                                   (Pages)```
+## Version ladder (this product)
 
 | Label | Meaning |
 |-------|---------|
@@ -61,15 +113,153 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. A stranger-testing round is not a release gate. |
 | **Parked** | Autobiography write-up — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file). Future separate product. Not Transcribe 1.1–2.0. |
 
-A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 1.0](#path-to-090--10).
+---
 
-The autobiography write-up is **on file, not planned for this repo**. Do not schedule context importers, Slices, People-as-identity, reconstruction, or page time-of-day in Transcribe at all — not after U2, not after 1.0.
+## Active backlog — ranked
+
+Work that may land before or with **0.9.0 / 1.0**. Do not reorder past #2 without updating the cut criteria.
+
+| Rank | Item | Status | Blocks 0.9.0? | Detail |
+|------|------|--------|---------------|--------|
+| 1 | **U2.2 Sample notebook** | [ ] | Yes | Fixture under `samples/`; one-click Open sample; offline Analyse Quick |
+| 2 | **U2.4 First-run docs** | [ ] | Yes | “First notebook in 15 minutes” from README; Docker preferred; port 8510 |
+| 3 | **I6 Sustaining lanes** | [ ] | Yes | Nightly offline acceptance; Docker in release-checks; issue templates |
+| 4 | **Track C freeze checks** | [ ] docs | Soft | Notebook core freeze, rebuildability, longevity minimum, known-limitations honesty |
+| 5 | **Hand-model loop (external)** | [~] | No | Export exists; iterate models outside app; verify with multipass |
+| 6 | **U4 Inbox polish** | [?] | No | Richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan |
+| 7 | **Ignore pages in Reader** | [?] | No | Export exclude shipped; Reader toggle + defaults remain |
+| 8 | **Visual declutter expansion** | [?] | No | Binding gutter → edge shadows (Pillow-only, outside page area) |
+| 9 | **Page reorder / date repair** | [?] | No | Drag/drop grid + suspicious-date cluster action |
+| 10 | **Detection fine-tune export** | [?] | No | Approved/rejected Detect labels → external datasets |
+
+Items 6–10 are candidates. They must not steal review bandwidth from ranks 1–3 while the 0.9.0 cut is open.
+
+---
+
+## Path to 0.9.0 / 1.0
+
+**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
+
+**Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
+
+```text
+U2 (sample + first-run docs)  ─┐
+                               ├─► 0.9.0 cut ─► 1.0 notebook freeze
+I0–I6 (infra wave)           ─┘
+```
+
+### Track A — U2 (product; required for 0.9.0)
+
+**Status:** [~] in progress. Full acceptance detail: [usability_wave_plan.md](usability_wave_plan.md) §6. Home and Diagnostics already shipped via GUI alignment; the cut still needs sample + first-run docs.
+
+| Item | Status | Work |
+|------|--------|------|
+| U2.1 Home | [x] | Create / Import + Ollama health; no sample wizard on empty Home |
+| U2.3 Diagnostics | [x] | Workspace / notebook doctor in System → Diagnostics |
+| **U2.2 Sample notebook** | [ ] | Fixture under `samples/` (public-domain or synthetic handwriting, or text-backed pages with placeholders); one-click **Open sample** via existing init/import into `TRANSCRIBE_PROJECTS_DIR`; offline Analyse Quick without LLM; optional OCR skip if pre-seeded text |
+| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID, Ollama + OCR-friendly vision model; surface first-run bites from [known_limitations.md](known_limitations.md) (encrypted PDF, large budgets, cleanup latency, thinking vision tags) |
+
+**U2 exit (all must be true):**
+
+1. Sample path smoke: import → (optional OCR) → Analyse Quick → Export without live LLM for deterministic modules.
+2. README / user guide lead a first-time user through Docker install without reading contracts.
+3. Empty Home stays Create + Import (no resurrected setup wizard).
+4. Diagnostics remain the doctor surface (workspace always; notebook when selected).
+
+**Risks / anti-patterns**
+
+- Reintroducing a TranscriptX-style guided wizard that Home deliberately removed.
+- Sample notebook as a second on-disk project format (must reuse init/import).
+- Writing U2 docs only in deep runtime notes — first-run path must be linked from README empty-state / Start here.
+- Blocking U2 on I6 or on stranger testing.
+
+**Key files:** `ui/home.py`, `ui/diagnostics.py`, `samples/` (U2.2), README, `docs/runtime/installation.md`, `docs/runtime/docker.md`, `docs/user_guide.md`.
+
+### Track B — I0–I6 (infra; required for 0.9.0)
+
+Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Does **not** schedule autobiography or write U2 content (may host docs).
+
+| Track | Status | Intent |
+|-------|--------|--------|
+| **I0** Developer lanes & inventory | [x] | `Makefile` + `tests/README.md` lane vocabulary; marker policy; light docs/script inventory |
+| **I1** PR CI honesty gate | [x] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
+| **I2** Release hygiene + governance | [x] | `scripts/release/*`, secrets/denylist, `release_governance.md`, dependency audit log |
+| **I3** Quality gates | [x] | Coverage fail-under, pre-commit, partial CI `release-checks` |
+| **I4** Hosted docs | [x] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
+| **I5** Public landing | [x] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
+| **I6** Sustaining lanes | [ ] | See below |
+
+Suggested cut order (historical): **I0+I1** (0.7.0) → **I2+I3** (0.8.0) → **I4** → **I5** (0.8.8) → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
+
+#### I6 — Sustaining lanes — [ ] planned (last infra gate)
+
+| Deliverable | Intent | Notes |
+|-------------|--------|-------|
+| `nightly.yml` (or equivalent) | Scheduled heavier offline lane | Acceptance / marked heavy suites **without** live Ollama |
+| Docker in `release-checks` | Fresh `docker compose build` + `make docker-smoke` | Optional image pip check when the runner has Docker |
+| Issue templates | Bug + feature + `config.yml` | Community surface for a public cut |
+| Optional install verification matrix | Cells for release evidence | [runtime](runtime/installation.md) / release governance |
+| Optional complexity / perf smoke | Only if useful | Not a cut blocker |
+
+**I6 exit:** Nightly green on schedule (or documented equivalent); release-checks cover Docker when available; issues use templates.
+
+**Infra exit gate (whole wave):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
+
+**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**, **I5 Pages landing**.
+
+### Track C — Notebook freeze checks (docs + rules)
+
+**Foundation readiness checklist** for the 1.0 freeze. Lean 24 Sep 2026: rows that only serve a context corpus are **not** 1.0 gates. Rows that serve the notebook product still belong.
+
+No runtime context schema and no `data/context/` tree in this repo. The checklist below is historical intent where it mentions autobiography; do not treat it as permission to start the parked programme:
+
+| # | Checklist item | Intent | 1.0 gate? |
+|-----|----------------|--------|-----------|
+| 1 | **Notebook core freeze** | `transcribe.project` v1, `page-result` v1, `AnalysisDocument` v1 remain loadable; After 1.0 is **additive-only**; do not generalize `SourceDocument` | Yes |
+| 2 | **Human metadata vocabulary** | ClaimStatus documented as a map onto existing `date_approved` / detection `review_status` / `edited_text` ([TERMS.md](TERMS.md)). Runtime ClaimStatus schema waits for a future product | Docs only |
+| 3 | **Rebuildability proven** | Archive FTS delete-and-rebuild; backup excludes `data/cache/`; corpus + hardening acceptance suites green on CI (I1/I6) | Yes |
+| 4 | **Extensibility noted** | Future lock order **corpus → context → notebook**; context trees must be optional (absence = valid 1.0 workspace). See [ARCHITECTURE.md](ARCHITECTURE.md) | Docs only (parked programme) |
+| 5 | **Longevity minimum for testers** | Pre-upgrade backup + restore verify documented in first-run / [backup_and_restore.md](backup_and_restore.md); refuse/recover copy for schema bumps. Full “archive readable without Transcribe” stays candidate | Thin yes |
+| 6 | **Known-limitations honesty** | First-run bites, remote Ollama, unapproved dates on timeline, Analyse optional extras — visible to unfamiliar users | Yes |
+| 7 | **Explicit non-goals** | No WhatsApp/Telegram/photo-context corpus; no Person store; no Slices; no ReconstructionBundle; no page time-of-day field; no `AnalysisDocument` v1 bump | Yes |
+
+Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
+
+### 0.9.0 cut
+
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**. Remaining product: **U2.2** + **U2.4**.
+
+### 1.0 freeze — definition of done
+
+**1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise.
+
+| Gate | Evidence |
+|------|----------|
+| Product promise | Import → OCR → Review → Analyse (optional) → Export → Backup works via documented Docker path |
+| U2 acceptance | Sample + first-run docs closed |
+| Infra | I0–I6 exit gate green; **0.9.0** tagged |
+| Foundation | Track C rows marked Yes signed off in release notes / governance |
+| Contracts | Core schemas remain loadable; no context corpus on disk |
+| Honesty | [known_limitations.md](known_limitations.md) covers first-run bites; miss list = Failed OCR; VL OCR ≠ text LLM |
+| Scope | PRODUCT / ROADMAP still page-first; autobiography still on file, not scheduled |
+
+Autobiography does **not** start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
 
 ---
 
 ## Now — Usability wave — [~] active
 
 Priority after shipping the core module set. **Do not** schedule deferred-reinterpretation ports while this focus is open. Full track plan: [usability_wave_plan.md](usability_wave_plan.md). Detection Prompt Hub / Detect UI is a **shipped parallel track** ([detection_wave2_plan.md](archive/plans/detection_wave2_plan.md); not this wave’s definition of done — avoid calling Detection the product “Wave 2” in usability docs).
+
+**Wave summary**
+
+| Track | Status | Outcome |
+|-------|--------|---------|
+| **U0** Trust foundation | [x] | Preset identity, plan-hash bind, content revision, shared health, export provenance |
+| **U1** Analyse product UX | [x] | Product views, status strip, OCR Advanced |
+| **U2** First-run & operability | [~] | Home + Diagnostics done; sample + first-run docs open — **required for 0.9.0** |
+| **U3** Daily workbench | [x] | Review queues, Reading, Search/Library polish, model copy |
+| **U4** Corpus UX | [x] gate green | Bulk import / inbox supported; Inbox polish may continue |
 
 ### U0–U1 — Product hardening (embedded) — [x] done
 
@@ -95,11 +285,13 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 **Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
-### U2 — First-run & operability — [ ] planned (not started)
+### U2 — First-run & operability — [~] in progress
 
 | Track | Status | Intent |
 |-------|--------|--------|
-| **U2 First-run & operability** | [ ] | Setup checklist, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
+| **U2 First-run & operability** | [~] | Setup path, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
+
+Detail and acceptance: [Path to 0.9.0 — Track A](#track-a--u2-product-required-for-090) · [usability_wave_plan.md](usability_wave_plan.md) §6. Do not treat U2 as “not started” — Home and Diagnostics already ship.
 
 ### U3 — Daily workbench — [x] done
 
@@ -113,11 +305,150 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 ### U4 — Corpus UX — [x] gate green (Inbox polish may continue)
 
-Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and **Next — Notebook corpus**. Remaining Inbox polish (e.g. richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue without reopening the gate.
+Bulk inbox / import recovery is **supported**. The [corpus-integrity acceptance gate](contracts/corpus-integrity.md#acceptance-gate) is green. See usability-wave **U4** and [Shipped — Notebook corpus](#shipped--notebook-corpus--bulk-import--x). Remaining Inbox polish (e.g. richer needs-review taxonomy / `TRANSCRIBE_INBOX_DIR` scan) may continue without reopening the gate.
 
-Near-future deepen-in-place (planned, Reader-facing): **Ignore pages** — let users mark uninteresting pages as ignored so they are omitted from Reader by default. Make this a toggle with configurable default settings (workspace/user), plus an explicit “show ignored” override in Reader UI. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages** (default on) omits `ignored` pages from reading formats (Markdown/HTML/PDF/EPUB/text); JSON export keeps the full notebook. **Future:** include/exclude export pages by tag (AND filter, same semantics as Reading/Library).
+---
 
-**Page scan fullscreen (Reader / Review):** Today uses Streamlit’s built-in `st.image` hover toolbar (**View fullscreen**). **Candidate — click image → black lightbox:** Streamlit has no API for click-to-fullscreen or a black backdrop ([streamlit#8031](https://github.com/streamlit/streamlit/issues/8031)). Revisit when that lands; until then, optional custom JS below (parent-frame overlay, same pattern as Review hotkeys).
+## Next — 0.9 Infrastructure wave — [~] (I6 open; parallel with U2)
+
+Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate. **I0–I5** are done; remaining work is **I6**.
+
+---
+
+## Next — Release / onboarding / operability — [~] (via U2)
+
+Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut**:
+
+- **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
+- **Remaining:** first-run install docs path (U2.4), sample notebook (U2.2)
+
+Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is on the 0.9 path foundation checklist above. Full “archive readable without Transcribe” stays a lifecycle candidate.
+
+---
+
+## Shipped programmes
+
+Capability already on `main`. Kept here so “Next” is not polluted with done work. Do not reopen as new waves.
+
+### Shipped — Notebook corpus / bulk import — [x]
+
+**Bulk-import generation** is **runtime-normative**: corpus index, ImportPlan/ImportRun, duplicate policy, orchestrator, doctor, CLI, and Inbox UI. Runtime stays compatible with `transcribe.project` v1 notebooks that lack corpus registration. Acceptance suite: [tests/acceptance/corpus/](../tests/acceptance/corpus/).
+
+| Gate | Authority |
+|------|-----------|
+| Corpus identity, index, locks | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
+| Managed originals / duplicates | [contracts/source-asset.md](contracts/source-asset.md) |
+| ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
+| Doctor + executable acceptance suite | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+
+**Shipped:** corpus index registration + discovery, ImportPlan/ImportRun orchestrator with crash hooks, `skip_existing_v1` / `create_duplicate_v1`, folder adapters, CLI `bulk-import` / `bulk-run` / `corpus-doctor`, **Workflow → Import → Batch** (legacy Inbox alias), **Workflow → Transcribe → Batch** (unified Import/Transcribe target switcher + batch OCR), live progress for import / batch OCR / transcribe jobs, corpus doctor ImportRun ID checks, and the synthetic multi-notebook acceptance suite (crash-injection, idempotency, duplicate policy, index rebuild, deep doctor, fixture coverage).
+
+**Related product outcome:** import recovery / inbox as a daily workflow. Usability-wave **U4** gate mechanics are done; richer outcome taxonomy / inbox-dir scan remain optional polish.
+
+### Shipped — OCR lifecycle package — [x]
+
+Ambitious OCR features on the durable attempt model: multipass multi-model runs, compare/prefer/promote, composite candidates, preference stats, fine-tune export. Contracts: [ocr-multipass](contracts/ocr-multipass.md), [ocr-preference](contracts/ocr-preference.md), [finetune-export](contracts/finetune-export.md), extended [page-result](contracts/page-result.md). Outline for external training: [finetune_export.md](finetune_export.md). Shipped via [PR #15](https://github.com/glen-w/transcribe/pull/15).
+
+| Wave | Status | Outcome |
+|------|--------|---------|
+| **W0** | [x] | Prefer/promote APIs, `activate` flag, prefer modes, settings |
+| **W1** | [x] | MultiPass orchestrator + CLI |
+| **W2** | [x] | Rank + composite (text model) |
+| **W3** | [x] | Compare/Prefer Review GUI + single-page re-run |
+| **W4** | [x] | Preference ledger + pre-run hints |
+| **W5** | [x] | Fine-tune export + docs |
+| **Batch multipass** | [x] | Compare models over OcrBatchRun (UI + `bulk-run` multi `--model`) |
+| **OCR fail-fast circuits** | [x] | Timeout circuit (3) + fatal model-load circuit (1) per frozen vision plan; multipass continues with remaining models |
+
+### Shipped — Bulk run analysis (GUI) — [x]
+
+Multi-notebook **Analyse → Batch**: same Target / selection modes as Transcribe Batch (`pending` | `import_run` | `pick`), one frozen Analyse plan applied sequentially per notebook. Orchestration only — not cross-notebook synthesis.
+
+Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.md). Contract: [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md). Distinct from ROADMAP “Corpus-level Analyse” under later candidates.
+
+| Slice | Status | Outcome |
+|-------|--------|---------|
+| **A0** Plan + pointers | [x] | Delivery plan (selection, dual-bar progress, test matrix, docs checklist) |
+| **A1** Persistence + coordinator | [x] | `AnalysisBatchRun` + sequential coordinator + offline unit/selection/progress-mapper tests |
+| **A2** GUI Target + live progress | [x] | Analyse This notebook \| Batch; same three sources; dual progress bars + stop + post-run summary |
+| **A3** Handoffs + CLI + docs | [x] | CLI `bulk-analyse`; public surfaces / user guide / limitations |
+
+### Shipped — Detection + Prompt Hub — [x]
+
+Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical `first_person` / `swear_words`, `names` (people from NER) + declarative custom detectors; View → Detect; findings under `detection/`. Settings → Prompts hub for OCR, cleanup, and detection prompts. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts.
+
+### Shipped — Preprocessing (visual declutter lane) — [x] partial
+
+Two separate lanes. Do not conflate human-facing scan cleanup with OCR input transforms.
+
+| Lane | Audience | Default | Intent |
+|------|----------|---------|--------|
+| **1. Visual declutter** | Human (reading / review of scans) | **On** for imports; global off-switch in settings | Clean up scanned page images for people. **Shipped:** `remove_scan_borders` + `remove_uniform_overscan` + `remove_corner_wedges` (Pillow, deterministic; grey/light-grey scanner beds, stark-white gutters, residual rounded-corner bed wedges). Applies at **import** and via explicit **Re-apply visual declutter** (Settings → Configuration). Changing the setting alone does not rewrite notebooks. Render provenance records state, geometry, and declutter identity. |
+| **2. OCR optimisation** | Vision model input | **Off** (`none`); opt-in | Transforms meant to help OCR. Shipped today: optional Pillow **`gentle_contrast`**. Further OCR preprocess profiles are **deferred**. |
+
+**Rules of thumb**
+
+- Visual declutter defaults help the common “dump of scans” path; power users can disable it workspace-wide (`ingest.visual_declutter_enabled`).
+- OCR preprocess stays conservative and off-by-default so fingerprints / skip-resume stay predictable; expanding profiles is a deliberate product choice, not creep from declutter work.
+- Declutter identity (`enabled` + `DECLUTTER_VERSION` + ordered ops + frozen detection params) is frozen into ingest journal / render provenance; crash recovery never pairs mismatched pixels and metadata. OCR invalidation follows the final active render SHA.
+- Explicit declutter re-apply is shipped; OCR-optimisation reprocess remains opt-in / future. Defaults above are unchanged.
+
+Further declutter ops stay under [Near-term candidates](#near-term-candidates--not-on-the-090-path).
+
+### Shipped — Export / backup / tagging (highlights)
+
+| Capability | Notes |
+|------------|-------|
+| **Export readability** | EPUB/PDF/HTML, 25 curated body fonts, export profiles, multi-notebook anthology (provenance via U0 #13), **exclude ignored pages** toggle. Candidate: user-uploaded custom fonts; future: include/exclude by tag |
+| **Workspace backup / restore** | Full-workspace ZIP (`transcribe.workspace-backup` v1): create/verify/restore via CLI + Settings → Configuration → Backup; replace-only restore with automatic safety ZIP; corpus-doctor after restore ([workspace-backup.md](contracts/workspace-backup.md)) |
+| **Tag catalogue** | Labels, colours, rename/merge; viewer click-to-filter; detection auto-tag ([tag-catalog.md](contracts/tag-catalog.md)) |
+
+---
+
+## Near-term candidates — not on the 0.9.0 path
+
+Uncommitted deepen-in-place. May land before or after 1.0, but **must not** delay U2/I6.
+
+### Preprocessing expansion — [?]
+
+**Later — visual declutter expansion (Pillow-only, uncommitted)**
+
+Stay outside the page: high-confidence, edge-anchored artefacts only — never alter pixels inside the detected page area. That keeps declutter distinct from document restoration (no bleed-through, whitening, stains, ruled lines, hole punching, creases, page-wide shadow fix, or handwritten-margin cleanup).
+
+Suggested sequence after scanner-bed borders + stark-white overscan + corner wedges: **binding gutter** → **edge shadows**. Other safe candidates when detection is conservative: scanner lid/background slivers (non-white/non-grey uniform edge bands), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
+
+### Detection fine-tune export — [?]
+
+Extend the shipped OCR **fine-tune export** pattern ([finetune-export](contracts/finetune-export.md), [finetune_export.md](finetune_export.md)) to **prompt-backed Detection**: export page images + effective text with **approved / rejected** finding labels as a local dataset for **external** detector fine-tuning (Transcribe does not train in-app).
+
+| Outcome | Intent |
+|---------|--------|
+| **Review-labelled export** | Turn user review of detection suggestions — e.g. `todo_lists`, `lists`, `poetry`, custom detectors — into positive/negative training pairs. Approved findings = positive examples; rejected = negatives or hard negatives. Unreviewed findings excluded by default. |
+| **Finding-aware samples** | Each JSONL row ties image + text window to span boundaries, `finding_type`, detector + prompt provenance, and `review_status` ([detection-finding](contracts/detection-finding.md)). Reuse existing carry-forward semantics so re-runs do not orphan labels. |
+| **Per-detector datasets** | Filter by `detector_id` / `finding_type`; optional include neighbouring page context for cross-page spans. Same privacy model as OCR export — user copies the folder; no network upload. |
+
+**Rules of thumb:** Detection export is a deepen-in-place on the evaluation loop, not a new detection runtime. Ship after detection review UX is stable enough to accumulate trustworthy labels. Not on the **0.9.0** path.
+
+### Corpus & product lifecycle — remaining rows — [?]
+
+Primary direction for living with many notebooks. **U3** pulled Review UX, reading mode, search deepening, organisation polish, and model/runtime management. **U4** covers import recovery / inbox (gate green). Remaining rows stay uncommitted candidates.
+
+| Outcome | Intent | Wave / status |
+|---------|--------|---------------|
+| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity filters → After 1.0 **1.1/1.3**; saved searches still candidate |
+| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped; collections/archive-state candidate |
+| **Page reordering & date repair** | Drag/drop thumbnail grid to reorder after scan upload errors; “move suspiciously dated page to end of confirmed date cluster”. Plan: [page reorder plan](../../.cursor/plans/page_reorder_plan_6d561135.plan.md) (may be local-only) | candidate |
+| **Import recovery / inbox** | Continuations of bulk import as a daily workflow | **U4** (gate green; polish open) |
+| **Reading mode** | Clean chronological in-app reading | **U3** (done) |
+| **Backup / restore / portability** | Full-workspace ZIP | **[x] done** |
+| **Data longevity / upgrades** | Migration UX, pre-upgrade backup, refusal/recovery, “archive remains readable without Transcribe” | **0.9 path (thin):** pre-upgrade backup + restore verify. Full offline-archive story remains candidate |
+| **Model & runtime management** | Product abstraction over installed OCR/text models | **U3** (done) |
+| **Quality / evaluation loop** | Sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures | candidate |
+| **Quality ratings (thumbs)** | Collect-only local ratings; shape from TranscriptX LLM feedback v1 | candidate |
+| **Ignore pages (Reader)** | Mark uninteresting pages ignored; omit from Reader by default; workspace/user default + “show ignored” override. **Shipped (export slice):** Workflow → Export → **Exclude ignored pages**. **Future:** include/exclude export pages by tag | candidate (Reader) / export done |
+| **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module | candidate |
+| **People & places / Patterns** | Places map shipped; Patterns tab only if usage justifies. First-class Person identity is After 1.0 **1.3** | Places shipped; Patterns optional |
+| **Page scan fullscreen** | Today: Streamlit `st.image` hover toolbar (**View fullscreen**). **Candidate — click image → black lightbox:** Streamlit has no API for click-to-fullscreen or a black backdrop ([streamlit#8031](https://github.com/streamlit/streamlit/issues/8031)). Revisit when that lands; until then, optional custom JS below (parent-frame overlay, same pattern as Review hotkeys). | candidate |
 
 <details>
 <summary>Custom JS lightbox (safekeeping — not wired in app)</summary>
@@ -183,207 +514,89 @@ Near-future deepen-in-place (planned, Reader-facing): **Ignore pages** — let u
 
 ---
 
-## Next — Notebook corpus / bulk import — [x] done (shipped slice)
+## Analysis surface
 
-**Bulk-import generation** is **runtime-normative**: corpus index, ImportPlan/ImportRun, duplicate policy, orchestrator, doctor, CLI, and Inbox UI. Runtime stays compatible with `transcribe.project` v1 notebooks that lack corpus registration. Acceptance suite: [tests/acceptance/corpus/](../tests/acceptance/corpus/).
+The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability.
 
-| Gate | Authority |
-|------|-----------|
-| Corpus identity, index, locks | [contracts/notebook-corpus.md](contracts/notebook-corpus.md) |
-| Managed originals / duplicates | [contracts/source-asset.md](contracts/source-asset.md) |
-| ImportRun / plan / resume | [contracts/import-run.md](contracts/import-run.md) |
-| Doctor + executable acceptance suite | [contracts/corpus-integrity.md](contracts/corpus-integrity.md) |
+Architecture: verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Pins: [dev/analysis_port_pins.md](dev/analysis_port_pins.md).
 
-**Shipped:** corpus index registration + discovery, ImportPlan/ImportRun orchestrator with crash hooks, `skip_existing_v1` / `create_duplicate_v1`, folder adapters, CLI `bulk-import` / `bulk-run` / `corpus-doctor`, **Workflow → Import → Batch** (legacy Inbox alias), **Workflow → Transcribe → Batch** (unified Import/Transcribe target switcher + batch OCR), live progress for import / batch OCR / transcribe jobs, corpus doctor ImportRun ID checks, and the synthetic multi-notebook acceptance suite (crash-injection, idempotency, duplicate policy, index rebuild, deep doctor, fixture coverage).
+### Shipped capabilities
 
-**Related product outcome:** import recovery / inbox as a daily workflow. Usability-wave **U4** gate mechanics are done; richer outcome taxonomy / inbox-dir scan remain optional polish. Remaining lifecycle candidates (quality thumbs; data longevity / upgrades beyond shipped backup) stay in the corpus & product lifecycle section below.
+| Capability | Shipped |
+|------------|---------|
+| **OCR lifecycle** | multipass compare, prefer/promote, composite, preference hints, fine-tune export; timeout + model-load fail-fast circuits |
+| **Notebook metrics** | stats, lexical diversity, understandability |
+| **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
+| **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
+| **Themes** | wordclouds, topic modeling, BERTopic, semantic similarity, topic shift |
+| **Mood & salience** | emotion family, affect tension, moments |
+| **Synthesis** | highlights, summary, insights |
+| **Optional local LLM** | summary, action items, Ask notebook, narrative summary |
 
----
+Exact module IDs, dependency history, slices 1.1–1e.2, TX pins, and implementation gates: [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md). Disposition and notebook reinterpret notes: [analysis_module_porting.md](dev/analysis_module_porting.md).
 
-## Next — Preprocessing system — [?] candidate / partial
+LLM modules are optional at runtime (local text Ollama); deterministic `highlights` → `summary` → `insights` work offline.
 
-Two separate lanes. Do not conflate human-facing scan cleanup with OCR input transforms.
+### Deferred analysis candidates — not scheduled — [−]
 
-| Lane | Audience | Default | Intent |
-|------|----------|---------|--------|
-| **1. Visual declutter** | Human (reading / review of scans) | **On** for imports; global off-switch in settings | Clean up scanned page images for people. **Shipped:** `remove_scan_borders` + `remove_uniform_overscan` + `remove_corner_wedges` (Pillow, deterministic; grey/light-grey scanner beds, stark-white gutters, residual rounded-corner bed wedges). Applies at **import** and via explicit **Re-apply visual declutter** (Settings → Configuration). Changing the setting alone does not rewrite notebooks. Render provenance records state, geometry, and declutter identity. |
-| **2. OCR optimisation** | Vision model input | **Off** (`none`); opt-in | Transforms meant to help OCR. Shipped today: optional Pillow **`gentle_contrast`**. Further OCR preprocess profiles are **deferred**. |
+**Decision (2026-08-09):** Reinterpretation module work is **deferred**. Product focus is robustness and UX for the shipped core set (see **Now**). Need for these notebook reinterpretation outputs is unproven; do not schedule them while the usability wave’s open track (**U2**) is the priority — revisit only when product reopens the disposition map.
 
-**Rules of thumb**
+**`ocr_quality` deferred specifically:** a dedicated OCR-quality analysis module is not scheduled. Prefer improving transcribed text via the existing **second-pass LLM OCR cleanup / verification** path (and human review edits). Revisit only if cleanup + review leave a clear, user-facing quality gap that analysis (not OCR) should own.
 
-- Visual declutter defaults help the common “dump of scans” path; power users can disable it workspace-wide (`ingest.visual_declutter_enabled`).
-- OCR preprocess stays conservative and off-by-default so fingerprints / skip-resume stay predictable; expanding profiles is a deliberate product choice, not creep from declutter work.
-- Declutter identity (`enabled` + `DECLUTTER_VERSION` + ordered ops + frozen detection params) is frozen into ingest journal / render provenance; crash recovery never pairs mismatched pixels and metadata. OCR invalidation follows the final active render SHA.
-- Explicit declutter re-apply is shipped; OCR-optimisation reprocess remains opt-in / future. Defaults above are unchanged.
+| Module / target | Disposition | Notebook reinterpretation |
+|-----------------|-------------|---------------------------|
+| `politeness` | Reinterpret | → tone / formality |
+| `echoes` | Reinterpret | → repeated ideas/phrases across pages or notebooks |
+| `temporal_dynamics` | Reinterpret | → change through notebook chronology |
+| `momentum` | Reinterpret | → density / idea-flow (not conversational flow) |
+| `transcript_output` | Reinterpret | → clean notebook text / export |
+| `simplified_transcript` | Reinterpret | → simplified / cleaned notebook text |
+| `chart_descriptions` | Reinterpret | LLM descriptions once notebook charts exist |
+| **`ocr_quality`** | **New (special case)** | Notebook analogue of TX `transcript_quality`, **not a port**. Deferred — not a substitute for OCR cleanup/verification. |
 
-**Later — visual declutter expansion (Pillow-only, uncommitted)**
+### Future analysis candidates — uncommitted
 
-Stay outside the page: high-confidence, edge-anchored artefacts only — never alter pixels inside the detected page area. That keeps declutter distinct from document restoration (no bleed-through, whitening, stains, ruled lines, hole punching, creases, page-wide shadow fix, or handwritten-margin cleanup).
+Worth considering only after hardening and any deliberate reopen of deferred rows. Several need a content-generic redesign or a new module identity. These are **not** planned work.
 
-Suggested sequence after scanner-bed borders + stark-white overscan + corner wedges: **binding gutter** → **edge shadows**. Other safe candidates when detection is conservative: scanner lid/background slivers (non-white/non-grey uniform edge bands), punch-hole *margins* (trim blank outer strip only), scanner calibration stripes, and combined page-edge-shadow + exposed-bed as one page-boundary problem rather than stacked aggressive ops.
+| Module / target | Notebook angle |
+|-----------------|----------------|
+| `tics` | Recurring phrases / habitual wording |
+| `insight_eligibility` | Keep if made content-generic |
+| `qa_analysis` | Self-posed questions and subsequent answers |
+| `acts` | Note-type classification (observation / question / task / reflection) |
+| `conversation_loops` | Recurring unresolved themes — implement **separately**; do not pretend it is the same module |
 
----
+### Explicit non-goals / do-not-port
 
-## Next — OCR lifecycle package — [x] done (shipped)
+Intrinsically transcript-, speaker-, or audio-specific. Documented so they are not accidentally scheduled. Exhaustive module list: [analysis_module_porting.md](dev/analysis_module_porting.md).
 
-Ambitious OCR features on the durable attempt model: multipass multi-model runs, compare/prefer/promote, composite candidates, preference stats, fine-tune export. Contracts: [ocr-multipass](contracts/ocr-multipass.md), [ocr-preference](contracts/ocr-preference.md), [finetune-export](contracts/finetune-export.md), extended [page-result](contracts/page-result.md). Outline for external training: [finetune_export.md](finetune_export.md). Shipped via [PR #15](https://github.com/glen-w/transcribe/pull/15).
+| Family | Examples |
+|--------|----------|
+| **Speaker interaction** | `interactions`, `contagion` |
+| **Audio / timing** | `pauses`, `voice_*` family, `prosody_dashboard` |
+| **ASR-specific** | `transcript_quality` (notebook `ocr_quality` remains deferred above) |
+| **Speaker-conditioned synthesis** | `llm_speaker_summary` |
 
-| Wave | Status | Outcome |
-|------|--------|---------|
-| **W0** | [x] | Prefer/promote APIs, `activate` flag, prefer modes, settings |
-| **W1** | [x] | MultiPass orchestrator + CLI |
-| **W2** | [x] | Rank + composite (text model) |
-| **W3** | [x] | Compare/Prefer Review GUI + single-page re-run |
-| **W4** | [x] | Preference ledger + pre-run hints |
-| **W5** | [x] | Fine-tune export + docs |
-| **Batch multipass** | [x] | Compare models over OcrBatchRun (UI + `bulk-run` multi `--model`) |
-| **OCR fail-fast circuits** | [x] | Timeout circuit (3) + fatal model-load circuit (1) per frozen vision plan; multipass continues with remaining models |
+### Product scope beyond analysis modules
 
----
+Still the more central product surface than speculative analysis work:
 
-## Next — Detection fine-tune export — [?] candidate
-
-Extend the shipped OCR **fine-tune export** pattern ([finetune-export](contracts/finetune-export.md), [finetune_export.md](finetune_export.md)) to **prompt-backed Detection**: export page images + effective text with **approved / rejected** finding labels as a local dataset for **external** detector fine-tuning (Transcribe does not train in-app).
-
-| Outcome | Intent |
-|---------|--------|
-| **Review-labelled export** | Turn user review of detection suggestions — e.g. `todo_lists`, `lists`, `poetry`, custom detectors — into positive/negative training pairs. Approved findings = positive examples; rejected = negatives or hard negatives. Unreviewed findings excluded by default. |
-| **Finding-aware samples** | Each JSONL row ties image + text window to span boundaries, `finding_type`, detector + prompt provenance, and `review_status` ([detection-finding](contracts/detection-finding.md)). Reuse existing carry-forward semantics so re-runs do not orphan labels. |
-| **Per-detector datasets** | Filter by `detector_id` / `finding_type`; optional include neighbouring page context for cross-page spans. Same privacy model as OCR export — user copies the folder; no network upload. |
-
-**Rules of thumb:** Detection export is a deepen-in-place on the evaluation loop, not a new detection runtime. Ship after detection review UX is stable enough to accumulate trustworthy labels. Not on the **0.9.0** path.
-
----
-
-## Next — Corpus & product lifecycle — [?] candidates (partially pulled)
-
-Primary post-hardening direction for living with many notebooks. **Usability-wave U3** pulls Review UX, reading mode, search deepening, organisation polish, and model/runtime management as committed work on today’s project model (no bulk corpus activation required). **U4** covers import recovery / inbox (gate green; Inbox polish may continue). Remaining rows stay uncommitted candidates.
-
-| Outcome | Intent | Wave |
-|---------|--------|------|
-| **Search (first-class)** | Full-text across notebooks; date / tag / entity filters; jump-to-page; eventually saved searches. With dozens of notebooks this may matter more than Analyse. | **U3** date/tag/jump done; Moments/chart jump → Reading done; entity filters → After 1.0 **1.1/1.3**; saved searches still candidate |
-| **Notebook organisation** | Titles, descriptions, tags/collections, archive state, sort order, cover/thumbnail, lightweight notebook metadata — how users live with a multi-notebook corpus. Library cover-grid paging (`ui.archive_notebooks_initial`) + activity-bin filter + page delete landed. Workspace tag catalogue (labels, colours, rename/merge) + viewer click-to-filter + detection auto-tag: [tag-catalog.md](contracts/tag-catalog.md). | **U3** tag chips + sort polish done; catalogue/filter/auto-tag shipped as deepen-in-place; collections/archive-state candidate |
-| **Page reordering & date repair** | Add a drag/drop thumbnail grid to reorder notebook pages after scan upload order errors, plus a “move suspiciously dated page to end of confirmed date cluster” action that updates page-number navigation. See plan: [page reorder plan](../../.cursor/plans/page_reorder_plan_6d561135.plan.md). | candidate |
-| **Re-OCR / reprocessing** | **Moved to OCR lifecycle package above** (multipass, compare, prefer/promote, composite, fine-tune export). | **OCR lifecycle** (done) |
-| **Import recovery / inbox** | Continuations of bulk import as a daily workflow (see above), not only the ImportRun machine. | **U4** (gate green; polish open) |
-| **Reading mode** | Clean chronological in-app reading: page image/text pairing, dates, navigation, optional distraction-free layout — distinct from Review, Analyse, and export. | **U3** (done) |
-| **Backup / restore / portability** | Full-workspace ZIP (`transcribe.workspace-backup` v1): create/verify/restore via CLI + Settings → Configuration → Backup; replace-only restore with automatic safety ZIP; corpus-doctor after restore. Contract: [workspace-backup.md](contracts/workspace-backup.md). | **[x] done** |
-| **Data longevity / upgrades** | Notebooks survive Transcribe upgrades: migration UX, pre-upgrade backup, refusal/recovery, and “archive remains readable without Transcribe” where feasible — broader than schema contracts alone. | **0.9 path (thin):** pre-upgrade backup + restore verify in first-run/backup docs — [Path to 0.9.0](#path-to-090--09-1--10) foundation checklist. Full “archive readable without Transcribe” remains candidate |
-| **Model & runtime management** | Comprehensible UX over installed OCR/text models: availability, size, last-used, refresh, health, recommendations. Ollama machinery exists; users need a product abstraction. Model-information expander follows live Transcribe picker selection. | **U3** (done) |
-| **Quality / evaluation loop** | Alongside thumbs: sampled OCR accuracy review, cleanup accept/reject, analysis usefulness ratings, local regression fixtures — local evidence that changes improve Transcribe, not analytics telemetry. | candidate |
-| **Detection fine-tune export** | Export approved/rejected detection findings (e.g. to-do list suggestions) as labelled datasets for external detector fine-tuning — same “export only, train elsewhere” model as OCR fine-tune export. | candidate — see **Detection fine-tune export** |
-| **Prompt management UI** | **Shipped (Detection wave 2):** Settings → Prompts hub for OCR, cleanup, and detection prompts (browse / override / custom / dry-run). Analysis inline prompts remain module-local. | **shipped** (parallel) |
-| **Prompt-backed Detection** | **Shipped (Detection wave 2 +):** Built-ins `poetry`, `todo_lists`, `lists`, `quotations`, `beer_labels`, lexical `first_person` / `swear_words`, `names` (people from NER) + declarative custom detectors; View → Detect; findings under `detection/`. See [detection_wave2_plan.md](archive/plans/detection_wave2_plan.md) + detection contracts. | **shipped** (parallel) |
-| **Quality ratings (thumbs)** | Collect-only local ratings for transcription and analysis outputs; shape/code from TranscriptX LLM feedback v1 — not a substitute for deferred `ocr_quality` analysis. | candidate |
-| **Review UX** | Faster correction and approval of OCR text and dates. | **U3** (done); OCR Review workbench deepen-in-place shipped |
-| **Export / readability** | **Shipped** — EPUB/PDF/HTML, typography options (25 curated free/system body fonts), export profiles, multi-notebook anthology (provenance via U0 #13), **exclude ignored pages** toggle. Further reading-mode polish remains a separate candidate above. **Candidate:** user-uploaded custom fonts; **future:** include/exclude by tag. | **shipped** |
-| **Analyse information architecture** | Validate Overview / Themes / Mood / Summaries / Ask against real use. People/Moments/Ask are in-page sections (not extra sidebar items). Corpus/period compare + Moments/chart jump → Reading, and Analyse launcher vs View consume split, landed as deepen-in-place. | **U1** (done) + GUI alignment |
-| **OCR cleanup quality** | Improve second-pass cleanup / verification without a separate analysis module. | candidate |
-| **People & places / Patterns** | People & places map surfaces shipped; Patterns tab only if usage justifies it. First-class Person identity is **After 1.0 / 1.3**, not this lifecycle row. | Places shipped; Patterns optional |
+- OCR pipeline — import, vision OCR, optional second-pass cleanup; multipass / prefer / promote / composite / fine-tune export (**shipped**); detection fine-tune export (**candidate**)
+- Preprocessing — visual declutter vs OCR optimisation — see [Shipped — Preprocessing](#shipped--preprocessing-visual-declutter-lane--x-partial)
+- Notebook corpus — bulk import supported; inbox polish optional
+- Living with notebooks — organisation, search, reading, review (**U3** shipped)
+- Longevity — workspace backup/restore **shipped**; broader archive-without-Transcribe remains candidate
+- Operability — **U2** open; model/runtime management shipped with U3
+- Maintainer infrastructure — I0–I5 shipped; **I6** open → **0.9.0** → **1.0**
+- Autobiography — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file), not this repo’s backlog ([scope lean](#scope-lean--24-sep-2026))
 
 ---
 
-## Next — Release / onboarding / operability — [ ] planned (via U2)
+## Future metadata
 
-Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut** ([Path to 0.9.0](#path-to-090--09-1--10)):
-
-- **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
-- Remaining: first-run install docs path (U2.4), sample notebook (U2.2)
-
-Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is on the 0.9 path foundation checklist below. Full “archive readable without Transcribe” stays a lifecycle candidate.
+- Page **time-of-day** metadata (from diary stamps like `YYMMDD HHMM` / similar): **scheduled 1.1** in the parked autobiography write-up (not 1.0). Storage alongside `ApproximateDate`, UI, archive indexing, and analysis policy. Date auto-extraction currently ignores time. AnalysisDocument unit `date` stays `YYYY-MM-DD` so fingerprints do not break.
 
 ---
-
-## Path to 0.9.0 / 1.0
-
-**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
-
-**Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
-
-```text
-U2 (sample + first-run docs)  ─┐
-                               ├─► 0.9.0 cut ─► 1.0 notebook freeze
-I0–I6 (infra wave)           ─┘
-```
-
-### Track A — U2 (product; required for 0.9.0)
-
-| Item | Status | Work |
-|------|--------|------|
-| U2.1 Home | [x] | Create / Import + Ollama health |
-| U2.3 Diagnostics | [x] | Workspace / notebook doctor in UI |
-| **U2.2 Sample notebook** | [ ] | Fixture under `samples/`; one-click Open sample via existing init/import; offline Analyse Quick without LLM |
-| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, mounts, Ollama, known first-run bites |
-
-**U2 exit:** sample path smoke; README / user_guide first-run without reading contracts. Detail: [usability_wave_plan.md](usability_wave_plan.md) §6.
-
-### Track B — I0–I6 (infra; required for 0.9.0)
-
-Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Does **not** schedule autobiography or write U2 content (may host docs).
-
-| Track | Status | Intent |
-|-------|--------|--------|
-| **I0** Developer lanes & inventory | [x] | `Makefile` + `tests/README.md` lane vocabulary; marker policy; light docs/script inventory |
-| **I1** PR CI honesty gate | [x] | Lint + offline smoke/default suite on Python 3.10–3.12; compose-bind assert |
-| **I2** Release hygiene + governance | [x] | `scripts/release/*`, secrets/denylist, `release_governance.md`, dependency audit log |
-| **I3** Quality gates | [x] | Coverage fail-under, pre-commit, partial CI `release-checks` |
-| **I4** Hosted docs | [x] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
-| **I5** Public landing | [x] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
-| **I6** Sustaining lanes | [ ] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
-
-Suggested cut order: **I0+I1** (0.7.0, landed) → **I2+I3** (0.8.0, landed) → **I4** (Sphinx, landed) → **I5** (Pages landing, landed) → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
-
-**Infra exit gate (summary):** green PR CI on the Python matrix; Makefile/CI/`# pre-release` share lane names; tag authority is `docs/dev/release_governance.md` with script-backed evidence; Sphinx builds in CI and Pages (or documented RTD go-live) can publish the guide; coverage + secrets gates enforced; nightly (or equivalent) runs heavier offline suites without live Ollama.
-
-**Already landed (do not rebuild in I0–I6):** offline default pytest suite, acceptance gates, Markdown docs authority/indexes/archive, Docker Compose loopback bind docs, root `SECURITY.md` / `CONTRIBUTING.md` / `CHANGELOG.md`, agent SOPs, **I4 Sphinx / CI docs job**.
-
-### Track C — Notebook freeze checks (docs + rules)
-
-**Lean 24 Sep 2026:** This track was written so an autobiography extension could bolt on inside Transcribe. That extension is parked. Rows that only serve a context corpus (2 ClaimStatus-for-later, 4 context lock order, 7 “non-goals until autobiography” as a schedule) are **not** 1.0 gates. Rows that serve the notebook product (1 core stays loadable, 3 rebuildability, 5 backup, 6 known limitations) still belong on the path to a freeze.
-
-No runtime context schema and no `data/context/` tree in this repo. The checklist below is historical intent; do not treat it as permission to start the parked programme:
-
-| # | Checklist item | Intent |
-|-----|----------------|--------|
-| 1 | **Notebook core freeze** | `transcribe.project` v1, `page-result` v1, `AnalysisDocument` v1 remain loadable; After 1.0 is **additive-only**; do not generalize `SourceDocument` |
-| 2 | **Human metadata vocabulary** | ClaimStatus documented as a map onto existing `date_approved` / detection `review_status` / `edited_text` ([TERMS.md](TERMS.md) · After 1.0 ClaimStatus table). Runtime ClaimStatus schema waits for After 1.0 contracts |
-| 3 | **Rebuildability proven** | Archive FTS delete-and-rebuild; backup excludes `data/cache/`; corpus + hardening acceptance suites green on CI (I1/I6) |
-| 4 | **Extensibility noted** | Future lock order **corpus → context → notebook**; context trees must be optional (absence = valid 1.0 workspace). See [ARCHITECTURE.md](ARCHITECTURE.md) |
-| 5 | **Longevity minimum for testers** | Pre-upgrade backup + restore verify documented in first-run / [backup_and_restore.md](backup_and_restore.md); refuse/recover copy for schema bumps. Full “archive readable without Transcribe” stays candidate |
-| 6 | **Known-limitations honesty** | First-run bites, remote Ollama, unapproved dates on timeline, Analyse optional extras — visible to unfamiliar testers |
-| 7 | **Explicit non-goals until After 1.0** | No WhatsApp/Telegram/photo-context corpus; no Person store; no Slices; no ReconstructionBundle; no page time-of-day field; no `AnalysisDocument` v1 bump |
-
-Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
-
-### 0.9.0 cut
-
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**.
-
-### 1.0 freeze
-
-**1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
-
----
-
-## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)
-
-Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate.
-
----
-
-## Next — Bulk run analysis (GUI) — [x] done
-
-Multi-notebook **Analyse → Batch**: same Target / selection modes as Transcribe Batch (`pending` | `import_run` | `pick`), one frozen Analyse plan applied sequentially per notebook. Orchestration only — not cross-notebook synthesis.
-
-Delivery plan: [bulk_run_analysis_plan.md](archive/plans/bulk_run_analysis_plan.md). Contract: [contracts/analysis-batch-run.md](contracts/analysis-batch-run.md). Distinct from ROADMAP “Corpus-level Analyse” below.
-| Slice | Status | Outcome |
-|-------|--------|---------|
-| **A0** Plan + pointers | [x] | Delivery plan (selection, dual-bar progress, test matrix, docs checklist) |
-| **A1** Persistence + coordinator | [x] | `AnalysisBatchRun` + sequential coordinator + offline unit/selection/progress-mapper tests |
-| **A2** GUI Target + live progress | [x] | Analyse This notebook \| Batch; same three sources; dual progress bars + stop + post-run summary |
-| **A3** Handoffs + CLI + docs | [x] | CLI `bulk-analyse`; public surfaces / user guide / limitations |
----
-
 ## After 1.0 — Notebook-anchored autobiography workbench — [−] on file
 
 **Status (lean 24 Sep 2026):** **on file for a future separate product.** Not planned, not gated, not Transcribe 1.1–2.0. Do not implement any of it in this repository. Do not delete it. Release numbers below (1.1–2.0) are labels from when this was the next Transcribe programme; they are not this repo’s version ladder. Authority for *that future product’s* sequencing, if it is ever started elsewhere. Does not define shipped schemas.
@@ -545,7 +758,7 @@ Stay on Streamlit `PageSpec`s through 2.0. If density becomes a wall, a narrow H
 
 Not a 1.x track. Do not block **1.0** or **1.1–1.7** on a frontend change. Streamlit remains the supported interactive surface ([public_surfaces.md](public_surfaces.md)).
 
-**Working default through 2.0:** Streamlit `PageSpec`s; stay-don’t-bounce; jump-to-Reading; HTML/JS islands when density or interaction APIs fail (Review hotkeys already; page-scan lightbox is a candidate in **Now**). Core packages still must not import Streamlit. A React / Gradio / native rewrite stays in [Explicitly not to build yet](#explicitly-not-to-build-yet).
+**Working default through 2.0:** Streamlit `PageSpec`s; stay-don’t-bounce; jump-to-Reading; HTML/JS islands when density or interaction APIs fail (Review hotkeys already; page-scan lightbox is a near-term candidate). Core packages still must not import Streamlit. A React / Gradio / native rewrite stays in [Explicitly not to build yet](#explicitly-not-to-build-yet).
 
 **Why this is a decision, not a freeze forever:** the GUI is a large Streamlit product on a clean service boundary (UI ~38k LOC, ~2k `st.` calls; services/CLI already share the kernel; `test_core_no_streamlit` holds). A fully custom native interface is **architecturally feasible** and **not a framework swap**: presentation, navigation state (`st.session_state` / rerun), CSS/DOM overlays, iframe hotkeys, and Altair/`st.map`/wordcloud islands would be reimplemented. Highest Streamlit friction today: **Review**, **Reading / page viewer**, **Library**. There is **no HTTP/IPC API** — UI calls services in-process. TranscriptX is also Streamlit; a Transcribe host change diverges presentation unless both products later share a frontend programme.
 
@@ -577,7 +790,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **UX:** Finish U2 (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. Inbox polish optional. A stranger-testing round is not a release gate.
 
-**Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--09-1--10) signed off.
+**Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--10) signed off.
 
 **Risks:** Starting autobiography before the gate. Do not sneak WhatsApp into 1.0.
 
@@ -802,13 +1015,12 @@ Defaults for implementers; revisit with evidence:
 13. **Strangler vs cutover.** If migrating, phase by user pain (Review → Reading/page viewer → Library → Transcribe/Analyse launchers + progress → analysis consume → Settings last). Keep Streamlit for Settings/Diagnostics until parity. Do not dual-run two full GUIs without freezing Streamlit feature scope. Full parity is multi-year, not a release row.
 14. **Docker `transcribe-web` vs desktop-only.** Streamlit-in-container is the supported web surface. A Qt-only Review tool is a slice, not a replacement, unless a web client exists for Compose.
 15. **Host-agnostic vs Streamlit accident.** Portable: PageSpec IA and gating, `interface-menus`, action IDs, workspace settings, tagging kernel, review alignment / composite / places / analysis display helpers. Not portable: scattered `st.session_state` keys, CSS `:has()` cover overlays, iframe parent-document hotkeys, Altair/`st.map` wiring. A second UI must re-specify navigation state (today: `ui_mode`, `root`, page-viewer overlay, review buffers) — there is no central state object.
-16. **Are Review/Reading JS islands enough through 2.0?** Prefer islands (lightbox, shortcuts, Related evidence density) over a host change until 1.8 evidence. Click-to-fullscreen is already a **Now** candidate (Streamlit has no API; custom JS safekeeping in this file). Reopen 8 + 16 together if islands accumulate into an unofficial SPA.
+16. **Are Review/Reading JS islands enough through 2.0?** Prefer islands (lightbox, shortcuts, Related evidence density) over a host change until 1.8 evidence. Click-to-fullscreen is already a near-term candidate (Streamlit has no API; custom JS safekeeping in this file). Reopen 8 + 16 together if islands accumulate into an unofficial SPA.
 
----
 
 ## Later — Architecture follow-ups from evidence review — [?] candidates
 
-Not on the **0.9.0 / U2** path. Do not schedule these while first-run operability and I5–I6 remain the cut. Evidence, blast radius, and “do not replace JSON-on-disk / add an event bus / split CLI vs UI services” live in [architecture_from_evidence.md](reviews/architecture_from_evidence.md) (2026-09-03).
+Not on the **0.9.0 / U2** path. Do not schedule these while first-run operability and **I6** remain the cut. Evidence, blast radius, and “do not replace JSON-on-disk / add an event bus / split CLI vs UI services” live in [architecture_from_evidence.md](reviews/architecture_from_evidence.md) (2026-09-03).
 
 **Already done from that review (do not re-open as new work):** L1 CLI `transcribe run` exits 1 on `circuit_open` (job record stays `completed`); cancel / “Completed with gaps” chrome; detection `reconcile_interrupted` no-ops while the OCR **or** analysis lock is held; snapshot mappers in `ui/progress_snapshots.py`. Do **not** add a `completed_partial` job status without a schema and test plan — coordinators keep `completed` + `circuit_open`.
 
@@ -846,91 +1058,15 @@ Worth recording without scheduling. Rows that used to point at the autobiography
 
 ---
 
-## Shipped capabilities
+## Decision log (scope & sequencing)
 
-| Capability | Shipped |
-|------------|---------|
-| **OCR lifecycle** | multipass compare, prefer/promote, composite, preference hints, fine-tune export; timeout + model-load fail-fast circuits |
-| **Notebook metrics** | stats, lexical diversity, understandability |
-| **Page ink / blankness** | Pillow coverage %, blankness %, dominant ink hue (Review + Analyse Overview; not a text Analyse module) |
-| **Language** | NER, sentiment, epistemic markers, entity sentiment, keyphrases |
-| **Themes** | wordclouds, topic modeling, BERTopic, semantic similarity, topic shift |
-| **Mood & salience** | emotion family, affect tension, moments |
-| **Synthesis** | highlights, summary, insights |
-| **Optional local LLM** | summary, action items, Ask notebook, narrative summary |
+| When | Decision | Supersedes |
+|------|----------|------------|
+| 2026-08-09 | Defer reinterpretation analysis modules; focus usability on shipped core | Scheduling `politeness` / `echoes` / … as next ports |
+| 2026-08–09 | Usability wave (U0–U4) is the active product focus after core modules | Analysis-wave expansion as default next work |
+| 2026-09 | 0.9 infrastructure wave (I0–I6) runs parallel with U2; both required for 0.9.0 | Serializing product usability behind CI scaffolding |
+| 2026-09-03 | Architecture evidence review: land L1 + lock reconcile; park L2–L4 / P3 as candidates | Opportunistic refactors without evidence |
+| 2026-09-04 | 0.8.8: I5 Pages + Docker-preferred first-run docs framing | Host/Python as the only documented path |
+| 24 Sep 2026 | **Scope lean:** product stops at notebook workbench; autobiography on file for a future separate product | “After 1.0 Transcribe becomes autobiography” as this repo’s ladder |
+| 2026-09+ | Stranger-testing is **not** a release gate | Stranger-testing as I7 / path-to-1.0 step |
 
-Exact module IDs, dependency history, slices 1.1–1e.2, TX pins, and implementation gates: [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md). Disposition and notebook reinterpret notes: [analysis_module_porting.md](dev/analysis_module_porting.md).
-
-LLM modules are optional at runtime (local text Ollama); deterministic `highlights` → `summary` → `insights` work offline.
-
----
-
-## Deferred analysis candidates — not scheduled — [−]
-
-**Decision (2026-08-09):** Reinterpretation module work is **deferred**. Product focus is robustness and UX for the shipped core set (see **Now**). Need for these notebook reinterpretation outputs is unproven; do not schedule them while the usability wave’s open track (**U2**) is the priority — revisit only when product reopens the disposition map.
-
-**`ocr_quality` deferred specifically:** a dedicated OCR-quality analysis module is not scheduled. Prefer improving transcribed text via the existing **second-pass LLM OCR cleanup / verification** path (and human review edits). Revisit only if cleanup + review leave a clear, user-facing quality gap that analysis (not OCR) should own.
-
-| Module / target | Disposition | Notebook reinterpretation |
-|-----------------|-------------|---------------------------|
-| `politeness` | Reinterpret | → tone / formality |
-| `echoes` | Reinterpret | → repeated ideas/phrases across pages or notebooks |
-| `temporal_dynamics` | Reinterpret | → change through notebook chronology |
-| `momentum` | Reinterpret | → density / idea-flow (not conversational flow) |
-| `transcript_output` | Reinterpret | → clean notebook text / export |
-| `simplified_transcript` | Reinterpret | → simplified / cleaned notebook text |
-| `chart_descriptions` | Reinterpret | LLM descriptions once notebook charts exist |
-| **`ocr_quality`** | **New (special case)** | Notebook analogue of TX `transcript_quality`, **not a port**. Deferred — not a substitute for OCR cleanup/verification. |
-
----
-
-## Future analysis candidates — uncommitted
-
-Worth considering only after hardening and any deliberate reopen of deferred rows. Several need a content-generic redesign or a new module identity. These are **not** planned work.
-
-| Module / target | Notebook angle |
-|-----------------|----------------|
-| `tics` | Recurring phrases / habitual wording |
-| `insight_eligibility` | Keep if made content-generic |
-| `qa_analysis` | Self-posed questions and subsequent answers |
-| `acts` | Note-type classification (observation / question / task / reflection) |
-| `conversation_loops` | Recurring unresolved themes — implement **separately**; do not pretend it is the same module |
-
----
-
-## Explicit non-goals / do-not-port
-
-Intrinsically transcript-, speaker-, or audio-specific. Documented so they are not accidentally scheduled. Exhaustive module list: [analysis_module_porting.md](dev/analysis_module_porting.md).
-
-| Family | Examples |
-|--------|----------|
-| **Speaker interaction** | `interactions`, `contagion` |
-| **Audio / timing** | `pauses`, `voice_*` family, `prosody_dashboard` |
-| **ASR-specific** | `transcript_quality` (notebook `ocr_quality` remains deferred above) |
-| **Speaker-conditioned synthesis** | `llm_speaker_summary` |
-
----
-
-## Product scope beyond analysis modules
-
-Still the more central product surface than speculative analysis work. Detail and sequencing for **through 1.0** live in the **corpus / bulk import**, **preprocessing system**, **corpus & product lifecycle**, and **release / onboarding** sections above. The autobiography write-up is [on file](#after-10--notebook-anchored-autobiography-workbench----on-file) for a future separate product ([scope lean](#scope-lean--24-sep-2026)).
-
-Summary:
-
-- OCR pipeline — import, vision OCR, optional second-pass cleanup; **multipass compare / prefer / promote / composite / fine-tune export** (OCR lifecycle package — shipped); **detection fine-tune export** (candidate — extend export to approved/rejected Detect findings)
-- **Preprocessing** — visual declutter (human, on by default at import + explicit re-apply) vs OCR optimisation (`gentle_contrast` only today, off by default; other OCR profiles deferred) — see **Preprocessing system** above
-- **Notebook corpus** — contracts runtime-normative; bulk import supported; import recovery / inbox as the user-facing continuation
-- **Living with notebooks** — organisation metadata, first-class search, reading mode, review UX
-- **Longevity** — **workspace backup/restore shipped**; upgrade/migration story and archive-readable-without-Transcribe remain candidates
-- **Operability** — model/runtime management UX; release/onboarding/diagnostics; prompt management; local quality/evaluation loop (thumbs + fixtures)
-- **Maintainer infrastructure** — CI, release hygiene, hosted docs — [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (**0.9.0** cut with U2, then **1.0**)
-- **Export** — notebook readability and sharing (`transcribe.notebook`)
-- **Runtime docs** — Docker / local Ollama — [runtime/docker.md](runtime/docker.md) (supports operability; does not replace it)
-- **Future TranscriptX export handoff** — [INTEGRATION_SEAM.md](INTEGRATION_SEAM.md) (not a dependency)
-- **Autobiography workbench** — contextual evidence around notebooks, Slices, cited reconstruction — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file) for a future separate product. Not this repo’s backlog.
-
----
-
-## Future metadata
-
-- Page **time-of-day** metadata (from diary stamps like `YYMMDD HHMM` / similar): **scheduled 1.1** (not 1.0). Storage alongside `ApproximateDate`, UI, archive indexing, and analysis policy. Date auto-extraction currently ignores time. AnalysisDocument unit `date` stays `YYYY-MM-DD` so fingerprints do not break.
