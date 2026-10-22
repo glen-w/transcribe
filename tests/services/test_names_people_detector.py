@@ -132,24 +132,28 @@ def test_page_person_names_groups_by_page_and_skips_places():
     assert all(h.slug != "paris" for h in hits)
 
 
-def test_names_detector_runs_ner_when_missing(tmp_path: Path, monkeypatch):
+def test_names_detector_unavailable_when_ner_missing(tmp_path: Path, monkeypatch):
+    """L3: Detect must not nest Analyse — missing published NER is unavailable."""
     _inject_ner(monkeypatch)
     projects, clock, ids, _runtime = _notebook(
         tmp_path,
         monkeypatch,
         ["Alice met Bob in the garden.", "No people here, only weather."],
     )
+    calls = {"n": 0}
+    orig = AnalysisRunner.run_module
+
+    def wrapped(self, module_id, *args, **kwargs):
+        calls["n"] += 1
+        return orig(self, module_id, *args, **kwargs)
+
+    monkeypatch.setattr(AnalysisRunner, "run_module", wrapped)
     svc = DetectionService(projects)
     result = svc.run_detector("names", force=True)
-    assert result["outcome"] == "success"
-    findings = result.get("findings") or []
-    names = sorted(f["detector_data"]["name"] for f in findings)
-    assert names == ["Alice", "Bob"]
-    page0 = projects.load().pages[0].page_id
-    assert all(f["start_page_id"] == page0 for f in findings)
-    assert all(f["finding_type"] == "names" for f in findings)
-    published_ner = (projects.paths.analysis_dir / "ner" / "published.json").exists()
-    assert published_ner
+    assert result["outcome"] == "unavailable_dependency"
+    assert calls["n"] == 0
+    assert not (result.get("findings") or [])
+    assert not (projects.paths.analysis_dir / "ner" / "published.json").exists()
 
 
 def test_names_detector_reuses_published_ner(tmp_path: Path, monkeypatch):
@@ -184,6 +188,7 @@ def test_names_auto_tag_uses_person_names(tmp_path: Path, monkeypatch):
         monkeypatch,
         ["Alice met Bob."],
     )
+    AnalysisRunner(projects, clock=clock, ids=ids).run_module("ner")
     svc = DetectionService(projects)
     result = svc.run_detector("names", force=True, auto_tag=True)
     assert result["outcome"] == "success"
@@ -205,6 +210,7 @@ def test_names_auto_tag_skips_rejected(tmp_path: Path, monkeypatch):
         monkeypatch,
         ["Alice met Bob."],
     )
+    AnalysisRunner(projects, clock=clock, ids=ids).run_module("ner")
     svc = DetectionService(projects)
     result = svc.run_detector("names", force=True, auto_tag=False)
     assert result["outcome"] == "success"
@@ -252,7 +258,8 @@ def test_names_unavailable_when_ner_skipped(tmp_path: Path, monkeypatch):
         return mods
 
     monkeypatch.setattr(runner_mod, "get_registered_modules", patched)
-    projects, _clock, _ids, _runtime = _notebook(tmp_path, monkeypatch, ["Alice was here."])
+    projects, clock, ids, _runtime = _notebook(tmp_path, monkeypatch, ["Alice was here."])
+    AnalysisRunner(projects, clock=clock, ids=ids).run_module("ner")
     svc = DetectionService(projects)
     result = svc.run_detector("names", force=True)
     assert result["outcome"] == "skipped_not_applicable"

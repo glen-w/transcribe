@@ -586,7 +586,7 @@ class DetectionRunner:
         )
 
     def _load_or_run_ner(self) -> dict[str, Any]:
-        """Reuse current published NER, or run the ner module without reconciling detection."""
+        """Reuse current published NER only — never nest Analyse as a Detect side effect."""
         from transcribe.analysis.modules.ner import MODULE_ID as NER_MODULE_ID
         from transcribe.analysis.runner import AnalysisRunner
 
@@ -600,7 +600,20 @@ class DetectionRunner:
         published = runner.storage.read_published(NER_MODULE_ID)
         if published_ner_is_current(published, planned) and published is not None:
             return published
-        return runner.run_module(NER_MODULE_ID, reconcile_project=False)
+        return {
+            "outcome": "unavailable_dependency",
+            "capability_reason": "ner_not_published",
+            "payload": {},
+            "warnings": [
+                {
+                    "code": "ner_not_published",
+                    "message": (
+                        "Names needs a current published NER result. "
+                        "Run Analyse (NER) first, then Detect → Names."
+                    ),
+                }
+            ],
+        }
 
     def _execute_ner_people_run(
         self,

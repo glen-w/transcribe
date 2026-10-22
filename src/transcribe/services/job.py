@@ -36,6 +36,7 @@ from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.ocr_cleanup import (
     CleanupPlanConfig,
+    cleanup_fingerprint_for_attempt,
     resolve_cleanup_plan_config,
     run_ocr_cleanup,
 )
@@ -980,9 +981,12 @@ class JobCoordinator:
             # Atomic success write: raw_text + cleanup together; never persist
             # cleaned text without a complete cleanup record.
             running.status = "succeeded"
+            seal_cleanup = cleanup_fingerprint_for_attempt(plan.cleanup, cleanup_record)
+            planned_cleanup = plan.cleanup.fingerprint_dict()
             if (
                 result.model_digest != plan.model_digest
                 or result.model_identity_verified != plan.model_identity_verified
+                or seal_cleanup != planned_cleanup
             ):
                 fp2, payload2 = compute_input_fingerprint(
                     provider=plan.provider_id,
@@ -994,7 +998,7 @@ class JobCoordinator:
                     preprocess_profile=plan.preprocess_profile,
                     preprocess_version=plan.preprocess_version,
                     generation_options=plan.generation_options,
-                    cleanup=plan.cleanup.fingerprint_dict(),
+                    cleanup=seal_cleanup,
                 )
                 running.input_fingerprint = fp2
                 running.fingerprint_payload = payload2

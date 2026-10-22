@@ -6,8 +6,8 @@ omit =
     */transcribe/ui/*
 
 [report]
-# Floor under current ~85% (UI omitted). Raise deliberately; do not chase 100%.
-fail_under = 70
+# Floor under current offline suite (UI omitted). Raise deliberately; do not chase 100%.
+fail_under = 75
 exclude_lines =
     pragma: no cover
     def __repr__
