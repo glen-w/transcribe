@@ -1,0 +1,57 @@
+name: Bug report
+description: Report something that broke or behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Prefer Docker Compose repro when possible.
+        See [known limitations](https://github.com/glen-w/transcribe/blob/main/docs/known_limitations.md).
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Short summary of the unexpected behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps from a clean workspace when possible.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Transcribe version
+      description: Output of `python -c "import transcribe; print(transcribe.__version__)"` or image tag.
+    validations:
+      required: false
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install path
+      options:
+        - Docker Compose
+        - Host Python / venv
+        - Other
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste relevant CLI or UI errors (redact secrets).
+    validations:
+      required: false

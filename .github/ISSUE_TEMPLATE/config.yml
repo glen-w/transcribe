@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User guide
+    url: https://glen-w.github.io/transcribe/
+    about: Install, first notebook, and daily workflows
+  - name: Known limitations
+    url: https://github.com/glen-w/transcribe/blob/main/docs/known_limitations.md
+    about: Honesty about models, PDFs, and privacy

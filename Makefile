@@ -63,6 +63,12 @@ test-coverage:
 docker-smoke:
 	@echo "Compose bind honesty..."
 	@bash scripts/release/assert_compose_bind.sh
+	@if command -v docker >/dev/null 2>&1; then \
+		echo "docker compose config..."; \
+		docker compose config --quiet; \
+	else \
+		echo "docker not installed — skipped compose config"; \
+	fi
 
 release-hygiene:
 	@echo "Release hygiene (I2)..."
