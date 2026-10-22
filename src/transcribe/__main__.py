@@ -116,6 +116,31 @@ def main(argv: list[str] | None = None) -> int:
     p_ft.add_argument("--no-edited", action="store_true", help="Skip pages with human edits")
     p_ft.add_argument("--hardlink-images", action="store_true")
 
+    p_dft = sub.add_parser(
+        "export-detection-finetune",
+        help="Export approved/rejected detection findings for external fine-tuning",
+    )
+    p_dft.add_argument("project", type=Path)
+    p_dft.add_argument("dest", type=Path, nargs="?", default=None)
+    p_dft.add_argument(
+        "--include-unreviewed",
+        action="store_true",
+        help="Include unreviewed findings (default: approved/rejected only)",
+    )
+    p_dft.add_argument(
+        "--detector",
+        action="append",
+        default=[],
+        help="Filter by detector_id (repeatable)",
+    )
+    p_dft.add_argument(
+        "--finding-type",
+        action="append",
+        default=[],
+        help="Filter by finding_type (repeatable)",
+    )
+    p_dft.add_argument("--hardlink-images", action="store_true")
+
     p_models.add_argument(
         "--prefs",
         action="store_true",
@@ -530,6 +555,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "export-finetune":
             return _cmd_export_finetune(args, clock=clock, ids=ids)
 
+        if args.cmd == "export-detection-finetune":
+            return _cmd_export_detection_finetune(args, clock=clock, ids=ids)
+
         paths, projects, coord, ingest = build_coordinator(args.project, clock=clock, ids=ids)
 
         if args.cmd == "import":
@@ -709,6 +737,26 @@ def _cmd_export_finetune(args: argparse.Namespace, *, clock, ids) -> int:
     )
     out = FinetuneExportService(paths, projects).export(args.dest, options=opts)
     print(f"Fine-tune export written to {out}")
+    return 0
+
+
+def _cmd_export_detection_finetune(args: argparse.Namespace, *, clock, ids) -> int:
+    from transcribe.services.detection_finetune_export import (
+        DetectionFinetuneExportOptions,
+        DetectionFinetuneExportService,
+    )
+
+    paths = open_project_paths(args.project)
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.load()
+    opts = DetectionFinetuneExportOptions(
+        include_unreviewed=bool(args.include_unreviewed),
+        detector_ids=tuple(args.detector or ()),
+        finding_types=tuple(args.finding_type or ()),
+        image_mode="hardlink" if args.hardlink_images else "copy",
+    )
+    out = DetectionFinetuneExportService(projects).export(args.dest, options=opts)
+    print(f"Detection fine-tune export written to {out}")
     return 0
 
 

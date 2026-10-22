@@ -27,6 +27,7 @@ entrypoints.
 | `multipass <project> --model A --model B …` | Multi-model OCR then rank/composite (`--force`, `--no-auto-composite`, `--text-model`, `--cleanup` to opt in vision-phase cleanup) |
 | `export <project> [dest]` | Write selected formats (JSON, Markdown, text, HTML, EPUB, PDF) |
 | `export-finetune <project> [dest]` | Export images + preferred/active text for external fine-tuning |
+| `export-detection-finetune <project> [dest]` | Export approved/rejected detection findings + images for external fine-tuning |
 | `status <project>` | Print per-page status |
 | `detect <project>` | Run a content detector (`--detector poetry\|todo_lists\|lists\|quotations\|beer_labels\|first_person\|swear_words\|names`, `--force`, `--auto-tag`, `--list`) |
 | `doctor <project>` | Integrity report (`--deep` hashes source/render files) |
