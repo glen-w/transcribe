@@ -301,6 +301,23 @@ class ProjectService:
             write_json_atomic(self.paths.manifest, current.as_dict())
             return current
 
+    def set_page_ignored(self, page_id: str, ignored: bool) -> Project:
+        """Mark or clear ``Page.ignored`` (Reader omits ignored pages by default).
+
+        Refuses while an OCR job lock is held. Does not delete page artifacts.
+        """
+        if job_lock_held(self.paths.job_lock):
+            raise JobConflictError("cannot change ignored while an OCR job is running")
+        with mutation_lock(self.paths.mutation_lock):
+            payload = require_format(read_json(self.paths.manifest), "transcribe.project")
+            current = Project.from_dict(payload)
+            page = self._require_page(current, page_id)
+            page.ignored = bool(ignored)
+            current.updated_at = to_iso(self.clock.now())
+            validate_project(current)
+            write_json_atomic(self.paths.manifest, current.as_dict())
+            return current
+
     def delete_page(self, page_id: str) -> Project:
         """Remove a page from the notebook (manifest + on-disk artifacts).
 

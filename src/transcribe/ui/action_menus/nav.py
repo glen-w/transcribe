@@ -89,11 +89,17 @@ def viewer_page_ids(
     return page_ids
 
 
-def chronological_page_ids(project: Project) -> list[str]:
+def chronological_page_ids(
+    project: Project,
+    *,
+    include_ignored: bool = True,
+) -> list[str]:
     """Reading-mode order: dated pages by date, then undated in notebook order."""
     dated: list[tuple[tuple[int, int, int], int, str]] = []
     undated: list[str] = []
     for index, page in enumerate(project.pages):
+        if not include_ignored and page.ignored:
+            continue
         if page.date is not None:
             dated.append((page.date.sort_key(), index, page.page_id))
         else:
@@ -102,10 +108,18 @@ def chronological_page_ids(project: Project) -> list[str]:
     return [page_id for _key, _index, page_id in dated] + undated
 
 
-def notebook_view_entries(project: Project, project_root: str | Path) -> list[dict[str, str]]:
+def notebook_view_entries(
+    project: Project,
+    project_root: str | Path,
+    *,
+    include_ignored: bool = True,
+) -> list[dict[str, str]]:
     """Reading-mode Prev/Next entries for one notebook (chronological order)."""
     root = str(project_root)
-    return [{"page_id": pid, "project_root": root} for pid in chronological_page_ids(project)]
+    return [
+        {"page_id": pid, "project_root": root}
+        for pid in chronological_page_ids(project, include_ignored=include_ignored)
+    ]
 
 
 def first_valid_open_page(

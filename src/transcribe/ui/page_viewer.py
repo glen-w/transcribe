@@ -1162,6 +1162,21 @@ def render_page_viewer(
                 except TranscribeError as exc:
                     st.error(str(exc))
 
+            ignore_label = "Show in Reader" if page.ignored else "Ignore in Reader"
+            ignore_help = (
+                "Clear ignored so this page appears in Reading again."
+                if page.ignored
+                else "Omit this page from Reading by default (export can still exclude it)."
+            )
+            if st.button(ignore_label, key=f"pv_ignore_{page.page_id}", help=ignore_help):
+                try:
+                    projects.set_page_ignored(page.page_id, not page.ignored)
+                    bump_archive_generation(build_runtime_paths())
+                    st.toast("Updated ignored flag")
+                    st.rerun()
+                except TranscribeError as exc:
+                    st.error(str(exc))
+
             pending_delete = f"pv_delete_pending__{page.page_id}"
             if st.session_state.pop(pending_delete, False):
                 _delete_page_dialog(
