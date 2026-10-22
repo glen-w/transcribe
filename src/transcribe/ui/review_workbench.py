@@ -298,7 +298,15 @@ def render_review_page(
     total = len(ids)
 
     try:
-        projects.repair_empty_successes(page_id)
+        # Queue entry already repaired empty successes for this token — skip
+        # a second per-page repair on every widget click.
+        from transcribe.ui.rerun_cache import review_queue_token, review_repairs_current
+
+        token = st.session_state.get("rw_queue_token") or review_queue_token(
+            project, results_dir=paths.results_dir
+        )
+        if not review_repairs_current(st.session_state, paths.root, token):
+            projects.repair_empty_successes(page_id)
         projects.repair_review_validity(page_id)
         project = projects.load(reconcile=False)
     except (TranscribeError, ProjectError):
@@ -752,6 +760,10 @@ def _save_buffer(projects: ProjectService, page_id: str, *, mark_reviewed: bool)
         st.error(str(exc))
         return False
     bump_archive_generation(build_runtime_paths())
+    from transcribe.ui.rerun_cache import invalidate_review_queue_cache, invalidate_view_health_cache
+
+    invalidate_review_queue_cache(st.session_state, projects.paths.root)
+    invalidate_view_health_cache(st.session_state, projects.paths.root)
     st.session_state[f"rw_saved_{page_id}"] = saved.effective_text() or ""
     st.session_state[f"rw_buf_{page_id}"] = st.session_state[f"rw_saved_{page_id}"]
     st.toast("Reviewed" if mark_reviewed else "Saved")

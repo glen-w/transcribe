@@ -18,10 +18,10 @@ from transcribe.ui.navigation import (
     is_workflow_mode,
     nav_disabled_help,
     nav_enabled,
-    notebook_has_published_analysis,
     normalize_ui_mode,
     page_spec_for,
 )
+from transcribe.ui.rerun_cache import cached_notebook_has_published_analysis
 
 # Re-export so existing ``from transcribe.ui.shell import normalize_ui_mode`` keeps working.
 __all__ = [
@@ -76,10 +76,7 @@ def configure_streamlit_page() -> None:
     )
 
 
-def inject_global_styles() -> None:
-    """Inject sidebar nav + page chrome CSS (shape/style matched to TranscriptX)."""
-    st.markdown(
-        """
+_GLOBAL_STYLES_MARKDOWN = """
 <style>
     /* Sidebar width — match TranscriptX menu bar density */
     section[data-testid="stSidebar"] {
@@ -616,19 +613,40 @@ def inject_global_styles() -> None:
         color: #8a9ab0;
     }
 </style>
-""",
-        unsafe_allow_html=True,
-    )
+"""
+
+
+def inject_global_styles() -> None:
+    """Inject sidebar nav + page chrome CSS (shape/style matched to TranscriptX)."""
+    st.markdown(_GLOBAL_STYLES_MARKDOWN, unsafe_allow_html=True)
+
+
+_LOGO_DATA_URI: str | None = None
+_LOGO_DATA_URI_LOADED = False
+
+
+def _logo_data_uri() -> str | None:
+    """Process-local logo data URI — avoid re-reading/encoding on every rerun."""
+    global _LOGO_DATA_URI, _LOGO_DATA_URI_LOADED
+    if _LOGO_DATA_URI_LOADED:
+        return _LOGO_DATA_URI
+    path = logo_path()
+    if path is not None:
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        _LOGO_DATA_URI = f"data:image/png;base64,{data}"
+    else:
+        _LOGO_DATA_URI = None
+    _LOGO_DATA_URI_LOADED = True
+    return _LOGO_DATA_URI
 
 
 def render_brand() -> None:
     """Sidebar brand mark (HTML img — no Streamlit fullscreen toolbar)."""
-    path = logo_path()
-    if path is not None:
-        data = base64.b64encode(path.read_bytes()).decode("ascii")
+    uri = _logo_data_uri()
+    if uri is not None:
         st.markdown(
             f'<div class="tx-sidebar-brand">'
-            f'<img src="data:image/png;base64,{data}" alt="Transcribe" />'
+            f'<img src="{uri}" alt="Transcribe" />'
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -806,6 +824,7 @@ def render_mode_nav(
     current: str,
     *,
     notebook_options: list[tuple[str, str]] | None = None,
+    data_dir: Path | str | None = None,
 ) -> str:
     """Left-sidebar: unlabeled primary → Workflow → View (picker + pages) → System.
 
@@ -860,7 +879,11 @@ def render_mode_nav(
         sync_notebook_selector(None)
 
     has_notebook = bool(st.session_state.get("root"))
-    has_published = notebook_has_published_analysis(st.session_state.get("root"))
+    has_published = cached_notebook_has_published_analysis(
+        st.session_state,
+        st.session_state.get("root"),
+        data_dir=data_dir,
+    )
     for mode in VIEW_MODES:
         spec = page_spec_for(mode)
         if spec is None:

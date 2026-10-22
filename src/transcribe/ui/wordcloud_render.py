@@ -28,8 +28,19 @@ except Exception as exc:  # noqa: BLE001 — defensive; default dep
 
 _ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 _WORDCLOUD2_JS = _ASSETS_DIR / "wordcloud2.js"
+_WORDCLOUD2_JS_TEXT: str | None = None
 
 SortMode = Literal["value", "term", "rank"]
+
+
+def _load_wordcloud2_js() -> str:
+    """Process-local vendored JS — avoid re-reading the asset on every Advanced render."""
+    global _WORDCLOUD2_JS_TEXT
+    if _WORDCLOUD2_JS_TEXT is None:
+        if not _WORDCLOUD2_JS.is_file():
+            raise FileNotFoundError(f"vendored wordcloud2.js missing at {_WORDCLOUD2_JS}")
+        _WORDCLOUD2_JS_TEXT = _WORDCLOUD2_JS.read_text(encoding="utf-8")
+    return _WORDCLOUD2_JS_TEXT
 
 
 def wordcloud_available() -> bool:
@@ -188,9 +199,7 @@ def build_wordcloud_explorer_html(
     """
     js_src = wordcloud2_js
     if js_src is None:
-        if not _WORDCLOUD2_JS.is_file():
-            raise FileNotFoundError(f"vendored wordcloud2.js missing at {_WORDCLOUD2_JS}")
-        js_src = _WORDCLOUD2_JS.read_text(encoding="utf-8")
+        js_src = _load_wordcloud2_js()
     safe_title = html.escape(title or "Word themes")
     # Payload is JSON-embedded; json.dumps handles escaping for </script>.
     terms_json = json.dumps(terms_payload, ensure_ascii=False).replace("</", "<\\/")

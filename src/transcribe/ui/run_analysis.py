@@ -277,12 +277,23 @@ def _finalize_run(coord: AnalysisCoordinator, progress: AnalysisProgress) -> Non
         for mid, env in results.items()
     }
     st.session_state[_IN_PROGRESS_KEY] = False
-    st.session_state.pop(_PENDING_LAUNCH_KEY, None)
+    pending = st.session_state.pop(_PENDING_LAUNCH_KEY, None)
     st.session_state.pop(_ACTIVE_RUN_ID_KEY, None)
     try:
         from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
 
         invalidate_batch_analyse_caches()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from transcribe.ui.rerun_cache import invalidate_analysis_ui_caches
+
+        root = None
+        if isinstance(pending, dict) and isinstance(pending.get("project_root"), str):
+            root = pending["project_root"]
+        elif st.session_state.get("root"):
+            root = st.session_state.get("root")
+        invalidate_analysis_ui_caches(st.session_state, root)
     except Exception:  # noqa: BLE001
         pass
     if progress.status == "failed":
@@ -613,7 +624,8 @@ def render_run_analysis_form(
             return True
 
         # Phase 3: fragment poll — avoids full-app grey-out sleep/rerun loops.
-        poll = timedelta(milliseconds=400)
+        # 1s matches OCR/batch cadence; Cancel still responds on the next tick.
+        poll = timedelta(seconds=1)
 
         @st.fragment(run_every=poll)
         def analysis_status_panel() -> None:
@@ -634,7 +646,7 @@ def render_run_analysis_form(
     if coord.is_running():
         st.session_state[_IN_PROGRESS_KEY] = True
         st.markdown("Running analysis…")
-        poll = timedelta(milliseconds=400)
+        poll = timedelta(seconds=1)
 
         @st.fragment(run_every=poll)
         def orphan_status_panel() -> None:

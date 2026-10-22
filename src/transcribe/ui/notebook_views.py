@@ -28,11 +28,14 @@ from transcribe.ui.navigation import (
     PageSpec,
     ViewPanel,
     notebook_has_detection_results,
-    notebook_has_published_analysis,
     page_spec_for,
 )
 from transcribe.ui.notebook_view_page import render_analyse_cta, render_notebook_view_page, select_view_panel
 from transcribe.ui.page_viewer import render_page_viewer
+from transcribe.ui.rerun_cache import (
+    cached_notebook_has_published_analysis,
+    get_cached_view_health,
+)
 from transcribe.ui.shell import render_page_shell
 from transcribe.ui.view_jumps import jump_person_occurrence, jump_to_reading
 
@@ -73,52 +76,67 @@ def _module_id_lists() -> dict[str, list[str]]:
 
 
 def load_view_health(paths, projects, project, *, get_analysis_coordinator) -> dict[str, Any]:
-    """Shared health batch for View pages (status strip + product bodies)."""
-    ids = _module_id_lists()
-    runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
-    storage = AnalysisStorage(paths)
-    content_revision = projects.content_revision(project)
-    batch_ids = list(
-        dict.fromkeys(
-            ids["overview"]
-            + ids["themes"]
-            + ids["mood"]
-            + ["moments"]
-            + ids["synth"]
-            + ids["places_extra"]
-        )
-    )
+    """Shared health batch for View pages (status strip + product bodies).
+
+    Session-cached across Overview / Themes / Mood / … hops until published
+    results, page results, or run status change (see ``rerun_cache``).
+    """
     analysis_coord = get_analysis_coordinator(str(paths.root))
     active_run_status = "running" if analysis_coord.is_running() else None
+    storage_probe = AnalysisStorage(paths)
     if active_run_status is None:
         try:
-            runs_dir = storage.runs_dir()
+            runs_dir = storage_probe.runs_dir()
             if runs_dir.is_dir():
                 for path in sorted(runs_dir.glob("*.json"), reverse=True):
-                    rec = storage.read_run_record(path.stem)
+                    rec = storage_probe.read_run_record(path.stem)
                     if rec and rec.get("status") == "interrupted":
                         active_run_status = "interrupted"
                         break
         except Exception:  # noqa: BLE001 — strip is best-effort
             pass
-    batch_health = derive_analysis_health(
-        storage=storage,
-        runner=runner,
-        module_ids=batch_ids,
-        content_revision=content_revision,
+
+    def _load() -> dict[str, Any]:
+        ids = _module_id_lists()
+        runner = AnalysisRunner(projects, clock=SystemClock(), ids=UuidGenerator())
+        storage = AnalysisStorage(paths)
+        content_revision = projects.content_revision(project)
+        batch_ids = list(
+            dict.fromkeys(
+                ids["overview"]
+                + ids["themes"]
+                + ids["mood"]
+                + ["moments"]
+                + ids["synth"]
+                + ids["places_extra"]
+            )
+        )
+        batch_health = derive_analysis_health(
+            storage=storage,
+            runner=runner,
+            module_ids=batch_ids,
+            content_revision=content_revision,
+            active_run_status=active_run_status,
+        )
+        return {
+            "runner": runner,
+            "storage": storage,
+            "ids": ids,
+            "batch_health": batch_health,
+            "overview_health": scope_analysis_health(batch_health, ids["overview"]),
+            "themes_health": scope_analysis_health(batch_health, ids["themes"]),
+            "mood_health": scope_analysis_health(batch_health, ids["mood"]),
+            "moments_health": scope_analysis_health(batch_health, ["moments"]),
+            "summaries_health": scope_analysis_health(batch_health, ids["synth"]),
+        }
+
+    cached = get_cached_view_health(
+        st.session_state,
+        root=paths.root,
         active_run_status=active_run_status,
+        loader=_load,
     )
-    return {
-        "runner": runner,
-        "storage": storage,
-        "ids": ids,
-        "batch_health": batch_health,
-        "overview_health": scope_analysis_health(batch_health, ids["overview"]),
-        "themes_health": scope_analysis_health(batch_health, ids["themes"]),
-        "mood_health": scope_analysis_health(batch_health, ids["mood"]),
-        "moments_health": scope_analysis_health(batch_health, ["moments"]),
-        "summaries_health": scope_analysis_health(batch_health, ids["synth"]),
-    }
+    return dict(cached)
 
 
 def _on_jump(page_id: str, *, project, paths, return_mode: str) -> None:
@@ -179,10 +197,11 @@ def _spec_for_panel(spec: PageSpec, panel: ViewPanel) -> PageSpec:
 
 
 def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
-    _ = runtime
     spec = page_spec_for("Themes")
     assert spec is not None
-    published = notebook_has_published_analysis(paths.root)
+    published = cached_notebook_has_published_analysis(
+        st.session_state, paths.root, data_dir=runtime.data_dir
+    )
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
@@ -216,7 +235,9 @@ def render_view_themes(runtime, paths, projects, project, *, get_analysis_coordi
 def render_view_places(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
     spec = page_spec_for("Places")
     assert spec is not None
-    published = notebook_has_published_analysis(paths.root)
+    published = cached_notebook_has_published_analysis(
+        st.session_state, paths.root, data_dir=runtime.data_dir
+    )
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
@@ -308,7 +329,9 @@ def render_places_without_notebook(runtime) -> None:
 def render_view_mood(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
     spec = page_spec_for("Mood")
     assert spec is not None
-    published = notebook_has_published_analysis(paths.root)
+    published = cached_notebook_has_published_analysis(
+        st.session_state, paths.root, data_dir=runtime.data_dir
+    )
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )
@@ -362,10 +385,11 @@ def render_view_mood(runtime, paths, projects, project, *, get_analysis_coordina
 
 
 def render_view_summaries(runtime, paths, projects, project, *, get_analysis_coordinator) -> None:
-    _ = runtime
     spec = page_spec_for("Summaries")
     assert spec is not None
-    published = notebook_has_published_analysis(paths.root)
+    published = cached_notebook_has_published_analysis(
+        st.session_state, paths.root, data_dir=runtime.data_dir
+    )
     ctx = load_view_health(
         paths, projects, project, get_analysis_coordinator=get_analysis_coordinator
     )

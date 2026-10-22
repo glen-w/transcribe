@@ -95,6 +95,12 @@ def invalidate_batch_analyse_caches() -> None:
         _RECENT_ANALYSE_RUNS_KEY,
         _RECENT_ANALYSE_RUNS_TOKEN_KEY,
     )
+    try:
+        from transcribe.ui.rerun_cache import invalidate_analysis_ui_caches
+
+        invalidate_analysis_ui_caches(st.session_state)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _cached_light_picker(corpus: CorpusPaths) -> list[NotebookCandidate]:
