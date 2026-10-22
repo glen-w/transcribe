@@ -144,7 +144,11 @@ jobs:
           print("import ok", transcribe.__version__)
           PY
       - name: Docker Compose build + smoke (I6)
+        env:
+          # Required for compose volume interpolation (same default as assert_compose_bind.sh).
+          HOST_PROJECTS_DIR: ${{ runner.temp }}/transcribe-compose-projects
         run: |
+          mkdir -p "$HOST_PROJECTS_DIR"
           docker compose build
           make docker-smoke
           docker compose config --quiet
