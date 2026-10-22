@@ -59,13 +59,17 @@ def _render_export_panel_body(
     root: str,
     archive: ArchiveService | None = None,
 ) -> None:
-    notebook_tab, finetune_tab = st.tabs(["Notebook", "Fine-tune dataset"])
+    notebook_tab, finetune_tab, detect_ft_tab = st.tabs(
+        ["Notebook", "Fine-tune dataset", "Detection fine-tune"]
+    )
     with notebook_tab:
         _render_notebook_export_tab(
             runtime, paths, projects, project, root, archive=archive
         )
     with finetune_tab:
         _render_finetune_export_tab(paths, projects)
+    with detect_ft_tab:
+        _render_detection_finetune_export_tab(projects)
 
 
 def _render_notebook_export_tab(
@@ -400,6 +404,32 @@ def _render_finetune_export_tab(
             st.session_state["_finetune_export_dir"] = str(out)
         except Exception as exc:  # noqa: BLE001
             st.error(f"Fine-tune export failed: {exc}")
+
+
+def _render_detection_finetune_export_tab(projects: ProjectService) -> None:
+    st.caption(
+        "Export page images + approved/rejected detection findings for **external** "
+        "detector training. Unreviewed findings are excluded by default. "
+        "Transcribe does not train models."
+    )
+    dft_unreviewed = st.checkbox("Include unreviewed findings", key="dft_unreviewed")
+    dft_hardlink = st.checkbox("Hardlink images when possible", key="dft_hardlink")
+    if st.button("Export detection fine-tune package", key="dft_export_btn", icon=ic.SHARE):
+        from transcribe.services.detection_finetune_export import (
+            DetectionFinetuneExportOptions,
+            DetectionFinetuneExportService,
+        )
+
+        try:
+            out = DetectionFinetuneExportService(projects).export(
+                options=DetectionFinetuneExportOptions(
+                    include_unreviewed=bool(dft_unreviewed),
+                    image_mode="hardlink" if dft_hardlink else "copy",
+                )
+            )
+            st.success(f"Wrote `{out}`")
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Detection fine-tune export failed: {exc}")
 
 
 @st.fragment

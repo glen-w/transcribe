@@ -10,6 +10,7 @@ def test_common_settings_schema_includes_ingest_dpi_and_unique_keys() -> None:
     assert "ui.overview_cards" in keys
     assert "ui.view_show_advanced" in keys
     assert "ui.model_preference_hints" in keys
+    assert "ui.hide_ignored_pages" in keys
     assert "ingest.render_dpi" in keys
     assert "ingest.visual_declutter_enabled" in keys
     assert len(keys) == len(set(keys))

@@ -9,10 +9,12 @@ runtime guides.
 
 ## From a scan to a readable notebook
 
-1. Create a notebook: **Workflow → New notebook**.
+1. Create a notebook: **Workflow → New notebook**, or on **Home** click
+   **Open sample notebook** (pre-seeded text for an offline Analyse demo).
 2. Import JPEG, PNG, or PDF pages: **Workflow → Import**.
 3. Transcribe: **Workflow → Transcribe**, pick an OCR-friendly vision model, start.
 4. Correct: **Workflow → Review**, fix the text beside the scan.
+   Optionally **Ignore in Reader** for uninteresting pages.
 
 Then, if you want themes and summaries: **Workflow → Analyse** with **Balanced**,
 then **View → Overview**.
@@ -21,16 +23,20 @@ then **View → Overview**.
 
 | Job | Where |
 |-----|--------|
+| Open the sample notebook | Home → **Open sample notebook** |
 | Import and transcribe a notebook | This page, then [OCR](runtime/ocr.md) |
 | Review and correct a page | [OCR — Review](runtime/ocr.md#review-after-ocr) |
+| Ignore pages in Reading | Review → **Ignore in Reader**; Reader can **Show ignored** |
 | Analyse a notebook | [Analysis](runtime/analysis.md) |
 | Detect poetry, lists, names, … | [Detect](runtime/analysis.md#detect) |
 | Export Markdown / HTML / PDF | [Export](runtime/export.md) |
+| Export OCR or detection fine-tune packs | [Export — Fine-tune](runtime/export.md#fine-tune-export) |
 
 ## 1. Create or open a notebook
 
-**UI:** pick an existing notebook from the sidebar, or **Workflow → New notebook**.
-First visit opens **Home**. Rename later from **Library** or **Workflow → Import**.
+**UI:** pick an existing notebook from the sidebar, **Workflow → New notebook**,
+or **Home → Open sample notebook**. First visit opens **Home**. Rename later
+from **Library** or **Workflow → Import**.
 
 **CLI:**
 
@@ -88,11 +94,13 @@ Caveats: [known limitations](known_limitations.md) · [model matrix](runtime/ocr
 at a time on the right (**Transcription**, **Date**, **Tags**, **OCR**,
 **Cleanup**, **Other**).
 
-Approve or edit the text, then **Save + Mark reviewed** to move on. **Thumbnails**
-switches Review or Reading to a page grid; click the page button under a thumb
-to open that page. **Reading** is the same pages in chronological order,
-read-only. **Library** is the cover gallery; **Search** finds text across
-notebooks.
+Approve or edit the text, then **Save + Mark reviewed** to move on. Mark
+uninteresting pages **Ignore in Reader** so Reading skips them by default
+(Settings → Configuration → Reading controls the default; Reader can
+**Show ignored**). **Thumbnails** switches Review or Reading to a page grid;
+click the page button under a thumb to open that page. **Reading** is the same
+pages in chronological order, read-only. **Library** is the cover gallery;
+**Search** finds text across notebooks.
 
 Workbench detail, keyboard shortcuts, and re-run OCR: [OCR — Review](runtime/ocr.md#review-after-ocr).
 
@@ -128,7 +136,8 @@ Produces JSON, Markdown, plain text, HTML, EPUB, and/or PDF.
 ./transcribe.sh cli export "$TRANSCRIBE_PROJECTS_DIR/my-notebook"
 ```
 
-Formats, anthology, and fine-tune packages: [export](runtime/export.md).
+Formats, anthology, OCR fine-tune, and **detection** fine-tune packages:
+[export](runtime/export.md).
 
 ## Integrity, backup, and settings
 

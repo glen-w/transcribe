@@ -38,6 +38,13 @@ Images and text stay on disk in the export folder. They leave the machine only i
 | Include rejected | Attach other vision candidates for preference/DPO-style training |
 | Image mode | `copy` or `hardlink` of active page renders |
 
+## Detection fine-tune export
+
+Approved/rejected detection findings can be exported the same way (images +
+page text + labels) via **Export → Detection fine-tune** or
+`transcribe export-detection-finetune <project>`. Contract:
+[contracts/detection-finetune-export.md](contracts/detection-finetune-export.md).
+
 ## Non-goals
 
 - No training loop, GPU job, or weight upload inside Transcribe

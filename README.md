@@ -29,17 +29,22 @@ leave this machine; the app warns and asks you to confirm.
 
 Limits: [known limitations](docs/known_limitations.md). Third-party models: [NOTICE](NOTICE).
 
-## From a scan to a readable notebook
+## First notebook in 15 minutes
 
-You need a running Ollama server and at least one **OCR-friendly vision model**
-(for example `glm-ocr` or `granite3.2-vision`). Avoid “thinking” vision tags such
-as `gemma4` — they often return empty text.
+**Docker preferred** (port **8510**). You need [Ollama](https://ollama.com) on the
+host with an OCR-friendly vision model (for example `glm-ocr` or
+`granite3.2-vision`). Avoid “thinking” vision tags such as `gemma4` — they often
+return empty text.
 
-1. Open the app, choose **Workflow → New notebook**, and import JPEG, PNG, or PDF pages.
-2. Open **Workflow → Transcribe**, pick a vision model, and start.
-3. Open **Workflow → Review** and correct the text beside the scan.
-4. Optionally open **Workflow → Analyse**, keep **Balanced**, and read **View → Overview**.
+1. Follow **Installation** below → open `http://127.0.0.1:8510/`.
+2. On Home, click **Open sample notebook** (offline text is pre-seeded) **or**
+   **Workflow → New notebook** and import JPEG/PNG/PDF pages.
+3. For your own scans: **Workflow → Transcribe**, pick a vision model, start.
+4. **Workflow → Review** — correct text; optionally **Ignore in Reader** for
+   uninteresting pages.
+5. **Workflow → Analyse** (Balanced) → **View → Overview**, then **Workflow → Export**.
 
+First-run bites (encrypted PDFs, large budgets, remote Ollama): [known limitations](docs/known_limitations.md).
 Full walkthrough: [User guide](docs/user_guide.md).
 
 Five everyday jobs: [import and transcribe](docs/user_guide.md#from-a-scan-to-a-readable-notebook), [review a page](docs/runtime/ocr.md#review-after-ocr), [analyse](docs/runtime/analysis.md), [detect patterns](docs/runtime/analysis.md#detect), [export](docs/runtime/export.md). More: [user docs sitemap](docs/USER_INDEX.md).

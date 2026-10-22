@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **U2.2 / U2.4:** bundled `samples/demo-notebook/` with Home **Open sample notebook**; README “First notebook in 15 minutes” path (Docker preferred).
+- **Ignore pages (Reader):** `ProjectService.set_page_ignored`, Reading hide-by-default + **Show ignored** override, Review **Ignore in Reader**, workspace `ui.hide_ignored_pages`.
+- **Detection fine-tune export:** CLI `export-detection-finetune`, Export UI tab, contract [docs/contracts/detection-finetune-export.md](docs/contracts/detection-finetune-export.md) (approved/rejected labels; unreviewed excluded by default).
+- **I6:** `.github/workflows/nightly.yml` (offline acceptance + contracts), Docker Compose build + smoke in `release-checks`, GitHub issue templates.
+
 ### Changed
 
+- **L3:** Names detector consumes **published** NER only — no nested Analyse `run_module("ner")`.
+- **P1:** Cleanup soft-failure no longer seals cleanup into the OCR skip fingerprint (resume can retry cleanup).
+- Settings confirms before **Reset whole workspace settings** and **Re-apply visual declutter**.
+- Coverage floor raised to 75; default pytest suite uses `--timeout=60`.
 - Scope lean (24 Sep 2026): this product stops at the notebook workbench (transcribe, compare models, external fine-tune for one hand, read / tag / explore). The autobiography programme stays on file in the roadmap for a future separate product. It is not Transcribe 1.1–2.0.
 - Design note for an import→OCR smoke kit ([docs/dev/smoke_kit_import_ocr.md](docs/dev/smoke_kit_import_ocr.md)). Not implemented. PR CI still does not run a vision model.
 - A stranger-testing round is not a release gate. The path to 1.0 is U2 and I0–I6, then 0.9.0, then the notebook freeze.

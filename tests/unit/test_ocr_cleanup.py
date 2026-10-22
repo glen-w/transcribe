@@ -7,6 +7,7 @@ from transcribe.domain.models import CleanupRecord, OCRAttempt, OCRSettings
 from transcribe.errors import TranscribeError
 from transcribe.services.ocr_cleanup import (
     CleanupPlanConfig,
+    cleanup_fingerprint_for_attempt,
     resolve_cleanup_plan_config,
     run_ocr_cleanup,
 )
@@ -123,6 +124,29 @@ def test_digest_changed_is_provider_failed():
     assert rec.execution_status == "provider_failed"
     assert rec.acceptance_status == "not_applicable"
     assert rec.note == "digest_changed"
+
+
+def test_cleanup_fingerprint_omitted_on_provider_failed():
+    """P1: soft cleanup failure must not seal cleanup into the skip fingerprint."""
+    plan = _plan()
+    assert cleanup_fingerprint_for_attempt(plan, None) == plan.fingerprint_dict()
+    applied = CleanupRecord(
+        execution_status="provider_ok",
+        acceptance_status="applied",
+        cleanup_validator_policy_id="p",
+        cleanup_validator_policy_version="1",
+    )
+    assert cleanup_fingerprint_for_attempt(plan, applied) == plan.fingerprint_dict()
+    failed = CleanupRecord(
+        execution_status="provider_failed",
+        acceptance_status="not_applicable",
+        note="digest_changed",
+        cleanup_validator_policy_id="p",
+        cleanup_validator_policy_version="1",
+    )
+    assert cleanup_fingerprint_for_attempt(plan, failed) is None
+    disabled = _plan(enabled=False, model_name="", model_digest="")
+    assert cleanup_fingerprint_for_attempt(disabled, failed) is None
 
 
 def test_resolve_plan_fail_fast_invalid_mode():

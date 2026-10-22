@@ -52,3 +52,6 @@ docker-compose.override.yml
 
 # Local watch / assessment run logs
 assessments/
+
+# Generated sample PNGs (manifest/README stay tracked)
+samples/**/pages/

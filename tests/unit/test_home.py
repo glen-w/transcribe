@@ -27,6 +27,7 @@ class _FakeStreamlit:
         self.markdowns: list[str] = []
         self.images: list[tuple[str, int | None]] = []
         self.columns_specs: list[object] = []
+        self.buttons: list[str] = []
 
     def caption(self, text: str) -> None:
         self.captions.append(text)
@@ -36,6 +37,10 @@ class _FakeStreamlit:
 
     def image(self, image: str, width: int | None = None) -> None:
         self.images.append((image, width))
+
+    def button(self, label: str, **_kwargs) -> bool:
+        self.buttons.append(label)
+        return False
 
     def columns(self, spec, **_kwargs):
         self.columns_specs.append(spec)
@@ -79,4 +84,5 @@ def test_render_home_shows_recent_cover_thumbnail(monkeypatch) -> None:
 
     assert fake_st.images == [(str(thumb), home_mod._RECENT_COVER_WIDTH_PX)]
     assert [spec for spec in fake_st.columns_specs if spec == [1, 8]]
+    assert "Open sample notebook" in fake_st.buttons
 

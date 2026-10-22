@@ -464,6 +464,7 @@ class UiConfig:
     overview_cards: tuple[str, ...] = OVERVIEW_CARD_IDS
     view_show_advanced: bool = False
     model_preference_hints: str = "all_choices"
+    hide_ignored_pages: bool = True
     chart_colors: ChartColorsConfig = field(default_factory=ChartColorsConfig)
 
     def as_dict(self) -> dict[str, Any]:
@@ -472,6 +473,7 @@ class UiConfig:
             "overview_cards": list(self.overview_cards),
             "view_show_advanced": self.view_show_advanced,
             "model_preference_hints": self.model_preference_hints,
+            "hide_ignored_pages": self.hide_ignored_pages,
             "chart_colors": self.chart_colors.as_dict(),
         }
 
@@ -491,6 +493,7 @@ class UiConfig:
         show_advanced = bool(
             data.get("view_show_advanced", data.get("overview_show_advanced", False))
         )
+        hide_ignored = data.get("hide_ignored_pages", True)
         return cls(
             archive_notebooks_initial=initial,
             overview_cards=cards,
@@ -498,6 +501,7 @@ class UiConfig:
             model_preference_hints=resolve_model_preference_hint_mode(
                 data.get("model_preference_hints")
             ),
+            hide_ignored_pages=bool(hide_ignored),
             chart_colors=ChartColorsConfig.from_dict(data.get("chart_colors")),
         )
 

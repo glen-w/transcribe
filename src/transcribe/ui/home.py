@@ -62,6 +62,23 @@ def _recent_cover_thumb(project_root: Path) -> Path | None:
     return thumb
 
 
+def _open_sample_notebook(runtime: RuntimePaths) -> None:
+    """Install the bundled sample and jump into View → Reading."""
+    from transcribe.services.archive import bump_archive_generation
+    from transcribe.services.sample_notebook import install_sample_notebook
+    from transcribe.ui.navigation import apply_destination_to_session
+
+    try:
+        root = install_sample_notebook(runtime)
+        bump_archive_generation(runtime)
+        st.session_state["root"] = str(root)
+        apply_destination_to_session(st.session_state, "Reading")
+        st.toast("Sample notebook ready")
+        st.rerun()
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Could not open sample notebook: {exc}")
+
+
 def render_home(runtime: RuntimePaths, archive: ArchiveService) -> None:
     notebooks = archive.list_notebooks(order="newest")
     st.caption(ollama_health_line())
@@ -70,7 +87,7 @@ def render_home(runtime: RuntimePaths, archive: ArchiveService) -> None:
         render_empty_state(
             kind="missing_prerequisite",
             title="No notebooks yet",
-            body="Create a notebook or import pages to get started.",
+            body="Create a notebook, import pages, or open the sample notebook.",
             primary=EmptyCta(
                 label="Create notebook",
                 on_click=lambda: set_ui_mode("New notebook"),
@@ -86,12 +103,19 @@ def render_home(runtime: RuntimePaths, archive: ArchiveService) -> None:
                 icon=ic.UPLOAD,
             ),
         )
+        if st.button("Open sample notebook", key="home_open_sample_empty", icon=ic.MENU_BOOK):
+            _open_sample_notebook(runtime)
         return
 
     pages = sum(int(nb.page_count or 0) for nb in notebooks)
     c1, c2 = st.columns(2)
     c1.metric("Notebooks", len(notebooks))
     c2.metric("Pages", pages)
+
+    sample_col, _ = st.columns([1, 3])
+    with sample_col:
+        if st.button("Open sample notebook", key="home_open_sample", icon=ic.MENU_BOOK):
+            _open_sample_notebook(runtime)
 
     st.markdown("#### Recent")
     for nb in notebooks[:_RECENT_LIMIT]:

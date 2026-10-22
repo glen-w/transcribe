@@ -1,6 +1,6 @@
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home and Diagnostics shipped; sample notebook and first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; **U2** sample notebook + first-run docs are **done** (Home/Diagnostics already shipped); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
 
 **0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--10)). After 0.9.0: **1.0**. A stranger-testing round is not a release gate.
 
@@ -227,9 +227,9 @@ Speaker-profile repair is out of scope.
 ### Acceptance (U2)
 
 - [x] Empty Home presents Create + Import (no sample wizard).
-- [ ] Sample notebook path works offline for import → (optional OCR skip if pre-seeded text) → Analyse Quick → Export.
+- [x] Sample notebook path works offline for import → (optional OCR skip if pre-seeded text) → Analyse Quick → Export.
 - [x] Doctor results visible in System → Diagnostics with workspace always / notebook when selected.
-- [ ] README / user guide point at the first-run install path; no contract reading required for the happy path.
+- [x] README / user guide point at the first-run install path; no contract reading required for the happy path.
 
 **U2 close enables the 0.9.0 cut** (with I0–I6). Next product phase after 0.9.0 is **1.0**, not more usability-wave tracks. A stranger-testing round is not a release gate.
 

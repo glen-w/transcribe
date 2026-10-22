@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a product improvement (check ROADMAP first)
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please skim [docs/ROADMAP.md](https://github.com/glen-w/transcribe/blob/main/docs/ROADMAP.md)
+        before filing. After 1.0 autobiography features are gated and should not be requested as 0.9 work.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user friction or gap does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Concrete behaviour you want — surfaces, CLI, constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is not After 1.0 autobiography / context-import work
+          required: false
+        - label: This does not require cloud OCR or a new UI host
+          required: false
