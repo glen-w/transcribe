@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Streamlit efficiency (PR1):** session/process caches for shell CSS + logo, published-analysis nav gate, Review queue index (repair-once), View health across tab hops, and vendored wordcloud2.js; Analyse this-notebook progress polls at 1s. Audit: [docs/dev/streamlit_efficiency_audit.md](docs/dev/streamlit_efficiency_audit.md).
 - **L3:** Names detector consumes **published** NER only — no nested Analyse `run_module("ner")`.
 - **P1:** Cleanup soft-failure no longer seals cleanup into the OCR skip fingerprint (resume can retry cleanup).
 - Settings confirms before **Reset whole workspace settings** and **Re-apply visual declutter**.
