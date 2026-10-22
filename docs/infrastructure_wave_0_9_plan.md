@@ -160,7 +160,7 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Push to `main` publishes a public landing + guide once GitHub Pages is enabled; RTD go-live remains owner-gated. Workflow screenshot gallery remains optional.
 
-### I6 — Sustaining lanes & community surfaces — [ ] planned
+### I6 — Sustaining lanes & community surfaces — [x] done
 
 | Deliverable | Notes |
 |-------------|--------|
