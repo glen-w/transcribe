@@ -83,8 +83,8 @@ Covered in the default suite; record the pytest node id when using tests as evid
 ### 2.6 Export — **required** (offline)
 
 - Export Markdown (or HTML) of the notebook.
-- Ignored pages stay omitted from reading formats when the export toggle is on
-  (Reader hide-ignored is a separate wave; export already omits `ignored`).
+- Ignored pages stay omitted from reading formats when the export toggle is on.
+  Reading hides the same pages unless **Show ignored pages** is on.
 
 ### 2.7 Backup verify — **required** (offline)
 

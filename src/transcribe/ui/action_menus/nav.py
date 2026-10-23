@@ -102,6 +102,20 @@ def chronological_page_ids(project: Project) -> list[str]:
     return [page_id for _key, _index, page_id in dated] + undated
 
 
+def reader_page_ids(project: Project, *, hide_ignored: bool) -> list[str]:
+    """Reading order, optionally omitting pages marked ``ignored``.
+
+    ``hide_ignored`` follows the workspace export default
+    (``export.exclude_ignored_pages``). A Reader “show ignored” override passes
+    ``hide_ignored=False``.
+    """
+    ordered = chronological_page_ids(project)
+    if not hide_ignored:
+        return ordered
+    hidden = {page.page_id for page in project.pages if page.ignored}
+    return [page_id for page_id in ordered if page_id not in hidden]
+
+
 def notebook_view_entries(project: Project, project_root: str | Path) -> list[dict[str, str]]:
     """Reading-mode Prev/Next entries for one notebook (chronological order)."""
     root = str(project_root)

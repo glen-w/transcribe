@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Maintainer **1.0** gate pack: severity triage, release-ops policy, manual acceptance runbook, and a 25-module analysis quality audit. These join the 1.0 checklist only; **0.9.0** still keys off U2 + I6.
+- Reading hides pages marked **Ignore in Reader** by default (**Show ignored pages** override). Same workspace default as Export **Exclude ignored pages**.
 
 ### Changed
 

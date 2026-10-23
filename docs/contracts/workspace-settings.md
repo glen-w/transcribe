@@ -23,7 +23,10 @@ OCR fields owned by `project.json` → `settings`. Workspace `ocr.*` seeds
 72–600) is the PDF rasterisation DPI for Workflow → Import.
 
 Workspace `export.*` controls default export formats, structure, and typography
-(see [notebook-export.md](notebook-export.md)).
+(see [notebook-export.md](notebook-export.md)). `export.exclude_ignored_pages`
+(default **true**) is also the Reading hide-ignored default; the Reader
+**Show ignored pages** checkbox is a session override and does not write
+settings.
 
 Workspace `ingest.*` seeds PDF rasterisation and visual declutter defaults for
 **Workflow → Import** (and Settings → Configuration → Import). Declutter may

@@ -281,8 +281,9 @@ class ProjectService:
         page_id: str,
         *,
         tags: list[str] | object = _UNSET,
+        ignored: bool | object = _UNSET,
     ) -> Project:
-        """Merge-safe page metadata updates (tags). Date changes use approve_page_date."""
+        """Merge-safe page metadata updates (tags, ignored). Date changes use approve_page_date."""
         with mutation_lock(self.paths.mutation_lock):
             payload = require_format(read_json(self.paths.manifest), "transcribe.project")
             current = Project.from_dict(payload)
@@ -293,6 +294,8 @@ class ProjectService:
                 found = True
                 if tags is not _UNSET:
                     page.tags = normalize_tags(tags)  # type: ignore[arg-type]
+                if ignored is not _UNSET:
+                    page.ignored = bool(ignored)
                 break
             if not found:
                 raise ProjectError(f"unknown page_id: {page_id}")

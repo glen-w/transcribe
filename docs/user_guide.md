@@ -94,11 +94,13 @@ Caveats: [known limitations](known_limitations.md) · [model matrix](runtime/ocr
 at a time on the right (**Transcription**, **Date**, **Tags**, **OCR**,
 **Cleanup**, **Other**).
 
-Approve or edit the text, then **Save + Mark reviewed** to move on. **Thumbnails**
-switches Review or Reading to a page grid; click the page button under a thumb
-to open that page. **Reading** is the same pages in chronological order,
-read-only. **Library** is the cover gallery; **Search** finds text across
-notebooks.
+Approve or edit the text, then **Save + Mark reviewed** to move on. **Ignore in
+Reader** hides a page in **Reading** (use **Show ignored pages** to bring it
+back) and omits it from exported Markdown/HTML/PDF/EPUB/text by default. JSON
+export keeps the page. **Thumbnails** switches Review or Reading to a page grid;
+click the page button under a thumb to open that page. **Reading** is the same
+pages in chronological order, read-only. **Library** is the cover gallery;
+**Search** finds text across notebooks.
 
 Workbench detail, keyboard shortcuts, and re-run OCR: [OCR — Review](runtime/ocr.md#review-after-ocr).
 

@@ -379,13 +379,30 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
 
 
 def _render_reading_mode(paths, projects, project) -> None:
-    from transcribe.ui.action_menus.nav import chronological_page_ids
+    from transcribe.config.facade import get_config
+    from transcribe.ui.action_menus.nav import reader_page_ids
 
     if not project.pages:
         st.info("No pages yet.")
         return
 
-    page_ids = chronological_page_ids(project)
+    hide_default = bool(get_config().effective.export.exclude_ignored_pages)
+    ignored_count = sum(1 for page in project.pages if page.ignored)
+    show_ignored = False
+    if hide_default and ignored_count:
+        show_ignored = bool(
+            st.checkbox(
+                f"Show ignored pages ({ignored_count})",
+                key="reading_show_ignored",
+                help="Ignored pages are hidden in Reading by default, matching Export.",
+            )
+        )
+    hide_ignored = hide_default and not show_ignored
+    page_ids = reader_page_ids(project, hide_ignored=hide_ignored)
+    if not page_ids:
+        st.info("All pages in this notebook are ignored. Turn on Show ignored pages to read them.")
+        return
+
     root_key = str(paths.root)
     by_root = dict(st.session_state.get("reading_page_by_root") or {})
     remembered = by_root.get(root_key)
@@ -393,7 +410,8 @@ def _render_reading_mode(paths, projects, project) -> None:
     if default_id not in page_ids:
         default_id = page_ids[0]
 
-    dated = [p for p in project.pages if p.date is not None]
+    visible = set(page_ids)
+    dated = [p for p in project.pages if p.date is not None and p.page_id in visible]
     if dated:
         jump_labels = {
             p.page_id: (
