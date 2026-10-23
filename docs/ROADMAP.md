@@ -32,7 +32,7 @@
 - Detection fine-tune export stays a candidate. It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** U2 (sample notebook, first-run docs) and I6, then a 0.9.0 tag. A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
+**Still on the path to a public cut, and not autobiography:** **I6**, then a 0.9.0 tag (U2 is shipped). A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
@@ -95,11 +95,11 @@ Infra checklist already landed for the core set: [analysis_wave1_hardening_plan.
 
 **Hardening exit gate (U0+U1):** Crash/reopen behaviour, stale detection, offline operation, export provenance, and normal Analyse workflows are covered by acceptance tests, and no ordinary user workflow requires understanding module/cache internals. Named suite: [tests/acceptance/hardening/](../tests/acceptance/hardening/).
 
-### U2 — First-run & operability — [ ] planned (not started)
+### U2 — First-run & operability — [x] done
 
 | Track | Status | Intent |
 |-------|--------|--------|
-| **U2 First-run & operability** | [ ] | Setup checklist, sample notebook, model guidance, doctor/diagnostics in UI, first-run docs path |
+| **U2 First-run & operability** | [x] | Home, Diagnostics, sample notebook, first-run docs path ([first_notebook.md](runtime/first_notebook.md)) |
 
 ### U3 — Daily workbench — [x] done
 
@@ -288,7 +288,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut** ([Path to 0.9.0](#path-to-090--09-1--10)):
 
 - **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
-- Remaining: first-run install docs path (U2.4). Sample notebook (U2.2) is shipped.
+- Remaining: none on U2. Sample notebook (U2.2) and first-run docs (U2.4) are shipped.
 
 Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is on the 0.9 path foundation checklist below. Full “archive readable without Transcribe” stays a lifecycle candidate.
 
@@ -313,7 +313,7 @@ I0–I6 (infra wave)           ─┘
 | U2.1 Home | [x] | Create / Import + Ollama health |
 | U2.3 Diagnostics | [x] | Workspace / notebook doctor in UI |
 | **U2.2 Sample notebook** | [x] | Fixture under `src/transcribe/samples/demo-notebook/`; **New notebook → Open sample** via init/import; offline Analyse Quick without LLM |
-| **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, mounts, Ollama, known first-run bites |
+| **U2.4 First-run docs** | [x] | [first_notebook.md](runtime/first_notebook.md) from README (**Docker preferred**); port **8510**, mounts, Ollama, known first-run bites |
 
 **U2 exit:** sample path smoke; README / user_guide first-run without reading contracts. Detail: [usability_wave_plan.md](usability_wave_plan.md) §6.
 
@@ -575,7 +575,7 @@ Each release has one product purpose. Do not dump “2.0 everything.”
 
 **Product goal:** A trustworthy local notebook/OCR/analysis product a non-expert can install, transcribe, review, search, analyse, export, and back up.
 
-**UX:** Finish U2 (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. Inbox polish optional. A stranger-testing round is not a release gate.
+**UX:** U2 finished (sample notebook, first-run install path). I0–I6 → **0.9.0** cut. Inbox polish optional. A stranger-testing round is not a release gate.
 
 **Architecture:** No new domain entities. Time-of-day waits for **1.1**. Foundation checklist on [Path to 0.9.0](#path-to-090--09-1--10) signed off.
 

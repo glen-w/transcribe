@@ -31,11 +31,15 @@ Limits: [known limitations](docs/known_limitations.md). Third-party models: [NOT
 
 ## From a scan to a readable notebook
 
+**First notebook in about 15 minutes:** [docs/runtime/first_notebook.md](docs/runtime/first_notebook.md)
+(Docker, port **8510**, Ollama, Open sample or your own scans).
+
 You need a running Ollama server and at least one **OCR-friendly vision model**
 (for example `glm-ocr` or `granite3.2-vision`). Avoid “thinking” vision tags such
 as `gemma4` — they often return empty text.
 
-1. Open the app, choose **Workflow → New notebook**, and import JPEG, PNG, or PDF pages.
+1. Open the app, choose **Workflow → New notebook**, and import JPEG, PNG, or PDF pages
+   (or **Open sample**).
 2. Open **Workflow → Transcribe**, pick a vision model, and start.
 3. Open **Workflow → Review** and correct the text beside the scan.
 4. Optionally open **Workflow → Analyse**, keep **Balanced**, and read **View → Overview**.
@@ -46,10 +50,10 @@ Five everyday jobs: [import and transcribe](docs/user_guide.md#from-a-scan-to-a-
 
 ## Installation
 
-**Docker (recommended).** No host Python packages. Copy `.env.example` to `.env`
-and set **`HOST_PROJECTS_DIR`** to an absolute path **outside this repository**.
-You still need [Ollama](https://ollama.com) on the host with an OCR-friendly vision
-model.
+**Docker (recommended).** Follow [First notebook in about 15 minutes](docs/runtime/first_notebook.md).
+Copy `.env.example` to `.env` and set **`HOST_PROJECTS_DIR`** to an absolute path
+**outside this repository**. You still need [Ollama](https://ollama.com) on the
+host with an OCR-friendly vision model.
 
 ```bash
 git clone https://github.com/glen-w/transcribe.git

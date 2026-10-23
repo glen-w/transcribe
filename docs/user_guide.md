@@ -3,6 +3,9 @@
 Import scans → transcribe with a local vision model → correct the text beside
 the page → optionally analyse → export.
 
+**New here?** [First notebook in about 15 minutes](runtime/first_notebook.md)
+(Docker, port **8510**).
+
 Product framing: [PRODUCT.md](PRODUCT.md). This page is the golden path in the
 UI. CLI one-liners sit under each step; flags and batch jobs live in the
 runtime guides.

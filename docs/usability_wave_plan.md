@@ -1,6 +1,6 @@
 # Usability wave plan
 
-**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; open track is **U2** (Home, Diagnostics, and sample notebook shipped; first-run install docs remain); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
+**Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U2** first-run (Home, Diagnostics, sample notebook, first-run docs) is **done**; **U3** daily workbench is **done**; **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
 
 **0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--10)). After 0.9.0: **1.0**. A stranger-testing round is not a release gate.
 
@@ -183,7 +183,7 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 ---
 
-## 6. U2 — First-run & operability
+## 6. U2 — First-run & operability — [x] done
 
 **Outcome:** A motivated non-expert reaches a first exported notebook via Docker (preferred) without digging into contracts or host Python setup.
 
@@ -218,18 +218,18 @@ No telemetric onboarding — local session / workspace only.
 
 Speaker-profile repair is out of scope.
 
-### U2.4 — Docs & install path
+### U2.4 — Docs & install path — [x] done
 
-- Tighten [runtime/installation.md](runtime/installation.md) / [runtime/docker.md](runtime/docker.md) into a **“first notebook in 15 minutes”** path linked from README empty-state — **Docker preferred**, host/Python under Advanced.
-- Document port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID once in the first-run doc — not scattered only in deep runtime notes.
-- Surface [known_limitations.md](known_limitations.md) items that bite first run (encrypted PDF, large budgets, cleanup latency).
+- Front door: [runtime/first_notebook.md](runtime/first_notebook.md), linked from README, Sphinx Start here, website Install, and the user guide. **Docker preferred**; host/Python stays Advanced on [installation.md](runtime/installation.md).
+- Port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID live on that page.
+- First-run bites (encrypted PDF, large budgets, cleanup latency) on the same page, with [known_limitations.md](known_limitations.md) for the full list.
 
 ### Acceptance (U2)
 
 - [x] Empty Home presents Create + Import (no sample wizard).
 - [x] Sample notebook path works offline for import → (optional OCR skip if pre-seeded text) → Analyse Quick → Export.
 - [x] Doctor results visible in System → Diagnostics with workspace always / notebook when selected.
-- [ ] README / user guide point at the first-run install path; no contract reading required for the happy path.
+- [x] README / user guide point at the first-run install path; no contract reading required for the happy path.
 
 **U2 close enables the 0.9.0 cut** (with I0–I6). Next product phase after 0.9.0 is **1.0**, not more usability-wave tracks. A stranger-testing round is not a release gate.
 

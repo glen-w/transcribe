@@ -12,6 +12,7 @@ OCR uses a local [Ollama](https://ollama.com) vision model. Transcribe does
 **Privacy:** files stay on your computer; Ollama is local and off the public internet by default.
 
 The GitHub [README](https://github.com/glen-w/transcribe#readme) is the same first-run story.
+**First notebook:** [about 15 minutes](runtime/first_notebook.md).
 
 ```{toctree}
 :maxdepth: 2
@@ -19,6 +20,7 @@ The GitHub [README](https://github.com/glen-w/transcribe#readme) is the same fir
 
 PRODUCT
 user_guide
+runtime/first_notebook
 runtime/installation
 runtime/docker
 runtime/ocr
