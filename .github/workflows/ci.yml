@@ -105,7 +105,7 @@ jobs:
 
   release-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     needs: [compose-config, lint, tests, docs]
     steps:
       - uses: actions/checkout@v4
@@ -143,3 +143,9 @@ jobs:
           import transcribe
           print("import ok", transcribe.__version__)
           PY
+      - name: Docker image smoke
+        env:
+          HOST_PROJECTS_DIR: ${{ runner.temp }}/tr-projects
+        run: |
+          mkdir -p "$HOST_PROJECTS_DIR"
+          bash scripts/release/docker_release_smoke.sh

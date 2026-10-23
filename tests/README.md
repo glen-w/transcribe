@@ -27,7 +27,7 @@ Lane names here match the root `Makefile` and `.github/workflows/ci.yml`. Defaul
 
 **Nightly (I6):** `.github/workflows/nightly.yml` runs `make test-acceptance` on a schedule (offline; no live Ollama). Manual: Actions → Nightly → Run workflow.
 
-**Not in PR CI yet (I6 remainder):** full `docker compose build` image smoke on `release-checks`.
+**PR add-ons (I6):** `release-checks` runs `scripts/release/docker_release_smoke.sh` (Compose image build + bind assert + image pip check). Skips with reason when Docker is missing.
 
 Time budgets (target ceilings):
 

@@ -32,7 +32,7 @@
 - Detection fine-tune export stays a candidate. It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** **I6**, then a 0.9.0 tag (U2 is shipped). A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
+**Still on the path to a public cut, and not autobiography:** U2 and I0–I6 are shipped; cut **0.9.0** then freeze **1.0**. A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 
@@ -329,7 +329,7 @@ Full track plan: [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.
 | **I3** Quality gates | [x] | Coverage fail-under, pre-commit, partial CI `release-checks` |
 | **I4** Hosted docs | [x] | Sphinx over existing Markdown, `.[docs]`, `.readthedocs.yml` scaffold, CI docs job |
 | **I5** Public landing | [x] | Modest `website/` + GitHub Pages assemble; optional workflow screenshot walkthroughs |
-| **I6** Sustaining lanes | [ ] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
+| **I6** Sustaining lanes | [x] | Nightly acceptance/offline heavy, Docker smoke in release-checks, issue templates |
 
 Suggested cut order: **I0+I1** (0.7.0, landed) → **I2+I3** (0.8.0, landed) → **I4** (Sphinx, landed) → **I5** (Pages landing, landed) → **I6**. U2 may parallel throughout; both tracks required for the **0.9.0** package cut.
 
@@ -357,7 +357,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. Remaining infra: **I6**.
+When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. **I6** nightly + issue templates + Docker release-checks landed.
 
 ### 1.0 freeze
 

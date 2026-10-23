@@ -23,6 +23,7 @@ user_guide
 runtime/first_notebook
 runtime/installation
 runtime/docker
+runtime/install_verification_matrix
 runtime/ocr
 known_limitations
 ```

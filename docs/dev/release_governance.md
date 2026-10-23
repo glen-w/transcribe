@@ -16,7 +16,7 @@ Distribution (v1): versioned git tags; **Docker Compose preferred** for end user
 6. Fixable CVEs cleared **or** exceptional waiver filled in [dependency_audit.md](dependency_audit.md).
 7. No denylist violations; `scripts/secrets_check.sh` green.
 8. Compose default bind remains loopback (`scripts/release/assert_compose_bind.sh`).
-9. **I5 landed; I6 partial:** GitHub Pages is required for **0.9.0**. Nightly offline acceptance (`.github/workflows/nightly.yml`) is scheduled; do not wait on the scheduler for a tag — record the latest nightly run or an equivalent local `make test-acceptance`. Full Docker image audit on `release-checks` still waits for the I6 Docker slice. Sphinx/CI docs (**I4**) is required on the intended SHA.
+9. **I5–I6 required for 0.9.0+ tags:** GitHub Pages, nightly offline acceptance (or local `make test-acceptance`), and Docker image smoke (`scripts/release/docker_release_smoke.sh` — skip with reason when Docker is missing). Sphinx/CI docs (**I4**) is required on the intended SHA.
 
 Humans (or an explicit user instruction outside the pre-release command) perform tag/push after this checklist is satisfied.
 
@@ -69,7 +69,7 @@ docker compose -f docker-compose.yml build
 make docker-smoke
 ```
 
-Expected: `pass`, or `skipped (Docker not available)` until I6 makes image smoke a CI job.
+Expected: `pass`, or `skipped (Docker not available)` via `docker_release_smoke.sh` (never a silent pass). CI `release-checks` runs the same script.
 
 ### F. CI on exact commit
 

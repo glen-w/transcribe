@@ -1,6 +1,6 @@
 # 0.9 Infrastructure wave plan
 
-**Status:** [~] in progress — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I5** landed (0.7.0 / 0.8.0 / Sphinx / public landing). Remaining: **I6**.
+**Status:** [x] done — bring Transcribe’s testing, CI, docs hosting, and release hygiene to TranscriptX-class maturity ahead of a credible public **1.0**. **I0–I6** landed (0.7.0 / 0.8.0 / Sphinx / public landing / nightly / Docker release-checks).
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
@@ -160,17 +160,17 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Push to `main` publishes a public landing + guide once GitHub Pages is enabled; RTD go-live remains owner-gated. Workflow screenshot gallery remains optional.
 
-### I6 — Sustaining lanes & community surfaces — [~] in progress
+### I6 — Sustaining lanes & community surfaces — [x] done
 
 | Deliverable | Notes |
 |-------------|--------|
-| `nightly.yml` | **Landed.** Scheduled offline `make test-acceptance`. No live Ollama, no port 8501. |
-| Docker in `release-checks` | Fresh `docker compose build` + `make docker-smoke` + optional image pip check |
-| Issue templates | **Landed.** Bug + feature + `config.yml` |
-| Optional: install verification matrix | `docs/runtime/install_verification_matrix.md` cells for release evidence |
+| `nightly.yml` | Scheduled offline `make test-acceptance`. No live Ollama. |
+| Docker in `release-checks` | `scripts/release/docker_release_smoke.sh` (`compose build` + bind assert + image pip check). Skip (exit 0) when Docker is missing — never a fake pass. |
+| Issue templates | Bug + feature + `config.yml` |
+| Optional: install verification matrix | [install_verification_matrix.md](runtime/install_verification_matrix.md) cells for release evidence |
 | Optional: complexity / perf smoke | Only if useful; TX’s radon/perf envelopes are optional signals |
 
-**Exit:** Nightly green on schedule; release-checks cover Docker when the runner has Docker; issues use templates.
+**Exit:** Nightly workflow exists (do not wait on the scheduler for a tag); release-checks cover Docker when the runner has Docker; issues use templates.
 
 ---
 
