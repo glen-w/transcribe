@@ -108,6 +108,11 @@ def chronological_page_ids(
     return [page_id for _key, _index, page_id in dated] + undated
 
 
+def reader_page_ids(project: Project, *, hide_ignored: bool) -> list[str]:
+    """Reading order, optionally omitting pages marked ``ignored``."""
+    return chronological_page_ids(project, include_ignored=not hide_ignored)
+
+
 def notebook_view_entries(
     project: Project,
     project_root: str | Path,

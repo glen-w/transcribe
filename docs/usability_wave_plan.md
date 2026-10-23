@@ -2,7 +2,7 @@
 
 **Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U3** daily workbench is **done**; **U2** sample notebook + first-run docs are **done** (Home/Diagnostics already shipped); **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
 
-**0.9.0 cut:** U2 acceptance is **required** together with infrastructure I0–I6 ([ROADMAP Path to 0.9.0](ROADMAP.md#path-to-090--10)). After 0.9.0: **1.0**. A stranger-testing round is not a release gate.
+**0.9.0 cut:** [x] done (U2 + I0–I6). **1.0 freeze:** [x] done. A stranger-testing round is not a release gate.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 
@@ -183,7 +183,7 @@ Collapse under **Advanced**: workers, force re-OCR, cleanup mode/model detail, u
 
 ---
 
-## 6. U2 — First-run & operability
+## 6. U2 — First-run & operability — [x] done
 
 **Outcome:** A motivated non-expert reaches a first exported notebook via Docker (preferred) without digging into contracts or host Python setup.
 
@@ -199,11 +199,11 @@ This Home **replaces** the earlier U2.1 sketch (setup checklist + Open sample on
 
 No telemetric onboarding — local session / workspace only.
 
-### U2.2 — Sample / demo notebook
+### U2.2 — Sample / demo notebook — [x] done
 
-- Ship a small fixture notebook (few pages of public-domain or synthetic handwriting scans **or** text-backed pages with placeholder images) under a documented path (e.g. `samples/demo-notebook/` or generated into projects on demand).
-- One-click **Open sample** copies into `TRANSCRIBE_PROJECTS_DIR` via existing `init` + import services — not a second project format.
-- Sample should be analysable offline for deterministic modules (so Analyse demos without LLM).
+- Fixture: [`src/transcribe/samples/demo-notebook/`](../src/transcribe/samples/demo-notebook/) (pointer: [`samples/README.md`](../samples/README.md)). Three synthetic placeholder pages plus sidecar text.
+- **Workflow → New notebook → Open sample** copies into `TRANSCRIBE_PROJECTS_DIR` via `ProjectService.create` + `IngestService.import_path`, then seeds `edited_text`. Empty Home stays Create + Import only.
+- Analyse Quick runs offline on the seeded text (no LLM, OCR optional).
 
 ### U2.3 — Diagnostics in UI
 
@@ -218,11 +218,11 @@ No telemetric onboarding — local session / workspace only.
 
 Speaker-profile repair is out of scope.
 
-### U2.4 — Docs & install path
+### U2.4 — Docs & install path — [x] done
 
-- Tighten [runtime/installation.md](runtime/installation.md) / [runtime/docker.md](runtime/docker.md) into a **“first notebook in 15 minutes”** path linked from README empty-state — **Docker preferred**, host/Python under Advanced.
-- Document port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID once in the first-run doc — not scattered only in deep runtime notes.
-- Surface [known_limitations.md](known_limitations.md) items that bite first run (encrypted PDF, large budgets, cleanup latency).
+- Front door: [runtime/first_notebook.md](runtime/first_notebook.md), linked from README, Sphinx Start here, website Install, and the user guide. **Docker preferred**; host/Python stays Advanced on [installation.md](runtime/installation.md).
+- Port **8510**, absolute `HOST_PROJECTS_DIR`, Linux `extra_hosts`, UID/GID live on that page.
+- First-run bites (encrypted PDF, large budgets, cleanup latency) on the same page, with [known_limitations.md](known_limitations.md) for the full list.
 
 ### Acceptance (U2)
 

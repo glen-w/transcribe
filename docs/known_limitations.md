@@ -40,6 +40,11 @@ Operational guide: [runtime/ocr.md](runtime/ocr.md).
 - Cancelling stops scheduling after the current page; in-flight pages still finish. The progress panel shows **Cancelled** (not Failed). During compare, remaining vision models are not started; rank/composite still run for pages that already have ≥2 succeeded vision attempts
 - Mid-job settings changes apply to the next job only
 
+## Reading / export
+
+- Pages marked **Ignore in Reader** (Review → Other) are hidden in Reading by default and omitted from Markdown/HTML/PDF/EPUB/text export when **Exclude ignored pages** is on (the workspace default). JSON export keeps them. **Show ignored pages** in Reading is a session override and does not write settings.
+- The packaged **Open sample** notebook is placeholder text, not a handwriting OCR demo.
+
 ## Archive / cache
 
 - Workspace search/timeline depends on a rebuildable SQLite cache. Corrupt or incompatible caches are deleted and rebuilt

@@ -41,8 +41,10 @@ options **do not** participate in `content_revision` / `bundle_revision`.
 
 Workspace subtree `export` (see [workspace-settings.md](workspace-settings.md))
 and profile target `export` control formats, page-break mode, date/blank
-inclusion, title page, and typography (body font/size, line height, paragraph
-spacing, margins, heading scale).
+inclusion, **exclude ignored pages** (default on for reading formats; JSON keeps
+the full notebook), title page, and typography (body font/size, line height,
+paragraph spacing, margins, heading scale). The same `exclude_ignored_pages`
+default hides ignored pages in Reading.
 
 Builtin profiles: `default`, `readable`, `compact`, `large_print`.
 

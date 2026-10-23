@@ -1,8 +1,9 @@
 # Installation
 
-**Most people:** Docker below, then the [user guide](../user_guide.md).
-This page is the normal install path. Host Python, pip extras, environment
-variables, and developer installs are under [Advanced](#advanced).
+**Most people:** [First notebook in about 15 minutes](first_notebook.md)
+(Docker, port **8510**), then the [user guide](../user_guide.md). This page is
+the install reference. Host Python, pip extras, environment variables, and
+developer installs are under [Advanced](#advanced).
 
 You also need a running [Ollama](https://ollama.com) server and at least one
 **OCR-friendly vision model** before the first transcription. Ollama stays on

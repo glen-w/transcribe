@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import html
+from functools import lru_cache
 from pathlib import Path
 
 import streamlit as st
@@ -52,6 +53,20 @@ _ASSETS = Path(__file__).resolve().parent / "assets"
 _LOGO_PATH = _ASSETS / "logo.png"
 _FAVICON_PATH = _ASSETS / "favicon.png"
 
+# Session key: avoid re-pushing ~19KB CSS on every full-app rerun.
+_GLOBAL_STYLES_SESSION_KEY = "_tx_global_styles_injected"
+
+
+@lru_cache(maxsize=8)
+def _logo_data_uri(path_str: str, mtime_ns: int) -> str:
+    """Cache base64 logos process-wide (files are ~180KB). ``mtime_ns`` busts stale hits."""
+    path = Path(path_str)
+    raw = path.read_bytes()
+    b64 = base64.b64encode(raw).decode("ascii")
+    suffix = path.suffix.lower()
+    mime = "image/png" if suffix == ".png" else "image/jpeg"
+    return f"data:{mime};base64,{b64}"
+
 
 def logo_path() -> Path | None:
     """Packaged brand mark, if present."""
@@ -76,7 +91,17 @@ def configure_streamlit_page() -> None:
     )
 
 
-_GLOBAL_STYLES_MARKDOWN = """
+def inject_global_styles(*, force: bool = False) -> None:
+    """Inject sidebar nav + page chrome CSS (shape/style matched to TranscriptX).
+
+    Once per browser session by default — Streamlit keeps the DOM styles across
+    full-app reruns; re-pushing the sheet on every nav click is pure tax.
+    Pass ``force=True`` after intentional style revisions.
+    """
+    if not force and st.session_state.get(_GLOBAL_STYLES_SESSION_KEY):
+        return
+    st.markdown(
+        """
 <style>
     /* Sidebar width — match TranscriptX menu bar density */
     section[data-testid="stSidebar"] {
@@ -132,6 +157,32 @@ _GLOBAL_STYLES_MARKDOWN = """
         margin-right: auto;
         padding-left: 1.5rem;
         padding-right: 1.5rem;
+    }
+    /* Wide / scan markers are emitted per run so once-injected rules do not stick. */
+    .tx-wide-layout,
+    .tx-review-scan,
+    .tx-detect-scan {
+        display: none !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    section[data-testid="stAppViewContainer"]:has(.tx-wide-layout) .block-container {
+        max-width: min(1680px, 96vw) !important;
+    }
+    section[data-testid="stAppViewContainer"]:has(.tx-review-scan) div[data-testid="stImage"] img {
+        max-height: 63vh;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+    }
+    section[data-testid="stAppViewContainer"]:has(.tx-detect-scan)
+        div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
+        max-height: 45vh;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
     }
     /* Navigation section headers */
     .nav-section-header,
@@ -613,37 +664,17 @@ _GLOBAL_STYLES_MARKDOWN = """
         color: #8a9ab0;
     }
 </style>
-"""
-
-
-def inject_global_styles() -> None:
-    """Inject sidebar nav + page chrome CSS (shape/style matched to TranscriptX)."""
-    st.markdown(_GLOBAL_STYLES_MARKDOWN, unsafe_allow_html=True)
-
-
-_LOGO_DATA_URI: str | None = None
-_LOGO_DATA_URI_LOADED = False
-
-
-def _logo_data_uri() -> str | None:
-    """Process-local logo data URI — avoid re-reading/encoding on every rerun."""
-    global _LOGO_DATA_URI, _LOGO_DATA_URI_LOADED
-    if _LOGO_DATA_URI_LOADED:
-        return _LOGO_DATA_URI
-    path = logo_path()
-    if path is not None:
-        data = base64.b64encode(path.read_bytes()).decode("ascii")
-        _LOGO_DATA_URI = f"data:image/png;base64,{data}"
-    else:
-        _LOGO_DATA_URI = None
-    _LOGO_DATA_URI_LOADED = True
-    return _LOGO_DATA_URI
+""",
+        unsafe_allow_html=True,
+    )
+    st.session_state[_GLOBAL_STYLES_SESSION_KEY] = True
 
 
 def render_brand() -> None:
     """Sidebar brand mark (HTML img — no Streamlit fullscreen toolbar)."""
-    uri = _logo_data_uri()
-    if uri is not None:
+    path = logo_path()
+    if path is not None:
+        uri = _logo_data_uri(str(path), path.stat().st_mtime_ns)
         st.markdown(
             f'<div class="tx-sidebar-brand">'
             f'<img src="{uri}" alt="Transcribe" />'

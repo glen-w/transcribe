@@ -16,7 +16,14 @@ Distribution (v1): versioned git tags; **Docker Compose preferred** for end user
 6. Fixable CVEs cleared **or** exceptional waiver filled in [dependency_audit.md](dependency_audit.md).
 7. No denylist violations; `scripts/secrets_check.sh` green.
 8. Compose default bind remains loopback (`scripts/release/assert_compose_bind.sh`).
-9. **I5–I6 not yet required for 0.8 tags:** GitHub Pages, nightly, and full Docker image audit wait for **0.9.0**. Sphinx/CI docs (**I4**) is required on the intended SHA. When I5–I6 land, they join this checklist.
+9. **I5–I6 required for 0.9.0+ tags:** GitHub Pages, nightly offline acceptance (or local `make test-acceptance`), and Docker image smoke (`scripts/release/docker_release_smoke.sh` — skip with reason when Docker is missing). Sphinx/CI docs (**I4**) is required on the intended SHA.
+
+**0.9.0 still keys off U2** (sample notebook + first-run docs) **and I0–I6**. The pack below joins the **1.0** checklist only — not the 0.9.0 cut.
+
+10. **1.0 — severity:** findings triaged with [release_severity_triage.md](release_severity_triage.md); zero open blockers / must-fix.
+11. **1.0 — ops:** [release_ops.md](release_ops.md) published (Docker preferred, no PyPI, Ollama model quality is a known limitation).
+12. **1.0 — manual acceptance:** [manual_acceptance_1_0.md](manual_acceptance_1_0.md) executed, or required journeys skipped with reason + severity.
+13. **1.0 — analysis freeze:** [analysis_quality_audit.md](analysis_quality_audit.md) current for the 25-id set; pin registry has a row for every registered `MODULE_ID`.
 
 Humans (or an explicit user instruction outside the pre-release command) perform tag/push after this checklist is satisfied.
 
@@ -69,7 +76,7 @@ docker compose -f docker-compose.yml build
 make docker-smoke
 ```
 
-Expected: `pass`, or `skipped (Docker not available)` until I6 makes image smoke a CI job.
+Expected: `pass`, or `skipped (Docker not available)` via `docker_release_smoke.sh` (never a silent pass). CI `release-checks` runs the same script.
 
 ### F. CI on exact commit
 

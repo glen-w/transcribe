@@ -93,3 +93,13 @@ def test_archive_covers_cols_defaults_and_clamps(monkeypatch) -> None:
 
     state[ARCHIVE_COVERS_COLS_KEY] = "bad"
     assert _archive_covers_cols() == _DEFAULT_ARCHIVE_COVERS_COLS
+
+
+def test_activity_rows_use_cover_window() -> None:
+    from pathlib import Path
+
+    archive = Path("src/transcribe/ui/archive_views.py").read_text(encoding="utf-8")
+    assert "def _windowed_notebooks(" in archive
+    activity = archive.split("def _render_activity_rows")[1].split("def _render_library_filters")[0]
+    assert "_windowed_notebooks(notebooks)" in activity
+    assert "_render_notebook_window_controls" in activity

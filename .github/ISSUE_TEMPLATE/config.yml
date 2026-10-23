@@ -6,3 +6,9 @@ contact_links:
   - name: Known limitations
     url: https://github.com/glen-w/transcribe/blob/main/docs/known_limitations.md
     about: Honesty about models, PDFs, and privacy
+  - name: Security vulnerability
+    url: https://github.com/glen-w/transcribe/security/advisories/new
+    about: Use GitHub private vulnerability reporting — do not open a public Issue for sensitive details.
+  - name: Documentation / product definition
+    url: https://github.com/glen-w/transcribe/blob/main/docs/PRODUCT.md
+    about: Read PRODUCT.md and the first-notebook guide before filing install or scope questions.

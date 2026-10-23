@@ -3,6 +3,9 @@
 Import scans → transcribe with a local vision model → correct the text beside
 the page → optionally analyse → export.
 
+**New here?** [First notebook in about 15 minutes](runtime/first_notebook.md)
+(Docker, port **8510**).
+
 Product framing: [PRODUCT.md](PRODUCT.md). This page is the golden path in the
 UI. CLI one-liners sit under each step; flags and batch jobs live in the
 runtime guides.
@@ -35,7 +38,9 @@ then **View → Overview**.
 ## 1. Create or open a notebook
 
 **UI:** pick an existing notebook from the sidebar, **Workflow → New notebook**,
-or **Home → Open sample notebook**. First visit opens **Home**. Rename later
+or **Home → Open sample notebook**. **Open sample** (Home or New notebook)
+installs a short placeholder notebook with text already filled in, so you can
+try Reading and Analyse without OCR. First visit opens **Home**. Rename later
 from **Library** or **Workflow → Import**.
 
 **CLI:**
@@ -97,7 +102,9 @@ at a time on the right (**Transcription**, **Date**, **Tags**, **OCR**,
 Approve or edit the text, then **Save + Mark reviewed** to move on. Mark
 uninteresting pages **Ignore in Reader** so Reading skips them by default
 (Settings → Configuration → Reading controls the default; Reader can
-**Show ignored**). **Thumbnails** switches Review or Reading to a page grid;
+**Show ignored**). The same pages are omitted from exported Markdown, HTML,
+PDF, EPUB, and text by default; JSON export keeps them. **Thumbnails** switches
+Review or Reading to a page grid;
 click the page button under a thumb to open that page. **Reading** is the same
 pages in chronological order, read-only. **Library** is the cover gallery;
 **Search** finds text across notebooks.

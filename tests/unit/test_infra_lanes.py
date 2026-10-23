@@ -50,6 +50,34 @@ def test_ci_workflow_runs_python_matrix_and_compose():
     assert "release-checks:" in text
     assert "check_tracked_data.py" in text
     assert "secrets_check.sh" in text
+    assert "docker_release_smoke.sh" in text
+
+
+def test_docker_release_smoke_skips_without_daemon():
+    smoke = (ROOT / "scripts" / "release" / "docker_release_smoke.sh").read_text(
+        encoding="utf-8"
+    )
+    pip_check = (ROOT / "scripts" / "release" / "image_pip_check.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "SKIP: docker not available" in smoke
+    assert "SKIP: docker not available" in pip_check
+    assert "docker compose -f docker-compose.yml build" in smoke
+    assert "8501" not in smoke
+    assert "compose up" not in smoke
+
+
+def test_nightly_workflow_is_offline_acceptance():
+    text = (ROOT / ".github" / "workflows" / "nightly.yml").read_text(encoding="utf-8")
+    assert "make test-acceptance" in text
+    assert "cron:" in text
+    assert "11434" not in text
+    assert "8501" not in text
+    assert "requires_ollama" not in text
+    bug = ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.md"
+    feat = ROOT / ".github" / "ISSUE_TEMPLATE" / "feature_request.md"
+    cfg = ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml"
+    assert bug.is_file() and feat.is_file() and cfg.is_file()
 
 
 def test_package_version_matches_pyproject():
@@ -59,7 +87,7 @@ def test_package_version_matches_pyproject():
     proj_ver = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
     assert init_ver and proj_ver
     assert init_ver.group(1) == proj_ver.group(1)
-    assert init_ver.group(1) == "0.8.8"
+    assert init_ver.group(1) == "1.0.0"
 
 
 def test_i2_i3_release_kit_files_exist():
@@ -74,6 +102,9 @@ def test_i2_i3_release_kit_files_exist():
         "scripts/release/root_docs_allowlist.toml",
         "scripts/release/assert_compose_bind.sh",
         "docs/dev/release_governance.md",
+        "scripts/release/docker_release_smoke.sh",
+        "scripts/release/image_pip_check.sh",
+        "docs/runtime/install_verification_matrix.md",
         "docs/dev/dependency_audit.md",
         "docs/dev/rtd_go_live_checklist.md",
         "docs/conf.py",

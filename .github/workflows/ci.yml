@@ -105,7 +105,7 @@ jobs:
 
   release-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     needs: [compose-config, lint, tests, docs]
     steps:
       - uses: actions/checkout@v4
@@ -143,12 +143,9 @@ jobs:
           import transcribe
           print("import ok", transcribe.__version__)
           PY
-      - name: Docker Compose build + smoke (I6)
+      - name: Docker image smoke
         env:
-          # Required for compose volume interpolation (same default as assert_compose_bind.sh).
-          HOST_PROJECTS_DIR: ${{ runner.temp }}/transcribe-compose-projects
+          HOST_PROJECTS_DIR: ${{ runner.temp }}/tr-projects
         run: |
           mkdir -p "$HOST_PROJECTS_DIR"
-          docker compose build
-          make docker-smoke
-          docker compose config --quiet
+          bash scripts/release/docker_release_smoke.sh

@@ -3,6 +3,8 @@
 **Preferred** install path. No host Python packages. Ollama stays on the host (or
 another service); the container only runs the app + Streamlit UI.
 
+**First notebook:** [first_notebook.md](first_notebook.md) (about 15 minutes).
+This page is Compose mounts, Linux `extra_hosts`, UID/GID, and bind details.
 Overview and advanced host/Python install: [installation.md](installation.md).
 
 ## Quick start

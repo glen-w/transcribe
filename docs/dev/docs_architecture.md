@@ -9,7 +9,7 @@
 | README | Entry + quickstart | Summarizes; links PRODUCT |
 | [PRODUCT.md](../PRODUCT.md) | Product definition | Self |
 | [ROADMAP.md](../ROADMAP.md) | Product priorities + sequencing (0.9.0 / 1.0): status at a glance, ranked backlog, path cut criteria, shipped vs candidates. Autobiography is on file, not this product (scope lean 24 Sep 2026). Stranger-testing is not a release gate | Self |
-| [usability_wave_plan.md](../usability_wave_plan.md) | Active usability-wave delivery plan | Self (while U2 open) |
+| [usability_wave_plan.md](../usability_wave_plan.md) | Usability-wave delivery plan (U2 done) | Self |
 | Contracts + [CONTRACT_INDEX.md](../CONTRACT_INDEX.md) | Behavioural invariants | Contracts |
 | `docs/runtime/` | Task-oriented user guides | GUIDE (link contracts) |
 | `docs/dev/` | Developer / programme / alignment notes | Developer |
@@ -26,6 +26,7 @@
 - Contracts: [CONTRACT_INDEX.md](../CONTRACT_INDEX.md)
 - Archive: [ARCHIVE_INDEX.md](../archive/ARCHIVE_INDEX.md)
 - Reviews: [reviews/README.md](../reviews/README.md)
+- Assessments: [assessments/README.md](../assessments/README.md) (Transcribe vs TranscriptX survey; not contracts)
 
 ## Hosted docs
 
