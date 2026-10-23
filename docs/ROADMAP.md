@@ -296,7 +296,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
+**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). Survey vs TranscriptX (2026-10-23): [assessments/README.md](assessments/README.md). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
 
 **Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
 

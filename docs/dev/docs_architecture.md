@@ -26,6 +26,7 @@
 - Contracts: [CONTRACT_INDEX.md](../CONTRACT_INDEX.md)
 - Archive: [ARCHIVE_INDEX.md](../archive/ARCHIVE_INDEX.md)
 - Reviews: [reviews/README.md](../reviews/README.md)
+- Assessments: [assessments/README.md](../assessments/README.md) (Transcribe vs TranscriptX survey; not contracts)
 
 ## Hosted docs
 

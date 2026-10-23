@@ -63,6 +63,14 @@ INTEGRATION_SEAM
 
 ```{toctree}
 :maxdepth: 1
+:caption: Assessments
+:glob:
+
+assessments/*
+```
+
+```{toctree}
+:maxdepth: 1
 :caption: Contracts
 :glob:
 
@@ -91,3 +99,4 @@ reviews/*
 - [Developer documentation index](DEV_INDEX.md)
 - [Contract index](CONTRACT_INDEX.md)
 - [Usability wave](usability_wave_plan.md) (active product focus)
+- [Assessments](assessments/README.md) (Transcribe vs TranscriptX survey)
