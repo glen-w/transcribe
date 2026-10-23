@@ -1,0 +1,48 @@
+name: Nightly
+
+# Heavier offline acceptance. PR CI already runs the default suite on 3.10–3.12.
+# Stay offline: no live Ollama, no sibling-product port, no Docker image build
+# (that is release-checks / I6 Docker). Manual: Actions → Nightly → Run workflow.
+
+on:
+  schedule:
+    # 06:00 UTC daily
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package + test deps
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[dev]"
+          command -v pytest
+          python -m pytest --version
+      - name: Isolate temp roots
+        run: |
+          mkdir -p "$RUNNER_TEMP/tr-data" "$RUNNER_TEMP/tr-projects" "$RUNNER_TEMP/tr-inbox" "$RUNNER_TEMP/tr-export"
+          echo "TRANSCRIBE_DATA_DIR=$RUNNER_TEMP/tr-data" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_PROJECTS_DIR=$RUNNER_TEMP/tr-projects" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_INBOX_DIR=$RUNNER_TEMP/tr-inbox" >> "$GITHUB_ENV"
+          echo "TRANSCRIBE_EXPORT_DIR=$RUNNER_TEMP/tr-export" >> "$GITHUB_ENV"
+      - name: Acceptance (offline)
+        run: make test-acceptance

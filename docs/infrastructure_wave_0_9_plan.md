@@ -160,13 +160,13 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 **Exit:** Push to `main` publishes a public landing + guide once GitHub Pages is enabled; RTD go-live remains owner-gated. Workflow screenshot gallery remains optional.
 
-### I6 — Sustaining lanes & community surfaces — [ ] planned
+### I6 — Sustaining lanes & community surfaces — [~] in progress
 
 | Deliverable | Notes |
 |-------------|--------|
-| `nightly.yml` | Scheduled acceptance / heavier offline lane (`test-acceptance` or a marked `integration_core` equivalent that stays **offline**) |
+| `nightly.yml` | **Landed.** Scheduled offline `make test-acceptance`. No live Ollama, no port 8501. |
 | Docker in `release-checks` | Fresh `docker compose build` + `make docker-smoke` + optional image pip check |
-| Issue templates | Bug + feature + `config.yml` |
+| Issue templates | **Landed.** Bug + feature + `config.yml` |
 | Optional: install verification matrix | `docs/runtime/install_verification_matrix.md` cells for release evidence |
 | Optional: complexity / perf smoke | Only if useful; TX’s radon/perf envelopes are optional signals |
 

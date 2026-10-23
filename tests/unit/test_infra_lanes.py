@@ -52,6 +52,19 @@ def test_ci_workflow_runs_python_matrix_and_compose():
     assert "secrets_check.sh" in text
 
 
+def test_nightly_workflow_is_offline_acceptance():
+    text = (ROOT / ".github" / "workflows" / "nightly.yml").read_text(encoding="utf-8")
+    assert "make test-acceptance" in text
+    assert "cron:" in text
+    assert "11434" not in text
+    assert "8501" not in text
+    assert "requires_ollama" not in text
+    bug = ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.md"
+    feat = ROOT / ".github" / "ISSUE_TEMPLATE" / "feature_request.md"
+    cfg = ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml"
+    assert bug.is_file() and feat.is_file() and cfg.is_file()
+
+
 def test_package_version_matches_pyproject():
     init_text = (ROOT / "src" / "transcribe" / "__init__.py").read_text(encoding="utf-8")
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")

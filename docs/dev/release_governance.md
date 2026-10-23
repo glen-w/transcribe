@@ -16,7 +16,7 @@ Distribution (v1): versioned git tags; **Docker Compose preferred** for end user
 6. Fixable CVEs cleared **or** exceptional waiver filled in [dependency_audit.md](dependency_audit.md).
 7. No denylist violations; `scripts/secrets_check.sh` green.
 8. Compose default bind remains loopback (`scripts/release/assert_compose_bind.sh`).
-9. **I5–I6 not yet required for 0.8 tags:** GitHub Pages, nightly, and full Docker image audit wait for **0.9.0**. Sphinx/CI docs (**I4**) is required on the intended SHA. When I5–I6 land, they join this checklist.
+9. **I5 landed; I6 partial:** GitHub Pages is required for **0.9.0**. Nightly offline acceptance (`.github/workflows/nightly.yml`) is scheduled; do not wait on the scheduler for a tag — record the latest nightly run or an equivalent local `make test-acceptance`. Full Docker image audit on `release-checks` still waits for the I6 Docker slice. Sphinx/CI docs (**I4**) is required on the intended SHA.
 
 Humans (or an explicit user instruction outside the pre-release command) perform tag/push after this checklist is satisfied.
 

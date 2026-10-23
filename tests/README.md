@@ -25,7 +25,9 @@ Lane names here match the root `Makefile` and `.github/workflows/ci.yml`. Defaul
 
 **PR add-ons (I4):** `docs` job — `pip install -e '.[docs]'` then `make docs` (Sphinx HTML artifact).
 
-**Not in PR CI yet (I5–I6):** GitHub Pages, nightly heavier acceptance, full `docker compose build` image smoke.
+**Nightly (I6):** `.github/workflows/nightly.yml` runs `make test-acceptance` on a schedule (offline; no live Ollama). Manual: Actions → Nightly → Run workflow.
+
+**Not in PR CI yet (I6 remainder):** full `docker compose build` image smoke on `release-checks`.
 
 Time budgets (target ceilings):
 
