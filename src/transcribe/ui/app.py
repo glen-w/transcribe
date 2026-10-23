@@ -125,11 +125,28 @@ def _services(project_root: str):
     return paths, projects, ingest
 
 
+_RECONCILED_ROOTS_KEY = "_tx_reconciled_notebook_roots"
+
+
+def _load_open_notebook(projects: ProjectService, root: str):
+    """Load a notebook, reconciling interrupted runs once per root per session."""
+    seen = st.session_state.get(_RECONCILED_ROOTS_KEY)
+    if not isinstance(seen, list):
+        seen = []
+        st.session_state[_RECONCILED_ROOTS_KEY] = seen
+    key = str(root)
+    reconcile = key not in seen
+    project = projects.load(reconcile=reconcile)
+    if reconcile:
+        seen.append(key)
+    return project
+
+
 def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     section = normalize_ui_mode(section)
     try:
         paths, projects, _ingest = _services(root)
-        project = projects.load(reconcile=True)
+        project = _load_open_notebook(projects, root)
     except TranscribeError as exc:
         st.info("Select or create a notebook to begin.")
         st.caption(str(exc))
@@ -271,7 +288,7 @@ def render_analyse_workspace(
             run_projects = ProjectService(
                 paths, clock=SystemClock(), ids=UuidGenerator()
             )
-            run_project = run_projects.load(reconcile=True)
+            run_project = _load_open_notebook(run_projects, str(active_root))
         except TranscribeError as exc:
             st.error(str(exc))
             return
@@ -647,7 +664,7 @@ def main() -> None:
         if root:
             try:
                 _paths, projects, ingest = _services(root)
-                project = projects.load(reconcile=True)
+                project = _load_open_notebook(projects, root)
             except TranscribeError as exc:
                 st.caption(str(exc))
                 projects = ingest = project = None
@@ -688,7 +705,7 @@ def main() -> None:
             return
         try:
             paths, projects, _ingest = _services(root)
-            project = projects.load(reconcile=True)
+            project = _load_open_notebook(projects, root)
         except TranscribeError as exc:
             render_page_shell(spec.title, spec.description)
             st.info("Select a notebook in View, or create one under Workflow → New notebook.")

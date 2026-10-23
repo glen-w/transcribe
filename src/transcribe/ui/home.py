@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import streamlit as st
@@ -21,10 +22,14 @@ from transcribe.ui.shell import set_ui_mode
 
 _RECENT_LIMIT = 8
 _RECENT_COVER_WIDTH_PX = 112
+_OLLAMA_LINE_KEY = "_home_ollama_health"
+_OLLAMA_LINE_AT_KEY = "_home_ollama_health_at"
+_OLLAMA_LINE_TTL_S = 30.0
+_COVER_CACHE_KEY = "_home_cover_paths"
 
 
-def ollama_health_line() -> str:
-    """One-line Ollama reachability for Home / Diagnostics. Never raises."""
+def _probe_ollama_health() -> str:
+    """One-line Ollama reachability. Never raises."""
     try:
         from transcribe.providers.ollama import OllamaVisionProvider
 
@@ -43,7 +48,22 @@ def ollama_health_line() -> str:
         return f"Ollama not reachable — {exc}"
 
 
-def _recent_cover_thumb(project_root: Path) -> Path | None:
+def ollama_health_line(*, force: bool = False) -> str:
+    """Session-cached Ollama one-liner (about 30s). First paint still probes."""
+    now = time.monotonic()
+    if not force:
+        cached = st.session_state.get(_OLLAMA_LINE_KEY)
+        cached_at = st.session_state.get(_OLLAMA_LINE_AT_KEY)
+        if isinstance(cached, str) and isinstance(cached_at, (int, float)):
+            if now - float(cached_at) < _OLLAMA_LINE_TTL_S:
+                return cached
+    line = _probe_ollama_health()
+    st.session_state[_OLLAMA_LINE_KEY] = line
+    st.session_state[_OLLAMA_LINE_AT_KEY] = now
+    return line
+
+
+def _recent_cover_thumb_uncached(project_root: Path) -> Path | None:
     """Return a cached/generated cover thumbnail for a recent notebook row."""
     try:
         paths = open_project_paths(project_root)
@@ -59,6 +79,24 @@ def _recent_cover_thumb(project_root: Path) -> Path | None:
         return None
     if thumb is None or not thumb.exists():
         return None
+    return thumb
+
+
+def _recent_cover_thumb(project_root: Path) -> Path | None:
+    cache = st.session_state.setdefault(_COVER_CACHE_KEY, {})
+    if not isinstance(cache, dict):
+        cache = {}
+        st.session_state[_COVER_CACHE_KEY] = cache
+    try:
+        mtime = (project_root / "project.json").stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    key = str(project_root)
+    hit = cache.get(key)
+    if isinstance(hit, tuple) and len(hit) == 2 and hit[0] == mtime:
+        return Path(hit[1]) if hit[1] else None
+    thumb = _recent_cover_thumb_uncached(project_root)
+    cache[key] = (mtime, str(thumb) if thumb else "")
     return thumb
 
 

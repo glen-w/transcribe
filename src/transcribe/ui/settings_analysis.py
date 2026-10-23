@@ -29,6 +29,7 @@ from transcribe.config.reset import reset_subtree
 
 _PRESET_KEYS = ("quick", "balanced", "thorough")
 _PRESET_TITLES = {"quick": "Quick", "balanced": "Balanced", "thorough": "Thorough"}
+_PRESET_TAB_KEY = "settings_ui_presets_selected"
 
 
 def _catalogue() -> list[str]:
@@ -192,18 +193,30 @@ def render_analysis_presets_panel() -> None:
             "Saving preset edits will detach to `default` and write workspace overrides."
         )
 
-    tabs = st.tabs([_PRESET_TITLES[k] for k in _PRESET_KEYS])
-    for tab, key in zip(tabs, _PRESET_KEYS):
-        with tab:
-            _render_preset_editor(
-                key,
-                draft_root[key],
-                catalogue=catalogue,
-                llm_options=llm_options,
-                heavy_options=heavy_options,
-                detector_options=detector_options,
-                gen=gen,
-            )
+    titles = [_PRESET_TITLES[k] for k in _PRESET_KEYS]
+    title_to_key = {title: key for key, title in _PRESET_TITLES.items()}
+    selected_title = st.session_state.get(_PRESET_TAB_KEY)
+    if selected_title not in titles:
+        st.session_state[_PRESET_TAB_KEY] = titles[0]
+    label = st.segmented_control(
+        "Preset",
+        options=titles,
+        key=_PRESET_TAB_KEY,
+        label_visibility="collapsed",
+    )
+    if label not in title_to_key:
+        label = titles[0]
+        st.session_state[_PRESET_TAB_KEY] = label
+    key = title_to_key[label]
+    _render_preset_editor(
+        key,
+        draft_root[key],
+        catalogue=catalogue,
+        llm_options=llm_options,
+        heavy_options=heavy_options,
+        detector_options=detector_options,
+        gen=gen,
+    )
 
     col_save, col_reset = st.columns(2)
     with col_save:

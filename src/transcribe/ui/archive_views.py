@@ -403,11 +403,9 @@ def _render_showing_caption(timeline: TimelineResult) -> None:
     st.markdown(f"Showing **{timeline.showing}** of **{timeline.total}** pages" + spike_note)
 
 
-def _render_cover_grid(
+def _windowed_notebooks(
     notebooks: list[NotebookSummary],
-    *,
-    runtime: RuntimePaths,
-) -> None:
+) -> tuple[list[NotebookSummary], int, int, int]:
     from transcribe.config.facade import get_config
 
     configured_initial = int(get_config().effective.ui.archive_notebooks_initial)
@@ -421,7 +419,26 @@ def _render_cover_grid(
         total=total,
         session_show_n=st.session_state.get(ARCHIVE_STRIP_SESSION_KEY),
     )
-    strip = notebooks[:show_n]
+    return notebooks[:show_n], page_size, show_n, total
+
+
+def _render_notebook_window_controls(*, page_size: int, show_n: int, total: int) -> None:
+    if show_n < total:
+        if st.button(f"Show more notebooks ({total - show_n} remaining)", icon=ic.SHOW_MORE):
+            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = show_n + page_size
+            st.rerun()
+    elif page_size < total and show_n > page_size:
+        if st.button("Show fewer", icon=ic.SHOW_LESS):
+            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = page_size
+            st.rerun()
+
+
+def _render_cover_grid(
+    notebooks: list[NotebookSummary],
+    *,
+    runtime: RuntimePaths,
+) -> None:
+    strip, page_size, show_n, total = _windowed_notebooks(notebooks)
     cols_n = _archive_covers_cols()
     toolbar, _ = st.columns([2, 5])
     with toolbar:
@@ -434,14 +451,7 @@ def _render_cover_grid(
                 projects_dir=runtime.projects_dir,
                 return_mode=ReturnMode.LIBRARY,
             )
-    if show_n < total:
-        if st.button(f"Show more notebooks ({total - show_n} remaining)", icon=ic.SHOW_MORE):
-            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = show_n + page_size
-            st.rerun()
-    elif page_size < total and show_n > page_size:
-        if st.button("Show fewer", icon=ic.SHOW_LESS):
-            st.session_state[ARCHIVE_STRIP_SESSION_KEY] = page_size
-            st.rerun()
+    _render_notebook_window_controls(page_size=page_size, show_n=show_n, total=total)
 
 
 def _render_activity_rows(
@@ -449,7 +459,8 @@ def _render_activity_rows(
     *,
     runtime: RuntimePaths,
 ) -> None:
-    for nb in notebooks:
+    strip, page_size, show_n, total = _windowed_notebooks(notebooks)
+    for nb in strip:
         try:
             ctx = load_live_notebook_context(
                 project_id=nb.project_id,
@@ -525,6 +536,7 @@ def _render_activity_rows(
         else:
             st.caption("Rename/delete actions unavailable for this notebook.")
         st.divider()
+    _render_notebook_window_controls(page_size=page_size, show_n=show_n, total=total)
 
 
 def _render_library_filters(archive: ArchiveService) -> ArchiveFilters | None:

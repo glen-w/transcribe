@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 import streamlit as st
 from PIL import Image
 
@@ -66,6 +69,24 @@ _LANE_OTHER = "Other"
 _LANE_SESSION_KEY = "rw_lane"
 _PREV_DISAGREEMENT_HELP = "Previous disagreement"
 _NEXT_DISAGREEMENT_HELP = "Next disagreement"
+
+
+@lru_cache(maxsize=8)
+def _open_review_scan_cached(path_str: str, mtime_ns: int, rotation: int):
+    """Decode a Review scan once per path/mtime/rotation (lane ticks reuse this)."""
+    with Image.open(path_str) as im:
+        image = im.copy()
+    if rotation:
+        image = image.rotate(-90 * rotation, expand=True)
+    return image
+
+
+def _open_review_scan(path: Path, rotation: int):
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = 0
+    return _open_review_scan_cached(str(path), mtime_ns, int(rotation or 0))
 
 
 def _attempt_label(attempt) -> str:
@@ -465,23 +486,11 @@ def render_review_page(
     left, right = st.columns([1, 1], gap="medium")
     with left:
         _render_page_scan_toolbar(page_id)
-        st.markdown(
-            """
-<style>
-div[data-testid="stImage"] img {
-    max-height: 63vh;
-    width: auto;
-    max-width: 100%;
-    object-fit: contain;
-}
-</style>
-            """,
-            unsafe_allow_html=True,
-        )
-        image = Image.open(img_path)
+        from transcribe.ui.layout import emit_layout_marker
+
+        emit_layout_marker("tx-review-scan")
         rot = int(st.session_state.get(f"rw_rot_{page_id}") or 0)
-        if rot:
-            image = image.rotate(-90 * rot, expand=True)
+        image = _open_review_scan(img_path, rot)
         zoom = st.session_state.get(f"rw_zoom_{page_id}") or "fit_page"
         st.image(image, width=_ZOOM_WIDTH.get(zoom, 644))
         try:

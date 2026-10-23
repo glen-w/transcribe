@@ -37,7 +37,7 @@ NotebookOrder = Literal["oldest", "newest", "most_pages"]
 SearchOrder = Literal["oldest", "newest"]
 PeriodKind = Literal["all", "year", "range"]
 
-_INDEX_TTL_S = 2.0
+_INDEX_TTL_S = 60.0
 _FTS_SCHEMA_VERSION = 2
 _CACHE_SCHEMA_VERSION = 1
 _BUSY_TIMEOUT_MS = 5000

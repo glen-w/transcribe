@@ -106,3 +106,17 @@ def test_advanced_explorer_html_contract():
         wordcloud2_js="window.WordCloud=function(){};",
     )
     assert "window.WordCloud=function(){};" in tiny
+
+
+def test_wordcloud_image_cache_hits():
+    from transcribe.ui.wordcloud_render import _render_wordcloud_image_cached
+
+    _render_wordcloud_image_cached.cache_clear()
+    freqs = {"notebook": 5.0, "rain": 3.0, "travel": 2.0}
+    first = render_wordcloud_image(freqs, width=400, height=200)
+    miss = _render_wordcloud_image_cached.cache_info()
+    second = render_wordcloud_image(freqs, width=400, height=200)
+    hit = _render_wordcloud_image_cached.cache_info()
+    assert first is not None and first is second
+    assert miss.misses == 1 and miss.hits == 0
+    assert hit.hits == 1 and hit.misses == 1
