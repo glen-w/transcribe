@@ -24,7 +24,7 @@ Package at survey: **0.8.8**. Target tags: local **`v0.9.0`** then local **`v1.0
 | **5** v1 gate docs | Severity, release-ops, manual acceptance, analysis-quality audit, module-id pin test | 0.9.0 still keys off U2+I6; these join the **1.0** checklist |
 | **6** Reader ignore-pages | Hide ignored pages by default; show-ignored override | Reader and export agree — landed |
 | **7** 0.9.0 cut | Version bump after waves 1–4 | Local tag `v0.9.0` — landed (do not push the tag from this programme) |
-| **8** v1.0.0 freeze | Docs consistency + `# tests` after waves 5–7 | Local tag `v1.0.0` |
+| **8** v1.0.0 freeze | Docs consistency + `# tests` after waves 5–7 | Local tag `v1.0.0` — landed (do not push the tag from this programme) |
 
 ## Non-goals for this programme
 

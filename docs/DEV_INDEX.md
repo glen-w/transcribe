@@ -18,12 +18,12 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 | Doc | Purpose |
 |-----|---------|
 | [ROADMAP.md](ROADMAP.md) | Product roadmap: notebook contract through 1.0. Autobiography write-up is on file for a future separate product (scope lean 24 Sep 2026), not 1.1–2.0 |
-| [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (U2 done; required for 0.9.0) |
+| [usability_wave_plan.md](usability_wave_plan.md) | Usability-wave tracks U0–U4 (done; Inbox polish may continue) |
 | [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) | 0.9 infrastructure wave: **I0–I6** landed |
 | [runtime/install_verification_matrix.md](runtime/install_verification_matrix.md) | Tag evidence cells (Docker / native / Ollama) |
 | [assessments/README.md](assessments/README.md) | Transcribe vs TranscriptX survey (2026-10-23) and v1 gap register |
 | [dev/release_governance.md](dev/release_governance.md) | Authoritative next-tag checklist (I2); `# pre-release` is local confidence only |
-| [dev/release_severity_triage.md](dev/release_severity_triage.md) | What blocks a **1.0** tag vs what waits (not a 0.9.0 gate) |
+| [dev/release_severity_triage.md](dev/release_severity_triage.md) | What blocks a **1.0** tag vs what waits |
 | [dev/release_ops.md](dev/release_ops.md) | Support policy: Docker preferred, no PyPI, local tags |
 | [dev/manual_acceptance_1_0.md](dev/manual_acceptance_1_0.md) | Maintainer 1.0 journeys (offline vs live OCR) |
 | [dev/analysis_quality_audit.md](dev/analysis_quality_audit.md) | Frozen 25-module honesty sheet |

@@ -14,7 +14,7 @@ These notes compare Transcribe (this repo) with the sibling product TranscriptX.
 
 | Doc | Use |
 |-----|-----|
-| [2026-10-23-transcribe.md](2026-10-23-transcribe.md) | What this notebook workbench already ships, and what is still open for 0.9.0 |
+| [2026-10-23-transcribe.md](2026-10-23-transcribe.md) | What this notebook workbench already shipped at survey (package 0.8.8); U2/I6/1.0 landed afterwards |
 | [2026-10-23-transcriptx.md](2026-10-23-transcriptx.md) | What the audio product shipped for public 1.0 (patterns to copy vs audio-only) |
 | [2026-10-23-drift.md](2026-10-23-drift.md) | Shared patterns, naming pairs, and gap severity |
 | [2026-10-23-v1-gap-register.md](2026-10-23-v1-gap-register.md) | Execution checklist for the v1 wave programme |

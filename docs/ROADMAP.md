@@ -40,13 +40,13 @@ Older sentences in this repo that say “after 1.0, Transcribe grows into an aut
 
 Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. The **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)) is **done** for U0–U4 (Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](archive/plans/analysis_wave1_plan.md#9-implementation-gate).
 
-The roadmap’s analysis surface is largely complete. **U2 first-run and I0–I6 infra are done.** Remaining work on this product is the **1.0** freeze, plus optional corpus-lifecycle polish. Sequencing: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
+The roadmap’s analysis surface is largely complete. **U2 first-run, I0–I6, and the 1.0 freeze are done.** Optional corpus-lifecycle polish may continue. Sequencing: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.9.0.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
+**Package is 1.0.0.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8  →  0.9.0 (now)  →  1.0 notebook freeze
-              I0–I1     I2–I3     patch     product     patch    I5 + docs     U2 + I6              freeze
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8  →  0.9.0  →  1.0.0 (now)
+              I0–I1     I2–I3     patch     product     patch    I5 + docs     U2 + I6     freeze
                                                                                    (Pages)```
 
 | Label | Meaning |
@@ -58,7 +58,7 @@ The roadmap’s analysis surface is largely complete. **U2 first-run and I0–I6
 | **0.8.7** | Product patch: names + lexical detectors, Review/Library polish, Detect accept-per-page, circuit CLI honesty, action-link appearance. |
 | **0.8.8** | Docs/ops patch: GitHub Pages landing (**I5**), Docker-preferred install path, public docs reframe for first-time users. |
 | **0.9.0** | [x] landed. **U2** + **I0–I6** green: sample notebook, first-run docs, nightly, issue templates, Docker release-checks. Notebook product is first-run capable and maintainer-operable. |
-| **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. A stranger-testing round is not a release gate. |
+| **1.0** | [x] landed. Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. A stranger-testing round is not a release gate. |
 | **Parked** | Autobiography write-up — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file). Future separate product. Not Transcribe 1.1–2.0. |
 
 A parallel **0.9 infrastructure wave** ([infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md)) brings maintainer CI, release hygiene, and hosted docs to TranscriptX-class maturity. It does not schedule more analysis modules and does not serialize **U2**. Full path: [Path to 0.9.0 / 1.0](#path-to-090--10).
@@ -296,7 +296,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 1.0
 
-**Status:** [~] in progress — package **0.9.0** cut; remaining work is the **1.0** notebook freeze ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2 done), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6 done). Survey vs TranscriptX (2026-10-23): [assessments/README.md](assessments/README.md). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
+**Status:** [x] done — package **1.0.0** notebook freeze ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2 done), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6 done). Survey vs TranscriptX (2026-10-23): [assessments/README.md](assessments/README.md). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
 
 **Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
 
@@ -361,9 +361,9 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 1.0 freeze
 
-**1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
+**[x] done** — package **1.0.0**. The notebook workbench is complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
 
-**1.0 checklist extras** (not required for **0.9.0**, which still keys off U2 + I6): severity triage, release-ops policy, manual acceptance runbook, and the 25-module quality audit — linked from [release_governance.md](dev/release_governance.md).
+**1.0 checklist extras** (severity triage, release-ops, manual acceptance, analysis audit) are linked from [release_governance.md](dev/release_governance.md).
 
 ---
 

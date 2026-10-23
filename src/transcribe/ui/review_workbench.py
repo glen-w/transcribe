@@ -1602,6 +1602,24 @@ def _render_cleanup_tab(projects, project, page) -> None:
 
 
 def _render_other_tab(paths, projects, project, page) -> None:
+    ignore_key = f"rw_page_ignored_{page.page_id}"
+    if ignore_key not in st.session_state:
+        st.session_state[ignore_key] = bool(page.ignored)
+    wanted_ignored = bool(
+        st.checkbox(
+            "Ignore in Reader",
+            key=ignore_key,
+            help="Hidden in Reading and omitted from exported reading formats by default.",
+        )
+    )
+    if wanted_ignored != bool(page.ignored):
+        try:
+            projects.update_page_metadata(page.page_id, ignored=wanted_ignored)
+            bump_archive_generation(build_runtime_paths())
+            st.rerun()
+        except TranscribeError as exc:
+            st.error(str(exc))
+
     thumbs = ThumbnailService(paths)
     if st.button(
         "Set as notebook cover",

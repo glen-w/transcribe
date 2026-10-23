@@ -52,8 +52,8 @@ First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [
 | Doc | Purpose |
 |-----|---------|
 | [Public surfaces](public_surfaces.md) | Supported CLI / UI / scripts |
-| [Roadmap](ROADMAP.md) | Product priorities (0.9.0 → 1.0) |
-| [Usability wave](usability_wave_plan.md) | Active product focus (U2 and I0–I6 done; 0.9.0 cut next) |
+| [Roadmap](ROADMAP.md) | Product priorities (1.0 notebook freeze) |
+| [Usability wave](usability_wave_plan.md) | U0–U4 done (Inbox polish may continue) |
 
 ## Not in this index
 

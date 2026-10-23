@@ -2,7 +2,7 @@
 
 **Status:** [~] active — authoritative sequencing for the current product focus (ROADMAP **Now — Usability wave**). Hardening Phases 1–6 (**U0–U1**) are **done**; **U2** first-run (Home, Diagnostics, sample notebook, first-run docs) is **done**; **U3** daily workbench is **done**; **U4** acceptance gate is **green** (Inbox polish may continue). Post-U3 deepen-in-place (OCR fail-fast circuits, Moments/chart jump → Reading, Overview/Mood corpus/period charts, Analyse launcher vs View consume split, **OCR Review workbench** with tabbed Transcription / Date / Tags / Other lanes) is **shipped** — not a new wave track.
 
-**0.9.0 cut:** [x] done (U2 + I0–I6). Next: **1.0**. A stranger-testing round is not a release gate.
+**0.9.0 cut:** [x] done (U2 + I0–I6). **1.0 freeze:** [x] done. A stranger-testing round is not a release gate.
 
 **Thesis:** Transcribe already has a complete core analysis set and durable OCR/analysis execution. Ordinary users still meet module-mechanics chrome, thin first-run guidance, and weak daily-workflow surfaces. This wave makes the workbench **trustworthy and usable end-to-end** — from install to export — without scheduling new analysis modules or deferred reinterpretations.
 

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-23
+
+### Added
+
+- Notebook workbench freeze for the scope-lean product: transcribe, compare models, external fine-tune, read / tag / explore. 1.0 gate docs (severity, ops, manual acceptance, analysis audit) are on the tag checklist.
+- Review **Other** → **Ignore in Reader** (Reading hide + export reading-format omit).
+
+### Changed
+
+- Package **1.0.0**. Autobiography remains on file, not this product.
+
 ## [0.9.0] - 2026-10-23
 
 ### Added

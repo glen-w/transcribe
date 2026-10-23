@@ -366,6 +366,12 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
     st.caption(f"Showing {len(page_ids)} of {len(base_ids)} pages")
+    ignored_n = sum(1 for p in project.pages if p.ignored)
+    if ignored_n:
+        st.caption(
+            f"{ignored_n} ignored page{'s' if ignored_n != 1 else ''} "
+            "(hidden in Reading unless Show ignored is on)."
+        )
     from transcribe.ui.review_workbench import render_review_page
 
     render_review_page(
