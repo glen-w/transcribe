@@ -38,15 +38,15 @@ Older sentences in this repo that say “after 1.0, Transcribe grows into an aut
 
 ## Current state
 
-Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. Current work is the **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)): Analyse trust + product UX (**U0–U1**) and daily workbench (**U3**) are **done**; remaining focus is first-run operability (**U2**), with corpus bulk import **supported** after the acceptance gate (**U4** mechanics done; Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](archive/plans/analysis_wave1_plan.md#9-implementation-gate).
+Transcribe has the complete 25-module core notebook-analysis set (pins in [dev/analysis_port_pins.md](dev/analysis_port_pins.md); slices **1.1 → 1e.2** in [analysis_wave1_plan.md](archive/plans/analysis_wave1_plan.md)). The **OCR lifecycle package** (multipass compare, prefer/promote, composite, fine-tune export) is **shipped**. The **usability wave** ([usability_wave_plan.md](usability_wave_plan.md)) is **done** for U0–U4 (Inbox polish may continue). No additional analysis modules are scheduled. Architecture is verbatim-ish analytical cores plus thin notebook adapters over canonical `AnalysisDocument` units; durable analysis is project-local under optional `analysis/` ([project-on-disk](contracts/project-on-disk.md), [analysis-run-storage](contracts/analysis-run-storage.md)). Historical port implementation gates live in [analysis_wave1_plan.md §9](archive/plans/analysis_wave1_plan.md#9-implementation-gate).
 
-The roadmap’s analysis surface is largely complete. **Remaining product gaps are first-run operability (U2) and optional corpus-lifecycle polish**, not more analysis capability. Sequencing for that focus: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
+The roadmap’s analysis surface is largely complete. **U2 first-run and I0–I6 infra are done.** Remaining work on this product is the **1.0** freeze, plus optional corpus-lifecycle polish. Sequencing: [usability_wave_plan.md](usability_wave_plan.md) (tracks **U0–U4**).
 
-**Package is 0.8.8.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
+**Package is 0.9.0.** Version ladder for **this** product (the [scope lean](#scope-lean--24-sep-2026)). Autobiography is not the next rung.
 
 ```text
-0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8 (now)  →  0.9.0 cut  →  1.0 notebook freeze
-              I0–I1     I2–I3     patch     product     patch    I5 + docs      U2 + I6          tag + hosted docs      hand + read/tag
+0.6.x  →  0.7.0  →  0.8.0  →  0.8.5  →  0.8.6  →  0.8.7  →  0.8.8  →  0.9.0 (now)  →  1.0 notebook freeze
+              I0–I1     I2–I3     patch     product     patch    I5 + docs     U2 + I6              freeze
                                                                                    (Pages)```
 
 | Label | Meaning |
@@ -57,7 +57,7 @@ The roadmap’s analysis surface is largely complete. **Remaining product gaps a
 | **0.8.6** | Post-U3 product cut: OCR Review workbench, export typography/cover/ignore-pages, Sphinx docs (**I4**), Ask history, Detect → Workflow nav, chart colours, detection tag approval. |
 | **0.8.7** | Product patch: names + lexical detectors, Review/Library polish, Detect accept-per-page, circuit CLI honesty, action-link appearance. |
 | **0.8.8** | Docs/ops patch: GitHub Pages landing (**I5**), Docker-preferred install path, public docs reframe for first-time users. |
-| **0.9.0** | Package/tag when **U2** + **0.9 infrastructure wave (I0–I6)** exit gates are green. Notebook product is first-run capable and maintainer-operable. |
+| **0.9.0** | [x] landed. **U2** + **I0–I6** green: sample notebook, first-run docs, nightly, issue templates, Docker release-checks. Notebook product is first-run capable and maintainer-operable. |
 | **1.0** | Notebook workbench declared complete for the [scope lean](#scope-lean--24-sep-2026): transcribe, compare models, hand-specific model via external fine-tune, read / tag / explore. Not a runway for autobiography. A stranger-testing round is not a release gate. |
 | **Parked** | Autobiography write-up — [on file](#after-10--notebook-anchored-autobiography-workbench----on-file). Future separate product. Not Transcribe 1.1–2.0. |
 
@@ -296,7 +296,7 @@ Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is 
 
 ## Path to 0.9.0 / 1.0
 
-**Status:** [~] in progress — authoritative sequencing from package **0.8.8** toward a frozen **1.0** notebook workbench ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6). Survey vs TranscriptX (2026-10-23): [assessments/README.md](assessments/README.md). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
+**Status:** [~] in progress — package **0.9.0** cut; remaining work is the **1.0** notebook freeze ([scope lean](#scope-lean--24-sep-2026)). Companion tracks: [usability_wave_plan.md](usability_wave_plan.md) (U2 done), [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md) (I0–I6 done). Survey vs TranscriptX (2026-10-23): [assessments/README.md](assessments/README.md). A stranger-testing round is not a release gate ([dev/user_testing_0_9.md](dev/user_testing_0_9.md)).
 
 **Thesis:** Cut an operable **0.9.0**, then declare **1.0** as the notebook contract. Harden the existing notebook/OCR/analysis/corpus stack. Do **not** ship photos-as-context, WhatsApp, a People store, Slices, reconstruction, or time-of-day storage in this repo.
 
@@ -357,7 +357,7 @@ Optional U4 Inbox polish may continue but is **not** on the 0.9.0 critical path.
 
 ### 0.9.0 cut
 
-When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproject.toml` / `__version__` / CHANGELOG to **0.9.0**. Intermediate cuts landed: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. **I6** nightly + issue templates + Docker release-checks landed.
+**[x] done** — `pyproject.toml` / `__version__` / CHANGELOG are **0.9.0**. Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages landing + Docker-preferred install docs. **I6** nightly + issue templates + Docker release-checks landed with U2.
 
 ### 1.0 freeze
 
@@ -367,7 +367,7 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 ---
 
-## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)
+## Next — 0.9 Infrastructure wave — [x] done (parallel with U2)
 
 Detail lives in [Path to 0.9.0](#path-to-090--10) Track B and [infrastructure_wave_0_9_plan.md](infrastructure_wave_0_9_plan.md). Wave exit + U2 enable the **0.9.0** cut. A stranger-testing round is not an I7 track and not a release gate.
 

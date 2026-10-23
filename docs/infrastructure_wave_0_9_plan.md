@@ -4,7 +4,7 @@
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.8** (I0–I5 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. **Wave exit + U2** enable the package cut **0.9.0**, then the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
+**Version note:** Package is **0.9.0** (U2 + I0–I6). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3; **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe. Next is the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence

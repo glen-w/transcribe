@@ -7,16 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-23
+
 ### Added
 
-- Maintainer **1.0** gate pack: severity triage, release-ops policy, manual acceptance runbook, and a 25-module analysis quality audit. These join the 1.0 checklist only; **0.9.0** still keys off U2 + I6.
+- Sample notebook behind **New notebook → Open sample**, and a Docker-first ~15-minute first-run path (U2). Empty Home stays Create + Import.
+- Nightly offline acceptance, GitHub issue templates, and Docker image smoke on PR `release-checks` (I6). Smoke skips with an explicit reason when Docker is missing.
+- Maintainer **1.0** gate pack: severity triage, release-ops, manual acceptance, and a 25-module analysis quality audit. These join the 1.0 checklist only.
 - Reading hides pages marked **Ignore in Reader** by default (**Show ignored pages** override). Same workspace default as Export **Exclude ignored pages**.
 
 ### Changed
 
 - Scope lean (24 Sep 2026): this product stops at the notebook workbench (transcribe, compare models, external fine-tune for one hand, read / tag / explore). The autobiography programme stays on file in the roadmap for a future separate product. It is not Transcribe 1.1–2.0.
 - Design note for an import→OCR smoke kit ([docs/dev/smoke_kit_import_ocr.md](docs/dev/smoke_kit_import_ocr.md)). Not implemented. PR CI still does not run a vision model.
-- A stranger-testing round is not a release gate. The path to 1.0 is U2 and I0–I6, then 0.9.0, then the notebook freeze.
+- A stranger-testing round is not a release gate. The path after this cut is the **1.0** notebook freeze.
 
 ## [0.8.8] - 2026-09-04
 

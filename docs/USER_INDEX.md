@@ -52,7 +52,7 @@ First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [
 | Doc | Purpose |
 |-----|---------|
 | [Public surfaces](public_surfaces.md) | Supported CLI / UI / scripts |
-| [Roadmap](ROADMAP.md) | Product priorities (0.8.8 → 0.9.0 → 1.0) |
+| [Roadmap](ROADMAP.md) | Product priorities (0.9.0 → 1.0) |
 | [Usability wave](usability_wave_plan.md) | Active product focus (U2 and I0–I6 done; 0.9.0 cut next) |
 
 ## Not in this index
