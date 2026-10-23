@@ -1,6 +1,6 @@
 # Analysis port pins
 
-Exact TranscriptX source pins for modules copied into Transcribe. A core module must not be marked done without a filled row and a `semantic_class`.
+Exact TranscriptX source pins for modules copied into Transcribe. A core module must not be marked done without a filled row and a `semantic_class`. Freeze honesty for the same 25 ids: [analysis_quality_audit.md](analysis_quality_audit.md).
 
 External analytical dependencies (models, lexicons, packages) that affect reproducibility are recorded on the result envelope / cache identity per [analysis-result.md](../contracts/analysis-result.md); they are not a substitute for TX source pins below.
 

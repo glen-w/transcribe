@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Maintainer **1.0** gate pack: severity triage, release-ops policy, manual acceptance runbook, and a 25-module analysis quality audit. These join the 1.0 checklist only; **0.9.0** still keys off U2 + I6.
+
 ### Changed
 
 - Scope lean (24 Sep 2026): this product stops at the notebook workbench (transcribe, compare models, external fine-tune for one hand, read / tag / explore). The autobiography programme stays on file in the roadmap for a future separate product. It is not Transcribe 1.1–2.0.

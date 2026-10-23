@@ -4,7 +4,9 @@ Evidence cells for a **0.9.0 / 1.0** tag. Fill `pass` / `failure` / `skipped` (w
 reason). Do not record a silent pass. Docker is the preferred everyday path.
 
 Related: [first_notebook.md](first_notebook.md) · [installation.md](installation.md) ·
-[docker.md](docker.md) · [release_governance.md](../dev/release_governance.md)
+[docker.md](docker.md) · [release_governance.md](../dev/release_governance.md) ·
+[manual_acceptance_1_0.md](../dev/manual_acceptance_1_0.md) ·
+[release_ops.md](../dev/release_ops.md)
 
 | Profile | Ollama | Check | Result |
 |---------|--------|-------|--------|

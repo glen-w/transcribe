@@ -363,6 +363,8 @@ When **U2 acceptance** and the **I0–I6 exit gate** are both true: bump `pyproj
 
 **1.0** declares the notebook workbench complete for the [scope lean](#scope-lean--24-sep-2026) and the [PRODUCT.md](PRODUCT.md) promise: transcribe handwritten pages, compare models, bring back a hand-specific model trained outside the app, read / tag / explore. Autobiography does not start afterwards inside this repo. The write-up stays [on file](#after-10--notebook-anchored-autobiography-workbench----on-file).
 
+**1.0 checklist extras** (not required for **0.9.0**, which still keys off U2 + I6): severity triage, release-ops policy, manual acceptance runbook, and the 25-module quality audit — linked from [release_governance.md](dev/release_governance.md).
+
 ---
 
 ## Next — 0.9 Infrastructure wave — [ ] planned (parallel with U2)

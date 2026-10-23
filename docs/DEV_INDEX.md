@@ -23,6 +23,10 @@ Active developer and maintainer docs. Historical material is listed only via [AR
 | [runtime/install_verification_matrix.md](runtime/install_verification_matrix.md) | Tag evidence cells (Docker / native / Ollama) |
 | [assessments/README.md](assessments/README.md) | Transcribe vs TranscriptX survey (2026-10-23) and v1 gap register |
 | [dev/release_governance.md](dev/release_governance.md) | Authoritative next-tag checklist (I2); `# pre-release` is local confidence only |
+| [dev/release_severity_triage.md](dev/release_severity_triage.md) | What blocks a **1.0** tag vs what waits (not a 0.9.0 gate) |
+| [dev/release_ops.md](dev/release_ops.md) | Support policy: Docker preferred, no PyPI, local tags |
+| [dev/manual_acceptance_1_0.md](dev/manual_acceptance_1_0.md) | Maintainer 1.0 journeys (offline vs live OCR) |
+| [dev/analysis_quality_audit.md](dev/analysis_quality_audit.md) | Frozen 25-module honesty sheet |
 | [dev/dependency_audit.md](dev/dependency_audit.md) | CVE / waiver log |
 | [dev/user_testing_0_9.md](dev/user_testing_0_9.md) | Stranger-testing is not a release gate |
 | [dev/smoke_kit_import_ocr.md](dev/smoke_kit_import_ocr.md) | Design only: import → OCR smoke; `edited_text` survives re-OCR. Not a PR CI vision run |
