@@ -31,3 +31,18 @@ purpose = "Streamlit / browser favicon"
 path = "src/transcribe/ui/assets/logo.png"
 owner = "ui"
 purpose = "Product logo asset"
+
+[[paths]]
+path = "src/transcribe/samples/demo-notebook/page-01.png"
+owner = "samples"
+purpose = "U2.2 sample notebook placeholder page 1"
+
+[[paths]]
+path = "src/transcribe/samples/demo-notebook/page-02.png"
+owner = "samples"
+purpose = "U2.2 sample notebook placeholder page 2"
+
+[[paths]]
+path = "src/transcribe/samples/demo-notebook/page-03.png"
+owner = "samples"
+purpose = "U2.2 sample notebook placeholder page 3"

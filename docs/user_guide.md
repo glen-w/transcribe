@@ -30,7 +30,10 @@ then **View → Overview**.
 ## 1. Create or open a notebook
 
 **UI:** pick an existing notebook from the sidebar, or **Workflow → New notebook**.
-First visit opens **Home**. Rename later from **Library** or **Workflow → Import**.
+**Open sample** on that page copies a short placeholder notebook (text already
+filled in) so you can try Reading and Analyse without OCR. Empty **Home** stays
+Create + Import only. First visit opens **Home**. Rename later from **Library**
+or **Workflow → Import**.
 
 **CLI:**
 

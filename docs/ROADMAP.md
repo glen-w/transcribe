@@ -288,7 +288,7 @@ Primary post-hardening direction for living with many notebooks. **Usability-wav
 Committed under [usability_wave_plan.md](usability_wave_plan.md) **U2** — **required for the 0.9.0 cut** ([Path to 0.9.0](#path-to-090--09-1--10)):
 
 - **Shipped (GUI alignment):** Home (Create / Import + one-line Ollama health; no sample wizard) and System → Diagnostics (workspace doctor always; notebook doctor when selected)
-- Remaining: first-run install docs path (U2.4), sample notebook (U2.2)
+- Remaining: first-run install docs path (U2.4). Sample notebook (U2.2) is shipped.
 
 Longevity **minimum for testers** (pre-upgrade backup + restore verify copy) is on the 0.9 path foundation checklist below. Full “archive readable without Transcribe” stays a lifecycle candidate.
 
@@ -312,7 +312,7 @@ I0–I6 (infra wave)           ─┘
 |------|--------|------|
 | U2.1 Home | [x] | Create / Import + Ollama health |
 | U2.3 Diagnostics | [x] | Workspace / notebook doctor in UI |
-| **U2.2 Sample notebook** | [ ] | Fixture under `samples/`; one-click Open sample via existing init/import; offline Analyse Quick without LLM |
+| **U2.2 Sample notebook** | [x] | Fixture under `src/transcribe/samples/demo-notebook/`; **New notebook → Open sample** via init/import; offline Analyse Quick without LLM |
 | **U2.4 First-run docs** | [ ] | “First notebook in 15 minutes” from README (**Docker preferred**); port **8510**, mounts, Ollama, known first-run bites |
 
 **U2 exit:** sample path smoke; README / user_guide first-run without reading contracts. Detail: [usability_wave_plan.md](usability_wave_plan.md) §6.

@@ -53,7 +53,9 @@ First visit lands on **Home**. Unknown `ui_mode` still normalises to **Library**
 
 **Stay, don’t bounce:** the picker never rewrites the current page. Context bar (“Notebook · *title*”) is hidden on Home, New notebook, Import, Transcribe, Analyse, Settings, and Diagnostics.
 
-**Home:** empty → Create notebook / Import + one-line Ollama health. Non-empty → cheap archive counts, recent notebooks, action strips. No sample-notebook wizard (that remains U2.2).
+**Home:** empty → Create notebook / Import + one-line Ollama health. Non-empty → cheap archive counts, recent notebooks, action strips. No Open sample on empty Home.
+
+**New notebook:** create an empty folder then Import, or **Open sample** (U2.2) which copies the packaged placeholder notebook and opens Reading.
 
 **Diagnostics:** workspace corpus-doctor always; notebook doctor when a notebook is selected; Ollama line as on Home.
 

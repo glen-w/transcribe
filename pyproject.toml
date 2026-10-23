@@ -48,6 +48,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "transcribe.analysis" = ["data/*.json"]
 "transcribe.ui" = ["assets/*"]
+"transcribe.samples" = ["demo-notebook/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

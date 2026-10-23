@@ -26,6 +26,7 @@ from transcribe.services.project import (
     allocate_notebook_root,
     open_project_paths,
 )
+from transcribe.services.sample_notebook import SAMPLE_TITLE, copy_demo_notebook
 from transcribe.ui import icons as ic
 from transcribe.ui.archive_views import render_library, render_search
 from transcribe.ui.components.context_bar import render_context_bar
@@ -509,6 +510,33 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
             st.session_state.pop("new_notebook_title", None)
             st.toast(f"Created “{cleaned}”")
             set_ui_mode("Import")
+        except TranscribeError as exc:
+            st.error(str(exc))
+
+    st.divider()
+    st.caption(
+        "Or open a short sample notebook: placeholder pages with text already "
+        "filled in, so you can try Reading and Analyse without OCR."
+    )
+    if st.button("Open sample", key="new_notebook_open_sample", icon=ic.MENU_BOOK):
+        try:
+            sample_root = copy_demo_notebook(
+                runtime.projects_dir,
+                clock=SystemClock(),
+                ids=UuidGenerator(),
+                title=SAMPLE_TITLE,
+                corpus_paths=CorpusPaths.from_runtime(runtime),
+            )
+            bump_archive_generation(runtime)
+            archive.ensure_index()
+            invalidate_batch_ocr_caches()
+            from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+
+            invalidate_batch_analyse_caches()
+            st.session_state["root"] = str(sample_root)
+            sync_notebook_selector(str(sample_root))
+            st.toast(f"Opened “{SAMPLE_TITLE}”")
+            set_ui_mode("Reading")
         except TranscribeError as exc:
             st.error(str(exc))
 

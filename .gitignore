@@ -38,6 +38,7 @@ docker-compose.override.yml
 *.png
 !tests/fixtures/*.png
 !src/transcribe/ui/assets/*.png
+!src/transcribe/samples/demo-notebook/*.png
 !website/images/*.png
 *.jpg
 !tests/fixtures/*.jpg
