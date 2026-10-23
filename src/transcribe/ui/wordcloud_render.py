@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import html
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -160,17 +161,37 @@ def render_wordcloud_image(
     """
     if _WordCloud is None or not frequencies:
         return None
+    freq_items = tuple(sorted((str(k), float(v)) for k, v in frequencies.items()))
+    return _render_wordcloud_image_cached(
+        freq_items,
+        max(200, int(width)),
+        max(120, int(height)),
+        str(background_color),
+        max(1, int(max_words)),
+        float(prefer_horizontal),
+    )
+
+
+@lru_cache(maxsize=16)
+def _render_wordcloud_image_cached(
+    freq_items: tuple[tuple[str, float], ...],
+    width: int,
+    height: int,
+    background_color: str,
+    max_words: int,
+    prefer_horizontal: float,
+) -> Any:
     # Deterministic layout seed so reopening Overview does not reshuffle glyphs.
     wc = _WordCloud(
-        width=max(200, int(width)),
-        height=max(120, int(height)),
+        width=width,
+        height=height,
         background_color=background_color,
-        max_words=max(1, int(max_words)),
+        max_words=max_words,
         prefer_horizontal=prefer_horizontal,
         collocations=False,
         random_state=42,
     )
-    wc.generate_from_frequencies(frequencies)
+    wc.generate_from_frequencies(dict(freq_items))
     return wc.to_image()
 
 
@@ -197,9 +218,14 @@ def build_wordcloud_explorer_html(
     ``wordcloud2.js`` is inlined from vendored assets so Advanced mode works
     offline (TX loads the same library from jsDelivr).
     """
-    js_src = wordcloud2_js
-    if js_src is None:
-        js_src = _load_wordcloud2_js()
+    js_src = wordcloud2_js if wordcloud2_js is not None else _load_wordcloud2_js()
+    payload_json = json.dumps(terms_payload, sort_keys=True, ensure_ascii=False)
+    return _build_wordcloud_explorer_html_cached(title or "Word themes", payload_json, js_src)
+
+
+@lru_cache(maxsize=8)
+def _build_wordcloud_explorer_html_cached(title: str, payload_json: str, js_src: str) -> str:
+    terms_payload = json.loads(payload_json)
     safe_title = html.escape(title or "Word themes")
     # Payload is JSON-embedded; json.dumps handles escaping for </script>.
     terms_json = json.dumps(terms_payload, ensure_ascii=False).replace("</", "<\\/")

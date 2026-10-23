@@ -20,6 +20,7 @@ First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [
 
 | Doc | Purpose |
 |-----|---------|
+| [First notebook](runtime/first_notebook.md) | Docker path in about 15 minutes |
 | [Installation](runtime/installation.md) | Docker preferred; host Python advanced |
 | [Docker](runtime/docker.md) | Compose mounts and host Ollama |
 | [Settings](runtime/settings.md) | Configuration, presets, knobs |
@@ -51,8 +52,8 @@ First visit: [docs home](index.md) or [User guide](user_guide.md). Developers: [
 | Doc | Purpose |
 |-----|---------|
 | [Public surfaces](public_surfaces.md) | Supported CLI / UI / scripts |
-| [Roadmap](ROADMAP.md) | Product priorities (0.8.8 → 0.9.0 → 1.0) |
-| [Usability wave](usability_wave_plan.md) | Active product focus (U2 open) |
+| [Roadmap](ROADMAP.md) | Product priorities (1.0 notebook freeze) |
+| [Usability wave](usability_wave_plan.md) | U0–U4 done (Inbox polish may continue) |
 
 ## Not in this index
 

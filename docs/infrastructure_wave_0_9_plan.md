@@ -4,7 +4,7 @@
 
 **Thesis:** Product capability is ahead of operational infrastructure. Transcribe already has strong offline tests, acceptance gates, Markdown docs authority, Docker packaging, and local `# pre-release` / `# deep-test` agent SOPs — but lacks the **repo machinery** TranscriptX uses to keep every PR honest and every tag evidenced. This wave closes that gap without scheduling new analysis modules or stealing the usability wave’s **U2** product focus.
 
-**Version note:** Package is **0.8.8** (I0–I6 plus post-U3 product cuts and Docker-preferred install docs). The **0.9** label is a *programme* name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe; **I6** nightly / Docker smoke / issue templates landed. **Wave exit + U2** enable the package cut **0.9.0**, then the **1.0** notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
+**Version note:** Package is **1.0.0**. The **0.9** label was the programme name (TranscriptX-style pre-1.0 stabilisation). Intermediate cuts: **0.7.0** = I0+I1; **0.8.0** = I2+I3 (landed); **0.8.5** = product patch; **0.8.6** = post-U3 product cut + **I4** Sphinx/CI docs; **0.8.7** = names/lexical detectors, Review/Library polish, circuit CLI honesty; **0.8.8** = **I5** Pages + install/docs reframe; **0.9.0** = U2 + I0–I6; **1.0.0** = notebook freeze ([scope lean](ROADMAP.md#scope-lean--24-sep-2026)). A stranger-testing round is not an I7 track and not a release gate. Autobiography is not the next track.
 
 ```text
 Developer lanes     →     PR CI honesty     →     Release evidence
@@ -164,13 +164,13 @@ Prefer thematic cuts over fixed patch IDs. Suggested package bumps when cutting 
 
 | Deliverable | Notes |
 |-------------|--------|
-| `nightly.yml` | Scheduled acceptance / heavier offline lane (`test-acceptance` or a marked `integration_core` equivalent that stays **offline**) |
-| Docker in `release-checks` | Fresh `docker compose build` + `make docker-smoke` + optional image pip check |
+| `nightly.yml` | Scheduled offline `make test-acceptance`. No live Ollama. |
+| Docker in `release-checks` | `scripts/release/docker_release_smoke.sh` (`compose build` + bind assert + image pip check). Skip (exit 0) when Docker is missing — never a fake pass. |
 | Issue templates | Bug + feature + `config.yml` |
-| Optional: install verification matrix | `docs/runtime/install_verification_matrix.md` cells for release evidence |
+| Optional: install verification matrix | [install_verification_matrix.md](runtime/install_verification_matrix.md) cells for release evidence |
 | Optional: complexity / perf smoke | Only if useful; TX’s radon/perf envelopes are optional signals |
 
-**Exit:** Nightly green on schedule; release-checks cover Docker when the runner has Docker; issues use templates.
+**Exit:** Nightly workflow exists (do not wait on the scheduler for a tag); release-checks cover Docker when the runner has Docker; issues use templates.
 
 ---
 

@@ -42,7 +42,7 @@ def test_review_build_merged_draft_and_confirm_all() -> None:
     assert '"Build merged draft"' in REVIEW
     assert "Confirm rank and merge all" in REVIEW
     assert "rw_comparable_page_ids" in REVIEW
-    assert "build_review_queue_index" in APP
+    assert "get_cached_review_queue_index" in APP
     assert "default_review_filter" in APP
 
 

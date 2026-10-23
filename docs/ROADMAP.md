@@ -94,7 +94,7 @@ A stranger-testing round is **not** a release gate ([dev/user_testing_0_9.md](de
 - Detection fine-tune export is shipped (approved/rejected labels). It is not the hand-model job.
 - A UI rewrite. Streamlit stays the host because the notebook workbench runs on it, not because an Autobiography view might need another frontend.
 
-**Still on the path to a public cut, and not autobiography:** U2 and I6 are landed. Remaining: run release governance for a **0.9.0** tag, then **1.0** freeze (Track C). A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
+**Public cut:** U2 and I6 are landed. Package **0.9.0** and the **1.0** notebook freeze are cut. A stranger-testing round is not a release gate. Personal use of the four jobs above does not wait on that cut.
 
 Older sentences in this repo that say “after 1.0, Transcribe grows into an autobiography workbench” are superseded by this section.
 

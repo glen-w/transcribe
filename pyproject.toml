@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transcribe"
-version = "0.8.8"
+version = "1.0.0"
 description = "Local-first handwritten notebook OCR using Ollama vision models"
 readme = "README.md"
 license = { text = "MIT" }
@@ -48,6 +48,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "transcribe.analysis" = ["data/*.json"]
 "transcribe.ui" = ["assets/*"]
+"transcribe.samples" = ["demo-notebook/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

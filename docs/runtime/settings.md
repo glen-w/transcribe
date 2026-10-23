@@ -49,6 +49,7 @@ Builtin export profiles: `default`, `readable`, `compact`, `large_print`. Editin
 | When setting a notebook default | Review → **OCR** · Transcribe Advanced | `prefer_is_promote` (default) \| `prefer_only` \| `prefer_promote_with_edit_gate` — [ocr.md](ocr.md#when-setting-a-notebook-default) |
 | Seed transcription from merged draft after multipass | Review → **OCR** · Transcribe Advanced · Transcribe multipass row | `auto_activate_composite` (default **on**) — [ocr.md](ocr.md#seed-transcription-from-merged-draft-after-multipass) |
 | Full-workspace backup | Configuration → Backup | [backup_and_restore.md](../backup_and_restore.md) |
+| Hide ignored pages | Workflow → Export → **Exclude ignored pages** (default on) | Same workspace `export.exclude_ignored_pages` default hides ignored pages in **Reading**. Review → **Ignore in Reader** marks a page. Reading has **Show ignored pages** as a session override. |
 
 ## Env overrides
 

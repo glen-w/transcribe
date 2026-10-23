@@ -59,16 +59,27 @@ def _render_export_panel_body(
     root: str,
     archive: ArchiveService | None = None,
 ) -> None:
-    notebook_tab, finetune_tab, detect_ft_tab = st.tabs(
-        ["Notebook", "Fine-tune dataset", "Detection fine-tune"]
+    choices = ("Notebook", "Fine-tune dataset", "Detection fine-tune")
+    key = "export_hub_selected_tab"
+    selected = st.session_state.get(key)
+    if selected not in choices:
+        st.session_state[key] = choices[0]
+    label = st.segmented_control(
+        "Export kind",
+        options=list(choices),
+        key=key,
+        label_visibility="collapsed",
     )
-    with notebook_tab:
+    if label not in choices:
+        label = choices[0]
+        st.session_state[key] = label
+    if label == "Notebook":
         _render_notebook_export_tab(
             runtime, paths, projects, project, root, archive=archive
         )
-    with finetune_tab:
+    elif label == "Fine-tune dataset":
         _render_finetune_export_tab(paths, projects)
-    with detect_ft_tab:
+    else:
         _render_detection_finetune_export_tab(projects)
 
 

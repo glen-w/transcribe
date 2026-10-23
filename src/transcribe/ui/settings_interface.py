@@ -296,10 +296,11 @@ SETTINGS_TABS: tuple[str, ...] = (
     "Profiles",
     "Export",
 )
+SETTINGS_TAB_KEY = "settings_hub_selected_tab"
 
 
-def render_settings_page() -> None:
-    """Top-level Settings hub (TX-shaped tabs, Transcribe-scoped)."""
+def _settings_panel_renderers() -> dict[str, object]:
+    """Lazy map so tests can replace the dispatch table."""
     from transcribe.ui.export_panel import render_export_settings_panel
     from transcribe.ui.settings_analysis import render_analysis_presets_panel
     from transcribe.ui.settings_detection import render_detection_settings_panel
@@ -311,25 +312,44 @@ def render_settings_page() -> None:
     from transcribe.ui.settings_prompts import render_prompts_panel
     from transcribe.ui.settings_tags import render_tags_settings_panel
 
-    tabs = st.tabs(list(SETTINGS_TABS))
-    for tab, label in zip(tabs, SETTINGS_TABS):
-        with tab:
-            if label == "Configuration":
-                render_configuration_panel()
-            elif label == "Analysis":
-                render_analysis_presets_panel()
-            elif label == "Detection":
-                render_detection_settings_panel()
-            elif label == "Tags":
-                render_tags_settings_panel()
-            elif label == "Prompts":
-                render_prompts_panel()
-            elif label == "Interface":
-                st.markdown("### Interface")
-                render_interface_panel()
-            elif label == "Models":
-                render_models_panel()
-            elif label == "Profiles":
-                render_profiles_panel()
-            else:
-                render_export_settings_panel()
+    def _interface() -> None:
+        st.markdown("### Interface")
+        render_interface_panel()
+
+    return {
+        "Configuration": render_configuration_panel,
+        "Analysis": render_analysis_presets_panel,
+        "Detection": render_detection_settings_panel,
+        "Tags": render_tags_settings_panel,
+        "Prompts": render_prompts_panel,
+        "Interface": _interface,
+        "Models": render_models_panel,
+        "Profiles": render_profiles_panel,
+        "Export": render_export_settings_panel,
+    }
+
+
+def render_settings_panel(label: str) -> None:
+    """Render exactly one Settings hub panel (active-tab-only)."""
+    renderers = _settings_panel_renderers()
+    renderer = renderers.get(label) or renderers[SETTINGS_TABS[0]]
+    renderer()  # type: ignore[operator]
+
+
+def render_settings_page() -> None:
+    """Top-level Settings hub (TX-shaped segmented panels, Transcribe-scoped)."""
+    tab_labels = list(SETTINGS_TABS)
+    selected = st.session_state.get(SETTINGS_TAB_KEY)
+    if selected not in tab_labels:
+        st.session_state[SETTINGS_TAB_KEY] = tab_labels[0]
+
+    label = st.segmented_control(
+        "Settings section",
+        options=tab_labels,
+        key=SETTINGS_TAB_KEY,
+        label_visibility="collapsed",
+    )
+    if label not in tab_labels:
+        label = tab_labels[0]
+        st.session_state[SETTINGS_TAB_KEY] = label
+    render_settings_panel(label)

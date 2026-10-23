@@ -119,7 +119,10 @@ def test_settings_hub_tab_labels_and_order() -> None:
         "Export",
     )
     iface = (UI_ROOT / "settings_interface.py").read_text(encoding="utf-8")
-    assert "st.tabs(list(SETTINGS_TABS))" in iface
+    assert "st.tabs(list(SETTINGS_TABS))" not in iface
+    assert "st.segmented_control" in iface
+    assert "render_settings_panel" in iface
+    assert "SETTINGS_TAB_KEY" in iface
     hub = (UI_ROOT / "settings_hub.py").read_text(encoding="utf-8")
     assert "ollama_health_line" in hub
     assert "settings_ocr_preprocess_profile" in hub

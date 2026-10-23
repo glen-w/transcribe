@@ -7,12 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-23
+
 ### Added
 
-- **U2.2 / U2.4:** bundled `samples/demo-notebook/` with Home **Open sample notebook**; README “First notebook in 15 minutes” path (Docker preferred).
+- Notebook workbench freeze for the scope-lean product: transcribe, compare models, external fine-tune, read / tag / explore. 1.0 gate docs (severity, ops, manual acceptance, analysis audit) are on the tag checklist.
+- Review **Other** → **Ignore in Reader** (Reading hide + export reading-format omit).
+
+### Changed
+
+- Package **1.0.0**. Autobiography remains on file, not this product.
+- **Streamlit shell:** inject global CSS once per session and cache the sidebar logo, on top of the earlier rerun caches.
+
+## [0.9.0] - 2026-10-23
+
+### Added
+
+- **U2.2 / U2.4:** bundled `samples/demo-notebook/` with Home **Open sample notebook** and **New notebook → Open sample**; README “First notebook in 15 minutes” path (Docker preferred).
 - **Ignore pages (Reader):** `ProjectService.set_page_ignored`, Reading hide-by-default + **Show ignored** override, Review **Ignore in Reader**, workspace `ui.hide_ignored_pages`.
 - **Detection fine-tune export:** CLI `export-detection-finetune`, Export UI tab, contract [docs/contracts/detection-finetune-export.md](docs/contracts/detection-finetune-export.md) (approved/rejected labels; unreviewed excluded by default).
-- **I6:** `.github/workflows/nightly.yml` (offline acceptance + contracts), Docker Compose build + smoke in `release-checks`, GitHub issue templates.
+- **I6:** `.github/workflows/nightly.yml` (offline acceptance + contracts), Docker image smoke on PR `release-checks` (skips with an explicit reason when Docker is missing), GitHub issue templates.
+- Maintainer **1.0** gate pack: severity triage, release-ops, manual acceptance, and a 25-module analysis quality audit.
 
 ### Changed
 
@@ -23,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage floor raised to 75; default pytest suite uses `--timeout=60`.
 - Scope lean (24 Sep 2026): this product stops at the notebook workbench (transcribe, compare models, external fine-tune for one hand, read / tag / explore). The autobiography programme stays on file in the roadmap for a future separate product. It is not Transcribe 1.1–2.0.
 - Design note for an import→OCR smoke kit ([docs/dev/smoke_kit_import_ocr.md](docs/dev/smoke_kit_import_ocr.md)). Not implemented. PR CI still does not run a vision model.
-- A stranger-testing round is not a release gate. The path to 1.0 is U2 and I0–I6, then 0.9.0, then the notebook freeze.
+- A stranger-testing round is not a release gate.
 - Roadmap reorganised: status-at-a-glance, ranked active backlog, thickened U2/I6/1.0 freeze criteria, shipped programmes grouped separately from candidates, decision log. Autobiography write-up remains on file.
 
 ## [0.8.8] - 2026-09-04

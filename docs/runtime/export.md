@@ -2,7 +2,10 @@
 
 Save a notebook as Markdown, HTML, EPUB, PDF, and/or a portable JSON file.
 
-**UI:** **Workflow → Export** — pick formats and typography. Workspace ZIP backup
+**UI:** **Workflow → Export** — pick formats and typography. **Exclude ignored
+pages** (default on) omits pages marked **Ignore in Reader** from Markdown / HTML
+/ PDF / EPUB / text; JSON keeps them. Reading uses the same default, with a
+**Show ignored pages** override. Workspace ZIP backup
 is separate: [backup and restore](../backup_and_restore.md). Fine-tune image+text
 packages: [fine-tune export](../finetune_export.md).
 

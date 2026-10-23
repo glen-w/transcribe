@@ -908,6 +908,8 @@ def render_page_viewer(
     with right:
         status = result.status if result else "pending"
         st.write(f"Status: **{status}**")
+        if page.ignored:
+            st.caption("Ignored — hidden in Reading and omitted from exported reading formats by default.")
         attempt = result.active_attempt() if result else None
         model_label = _transcription_model_label(attempt)
         if model_label:
@@ -1136,6 +1138,24 @@ def render_page_viewer(
                     st.success("Metadata saved")
                     st.rerun()
                 except (ValueError, TranscribeError) as exc:
+                    st.error(str(exc))
+
+            ignore_key = f"page_ignored_{page.page_id}"
+            if ignore_key not in st.session_state:
+                st.session_state[ignore_key] = bool(page.ignored)
+            wanted_ignored = bool(
+                st.checkbox(
+                    "Ignore in Reader",
+                    key=ignore_key,
+                    help="Hidden in Reading and omitted from exported reading formats by default.",
+                )
+            )
+            if wanted_ignored != bool(page.ignored):
+                try:
+                    project = projects.update_page_metadata(page.page_id, ignored=wanted_ignored)
+                    bump_archive_generation(build_runtime_paths())
+                    st.rerun()
+                except TranscribeError as exc:
                     st.error(str(exc))
 
             thumbs = ThumbnailService(paths)

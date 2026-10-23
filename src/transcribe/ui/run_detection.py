@@ -39,10 +39,23 @@ def render_detection_workspace(
 
     @st.fragment
     def _detect_body() -> None:
-        tabs = st.tabs(["Run Detection", "Findings"])
-        with tabs[0]:
+        choices = ("Run Detection", "Findings")
+        key = f"detect_hub_selected_tab_{project_id}"
+        selected = st.session_state.get(key)
+        if selected not in choices:
+            st.session_state[key] = choices[0]
+        label = st.segmented_control(
+            "Detect section",
+            options=list(choices),
+            key=key,
+            label_visibility="collapsed",
+        )
+        if label not in choices:
+            label = choices[0]
+            st.session_state[key] = label
+        if label == "Run Detection":
             _render_run(projects, project_id=project_id)
-        with tabs[1]:
+        else:
             _render_findings(projects, project_root, project_id=project_id)
 
     _detect_body()
@@ -237,19 +250,9 @@ def _render_finding_page_context(
 ) -> None:
     if not page_ids:
         return
-    st.markdown(
-        """
-<style>
-div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
-    max-height: 45vh;
-    width: auto;
-    max-width: 100%;
-    object-fit: contain;
-}
-</style>
-        """,
-        unsafe_allow_html=True,
-    )
+    from transcribe.ui.layout import emit_layout_marker
+
+    emit_layout_marker("tx-detect-scan")
     st.markdown("**Page context**")
     if len(page_ids) == 1:
         _render_page_scan_and_text(
@@ -262,18 +265,27 @@ div[data-testid="stExpanderDetails"] div[data-testid="stImage"] img {
             finding=finding,
         )
         return
-    tabs = st.tabs([_page_tab_label(pid, page_order, finding) for pid in page_ids])
-    for tab, page_id in zip(tabs, page_ids):
-        with tab:
-            _render_page_scan_and_text(
-                projects,
-                project,
-                page_id,
-                label=_page_label(page_id, page_order),
-                key_prefix=f"{key_prefix}_{page_id}",
-                det_svc=det_svc,
-                finding=finding,
-            )
+    labels = {pid: _page_tab_label(pid, page_order, finding) for pid in page_ids}
+    page_key = f"{key_prefix}_selected_page"
+    if st.session_state.get(page_key) not in page_ids:
+        st.session_state[page_key] = page_ids[0]
+    selected_id = st.selectbox(
+        "Page",
+        options=page_ids,
+        format_func=lambda pid: labels.get(pid, pid),
+        key=page_key,
+    )
+    if selected_id not in page_ids:
+        selected_id = page_ids[0]
+    _render_page_scan_and_text(
+        projects,
+        project,
+        selected_id,
+        label=_page_label(selected_id, page_order),
+        key_prefix=f"{key_prefix}_{selected_id}",
+        det_svc=det_svc,
+        finding=finding,
+    )
 
 
 @st.fragment

@@ -26,26 +26,27 @@ from transcribe.services.project import (
     allocate_notebook_root,
     open_project_paths,
 )
+from transcribe.services.sample_notebook import SAMPLE_TITLE, install_sample_notebook
 from transcribe.ui import icons as ic
 from transcribe.ui.archive_views import render_library, render_search
 from transcribe.ui.components.context_bar import render_context_bar
+from transcribe.ui.components.global_analysis_progress import (
+    render_global_analysis_progress,
+)
 from transcribe.ui.home import render_home
 from transcribe.ui.layout import apply_page_width
 from transcribe.ui.navigation import (
+    apply_destination_to_session,
     is_open_notebook_workflow,
     is_view_mode,
-    apply_destination_to_session,
     normalize_ui_mode,
     page_spec_for,
 )
-from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.page_viewer import render_page_viewer
 from transcribe.ui.run_analysis import render_run_analysis_form
 from transcribe.ui.run_import import render_run_import
 from transcribe.ui.run_transcribe import invalidate_batch_ocr_caches, render_run_transcribe
-from transcribe.ui.components.global_analysis_progress import (
-    render_global_analysis_progress,
-)
+from transcribe.ui.settings_interface import render_settings_page
 from transcribe.ui.shell import (
     configure_streamlit_page,
     inject_global_styles,
@@ -124,11 +125,28 @@ def _services(project_root: str):
     return paths, projects, ingest
 
 
+_RECONCILED_ROOTS_KEY = "_tx_reconciled_notebook_roots"
+
+
+def _load_open_notebook(projects: ProjectService, root: str):
+    """Load a notebook, reconciling interrupted runs once per root per session."""
+    seen = st.session_state.get(_RECONCILED_ROOTS_KEY)
+    if not isinstance(seen, list):
+        seen = []
+        st.session_state[_RECONCILED_ROOTS_KEY] = seen
+    key = str(root)
+    reconcile = key not in seen
+    project = projects.load(reconcile=reconcile)
+    if reconcile:
+        seen.append(key)
+    return project
+
+
 def _render_workflow(runtime, root: str, *, section: str = "Import") -> None:
     section = normalize_ui_mode(section)
     try:
         paths, projects, _ingest = _services(root)
-        project = projects.load(reconcile=True)
+        project = _load_open_notebook(projects, root)
     except TranscribeError as exc:
         st.info("Select or create a notebook to begin.")
         st.caption(str(exc))
@@ -270,7 +288,7 @@ def render_analyse_workspace(
             run_projects = ProjectService(
                 paths, clock=SystemClock(), ids=UuidGenerator()
             )
-            run_project = run_projects.load(reconcile=True)
+            run_project = _load_open_notebook(run_projects, str(active_root))
         except TranscribeError as exc:
             st.error(str(exc))
             return
@@ -367,6 +385,12 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
     st.session_state["view_page_ids"] = page_ids
     st.session_state["view_entries"] = view_entries
     st.caption(f"Showing {len(page_ids)} of {len(base_ids)} pages")
+    ignored_n = sum(1 for p in project.pages if p.ignored)
+    if ignored_n:
+        st.caption(
+            f"{ignored_n} ignored page{'s' if ignored_n != 1 else ''} "
+            "(hidden in Reading unless Show ignored is on)."
+        )
     from transcribe.ui.review_workbench import render_review_page
 
     render_review_page(
@@ -537,6 +561,31 @@ def _render_new_notebook(runtime, archive: ArchiveService) -> None:
         except TranscribeError as exc:
             st.error(str(exc))
 
+    st.divider()
+    st.caption(
+        "Or open a short sample notebook: placeholder pages with text already "
+        "filled in, so you can try Reading and Analyse without OCR."
+    )
+    if st.button("Open sample", key="new_notebook_open_sample", icon=ic.MENU_BOOK):
+        try:
+            sample_root = install_sample_notebook(
+                runtime,
+                clock=SystemClock(),
+                ids=UuidGenerator(),
+            )
+            bump_archive_generation(runtime)
+            archive.ensure_index()
+            invalidate_batch_ocr_caches()
+            from transcribe.ui.run_analysis_batch import invalidate_batch_analyse_caches
+
+            invalidate_batch_analyse_caches()
+            st.session_state["root"] = str(sample_root)
+            sync_notebook_selector(str(sample_root))
+            st.toast(f"Opened “{SAMPLE_TITLE}”")
+            set_ui_mode("Reading")
+        except TranscribeError as exc:
+            st.error(str(exc))
+
 
 def main() -> None:
     configure_streamlit_page()
@@ -624,7 +673,7 @@ def main() -> None:
         if root:
             try:
                 _paths, projects, ingest = _services(root)
-                project = projects.load(reconcile=True)
+                project = _load_open_notebook(projects, root)
             except TranscribeError as exc:
                 st.caption(str(exc))
                 projects = ingest = project = None
@@ -665,7 +714,7 @@ def main() -> None:
             return
         try:
             paths, projects, _ingest = _services(root)
-            project = projects.load(reconcile=True)
+            project = _load_open_notebook(projects, root)
         except TranscribeError as exc:
             render_page_shell(spec.title, spec.description)
             st.info("Select a notebook in View, or create one under Workflow → New notebook.")
