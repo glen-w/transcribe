@@ -24,6 +24,16 @@ def _runtime(tmp_path: Path) -> RuntimePaths:
     )
 
 
+def test_open_sample_uses_repo_fixture_not_package_data() -> None:
+    root = Path(__file__).resolve().parents[2]
+    app = (root / "src/transcribe/ui/app.py").read_text(encoding="utf-8")
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert "install_sample_notebook" in app
+    assert "copy_demo_notebook" not in app
+    assert "transcribe.samples" not in pyproject
+    assert (root / "samples" / "demo-notebook" / "manifest.json").is_file()
+
+
 def test_install_sample_notebook_seeds_text(tmp_path: Path, monkeypatch):
     runtime = _runtime(tmp_path)
     monkeypatch.setenv("TRANSCRIBE_DATA_DIR", str(runtime.data_dir))

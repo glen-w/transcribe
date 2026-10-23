@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from tests.conftest import FakeClock, SequentialIds
+from transcribe.domain.dates import ApproximateDate
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
 from transcribe.ingest import IngestService
@@ -31,6 +33,18 @@ def _two_page_notebook(tmp_path: Path) -> tuple:
     coord = JobCoordinator(paths, projects, FakeVisionOCRProvider(), clock=clock, ids=ids)
     coord.run_blocking()
     return paths, projects
+
+
+def test_reader_page_ids_follow_date_order_and_skip_ignored() -> None:
+    pages = [
+        SimpleNamespace(page_id="late", date=ApproximateDate(2024, 5, 1), ignored=False),
+        SimpleNamespace(page_id="undated", date=None, ignored=False),
+        SimpleNamespace(page_id="early", date=ApproximateDate(2024, 1, 1), ignored=False),
+        SimpleNamespace(page_id="skip", date=ApproximateDate(2024, 3, 1), ignored=True),
+    ]
+    project = SimpleNamespace(pages=pages)
+    assert reader_page_ids(project, hide_ignored=True) == ["early", "late", "undated"]
+    assert reader_page_ids(project, hide_ignored=False) == ["early", "skip", "late", "undated"]
 
 
 def test_reader_hides_ignored_pages_by_default(tmp_path: Path):

@@ -38,3 +38,5 @@ def test_settings_source_avoids_st_tabs() -> None:
     assert "st.segmented_control" in analysis
     assert "st.segmented_control" in export
     assert "st.segmented_control" in detect
+    assert '"Detection fine-tune"' in export
+    assert "export_hub_selected_tab" in export

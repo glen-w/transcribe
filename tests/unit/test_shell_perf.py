@@ -47,6 +47,12 @@ def test_logo_data_uri_is_cached(tmp_path: Path) -> None:
     assert info2.hits == 1 and info2.misses == 1
 
 
+def test_nav_uses_published_analysis_session_cache() -> None:
+    text = Path("src/transcribe/ui/shell.py").read_text(encoding="utf-8")
+    assert "cached_notebook_has_published_analysis(" in text
+    assert "data_dir=data_dir" in text
+
+
 def test_wide_layout_emits_marker_not_stylesheet(monkeypatch) -> None:
     from transcribe.ui import layout as layout_mod
 
