@@ -293,6 +293,66 @@ class LlmConfig:
 
 
 @dataclass(frozen=True)
+class ModelConfiguration:
+    """Hardened model configuration with validation for OCR and LLM models.
+
+    Ensures timeout, retry, and URL configuration is valid before use.
+    """
+
+    vision_model: str = ""
+    text_model: str = ""
+    timeout_s: float = 300.0
+    max_retries: int = 3
+    ollama_base_url: str = ""
+    remote_ollama_acknowledged: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate configuration on instantiation (frozen dataclass)."""
+        if self.timeout_s < 1.0 or self.timeout_s > 3600.0:
+            raise ValueError(
+                f"timeout_s must be between 1.0 and 3600.0, got {self.timeout_s}"
+            )
+        if self.max_retries < 1 or self.max_retries > 10:
+            raise ValueError(
+                f"max_retries must be between 1 and 10, got {self.max_retries}"
+            )
+
+    def validate(self) -> list[str]:
+        """Return list of validation errors (empty = valid)."""
+        errors = []
+
+        if not self.vision_model or not self.vision_model.strip():
+            errors.append("vision_model must not be empty")
+
+        if self.timeout_s < 1.0 or self.timeout_s > 3600.0:
+            errors.append(
+                f"timeout_s must be between 1.0 and 3600.0 seconds (got {self.timeout_s})"
+            )
+
+        if self.max_retries < 1 or self.max_retries > 10:
+            errors.append(
+                f"max_retries must be between 1 and 10 (got {self.max_retries})"
+            )
+
+        return errors
+
+    @staticmethod
+    def safe_defaults() -> "ModelConfiguration":
+        """Create a safe default configuration."""
+        try:
+            return ModelConfiguration(
+                vision_model="",
+                text_model="",
+                timeout_s=300.0,
+                max_retries=3,
+                ollama_base_url="",
+                remote_ollama_acknowledged=False,
+            )
+        except ValueError:
+            return ModelConfiguration()
+
+
+@dataclass(frozen=True)
 class OcrWorkspaceConfig:
     """Workspace OCR defaults for new projects only (not live project authority)."""
 

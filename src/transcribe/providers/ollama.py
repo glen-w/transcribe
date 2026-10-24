@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 
@@ -24,6 +25,17 @@ DEFAULT_MAX_RETRIES = 3
 _RETRY_BASE_DELAY_S = 0.5
 
 T = TypeVar("T")
+
+
+class ModelLoadClassification(Enum):
+    """Classification of model load error types for hardening and recovery."""
+
+    UNSUPPORTED_ARCHITECTURE = "unsupported_architecture"
+    LOADER_CRASH = "loader_crash"
+    NETWORK_TIMEOUT = "network_timeout"
+    CONNECTIVITY_ERROR = "connectivity_error"
+    UNKNOWN = "unknown"
+
 
 # Ollama/llama-server fatal load failures that will not recover mid-job.
 _FATAL_MODEL_LOAD_MARKERS = (
@@ -80,6 +92,54 @@ def friendly_model_load_message(raw: str, *, model_name: str = "") -> str:
     if "error loading model" in lower or "llama-server process has terminated" in lower:
         return f"Ollama failed to load this vision model (loader crash). {hint}"
     return (raw or "").strip() or "Ollama failed to load this vision model"
+
+
+def is_local_ollama_url(base_url: str) -> bool:
+    """True if the Ollama base URL points to localhost; False for remote hosts.
+
+    Local URLs: http://localhost, http://127.0.0.1, http://[::1], file-relative URLs.
+    Remote URLs: http://192.168.1.100, http://example.com, etc.
+    """
+    if not base_url:
+        return True
+    normalized = normalize_base_url(base_url)
+    try:
+        parsed = urlparse(normalized)
+        hostname = (parsed.hostname or "").strip().lower()
+
+        if not hostname or hostname in ("localhost",):
+            return True
+
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return ip.is_loopback
+        except ValueError:
+            pass
+
+        return False
+    except Exception:
+        return True
+
+
+def classify_model_load_error(message: str) -> ModelLoadClassification:
+    """Classify a model load error for recovery suggestions."""
+    lower = (message or "").lower()
+
+    if any(marker in lower for marker in _FATAL_MODEL_LOAD_MARKERS):
+        if "unknown model architecture" in lower:
+            return ModelLoadClassification.UNSUPPORTED_ARCHITECTURE
+        return ModelLoadClassification.LOADER_CRASH
+
+    if "timeout" in lower or "timed out" in lower:
+        return ModelLoadClassification.NETWORK_TIMEOUT
+
+    if any(
+        marker in lower
+        for marker in ("connection refused", "network is unreachable", "connection reset")
+    ):
+        return ModelLoadClassification.CONNECTIVITY_ERROR
+
+    return ModelLoadClassification.UNKNOWN
 
 
 def call_with_retries(
