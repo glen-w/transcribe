@@ -19,6 +19,7 @@ from transcribe.ui.action_menus.nav import load_live_notebook_context
 from transcribe.ui.action_menus.render import render_configured_actions
 from transcribe.ui.components.empty_state import EmptyCta, render_empty_state
 from transcribe.ui.shell import set_ui_mode
+from transcribe.providers.ollama import is_local_ollama_url
 
 _RECENT_LIMIT = 8
 _RECENT_COVER_WIDTH_PX = 112
@@ -64,6 +65,18 @@ def ollama_health_line(*, force: bool = False) -> str:
     st.session_state[_OLLAMA_LINE_KEY] = line
     st.session_state[_OLLAMA_LINE_AT_KEY] = now
     return line
+
+
+def show_remote_ollama_warning_if_needed() -> None:
+    """Show warning if remote Ollama is configured (page images will be exfiltrated)."""
+    base_url = (get_config().effective.ocr.base_url or "").strip() or "http://localhost:11434"
+    if not is_local_ollama_url(base_url):
+        st.warning(
+            f"⚠️ **Remote Ollama detected** at `{base_url}`. "
+            "Page images will be sent to this host for vision processing. "
+            "Ensure you trust this host with handwritten notebook data. "
+            "[Learn more about privacy settings.](../docs/known_limitations.md#privacy)"
+        )
 
 
 def _recent_cover_thumb_uncached(project_root: Path) -> Path | None:
@@ -123,6 +136,7 @@ def _recent_cover_thumb(project_root: Path) -> Path | None:
 def render_home(runtime: RuntimePaths, archive: ArchiveService) -> None:
     notebooks = archive.list_notebooks(order="newest")
     st.caption(ollama_health_line())
+    show_remote_ollama_warning_if_needed()
 
     if not notebooks:
         render_empty_state(
