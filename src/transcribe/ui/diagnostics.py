@@ -14,7 +14,7 @@ from transcribe.services.corpus_doctor import CorpusDoctorService
 from transcribe.services.doctor import DoctorService
 from transcribe.services.project import ProjectService, open_project_paths
 from transcribe.ui import icons as ic
-from transcribe.ui.home import ollama_health_line
+from transcribe.ui.home import ollama_health_line, show_remote_ollama_warning_if_needed
 
 _WORKSPACE_REPORT_KEY = "diagnostics_workspace_report"
 _WORKSPACE_ERROR_KEY = "diagnostics_workspace_error"
@@ -82,6 +82,7 @@ def ensure_diagnostics_reports(
 
 def render_diagnostics(runtime: RuntimePaths, *, root: str | None) -> None:
     st.caption(ollama_health_line())
+    show_remote_ollama_warning_if_needed()
     deep = st.checkbox("Deep hashing (slower)", value=False, key="diagnostics_deep")
     if st.button("Run diagnostics", type="primary", key="diagnostics_run", icon=ic.RUN):
         st.session_state["diagnostics_ran"] = True
