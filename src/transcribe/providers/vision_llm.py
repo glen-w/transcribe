@@ -10,6 +10,7 @@ from transcribe.providers.base import ModelInfo
 from transcribe.providers.ollama import (
     DEFAULT_MAX_RETRIES,
     OllamaVisionProvider,
+    is_local_ollama_url,
     normalize_base_url,
 )
 from transcribe.runtime_paths import default_ollama_base_url
@@ -31,7 +32,7 @@ class VisionLLMContext:
 
 
 class OllamaVisionLLMClient:
-    """Vision generate client for detection prompts."""
+    """Vision generate client for detection prompts with hardened error handling."""
 
     def __init__(
         self,
@@ -49,6 +50,20 @@ class OllamaVisionLLMClient:
             request_timeout=self.timeout_s,
             max_retries=self.max_retries,
         )
+        self._warn_remote_ollama_if_needed()
+
+    def _warn_remote_ollama_if_needed(self) -> None:
+        """Log a warning if using a remote Ollama instance."""
+        if not is_local_ollama_url(self.base_url):
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Remote Ollama configured at %s. "
+                "Page images will be sent to that host for vision processing. "
+                "Ensure you trust this host with handwritten notebook data.",
+                self.base_url,
+            )
 
     def healthcheck(self) -> bool:
         try:

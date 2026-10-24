@@ -15,6 +15,7 @@ from transcribe.providers.ollama import (
     DEFAULT_MAX_RETRIES,
     OllamaVisionProvider,
     call_with_retries,
+    is_local_ollama_url,
     normalize_base_url,
 )
 from transcribe.runtime_paths import default_ollama_base_url
@@ -87,7 +88,7 @@ def suitable_text_model_names(models: Sequence[ModelInfo]) -> list[str]:
 
 @dataclass
 class OllamaTextClient:
-    """Text generate client reusing OCR's hardened Ollama transport."""
+    """Text generate client reusing OCR's hardened Ollama transport with LLM circuit breaker."""
 
     base_url: str = ""
     timeout_s: float = 120.0
@@ -101,6 +102,22 @@ class OllamaTextClient:
             request_timeout=self.timeout_s,
             max_retries=self.max_retries,
         )
+        self._llm_circuit_open = False
+        self._llm_failure_count = 0
+        self._warn_remote_ollama_if_needed()
+
+    def _warn_remote_ollama_if_needed(self) -> None:
+        """Log a warning if using a remote Ollama instance."""
+        if not is_local_ollama_url(self.base_url):
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Remote Ollama configured at %s. "
+                "Text analysis data will be sent to that host. "
+                "Ensure you trust this host with notebook content.",
+                self.base_url,
+            )
 
     def healthcheck(self) -> bool:
         try:
@@ -190,6 +207,29 @@ class OllamaTextClient:
             model=model, prompt=prompt, system=system, options=options
         )
         return text
+
+    def is_circuit_open(self) -> bool:
+        """Check if the LLM circuit breaker is open (too many failures)."""
+        return self._llm_circuit_open
+
+    def record_llm_failure(self) -> None:
+        """Record an LLM failure; opens circuit after threshold."""
+        self._llm_failure_count += 1
+        if self._llm_failure_count >= 3:
+            self._llm_circuit_open = True
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Text LLM has failed %d times; circuit is now open. "
+                "Remaining LLM modules will be skipped.",
+                self._llm_failure_count,
+            )
+
+    def reset_llm_circuit(self) -> None:
+        """Reset the circuit breaker (for new analysis runs)."""
+        self._llm_circuit_open = False
+        self._llm_failure_count = 0
 
 
 @dataclass
