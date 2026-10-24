@@ -104,3 +104,125 @@ def validate_ocr_vision_model(provider: object, model_name: str) -> None:
             "Choose an OCR-oriented or recommended vision model.",
             code="model_unsuitable",
         )
+
+
+class ModelValidator:
+    """Pre-job validation for vision and text LLM models.
+
+    Checks model availability and suitability before starting OCR/Analyse jobs,
+    failing fast with recovery hints instead of silent mid-job failures.
+    """
+
+    def __init__(self, vision_provider: object, text_provider: object | None = None):
+        """Initialize validator with providers.
+
+        Args:
+            vision_provider: OllamaVisionProvider or similar with list_models() method
+            text_provider: OllamaTextClient or similar with list_models() and
+                          is_unsuitable_model() methods (optional)
+        """
+        self.vision_provider = vision_provider
+        self.text_provider = text_provider
+
+    def validate_vision_model(self, model_name: str) -> tuple[bool, str]:
+        """Validate vision model availability and suitability.
+
+        Returns:
+            (is_valid, error_message)
+        """
+        text = (model_name or "").strip()
+        if not text:
+            return False, "No vision model selected. Pick a model in Settings → OCR."
+
+        try:
+            list_models = getattr(self.vision_provider, "list_models", None)
+            if callable(list_models):
+                result = list_models()
+                by_name = {m.name: m for m in result.models}
+                info = by_name.get(text)
+                if info is None:
+                    return (
+                        False,
+                        f"Vision model '{text}' not found in Ollama. "
+                        f"Available OCR models: {', '.join(suitable_ocr_vision_model_names(result.models)) or 'none'}.",
+                    )
+                if not is_suitable_ocr_vision_model_info(info):
+                    return (
+                        False,
+                        f"'{text}' is not suitable for OCR. "
+                        f"Choose an OCR-oriented model (glm-ocr, deepseek-ocr, granite3.2-vision, qwen2.5vl).",
+                    )
+                return True, ""
+        except Exception as e:
+            return (
+                False,
+                f"Failed to check vision model availability: {str(e)}. "
+                f"Ensure Ollama is running and accessible.",
+            )
+
+        if is_unsuitable_ocr_vision_model_name(text):
+            return (
+                False,
+                f"'{text}' is not suitable for OCR. "
+                f"Choose an OCR-oriented model (glm-ocr, deepseek-ocr, granite3.2-vision, qwen2.5vl).",
+            )
+
+        return True, ""
+
+    def validate_text_model(self, model_name: str) -> tuple[bool, str]:
+        """Validate text LLM model availability and suitability.
+
+        Returns:
+            (is_valid, error_message)
+        """
+        if not self.text_provider:
+            return False, "Text model provider not configured."
+
+        text = (model_name or "").strip()
+        if not text:
+            return True, ""
+
+        is_unsuitable = getattr(self.text_provider, "is_unsuitable_model", None)
+        if callable(is_unsuitable) and is_unsuitable(text):
+            return (
+                False,
+                f"'{text}' is not a text completion model. "
+                f"Text models should be completion-capable (e.g., mistral, neural-chat, orca).",
+            )
+
+        try:
+            resolve = getattr(self.text_provider, "resolve_configured_model", None)
+            if callable(resolve):
+                resolved = resolve(text)
+                if not resolved:
+                    return (
+                        False,
+                        f"Text model '{text}' not found in Ollama. "
+                        f"Ensure the model is pulled and available.",
+                    )
+            return True, ""
+        except Exception as e:
+            return (
+                False,
+                f"Failed to check text model availability: {str(e)}. "
+                f"Ensure Ollama is running.",
+            )
+
+    def validate_job_config(self, vision_model: str, text_model: str = "") -> list[str]:
+        """Validate all models for a job configuration.
+
+        Returns:
+            List of validation errors (empty = valid)
+        """
+        errors = []
+
+        vision_valid, vision_msg = self.validate_vision_model(vision_model)
+        if not vision_valid:
+            errors.append(f"Vision model: {vision_msg}")
+
+        if text_model:
+            text_valid, text_msg = self.validate_text_model(text_model)
+            if not text_valid:
+                errors.append(f"Text model: {text_msg}")
+
+        return errors
