@@ -19,6 +19,7 @@ ResetScope = Literal["field", "subtree", "profile", "workspace"]
 _SUBTREE_PREFIXES = {
     "analysis": ("analysis",),
     "analysis.ui_presets": ("analysis", "ui_presets"),
+    "analysis.rag": ("analysis", "rag"),
     "llm": ("llm",),
     "ocr": ("ocr",),
     "ingest": ("ingest",),

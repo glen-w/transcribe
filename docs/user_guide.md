@@ -120,7 +120,7 @@ Workbench detail, keyboard shortcuts, and re-run OCR: [OCR — Review](runtime/o
 After pages have text, open **Workflow → Analyse**:
 
 1. Choose **Quick** / **Balanced** / **Thorough** / **Custom**. First-time: keep **Balanced**.
-2. Optionally add an Ask-notebook question.
+2. Optionally add an Ask-notebook question (Grounded, RAG, or Both once RAG is enabled in Settings → Analysis).
 3. Run analysis. On success, open **View → Overview**.
 
 **View** pages (Overview, Themes, Mood, Summaries, People & Places) show charts

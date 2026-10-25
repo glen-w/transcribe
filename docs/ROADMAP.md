@@ -634,7 +634,7 @@ The current architecture is the right core. Post-1.0 **extends** it; it does not
 
 - **Do not** extend `SourceDocument` / `PageIndex` to messages, CSV rows, or photos-as-pages. Contextual imports are a **sibling context corpus**, not notebooks.
 - **Do not** make SQLite the system of record. Extend `archive.sqlite` as a rebuildable projection over notebooks **and** context records.
-- **Do not** introduce a Personal Knowledge Graph database, a vector DB as default retrieval, live messenger APIs, or a generic “document” type.
+- **Do not** introduce a Personal Knowledge Graph database, a vector DB as **default** retrieval, live messenger APIs, or a generic “document” type. Opt-in Ask RAG (LanceDB extra) is the exception — it must stay off until `analysis.rag.enabled`.
 - **Do not** change `AnalysisDocument` v1. Multi-source reconstruction uses a new `ReconstructionBundle` (name TBD).
 - **Do not** rename Mood → Moments. Product **Slice** = confirmed life episode.
 - **Do not** call into TranscriptX libraries. 1.6 imports TX **export files** only ([INTEGRATION_SEAM.md](INTEGRATION_SEAM.md)).
@@ -736,7 +736,7 @@ Lock order: **corpus → context → notebook**. Never invert. `context-doctor` 
 4. Deterministic aggregations (first/last mention, gaps, mood series)
 5. Grounded LLM **only** on a ReconstructionBundle from (1–4); same abstain/citation contract as Ask notebook
 
-Embeddings / vector DBs are **not** a 1.x dependency. In-notebook `semantic_similarity` is TF-IDF BoW — not corpus semantic search. Compute `near_date` through 1.6; persist only user-confirmed links and Slice membership.
+Embeddings / vector DBs are **not** default 1.x retrieval. Archive Search stays SQLite FTS. In-notebook `semantic_similarity` is TF-IDF BoW. **Ask RAG** (`llm_rag_qa`) is an **opt-in extra** (`transcribe[rag]`, `analysis.rag.enabled=false`): a disposable per-notebook LanceDB index, not corpus Reconstruct. Compute `near_date` through 1.6; persist only user-confirmed links and Slice membership.
 
 ### Killer UX and Autobiography view
 

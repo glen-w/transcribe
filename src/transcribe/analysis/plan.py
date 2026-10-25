@@ -24,7 +24,15 @@ ANALYSIS_RUN_SCHEMA_VERSION = 1
 RUN_TERMINAL_STATUSES = frozenset({"completed", "cancelled", "failed", "interrupted"})
 RUN_ACTIVE_STATUSES = frozenset({"running"})
 # Keep in sync with AnalysisRunner.LLM_MODULES (avoid importing runner here).
-_LLM_MODULES = frozenset({"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"})
+_LLM_MODULES = frozenset(
+    {
+        "llm_summary",
+        "llm_action_items",
+        "llm_custom_qa",
+        "llm_rag_qa",
+        "narrative_summary",
+    }
+)
 
 
 @dataclass(frozen=True)

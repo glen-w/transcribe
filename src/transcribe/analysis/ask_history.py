@@ -12,6 +12,8 @@ from transcribe.persistence.atomic import read_json
 from transcribe.ports import to_iso
 
 ASK_MODULE_ID = "llm_custom_qa"
+ASK_MODULE_IDS = ("llm_custom_qa", "llm_rag_qa")
+_ASK_KIND = {"llm_custom_qa": "grounded", "llm_rag_qa": "rag"}
 _TERMINAL_ATTEMPT_STATES = frozenset({"succeeded", "failed"})
 
 
@@ -26,6 +28,8 @@ class AskHistoryEntry:
     capability: str
     content_fingerprint: str
     envelope: dict[str, Any]
+    kind: str = "grounded"
+    module_id: str = ASK_MODULE_ID
 
 
 def _parse_recorded_at(iso: str) -> datetime:
@@ -91,6 +95,7 @@ def entry_from_envelope(envelope: dict[str, Any], *, path: Path | None = None) -
     answer = payload.get("answer")
     if answer is not None and not isinstance(answer, str):
         answer = str(answer)
+    module_id = str(envelope.get("module_id") or ASK_MODULE_ID)
     return AskHistoryEntry(
         attempt_id=attempt_id,
         recorded_at=recorded_at,
@@ -101,22 +106,25 @@ def entry_from_envelope(envelope: dict[str, Any], *, path: Path | None = None) -
         capability=str(envelope.get("capability") or ""),
         content_fingerprint=str(envelope.get("content_fingerprint") or ""),
         envelope=envelope,
+        kind=_ASK_KIND.get(module_id, "grounded"),
+        module_id=module_id,
     )
 
 
 def list_ask_history(storage: AnalysisStorage) -> list[AskHistoryEntry]:
     """All terminal Ask attempts for this notebook, newest first."""
     entries: list[AskHistoryEntry] = []
-    for path in storage.iter_attempt_files(ASK_MODULE_ID):
-        try:
-            envelope = read_json(path)
-        except (OSError, ValueError, TypeError):
-            continue
-        if not isinstance(envelope, dict):
-            continue
-        entry = entry_from_envelope(envelope, path=path)
-        if entry is not None:
-            entries.append(entry)
+    for module_id in ASK_MODULE_IDS:
+        for path in storage.iter_attempt_files(module_id):
+            try:
+                envelope = read_json(path)
+            except (OSError, ValueError, TypeError):
+                continue
+            if not isinstance(envelope, dict):
+                continue
+            entry = entry_from_envelope(envelope, path=path)
+            if entry is not None:
+                entries.append(entry)
     entries.sort(
         key=lambda e: _parse_recorded_at(e.recorded_at) if e.recorded_at else datetime.min.replace(tzinfo=timezone.utc),
         reverse=True,
@@ -130,4 +138,5 @@ def summarize_ask_label(entry: AskHistoryEntry, *, max_question_chars: int = 72)
     question = entry.question
     if len(question) > max_question_chars:
         question = question[: max_question_chars - 1].rstrip() + "…"
-    return f"{when} · {model} · {question}"
+    kind = "RAG" if entry.kind == "rag" else "Grounded"
+    return f"{when} · {kind} · {model} · {question}"

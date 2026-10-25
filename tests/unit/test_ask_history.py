@@ -96,6 +96,23 @@ def test_list_ask_history_newest_first(tmp_path: Path):
     assert [e.attempt_id for e in entries] == ["att-new", "att-old"]
 
 
+def test_list_ask_history_includes_rag_and_labels_kind(tmp_path: Path):
+    paths = ProjectPaths(tmp_path / "proj")
+    paths.analysis_dir.mkdir(parents=True)
+    storage = AnalysisStorage(paths)
+    grounded = _sample_envelope(attempt_id="att-g", question="Grounded q?")
+    rag = _sample_envelope(attempt_id="att-r", question="RAG q?")
+    rag["module_id"] = "llm_rag_qa"
+    write_json_atomic(storage.attempt_path("llm_custom_qa", "att-g"), grounded)
+    write_json_atomic(storage.attempt_path("llm_rag_qa", "att-r"), rag)
+    entries = list_ask_history(storage)
+    kinds = {e.attempt_id: e.kind for e in entries}
+    assert kinds["att-g"] == "grounded"
+    assert kinds["att-r"] == "rag"
+    rag_entry = next(e for e in entries if e.attempt_id == "att-r")
+    assert "RAG" in summarize_ask_label(rag_entry)
+
+
 def test_summarize_ask_label_truncates_long_questions():
     entry = entry_from_envelope(
         _sample_envelope(question="Q" * 100),
@@ -104,6 +121,7 @@ def test_summarize_ask_label_truncates_long_questions():
     label = summarize_ask_label(entry, max_question_chars=20)
     assert "…" in label
     assert "llama3" in label
+    assert "Grounded" in label
 
 
 def test_format_ask_timestamp():

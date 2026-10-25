@@ -65,7 +65,7 @@ Places map / geocode alignment with TranscriptX (Nominatim hygiene, locations ar
 | **Mood & tone** | UI | `sentiment`, `emotion`, `contextual_emotion`, `fine_grained_emotion`, `affect_tension`, `epistemic_markers` |
 | **Patterns** (partial) | payload only | `keyphrases`, `semantic_similarity`, `topic_shift` — full echoes / loops deferred with reinterpretation / later rows |
 | **Moments** | UI | `moments`, `highlights` |
-| **Ask notebook** | UI | `llm_custom_qa` |
+| **Ask notebook** | UI | `llm_custom_qa`, `llm_rag_qa` |
 | **Summaries** | UI | `summary`, `insights`, `llm_summary`, `narrative_summary`, `llm_action_items` |
 
 ---

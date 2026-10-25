@@ -11,6 +11,8 @@ REDUCTION_MAP_REDUCE_V1 = "notebook_map_reduce_v1"
 TOKEN_ESTIMATOR_V1 = "whitespace_tokens_v1"
 GROUND_DOC_CHUNKS_V1 = "ground_doc_chunks_v1"
 GROUND_HIGHLIGHTS_SUMMARY_V1 = "ground_highlights_summary_v1"
+GROUND_RAG_HITS_V1 = "ground_rag_hits_v1"
+REDUCTION_RAG_PACK_V1 = "rag_pack_hits_v1"
 
 DEFAULT_MAX_TOKENS = 1500
 DEFAULT_TOTAL_PROMPT_TOKENS = 6000
@@ -227,6 +229,8 @@ __all__ = [
     "TOKEN_ESTIMATOR_V1",
     "GROUND_DOC_CHUNKS_V1",
     "GROUND_HIGHLIGHTS_SUMMARY_V1",
+    "GROUND_RAG_HITS_V1",
+    "REDUCTION_RAG_PACK_V1",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_TOTAL_PROMPT_TOKENS",
     "estimate_tokens",

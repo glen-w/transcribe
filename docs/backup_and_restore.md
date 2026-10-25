@@ -9,7 +9,7 @@ Operator quick commands also live in the [user guide](user_guide.md#integrity-ba
 | Always (when present) | Optional (default off) | Never |
 |-----------------------|------------------------|-------|
 | Notebooks under `TRANSCRIBE_PROJECTS_DIR` | Inbox (`--include-inbox`) | `data/cache/` (including `archive.sqlite`) |
-| `data/config/` (settings, prompts, menus, …) | Exports (`--include-exports`) | `*.lock`, `*.partial`, `.staging/`, thumbs / `.cache/` |
+| `data/config/` (settings, prompts, menus, …) | Exports (`--include-exports`) | `*.lock`, `*.partial`, `.staging/`, thumbs / `.cache/` (Ask RAG index too) |
 | `data/corpus/` (index, import/OCR/analysis runs) | | Absolute host paths (role roots only) |
 | `data/ocr_preference_ledger.json` when present | | |
 

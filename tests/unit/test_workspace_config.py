@@ -90,6 +90,8 @@ def test_defaults_parity_matches_shipped_presets(runtime: RuntimePaths) -> None:
     assert view.effective.analysis.topic_shift.shift_threshold == 0.25
     assert view.effective.analysis.wordclouds.max_tokens == 100
     assert view.effective.analysis.topic_modeling.n_topics == 5
+    assert view.effective.analysis.rag.enabled is False
+    assert view.effective.analysis.rag.ask_mode == "grounded"
     assert view.effective.llm.num_predict == 1024
     assert view.effective.ingest.render_dpi == 200
     assert BUILTIN_PRESET_POLICIES["balanced"].llm_module_ids == ("llm_summary",)

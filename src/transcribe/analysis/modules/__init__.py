@@ -57,6 +57,7 @@ def get_registered_modules(*, through: str | None = None) -> dict[str, AnalysisM
     from transcribe.analysis.modules.lexical_diversity import LexicalDiversityModule
     from transcribe.analysis.modules.llm_action_items import LLMActionItemsModule
     from transcribe.analysis.modules.llm_custom_qa import LLMCustomQAModule
+    from transcribe.analysis.modules.llm_rag_qa import LLMRagQAModule
     from transcribe.analysis.modules.llm_summary import LLMSummaryModule
     from transcribe.analysis.modules.moments import MomentsModule
     from transcribe.analysis.modules.narrative_summary import NarrativeSummaryModule
@@ -95,6 +96,7 @@ def get_registered_modules(*, through: str | None = None) -> dict[str, AnalysisM
         LLMSummaryModule(),
         LLMActionItemsModule(),
         LLMCustomQAModule(),
+        LLMRagQAModule(),
         NarrativeSummaryModule(),
     ]
 

@@ -12,6 +12,7 @@ from transcribe.analysis.presets import (
     PRESET_HELP,
     PRESET_LABELS,
     VALID_PRESETS,
+    ask_execution_flags,
     compute_effective_modules,
     expand_with_hard_parents,
     format_preset_label,
@@ -529,8 +530,29 @@ def _render_batch_preset_and_launch(
         )
         st.session_state[_QA_TEXT_KEY] = question_text or ""
 
+    from transcribe.config.facade import get_config
+    from transcribe.config.models import ASK_MODES
+
+    rag = get_config().effective.analysis.rag
+    ask_mode = rag.ask_mode if rag.ask_mode in ASK_MODES else "grounded"
+    if qa_enabled and rag.enabled:
+        mode_key = "batch_analysis_qa_mode"
+        if mode_key not in st.session_state:
+            st.session_state[mode_key] = ask_mode
+        ask_mode = st.radio(
+            "Ask mode",
+            options=list(ASK_MODES),
+            key=mode_key,
+            horizontal=True,
+        )
+    custom_qa, rag_qa = ask_execution_flags(
+        ask_mode,
+        has_question=bool(qa_enabled and (question_text or "").strip()),
+        rag_enabled=rag.enabled,
+    )
+
     plan = compute_effective_modules(
-        resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
+        resolved, custom_qa_execution=custom_qa, rag_qa_execution=rag_qa
     )
     parts = [f"**{format_preset_label(preset)}** · {len(plan.module_ids)} modules"]
     if plan.detector_ids:

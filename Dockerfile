@@ -28,7 +28,7 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip build \
     && python -m build \
-    && pip install --no-cache-dir "$(ls dist/*.whl)[ui]"
+    && pip install --no-cache-dir "$(ls dist/*.whl)[ui,rag]"
 
 # -----------------------------------------------------------------------------
 # Runtime

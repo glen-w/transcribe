@@ -97,6 +97,12 @@ _CATALOG: dict[str, ModuleInfo] = {
         category="medium",
         requires_llm=True,
     ),
+    "llm_rag_qa": ModuleInfo(
+        "llm_rag_qa",
+        "Ask notebook (RAG)",
+        category="medium",
+        requires_llm=True,
+    ),
     "narrative_summary": ModuleInfo(
         "narrative_summary",
         "Narrative summary (LLM)",

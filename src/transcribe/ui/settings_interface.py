@@ -302,7 +302,10 @@ SETTINGS_TAB_KEY = "settings_hub_selected_tab"
 def _settings_panel_renderers() -> dict[str, object]:
     """Lazy map so tests can replace the dispatch table."""
     from transcribe.ui.export_panel import render_export_settings_panel
-    from transcribe.ui.settings_analysis import render_analysis_presets_panel
+    from transcribe.ui.settings_analysis import (
+        render_analysis_presets_panel,
+        render_ask_rag_panel,
+    )
     from transcribe.ui.settings_detection import render_detection_settings_panel
     from transcribe.ui.settings_hub import (
         render_configuration_panel,
@@ -312,13 +315,18 @@ def _settings_panel_renderers() -> dict[str, object]:
     from transcribe.ui.settings_prompts import render_prompts_panel
     from transcribe.ui.settings_tags import render_tags_settings_panel
 
+    def _analysis_settings_tab() -> None:
+        render_analysis_presets_panel()
+        st.divider()
+        render_ask_rag_panel()
+
     def _interface() -> None:
         st.markdown("### Interface")
         render_interface_panel()
 
     return {
         "Configuration": render_configuration_panel,
-        "Analysis": render_analysis_presets_panel,
+        "Analysis": _analysis_settings_tab,
         "Detection": render_detection_settings_panel,
         "Tags": render_tags_settings_panel,
         "Prompts": render_prompts_panel,

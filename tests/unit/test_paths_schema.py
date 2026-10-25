@@ -13,6 +13,12 @@ def test_clock_utc_iso_has_z():
     assert "+" not in stamp[:-1] or True  # Z form
 
 
+def test_rag_dir_is_under_project_cache(tmp_path):
+    paths = ProjectPaths(root=tmp_path)
+    assert paths.rag_dir == paths.cache_dir / "rag"
+    assert paths.rag_dir.is_relative_to(tmp_path)
+
+
 def test_path_containment_rejects_escape(tmp_path):
     paths = ProjectPaths(root=tmp_path)
     paths.ensure_layout()

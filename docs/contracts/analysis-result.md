@@ -243,7 +243,7 @@ Chronology for sentiment/NER timelines uses unit `order` (+ optional `date`). Do
 
 ## LLM evidence, cache identity contribution, and refusal
 
-Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summary`:
+Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `llm_rag_qa`, `narrative_summary`:
 
 - Unsupported answers **abstain** — do not fabricate citations or evidence
 - Evidence must resolve to **current** compatible units/spans under the current content fingerprint and split profile
@@ -251,8 +251,8 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 - Bounded input: deterministic chunking / section aggregation; forbid dumping an unbounded whole-notebook string when it exceeds the configured max context policy (policy id is part of cache identity)
 - **Frozen LLM policy ids:**
   - `chunking_policy_id`: `notebook_chunks_units_v1` (pack units by `order` up to a token budget; oversized units are deterministically sub-split with span provenance; never silently truncated)
-  - `reduction_policy_id`: `notebook_map_reduce_v1` (bound total prompt context; map/reduce when chunks exceed total budget)
-  - `grounding_strategy_id`: `ground_doc_chunks_v1` (document chunks) or `ground_highlights_summary_v1` (`narrative_summary`)
+  - `reduction_policy_id`: `notebook_map_reduce_v1` (bound total prompt context; map/reduce when chunks exceed total budget) or `rag_pack_hits_v1` (`llm_rag_qa`)
+  - `grounding_strategy_id`: `ground_doc_chunks_v1` (document chunks), `ground_highlights_summary_v1` (`narrative_summary`), or `ground_rag_hits_v1` (`llm_rag_qa`)
 - Cache identity **must** include (via analysis-run-storage `llm` object): resolved model digest, prompt/template version, generation settings, grounding strategy id, question text when applicable, input/dependency identities, chunking policy id
 - Recorded test doubles must exercise the **same** result validation and abstention path as live Ollama (no separate “stub success” shape)
 
@@ -272,6 +272,7 @@ Applies to `llm_summary`, `llm_action_items`, `llm_custom_qa`, `narrative_summar
 | `llm_summary` | `llm_summary_payload_v1` | Optional Ollama; `honesty_label` |
 | `llm_action_items` | `llm_action_items_payload_v1` | Optional Ollama |
 | `llm_custom_qa` | `llm_custom_qa_payload_v1` | Grounded `unit_ids`; abstain if ungrounded |
+| `llm_rag_qa` | `llm_rag_qa_payload_v1` | Retrieved hits then JSON `unit_ids`; abstain if ungrounded; extra → `unavailable_extra` |
 | `narrative_summary` | `narrative_summary_payload_v1` | Hard parent `summary`; `unavailable_model` when Ollama/text model missing |
 
 ## Derived Analyse health (non-durable)

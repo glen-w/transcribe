@@ -436,23 +436,30 @@ def render_view_ask(runtime, paths, projects, project, *, get_analysis_coordinat
             show_advanced=show_advanced,
         )
         question = st.session_state.get(question_key) or ""
-        rm = module_freshness(
+        ask_ids = ["llm_custom_qa", "llm_rag_qa"]
+        rms = module_freshness(
             ctx["runner"],
             ctx["storage"],
-            ["llm_custom_qa"],
+            ask_ids,
             question_text=question.strip() or None,
-        )[0]
-        if rm.get("envelope"):
-            st.divider()
+        )
+        shown = False
+        for rm in rms:
+            if not rm.get("envelope"):
+                continue
+            if not shown:
+                st.divider()
+                shown = True
+            label = "RAG" if rm.get("module_id") == "llm_rag_qa" else "Grounded"
             if rm.get("status") == "stale":
-                st.caption("Last Ask answer is out of date — ask again to refresh.")
+                st.caption(f"Last {label} Ask answer is out of date — ask again to refresh.")
             else:
-                st.caption("Last Ask answer")
+                st.caption(f"Last {label} Ask answer")
                 payload = (rm["envelope"] or {}).get("payload") or {}
                 if payload.get("answer"):
                     st.markdown(payload["answer"])
                 if show_advanced:
-                    with st.expander("Advanced · last Ask"):
+                    with st.expander(f"Advanced · last {label} Ask"):
                         st.json(payload)
 
     render_notebook_view_page(

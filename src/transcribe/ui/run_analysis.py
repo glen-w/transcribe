@@ -25,6 +25,7 @@ from transcribe.analysis.presets import (
     PRESET_HELP,
     PRESET_LABELS,
     VALID_PRESETS,
+    ask_execution_flags,
     compute_effective_modules,
     expand_with_hard_parents,
     format_preset_label,
@@ -53,6 +54,7 @@ _CUSTOM_DETECT_KEY = "run_analysis_custom_detectors"
 _CUSTOM_DETECT_WIDGET_KEY = "run_analysis_custom_detectors_widget"
 _QA_ENABLE_KEY = "run_analysis_qa_enable"
 _QA_TEXT_KEY = "run_analysis_qa_text"
+_QA_MODE_KEY = "run_analysis_qa_mode"
 _BATCH_QA_ENABLE_KEY = "batch_analysis_qa_enable"
 _BATCH_QA_TEXT_KEY = "batch_analysis_qa_text"
 _CUSTOM_QA_MODULE = "llm_custom_qa"
@@ -437,7 +439,7 @@ def _render_config_and_launch(
         "Include Ask notebook question",
         value=bool(st.session_state.get(_QA_ENABLE_KEY, False)),
         key=_QA_ENABLE_KEY,
-        help="Adds the llm_custom_qa module and runs it with your question.",
+        help="Adds Ask (grounded and/or RAG) and runs it with your question.",
     )
     question_text: str | None = None
     if qa_enabled:
@@ -447,9 +449,28 @@ def _render_config_and_launch(
             key=_QA_TEXT_KEY,
             placeholder="What themes recur across these pages?",
         )
+    from transcribe.config.facade import get_config
+    from transcribe.config.models import ASK_MODES
+
+    rag = get_config().effective.analysis.rag
+    ask_mode = rag.ask_mode if rag.ask_mode in ASK_MODES else "grounded"
+    if qa_enabled and rag.enabled:
+        if _QA_MODE_KEY not in st.session_state:
+            st.session_state[_QA_MODE_KEY] = ask_mode
+        ask_mode = st.radio(
+            "Ask mode",
+            options=list(ASK_MODES),
+            key=_QA_MODE_KEY,
+            horizontal=True,
+        )
+    custom_qa, rag_qa = ask_execution_flags(
+        ask_mode,
+        has_question=bool(qa_enabled and (question_text or "").strip()),
+        rag_enabled=rag.enabled,
+    )
 
     plan = compute_effective_modules(
-        resolved, custom_qa_execution=bool(qa_enabled and (question_text or "").strip())
+        resolved, custom_qa_execution=custom_qa, rag_qa_execution=rag_qa
     )
     parts = [f"**{format_preset_label(preset)}** · {len(plan.module_ids)} modules"]
     if plan.detector_ids:

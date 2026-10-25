@@ -154,7 +154,7 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 | `chunking_policy_id` | yes |
 | `reduction_policy_id` | yes (`notebook_map_reduce_v1` for LLM modules) |
 | `token_estimator_id` | yes (`whitespace_tokens_v1` for LLM modules) |
-| `question_text` | yes for `llm_custom_qa`; else null |
+| `question_text` | yes for `llm_custom_qa` and `llm_rag_qa`; else null |
 | `resolved_model_digest` | yes when model resolved; else null (preflight → unavailable_model) |
 | `input_fingerprint` | yes (excerpts actually supplied / reduction fingerprint — not whole-document dump) |
 
@@ -163,9 +163,9 @@ Identity therefore varies with text/order/included pages **and** adapter granula
 | Field | Allowed LLM policy values |
 |-------|------------------------|
 | `chunking_policy_id` | `notebook_chunks_units_v1` (token budget; sub-split oversized units) |
-| `reduction_policy_id` | `notebook_map_reduce_v1` |
+| `reduction_policy_id` | `notebook_map_reduce_v1` \| `rag_pack_hits_v1` |
 | `token_estimator_id` | `whitespace_tokens_v1` |
-| `grounding_strategy_id` | `ground_doc_chunks_v1` \| `ground_highlights_summary_v1` |
+| `grounding_strategy_id` | `ground_doc_chunks_v1` \| `ground_highlights_summary_v1` \| `ground_rag_hits_v1` |
 
 ## Dependency compatibility (sole normative hard DAG)
 

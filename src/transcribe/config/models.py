@@ -225,6 +225,99 @@ class TopicModelingConfig:
         )
 
 
+ASK_MODES: tuple[str, ...] = ("grounded", "rag", "both")
+_ASK_MODE_SET = frozenset(ASK_MODES)
+
+
+def _clamp_int(value: Any, default: int, *, minimum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, parsed)
+
+
+@dataclass(frozen=True)
+class RagConfig:
+    """Opt-in Ask RAG knobs (Paperful ``[rag]`` shape). Off until ``enabled``."""
+
+    enabled: bool = False
+    auto_ingest: bool = False
+    embed_provider: str = "ollama"
+    embed_model: str = "nomic-embed-text"
+    embed_base_url: str = ""
+    embed_batch_size: int = 32
+    chunk_chars: int = 2048
+    chunk_overlap: int = 256
+    top_k: int = 10
+    max_context_chars: int = 24_000
+    hybrid: bool = True
+    model: str = ""
+    ask_mode: str = "grounded"
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "auto_ingest": self.auto_ingest,
+            "embed_provider": self.embed_provider,
+            "embed_model": self.embed_model,
+            "embed_base_url": self.embed_base_url,
+            "embed_batch_size": self.embed_batch_size,
+            "chunk_chars": self.chunk_chars,
+            "chunk_overlap": self.chunk_overlap,
+            "top_k": self.top_k,
+            "max_context_chars": self.max_context_chars,
+            "hybrid": self.hybrid,
+            "model": self.model,
+            "ask_mode": self.ask_mode,
+        }
+
+    def fingerprint_dict(self) -> dict[str, Any]:
+        """Knobs that change RAG retrieval / generation identity."""
+        return {
+            "embed_provider": self.embed_provider,
+            "embed_model": self.embed_model,
+            "chunk_chars": self.chunk_chars,
+            "chunk_overlap": self.chunk_overlap,
+            "top_k": self.top_k,
+            "max_context_chars": self.max_context_chars,
+            "hybrid": self.hybrid,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> RagConfig:
+        data = data or {}
+        provider = str(data.get("embed_provider") or "ollama").strip().lower()
+        if provider != "ollama":
+            provider = "ollama"
+        embed_model = str(data.get("embed_model") or "nomic-embed-text").strip()
+        if not embed_model:
+            embed_model = "nomic-embed-text"
+        chunk_chars = _clamp_int(data.get("chunk_chars", 2048), 2048, minimum=200)
+        overlap = _clamp_int(data.get("chunk_overlap", 256), 256, minimum=0)
+        overlap = min(overlap, chunk_chars // 2)
+        mode = str(data.get("ask_mode") or "grounded").strip().lower()
+        if mode not in _ASK_MODE_SET:
+            mode = "grounded"
+        return cls(
+            enabled=bool(data.get("enabled", False)),
+            auto_ingest=bool(data.get("auto_ingest", False)),
+            embed_provider=provider,
+            embed_model=embed_model,
+            embed_base_url=str(data.get("embed_base_url") or "").strip(),
+            embed_batch_size=_clamp_int(data.get("embed_batch_size", 32), 32, minimum=1),
+            chunk_chars=chunk_chars,
+            chunk_overlap=overlap,
+            top_k=_clamp_int(data.get("top_k", 10), 10, minimum=1),
+            max_context_chars=_clamp_int(
+                data.get("max_context_chars", 24_000), 24_000, minimum=1000
+            ),
+            hybrid=bool(data.get("hybrid", True)),
+            model=str(data.get("model") or "").strip(),
+            ask_mode=mode,
+        )
+
+
 @dataclass(frozen=True)
 class AnalysisConfig:
     ui_presets: UiPresetsConfig = field(default_factory=UiPresetsConfig)
@@ -235,6 +328,7 @@ class AnalysisConfig:
     topic_shift: TopicShiftConfig = field(default_factory=TopicShiftConfig)
     wordclouds: WordcloudsConfig = field(default_factory=WordcloudsConfig)
     topic_modeling: TopicModelingConfig = field(default_factory=TopicModelingConfig)
+    rag: RagConfig = field(default_factory=RagConfig)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -246,6 +340,7 @@ class AnalysisConfig:
             "topic_shift": self.topic_shift.as_dict(),
             "wordclouds": self.wordclouds.as_dict(),
             "topic_modeling": self.topic_modeling.as_dict(),
+            "rag": self.rag.as_dict(),
         }
 
     @classmethod
@@ -260,6 +355,7 @@ class AnalysisConfig:
             topic_shift=TopicShiftConfig.from_dict(data.get("topic_shift")),
             wordclouds=WordcloudsConfig.from_dict(data.get("wordclouds")),
             topic_modeling=TopicModelingConfig.from_dict(data.get("topic_modeling")),
+            rag=RagConfig.from_dict(data.get("rag")),
         )
 
 

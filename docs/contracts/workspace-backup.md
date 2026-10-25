@@ -68,7 +68,7 @@ Verify recomputes this index over non-manifest members and compares the digest. 
 - `*.lock` files
 - `*.partial` files (interrupted zip writes)
 - `.staging/` directories
-- Project-local `.cache/**` and thumbnail caches
+- Project-local `.cache/**` and thumbnail caches (includes disposable Ask RAG LanceDB under `.cache/rag/`)
 - The destination ZIP path itself when it would fall under a packed root
 
 ## Create semantics

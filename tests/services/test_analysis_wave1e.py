@@ -71,6 +71,7 @@ def test_registry_includes_1e_and_parents():
         "llm_summary",
         "llm_action_items",
         "llm_custom_qa",
+        "llm_rag_qa",
         "narrative_summary",
     }.issubset(set(w1e))
     assert set(w13).issubset(set(w1e))

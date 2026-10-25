@@ -73,4 +73,8 @@ COMMON_SETTINGS_SCHEMA: tuple[CommonSettingField, ...] = (
         "Analysis",
         "Topic modeling topic count",
     ),
+    CommonSettingField("analysis.rag.enabled", "Ask / RAG", "Enable RAG Ask"),
+    CommonSettingField("analysis.rag.ask_mode", "Ask / RAG", "Default Ask mode"),
+    CommonSettingField("analysis.rag.embed_model", "Ask / RAG", "Embedding model"),
+    CommonSettingField("analysis.rag.top_k", "Ask / RAG", "RAG top_k"),
 )

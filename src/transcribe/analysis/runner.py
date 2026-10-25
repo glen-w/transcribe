@@ -18,6 +18,9 @@ from transcribe.analysis.cache_identity import (
 from transcribe.analysis.chunking import (
     GROUND_DOC_CHUNKS_V1,
     GROUND_HIGHLIGHTS_SUMMARY_V1,
+    GROUND_RAG_HITS_V1,
+    REDUCTION_MAP_REDUCE_V1,
+    REDUCTION_RAG_PACK_V1,
 )
 from transcribe.analysis.document import (
     GRANULARITY_PAGE_V1,
@@ -85,8 +88,11 @@ def _adhoc_progress_log(
 ELIGIBILITY_REQUIRED = frozenset(
     {"keyphrases", "topic_modeling", "bertopic", "highlights", "insights"}
 )
-PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa", "moments"})
-LLM_MODULES = frozenset({"llm_summary", "llm_action_items", "llm_custom_qa", "narrative_summary"})
+PARAGRAPH_PREFERRED = frozenset({"highlights", "llm_custom_qa", "llm_rag_qa", "moments"})
+ASK_MODULES = frozenset({"llm_custom_qa", "llm_rag_qa"})
+LLM_MODULES = frozenset(
+    {"llm_summary", "llm_action_items", "llm_custom_qa", "llm_rag_qa", "narrative_summary"}
+)
 
 _UNSET = object()
 
@@ -218,16 +224,25 @@ def _llm_fields_from_context(
 
     model = llm_ctx.model_name if llm_ctx else None
     digest = llm_ctx.resolved_model_digest if llm_ctx else None
-    question = question_text if module.module_id == "llm_custom_qa" else None
+    question = question_text if module.module_id in ASK_MODULES else None
 
     if module.module_id == "narrative_summary":
         grounding = GROUND_HIGHLIGHTS_SUMMARY_V1
+        reduction = REDUCTION_MAP_REDUCE_V1
         summary = (parent_payload_map or {}).get("summary") or {}
         overview = str(summary.get("overview") or "")
         bullets = [str(b) for b in (summary.get("bullets") or []) if str(b).strip()]
         input_fp = summary_prompt_fingerprint(overview, bullets)
+    elif module.module_id == "llm_rag_qa":
+        grounding = GROUND_RAG_HITS_V1
+        reduction = REDUCTION_RAG_PACK_V1
+        from transcribe.config.facade import require_operation_config
+
+        rag = require_operation_config().analysis.rag
+        input_fp = config_fingerprint({"rag": rag.fingerprint_dict(), "question": question})
     else:
         grounding = GROUND_DOC_CHUNKS_V1
+        reduction = REDUCTION_MAP_REDUCE_V1
         meta = prepared_excerpts(document)
         input_fp = meta["input_fingerprint"]
 
@@ -235,6 +250,7 @@ def _llm_fields_from_context(
         "resolved_model_digest": digest,
         "llm": build_llm_object(
             grounding_strategy_id=grounding,
+            reduction_policy_id=reduction,
             model=model,
             digest=digest,
             input_fingerprint=input_fp,
@@ -458,13 +474,19 @@ class AnalysisRunner:
         question_text: str | None = None,
         text_model_name: str | None = None,
         reconcile_project: bool = True,
+        force_rebuild_rag: bool = False,
     ) -> dict[str, Any]:
         modules = get_registered_modules()
         module = modules.get(module_id)
         if module is None:
             raise KeyError(f"unknown module_id: {module_id}")
 
-        start_msg = "Ask notebook…" if module_id == "llm_custom_qa" else f"Running {module_id}…"
+        if module_id == "llm_rag_qa":
+            start_msg = "Ask notebook (RAG)…"
+        elif module_id == "llm_custom_qa":
+            start_msg = "Ask notebook…"
+        else:
+            start_msg = f"Running {module_id}…"
         _adhoc_progress_log(
             status="running",
             module_id=module_id,
@@ -486,6 +508,7 @@ class AnalysisRunner:
                     project=project,
                     question_text=question_text,
                     text_model_name=text_model_name,
+                    force_rebuild_rag=force_rebuild_rag,
                 )
         except Exception as exc:
             _adhoc_progress_log(
@@ -515,6 +538,7 @@ class AnalysisRunner:
         question_text: str | None,
         llm_ctx: TextLLMContext | None | object = _UNSET,
         text_model_name: str | None = None,
+        force_rebuild_rag: bool = False,
     ) -> dict[str, Any]:
         if llm_ctx is _UNSET:
             resolved_llm: TextLLMContext | None = None
@@ -659,12 +683,23 @@ class AnalysisRunner:
 
         evidence = None
         try:
-            result = module.run(
-                document,
-                parents=payloads,
-                llm_ctx=resolved_llm,
-                question_text=question_text,
-            )
+            run_kwargs: dict[str, Any] = {
+                "parents": payloads,
+                "llm_ctx": resolved_llm,
+                "question_text": question_text,
+            }
+            if module.module_id == "llm_rag_qa":
+                from transcribe.analysis.rag.ingest import RagRunContext
+
+                run_kwargs["rag_ctx"] = RagRunContext(
+                    rag_root=self.paths.rag_dir,
+                    force_rebuild=force_rebuild_rag,
+                    ollama_base_url=ollama_base_url_for_binding(
+                        getattr(project.settings, "base_url", None),
+                    )
+                    or "http://127.0.0.1:11434",
+                )
+            result = module.run(document, **run_kwargs)
             outcome = result["outcome"]
             payload = result.get("payload") or {}
             warnings = list(result.get("warnings") or [])
@@ -783,7 +818,7 @@ class AnalysisRunner:
                     break
                 if on_module_started is not None:
                     on_module_started(mid, index=index, total=total)
-                question = plan.question_text if mid == "llm_custom_qa" else None
+                question = plan.question_text if mid in ASK_MODULES else None
                 try:
                     module = modules.get(mid)
                     if module is None:
@@ -957,13 +992,15 @@ class AnalysisRunner:
                         grounding_strategy_id=(
                             GROUND_HIGHLIGHTS_SUMMARY_V1
                             if module.module_id == "narrative_summary"
+                            else GROUND_RAG_HITS_V1
+                            if module.module_id == "llm_rag_qa"
                             else GROUND_DOC_CHUNKS_V1
                         ),
                         model=llm_ctx.model_name if llm_ctx else None,
                         digest=llm_ctx.resolved_model_digest if llm_ctx else None,
                         input_fingerprint=config_fingerprint({"empty": True}),
                         question_text=(
-                            question_text if module.module_id == "llm_custom_qa" else None
+                            question_text if module.module_id in ASK_MODULES else None
                         ),
                     ),
                 }

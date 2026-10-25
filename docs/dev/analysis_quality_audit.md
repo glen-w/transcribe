@@ -1,6 +1,6 @@
 # Analysis quality audit
 
-**Status:** freeze sheet for the **25** core module ids  
+**Status:** freeze sheet for the **26** core module ids (25 TX-ported + `llm_rag_qa`)  
 **Pins:** [analysis_port_pins.md](analysis_port_pins.md)  
 **Severity:** [release_severity_triage.md](release_severity_triage.md)  
 **Porting map:** [analysis_module_porting.md](analysis_module_porting.md)
@@ -56,6 +56,7 @@ Optional extras and LLM modules that cannot run must abstain honestly
 | `llm_summary` | adaptation | Abstractive summary | Optional Ollama; abstain offline | retain | known limitation (model) |
 | `llm_action_items` | adaptation | Actions / decisions / questions | Optional Ollama | retain | known limitation (model) |
 | `llm_custom_qa` | adaptation | Ask the notebook | Grounded QA; refuse unsupported | retain | known limitation (model) |
+| `llm_rag_qa` | adaptation | Ask via RAG retrieve | Paperful-shaped hybrid index; JSON abstain/cite; extra → `unavailable_extra` | retain as optional | known limitation (extra + model) |
 | `narrative_summary` | adaptation | Longer narrative | Optional Ollama; `unavailable_model` offline | retain | known limitation (model) |
 
 ## Mandatory scrutiny

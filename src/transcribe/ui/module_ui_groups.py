@@ -29,6 +29,7 @@ MODULE_UI_GROUPS: tuple[ModuleUIGroup, ...] = (
             "narrative_summary",
             "llm_action_items",
             "llm_custom_qa",
+            "llm_rag_qa",
             "summary",
             "highlights",
             "insights",

@@ -1,6 +1,6 @@
 # Analysis port pins
 
-Exact TranscriptX source pins for modules copied into Transcribe. A core module must not be marked done without a filled row and a `semantic_class`. Freeze honesty for the same 25 ids: [analysis_quality_audit.md](analysis_quality_audit.md).
+Exact TranscriptX source pins for modules copied into Transcribe. A core module must not be marked done without a filled row and a `semantic_class`. Honesty sheet: [analysis_quality_audit.md](analysis_quality_audit.md) (25 TX-ported ids plus `llm_rag_qa`).
 
 External analytical dependencies (models, lexicons, packages) that affect reproducibility are recorded on the result envelope / cache identity per [analysis-result.md](../contracts/analysis-result.md); they are not a substitute for TX source pins below.
 
@@ -40,6 +40,7 @@ External analytical dependencies (models, lexicons, packages) that affect reprod
 | `llm_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_summary.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
 | `llm_action_items` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_action_items.py` | n/a Ollama text adaptation | adaptation | 2026-08-09 |
 | `llm_custom_qa` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/llm_custom_qa/` | n/a grounded QA adaptation | adaptation | 2026-08-09 |
+| `llm_rag_qa` | n/a (Paperful-shaped RAG Ask) | `paperful/rag/*` adapted; JSON abstain/cite stays Transcribe | n/a optional LanceDB extra → `unavailable_extra` | adaptation | 2026-10-25 |
 | `narrative_summary` | `50a0ede8e7acd03bbd9125a5a5237049f3291304` | `src/transcriptx/core/analysis/narrative_summary.py` | n/a; unavailable_model when LLM offline | adaptation | 2026-08-09 |
 
 ## Implementation gate

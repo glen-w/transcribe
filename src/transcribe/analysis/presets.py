@@ -50,6 +50,24 @@ PRESET_HELP = (
 )
 
 _CUSTOM_QA_MODULE = "llm_custom_qa"
+_RAG_QA_MODULE = "llm_rag_qa"
+
+
+def ask_execution_flags(
+    mode: str,
+    *,
+    has_question: bool,
+    rag_enabled: bool,
+) -> tuple[bool, bool]:
+    """Return ``(custom_qa_execution, rag_qa_execution)`` for Ask / Analyse."""
+    if not has_question:
+        return False, False
+    normalized = (mode or "grounded").strip().lower()
+    if rag_enabled and normalized == "rag":
+        return False, True
+    if rag_enabled and normalized == "both":
+        return True, True
+    return True, False
 
 
 @dataclass(frozen=True)
@@ -163,6 +181,7 @@ class EffectiveModulePlan:
     heavy_count: int
     custom_qa_execution: bool
     detector_ids: tuple[str, ...] = ()
+    rag_qa_execution: bool = False
 
     @property
     def detector_count(self) -> int:
@@ -389,6 +408,7 @@ def compute_effective_modules(
     resolved: ResolvedAnalysisPreset,
     *,
     custom_qa_execution: bool,
+    rag_qa_execution: bool = False,
 ) -> EffectiveModulePlan:
     modules = list(resolved.module_ids)
     if custom_qa_execution:
@@ -396,6 +416,11 @@ def compute_effective_modules(
             modules.append(_CUSTOM_QA_MODULE)
     else:
         modules = [m for m in modules if m != _CUSTOM_QA_MODULE]
+    if rag_qa_execution:
+        if _RAG_QA_MODULE not in modules:
+            modules.append(_RAG_QA_MODULE)
+    else:
+        modules = [m for m in modules if m != _RAG_QA_MODULE]
     deduped = tuple(_dedupe_preserve_order(modules))
     llm_count, heavy_count = _count_llm_and_heavy(deduped)
     return EffectiveModulePlan(
@@ -404,6 +429,7 @@ def compute_effective_modules(
         heavy_count=heavy_count,
         custom_qa_execution=bool(custom_qa_execution),
         detector_ids=tuple(resolved.detector_ids),
+        rag_qa_execution=bool(rag_qa_execution),
     )
 
 
@@ -432,6 +458,7 @@ __all__ = [
     "ResolvedAnalysisPreset",
     "VALID_PRESETS",
     "bump_preset_content_versions",
+    "ask_execution_flags",
     "compute_effective_modules",
     "custom_modules_fingerprint",
     "expand_with_hard_parents",

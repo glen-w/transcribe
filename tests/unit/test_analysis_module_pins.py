@@ -17,7 +17,7 @@ MODULES_DIR = ROOT / "src" / "transcribe" / "analysis" / "modules"
 PIN_ROW_RE = re.compile(r"^\| `([a-z][a-z0-9_]*)` \|", re.M)
 MODULE_ID_RE = re.compile(r'^MODULE_ID\s*=\s*"([a-z][a-z0-9_]*)"', re.M)
 SEMANTIC_CLASSES = frozenset({"parity", "adaptation", "fork"})
-FROZEN_CORE_COUNT = 25
+FROZEN_CORE_COUNT = 26
 
 
 def _pinned_ids() -> set[str]:

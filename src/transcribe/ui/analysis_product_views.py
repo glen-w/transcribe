@@ -981,7 +981,8 @@ def render_ask_product(
     if heading:
         st.subheader("Ask notebook")
         st.caption(
-            "Ask a question grounded in this notebook. Unsupported answers abstain — "
+            "Ask a question about this notebook. Grounded Ask uses sequential excerpts; "
+            "RAG retrieves passages first. Unsupported answers abstain — "
             "no fabricated citations. Ad-hoc Ask does not update batch analysis health."
         )
 
@@ -1040,46 +1041,129 @@ def render_ask_product(
         if not (chosen_model or default_name).strip():
             st.warning("Select a text model before asking.")
 
+    from transcribe.analysis.presets import ask_execution_flags
+    from transcribe.analysis.rag.index import lancedb_available
+    from transcribe.config.facade import get_config
+    from transcribe.config.models import ASK_MODES
+
+    rag = get_config().effective.analysis.rag
+    mode_key = f"{question_key}_mode"
+    rebuild_key = f"{question_key}_rebuild"
+    extra_ok = lancedb_available()
+    rag_ready = bool(rag.enabled and extra_ok)
+    default_mode = rag.ask_mode if rag.ask_mode in ASK_MODES else "grounded"
+    if not rag_ready:
+        default_mode = "grounded"
+    if mode_key not in st.session_state:
+        st.session_state[mode_key] = default_mode
+    mode_labels = {
+        "grounded": "Grounded",
+        "rag": "RAG",
+        "both": "Both",
+    }
+    mode = st.radio(
+        "Ask mode",
+        options=list(ASK_MODES),
+        format_func=lambda m: mode_labels.get(m, m),
+        key=mode_key,
+        horizontal=True,
+        disabled=not rag.enabled,
+        help=(
+            "Enable RAG under Settings → Analysis to use retrieve-then-generate. "
+            if not rag.enabled
+            else (
+                "Install transcribe[rag] (LanceDB) to use RAG."
+                if not extra_ok
+                else "Grounded uses sequential excerpts; RAG retrieves first; Both runs both."
+            )
+        ),
+    )
+    if not rag_ready:
+        mode = "grounded"
+    force_rebuild = False
+    if rag_ready:
+        force_rebuild = st.checkbox(
+            "Rebuild RAG index",
+            value=False,
+            key=rebuild_key,
+            help="Re-embed this notebook before answering.",
+        )
+
     question = st.text_input("Question", key=question_key)
     resolved_model = (chosen_model or "").strip()
     ask_disabled = not (question or "").strip() or (
         project is not None and not (resolved_model or default_name).strip()
     )
+    grounded_on, rag_on = ask_execution_flags(
+        mode, has_question=bool((question or "").strip()), rag_enabled=rag_ready
+    )
     if st.button("Ask", disabled=ask_disabled, key=f"{question_key}_go", icon=ic.ASK):
-        with st.spinner("Asking notebook…"):
-            env = runner.run_module(
-                "llm_custom_qa",
-                question_text=question.strip(),
-                text_model_name=resolved_model or None,
-            )
-        payload = env.get("payload") or {}
-        if payload.get("honesty_label"):
-            st.caption(payload["honesty_label"])
-        if env.get("outcome") == "failed" or env.get("capability") in {
-            "unavailable_model",
-            "unavailable_dependency",
-            "failed",
-        }:
-            st.warning(product_capability_label(env.get("capability"), env.get("outcome")))
-        if payload.get("answer"):
-            st.markdown(payload["answer"])
-        evidence = env.get("evidence") or []
-        from transcribe.analysis.envelope import filter_live_evidence
+        q = question.strip()
+        model_name = resolved_model or None
+        if grounded_on:
+            with st.spinner("Asking notebook (grounded)…"):
+                env = runner.run_module(
+                    "llm_custom_qa",
+                    question_text=q,
+                    text_model_name=model_name,
+                )
+            st.markdown("##### Grounded")
+            _render_ask_envelope(env, show_advanced=show_advanced, heading_key="ask_grounded")
+        if rag_on:
+            with st.spinner("Asking notebook (RAG)…"):
+                env = runner.run_module(
+                    "llm_rag_qa",
+                    question_text=q,
+                    text_model_name=model_name,
+                    force_rebuild_rag=force_rebuild,
+                )
+            st.markdown("##### RAG")
+            retrieved = (env.get("payload") or {}).get("retrieved") or []
+            if retrieved:
+                with st.expander("Retrieved passages"):
+                    for hit in retrieved:
+                        st.caption(
+                            f"{hit.get('page_id') or ''} · score {hit.get('score', 0):.3f}"
+                        )
+                        st.write(hit.get("text") or "")
+            _render_ask_envelope(env, show_advanced=show_advanced, heading_key="ask_rag")
 
-        live = filter_live_evidence(
-            evidence,
-            current_content_fingerprint=env.get("content_fingerprint"),
-        )
-        if live and env.get("published"):
-            with st.expander("Supporting passages"):
-                for cite in live:
-                    st.write(cite)
-        elif evidence and env.get("published"):
-            st.caption("Evidence citations omitted (content changed since Ask).")
-        for w in env.get("warnings") or []:
-            st.warning(w.get("message") or w.get("code"))
-        if show_advanced:
-            render_advanced_payload("ask", payload)
+
+def _render_ask_envelope(
+    env: dict,
+    *,
+    show_advanced: bool,
+    heading_key: str,
+) -> None:
+    payload = env.get("payload") or {}
+    if payload.get("honesty_label"):
+        st.caption(payload["honesty_label"])
+    if env.get("outcome") == "failed" or env.get("capability") in {
+        "unavailable_model",
+        "unavailable_dependency",
+        "unavailable_extra",
+        "failed",
+    }:
+        st.warning(product_capability_label(env.get("capability"), env.get("outcome")))
+    if payload.get("answer"):
+        st.markdown(payload["answer"])
+    evidence = env.get("evidence") or []
+    from transcribe.analysis.envelope import filter_live_evidence
+
+    live = filter_live_evidence(
+        evidence,
+        current_content_fingerprint=env.get("content_fingerprint"),
+    )
+    if live and env.get("published"):
+        with st.expander("Supporting passages"):
+            for cite in live:
+                st.write(cite)
+    elif evidence and env.get("published"):
+        st.caption("Evidence citations omitted (content changed since Ask).")
+    for w in env.get("warnings") or []:
+        st.warning(w.get("message") or w.get("code"))
+    if show_advanced:
+        render_advanced_payload(heading_key, payload)
 
 
 def render_ask_history(

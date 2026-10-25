@@ -110,6 +110,27 @@ Settings writes that change a named preset’s policy body **must** bump that pr
 
 Frozen `AnalysisRunPlan` records `preset_key`, `preset_content_version`, and `preset_policy_fingerprint` so a run identifies exactly which preset generation produced it (see [analysis-run-storage.md](analysis-run-storage.md)).
 
+### Ask RAG (`analysis.rag`)
+
+Paperful-shaped knobs. Default **off**. Fingerprinted for `llm_rag_qa` only (`ANALYSIS_CONFIG_VERSION` 2).
+
+| Key | Default | Role |
+|-----|---------|------|
+| `enabled` | `false` | Master switch for RAG Ask |
+| `auto_ingest` | `false` | Reserved for post-OCR index refresh (not wired). Use `transcribe rag ingest` to warm indexes; Ask still rebuilds a stale index when RAG runs |
+| `embed_provider` | `ollama` | Only `ollama` in this slice |
+| `embed_model` | `nomic-embed-text` | Ollama embedding tag |
+| `embed_base_url` | `""` | Empty → notebook/Ollama base URL |
+| `embed_batch_size` | `32` | Min 1 |
+| `chunk_chars` / `chunk_overlap` | `2048` / `256` | Min chunk 200; overlap capped at half |
+| `top_k` | `10` | Passages packed into the prompt |
+| `max_context_chars` | `24000` | Min 1000 |
+| `hybrid` | `true` | Vector + FTS; falls back to vector-only |
+| `model` | `""` | Chat override; empty → Ask text model |
+| `ask_mode` | `grounded` | `grounded` \| `rag` \| `both` — View → Ask default |
+
+Index lives under `{project}/.cache/rag/{provider}__{model}/` (disposable). Edited under **Settings → Analysis**.
+
 ## Recovery
 
 Corrupt/unsupported settings: never silent overwrite. Preserve file; surface stable error codes (`settings_corrupt`, `settings_schema_unsupported`). In-memory defaults only under explicit `defaults_readonly` recovery; Saves disabled until Reset workspace (archives then writes fresh defaults).

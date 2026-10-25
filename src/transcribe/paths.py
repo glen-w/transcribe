@@ -79,6 +79,11 @@ class ProjectPaths:
         return self.cache_dir / "analysis"
 
     @property
+    def rag_dir(self) -> Path:
+        """Disposable Ask RAG index (LanceDB); rebuildable, excluded from backup."""
+        return self.cache_dir / "rag"
+
+    @property
     def mutation_lock(self) -> Path:
         return self.root / ".transcribe.lock"
 

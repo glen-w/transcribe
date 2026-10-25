@@ -184,6 +184,7 @@ def batch_module_order(module_ids: list[str]) -> list[str]:
         "llm_summary": 70,
         "llm_action_items": 71,
         "llm_custom_qa": 72,
+        "llm_rag_qa": 72.5,
         "narrative_summary": 73,
     }
     return sorted(module_ids, key=lambda m: (rank.get(m, 1000), m))

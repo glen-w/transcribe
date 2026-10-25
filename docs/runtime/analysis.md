@@ -11,7 +11,7 @@ First-time path: [user guide](../user_guide.md). Limits:
 **UI:** **Workflow → Analyse**
 
 1. Choose a preset (**Quick** / **Balanced** / **Thorough** / **Custom**). First-time: keep **Balanced**.
-2. Optionally enable an Ask-notebook question.
+2. Optionally enable an Ask-notebook question (Grounded, RAG, or Both when RAG is enabled under **Settings → Analysis**).
 3. Run analysis. On success, open **View → Overview**.
 
 | Preset | What you get |
@@ -37,6 +37,7 @@ strip shows whether results are current.
 - Overview / Mood: **Compare with corpus / period** against other notebooks
 - Mood → Moments and page-series charts: **Jump to page** → Reading
 - **People & Places**: This notebook | All notebooks (opt-in map geocoding)
+- **Ask notebook**: Grounded (default), RAG, or Both — RAG stays off until **Settings → Analysis** and `transcribe[rag]`
 - Technical module details under **Advanced** (enable in **Settings → Configuration → Overview**)
 
 Chart notes: [visual compare](../dev/analysis_visual_compare.md).
@@ -74,6 +75,16 @@ shared text model, **Start batch analysis**. Empty-text notebooks are skipped.
 ./transcribe.sh cli bulk-analyse pending|import-run|notebooks --preset balanced
 ./transcribe.sh cli bulk-analyse status|resume <analysis_batch_id>
 ```
+
+Warm Ask RAG indexes overnight (embed only; does not call the Ask chat model):
+
+```bash
+./transcribe.sh cli rag ingest --library
+./transcribe.sh cli rag ingest /path/to/notebook --dry-run
+./transcribe.sh cli rag ingest --library --force
+```
+
+Needs `transcribe[rag]` (Compose already has it) and an embedding model (`nomic-embed-text` by default). Unchanged notebooks are skipped.
 
 ## Related
 

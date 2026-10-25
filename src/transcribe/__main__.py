@@ -478,6 +478,46 @@ def main(argv: list[str] | None = None) -> int:
     p_ba_resume = bulk_ax_sub.add_parser("resume", help="Resume a non-terminal AnalysisBatchRun")
     p_ba_resume.add_argument("analysis_batch_id")
 
+    p_rag = sub.add_parser("rag", help="Ask RAG index (embed only; no Ask LLM)")
+    rag_sub = p_rag.add_subparsers(dest="rag_cmd", required=True)
+    p_rag_ingest = rag_sub.add_parser(
+        "ingest",
+        help="Build or refresh per-notebook RAG indexes from effective text",
+    )
+    p_rag_ingest.add_argument(
+        "notebooks",
+        nargs="*",
+        help="Notebook id or project root (repeatable)",
+    )
+    p_rag_ingest.add_argument(
+        "--library",
+        action="store_true",
+        help="Index every managed notebook in the workspace",
+    )
+    p_rag_ingest.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-index even when nothing changed",
+    )
+    p_rag_ingest.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Retry notebooks that failed on an earlier ingest",
+    )
+    p_rag_ingest.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be indexed; writes nothing",
+    )
+    p_rag_ingest.add_argument(
+        "--limit",
+        "-n",
+        type=int,
+        default=None,
+        help="Index at most this many notebooks that need work",
+    )
+    p_rag_ingest.add_argument("--base-url", default=None)
+
     args = parser.parse_args(argv)
     clock = SystemClock()
     ids = UuidGenerator()
@@ -489,6 +529,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_bulk_run(args, clock=clock, ids=ids)
         if args.cmd == "bulk-analyse":
             return _cmd_bulk_analyse(args, clock=clock, ids=ids)
+        if args.cmd == "rag":
+            return _cmd_rag(args)
         if args.cmd == "corpus-doctor":
             return _cmd_corpus_doctor(args)
         if args.cmd == "backup":
@@ -1160,8 +1202,18 @@ def _cmd_bulk_analyse(args: argparse.Namespace, *, clock, ids) -> int:
     question = (args.question or "").strip() or None
     module_ids = list(resolved.module_ids)
     detector_ids = list(resolved.detector_ids)
-    if question and "llm_custom_qa" not in module_ids:
-        module_ids.append("llm_custom_qa")
+    if question:
+        from transcribe.analysis.presets import ask_execution_flags
+        from transcribe.config.facade import get_config
+
+        rag = get_config().effective.analysis.rag
+        custom_qa, rag_qa = ask_execution_flags(
+            rag.ask_mode, has_question=True, rag_enabled=rag.enabled
+        )
+        if custom_qa and "llm_custom_qa" not in module_ids:
+            module_ids.append("llm_custom_qa")
+        if rag_qa and "llm_rag_qa" not in module_ids:
+            module_ids.append("llm_rag_qa")
 
     candidates = list_analysis_candidates(corpus, clock=clock, ids=ids)
     import_run_id = None
@@ -1225,6 +1277,77 @@ def _cmd_corpus_doctor(args: argparse.Namespace) -> int:
     elif report.ok:
         print("ok: no errors (warnings above)")
     return 0 if report.ok else 1
+
+
+def _cmd_rag(args: argparse.Namespace) -> int:
+    if args.rag_cmd != "ingest":
+        print(f"error: unknown rag subcommand {args.rag_cmd!r}", file=sys.stderr)
+        return 2
+    return _cmd_rag_ingest(args)
+
+
+def _cmd_rag_ingest(args: argparse.Namespace) -> int:
+    from transcribe.analysis.rag.exceptions import RagUnavailable
+    from transcribe.analysis.rag.ingest import ingest_notebooks
+    from transcribe.config.facade import get_config
+    from transcribe.corpus.paths import CorpusPaths
+    from transcribe.errors import CorpusError, ValidationError
+    from transcribe.runtime_paths import default_ollama_base_url
+    from transcribe.services.batch_notebooks import list_candidates, resolve_notebook_ref
+
+    notebooks = list(args.notebooks or [])
+    library = bool(args.library)
+    if not notebooks and not library:
+        print("error: give a notebook path/id and/or --library", file=sys.stderr)
+        return 2
+    rag = get_config().effective.analysis.rag
+    corpus = CorpusPaths.from_runtime(PATHS)
+    roots: list[Path] = []
+    seen: set[str] = set()
+    if library:
+        for cand in list_candidates(corpus, include_page_stats=False):
+            key = str(cand.root.resolve())
+            if key not in seen:
+                seen.add(key)
+                roots.append(cand.root)
+    for ref in notebooks:
+        try:
+            _nid, root = resolve_notebook_ref(corpus, ref)
+        except (CorpusError, ValidationError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        key = str(root.resolve())
+        if key not in seen:
+            seen.add(key)
+            roots.append(root)
+    if not roots:
+        print("No notebooks selected.")
+        return 1
+    url = normalize_base_url(args.base_url or default_ollama_base_url())
+    try:
+        batch = ingest_notebooks(
+            roots,
+            rag=rag,
+            force=bool(args.force),
+            retry_failed=bool(args.retry_failed),
+            dry_run=bool(args.dry_run),
+            limit=args.limit,
+            ollama_base_url=url,
+        )
+    except RagUnavailable as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for row in batch.rows:
+        extra = f"\t{row.chunks}" if row.chunks else ""
+        why = f"\t{row.reason}" if row.reason else ""
+        print(f"{row.notebook_id}\t{row.status}{extra}{why}")
+    summary = batch.summary()
+    print(
+        f"indexed={summary['indexed']} unchanged={summary['unchanged']} "
+        f"empty={summary['empty']} failed={summary['failed']} chunks={summary['chunks']}"
+        + (" dry-run" if batch.dry_run else "")
+    )
+    return 1 if summary["failed"] else 0
 
 
 def _cmd_backup(args: argparse.Namespace) -> int:

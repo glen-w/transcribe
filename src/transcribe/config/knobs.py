@@ -37,15 +37,19 @@ def module_knob_dict(cfg: EffectiveConfig, module_id: str) -> dict[str, Any]:
         "llm_summary",
         "llm_action_items",
         "llm_custom_qa",
+        "llm_rag_qa",
         "narrative_summary",
     }:
-        return {
+        knobs = {
             **base,
             "default_temperature": cfg.llm.default_temperature,
             "num_predict": cfg.llm.num_predict,
             "max_unit_tokens": cfg.llm.max_unit_tokens,
             "max_prompt_tokens": cfg.llm.max_prompt_tokens,
         }
+        if module_id == "llm_rag_qa":
+            knobs.update(a.rag.fingerprint_dict())
+        return knobs
     return base
 
 

@@ -89,6 +89,7 @@ pip install -e '.[ui]'
 |-------|----------------|
 | *(core)* | Pillow, PyMuPDF, wordcloud — CLI OCR / text+PDF export without Streamlit |
 | `[ui]` | Streamlit + pydantic + ebooklib (primary interactive surface) |
+| `[rag]` | LanceDB for opt-in Ask RAG (Compose image already includes it) |
 | `[export]` | ebooklib for EPUB without pulling Streamlit |
 | `[dev]` | pytest, ruff, coverage + UI extras |
 | `[docs]` | Sphinx (`make docs`); not required to run the app |

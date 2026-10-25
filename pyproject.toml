@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 ui = ["streamlit>=1.32.0", "pydantic>=2.0.0", "ebooklib>=0.18"]
 export = ["ebooklib>=0.18"]
+rag = ["lancedb>=0.39,<1"]
 dev = [
   "pytest>=8.0.0",
   "pytest-cov>=5.0.0",
