@@ -96,9 +96,17 @@ def advise_model(name: str, *, role: str = "vision") -> ModelAdvice:
         )
     recipe = recipe_for_model(name)
     if recipe is not None:
+        kind = recipe.advice_kind if recipe.advice_kind else "ocr_oriented"
+        if kind == "recommended_vlm":
+            title = f"Recommended general vision model for OCR · {recipe.title} recipe"
+        elif kind == "general_vlm":
+            title = f"General vision-language model · {recipe.title} recipe"
+        else:
+            kind = "ocr_oriented"
+            title = f"OCR-oriented vision model · {recipe.title} recipe"
         return ModelAdvice(
-            kind="ocr_oriented",
-            title=f"OCR-oriented vision model · {recipe.title} recipe",
+            kind=kind,
+            title=title,
             use_case="first_ocr",
             warnings=recipe.warnings,
         )

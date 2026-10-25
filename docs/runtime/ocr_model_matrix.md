@@ -40,7 +40,7 @@ Spot checks on green pages (same `faithful_markdown` prompt):
 |-------|------|----------------|-------|
 | **glm-ocr:latest** | ok | ok | OCR-oriented; recipe sends `repeat_penalty=1.2`. May still loop — token-repeat aborts are failed, not retried |
 | **deepseek-ocr:latest** | ok | ok | Uses `free_ocr` recipe — do not override with long faithful prompts |
-| **granite3.2-vision:latest** | ok | ok | Fast, reliable general VLM for handwriting |
+| **granite3.2-vision:latest** | ok | ok | Recommended VLM; recipe sends `repeat_penalty=1.2` (prompt not frozen) |
 | **qwen2.5vl:3b** / **7b** | ok | ok | Good size/quality trade-off |
 | **minicpm-v:8b** | ok | ok | Small general VLM; compare pass |
 | **gemma3:4b** / **12b** | ok | ok | Non-thinking Gemma vision |
@@ -64,7 +64,7 @@ Tags without `vision` in Ollama discovery are omitted from vision pickers unless
 
 | Tag family | Why |
 |------------|-----|
-| **Thinking** (`gemma4`, `gpt-oss`, `qwen3-vl`, `qwen3.6`, `deepseek-r1`) | Often `empty_output` when thinking consumes `num_predict` |
+| **Thinking** (`gemma4`, `gpt-oss`, `qwen3-vl`, `qwen3.6`, `deepseek-r1`) | Often `empty_output` when thinking consumes `num_predict` — a prompt recipe cannot recover this |
 | **llama3.2-vision** | Fatal model-load on current Ollama (mllama) — circuit opens after first page |
 | **General VLMs first** (`llava`, …) | Timeouts on dense scans; use after an OCR-oriented first pass |
 

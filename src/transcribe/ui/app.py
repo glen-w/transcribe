@@ -337,7 +337,10 @@ def _render_review_workbench(runtime, paths, projects, project) -> None:
         results_dir=paths.results_dir,
         base_page_ids=base_ids,
         load_page_result=projects.load_page_result,
-        repair_page=projects.repair_empty_successes,
+        repair_page=lambda page_id: (
+            projects.repair_empty_successes(page_id),
+            projects.repair_truncated_repetition_successes(page_id),
+        )[-1],
     )
     # Repair may have rewritten historical empty successes — reload once.
     project = projects.load(reconcile=False)

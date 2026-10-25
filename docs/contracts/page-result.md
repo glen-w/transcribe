@@ -78,7 +78,7 @@ Fingerprint skip requires **verified** model identity. Ollama tags `name` and `n
 
 When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
 
-Some vision tags use a **model recipe** (name match → short prompt such as `free_ocr`) frozen into the plan; that prompt hash participates like any other `prompt_sha256`. Custom notebook prompts always win over a recipe. See [runtime/ocr_model_recipes.md](../runtime/ocr_model_recipes.md).
+Some vision tags use a **model recipe** (name match → frozen prompt such as `free_ocr`, and/or generation-option overlay). Prompt hash participates like any other `prompt_sha256`; extra option keys such as `repeat_penalty` change the fingerprint. Custom notebook prompts always win prompt text. Options-only recipes (`freeze_prompt=false`) keep the notebook `prompt_id`. Optional provenance `recipe_id` records which lane matched; it is not hashed. See [ocr-model-recipes.md](ocr-model-recipes.md) and [runtime/ocr_model_recipes.md](../runtime/ocr_model_recipes.md).
 
 Skip/resume policy for *single-model jobs* (runtime): a page may be skipped only when the frozen job plan has **verified** model identity and the recomputed fingerprint matches a succeeded **active** attempt. Unverified model identity is non-cacheable for skip.
 
@@ -88,7 +88,7 @@ Job execution freezes plan fields at start; see [ARCHITECTURE.md](../ARCHITECTUR
 
 ## Provenance
 
-Successful attempts carry provenance suitable for audit/export: model identity, prompt text/ids/hashes, preprocess, application version, Ollama host, render id, request id, and allowlisted provider timing/token metadata.
+Successful attempts carry provenance suitable for audit/export: model identity, prompt text/ids/hashes, optional `recipe_id`, preprocess, application version, Ollama host, render id, request id, and allowlisted provider timing/token metadata. Missing `recipe_id` on older results is empty.
 
 ## Optional cleanup record
 

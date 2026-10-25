@@ -49,7 +49,8 @@ Product and module reviews (critique and follow-ups — not contracts): [reviews
 | [dev/settings_tx_alignment.md](dev/settings_tx_alignment.md) | Settings / profiles / models / prompts alignment |
 | [dev/ocr_review_workbench_plan.md](dev/ocr_review_workbench_plan.md) | Post-U3 OCR Review workbench (scan / tabbed lanes / evidence / merged draft / transcription) |
 | [dev/streamlit_efficiency_audit.md](dev/streamlit_efficiency_audit.md) | Streamlit every-rerun / Review / View cost audit and PR1 fluidity fixes |
-| [runtime/ocr_model_recipes.md](runtime/ocr_model_recipes.md) | Per-model OCR prompt recipes (DeepSeek-OCR first) |
+| [runtime/ocr_model_recipes.md](runtime/ocr_model_recipes.md) | Per-model OCR recipes (builtins + workspace overlay) |
+| [contracts/ocr-model-recipes.md](contracts/ocr-model-recipes.md) | Recipe overlay schema, merge, fingerprint |
 
 ## Archive
 

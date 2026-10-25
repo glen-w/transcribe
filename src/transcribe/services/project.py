@@ -31,6 +31,8 @@ from transcribe.domain.models import (
     OCRSettings,
     PREFER_MODES,
     REVIEW_STATUSES,
+    TOKEN_REPEAT_CODE,
+    TRUNCATED_REPEAT_MESSAGE,
     PageIndex,
     PageResult,
     Project,
@@ -996,6 +998,70 @@ class ProjectService:
                 attempt.error = AttemptError(
                     code=EMPTY_OUTPUT_CODE,
                     message=EMPTY_OUTPUT_MESSAGE,
+                    retriable=False,
+                )
+                existing.attempts[i] = attempt
+                changed = True
+            active = existing.active_attempt()
+            prior = _latest_succeeded_with_text(existing.attempts)
+            if prior is not None and (
+                active is None
+                or active.status != "succeeded"
+                or not (active.raw_text or "").strip()
+            ):
+                existing.active_attempt_id = prior.attempt_id
+                if existing.edited_text is None:
+                    existing.effective_text_origin = _origin_from_active(existing)
+                changed = True
+            if not changed:
+                return existing
+            existing.updated_at = to_iso(self.clock.now())
+            validate_page_result(existing, expected_page_id=page_id)
+            write_json_atomic(self.paths.result_path(page_id), existing.as_dict())
+            self._invalidate_review_unlocked(page_id, before=before, after=existing)
+            return existing
+
+    def repair_truncated_repetition_successes(self, page_id: str) -> PageResult | None:
+        """Demote truncated+looping vision successes so they do not skip forever.
+
+        Pre-hardening attempts could hit ``num_predict`` with repeated text and
+        still store ``succeeded``. Those fingerprints would skip on the next job.
+        Demote to ``failed`` / ``token_repeat`` (same code as live truncated+rep
+        fails). If the active reading was one of them, restore another succeeded
+        vision attempt with text when available.
+        """
+        from transcribe.services.review_signals import (
+            text_echoes_prompt,
+            text_has_long_repetition,
+            text_has_repetition,
+        )
+
+        with mutation_lock(self.paths.mutation_lock):
+            existing = self._load_page_result_unlocked(page_id)
+            if existing is None:
+                return None
+            before = PageResult.from_dict(existing.as_dict())
+            changed = False
+            for i, attempt in enumerate(existing.attempts):
+                if (attempt.attempt_kind or "vision") != "vision":
+                    continue
+                if attempt.status != "succeeded":
+                    continue
+                meta = attempt.provider_metadata or {}
+                if not bool(meta.get("truncated")):
+                    continue
+                raw = attempt.raw_text or ""
+                prompt = ""
+                if attempt.provenance is not None:
+                    prompt = attempt.provenance.prompt_text or ""
+                looping = text_has_repetition(raw) or text_has_long_repetition(raw)
+                leaked = text_echoes_prompt(raw, prompt)
+                if not (looping or leaked):
+                    continue
+                attempt.status = "failed"
+                attempt.error = AttemptError(
+                    code=TOKEN_REPEAT_CODE,
+                    message=TRUNCATED_REPEAT_MESSAGE,
                     retriable=False,
                 )
                 existing.attempts[i] = attempt

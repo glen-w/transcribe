@@ -11,11 +11,64 @@ from transcribe.services.ocr_alignment import AlignmentResult, normalize_span
 # 12–80 so a looping handwritten sentence (~50–70 chars) still matches when
 # concatenated; 3 consecutive copies. Used by Review chrome and truncated OCR fail.
 _REPEAT_RE = re.compile(r"(.{12,80}?)\1{2,}", re.DOTALL)
+# Longer window for truncated OCR fail only: prompt-instruction blocks are
+# often 120–220 chars per cycle and slip past the 80-char Review regex.
+_LONG_REPEAT_RE = re.compile(r"(.{12,240}?)\1{2,}", re.DOTALL)
 
 
 def text_has_repetition(text: str) -> bool:
     """True when ``text`` contains a 12–80 character span repeated 3+ times."""
     return bool(_REPEAT_RE.search(text or ""))
+
+
+def text_has_long_repetition(text: str) -> bool:
+    """True when ``text`` contains a 12–240 character span repeated 3+ times."""
+    return bool(_LONG_REPEAT_RE.search(text or ""))
+
+
+def text_echoes_prompt(text: str, prompt_text: str, *, min_prompt_chars: int = 40) -> bool:
+    """True when truncated OCR output contains a substantial prompt substring."""
+    body = (text or "").strip()
+    prompt = (prompt_text or "").strip()
+    if len(prompt) < min_prompt_chars or not body:
+        return False
+    # Prefer a mid-sized needle so tiny prompts (Free OCR.) do not false-positive.
+    needle = prompt if len(prompt) <= 120 else prompt[:120]
+    return needle in body
+
+
+def first_repetition_match(text: str) -> re.Match[str] | None:
+    """First short- or long-window repetition match, or None."""
+    body = text or ""
+    return _REPEAT_RE.search(body) or _LONG_REPEAT_RE.search(body)
+
+
+def try_trim_late_repetition(
+    text: str,
+    *,
+    min_keep_ratio: float = 0.7,
+    min_prefix_chars: int = 40,
+) -> str | None:
+    """Salvage truncated OCR when looping only pads the tail.
+
+    If a repetition cycle starts at/after ``min_keep_ratio`` of the text, return
+    the prefix before that cycle. If looping starts earlier, return ``None``
+    (caller should fail the attempt). If there is no repetition, return ``text``.
+    """
+    body = text or ""
+    match = first_repetition_match(body)
+    if match is None:
+        return body
+    if not body:
+        return None
+    if (match.start() / len(body)) < min_keep_ratio:
+        return None
+    prefix = body[: match.start()].rstrip()
+    # Drop a partial fence run left before the 3× match unit.
+    prefix = re.sub(r"(?:\n?```)+\s*$", "", prefix).rstrip()
+    if len(prefix) < min_prefix_chars:
+        return None
+    return prefix
 _MD_HEADING_RE = re.compile(r"(?m)^#{1,6}\s")
 _PROMPT_LEAK_RE = re.compile(
     r"format\s+the\s+output\s+in\s+markdown|"

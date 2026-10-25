@@ -16,7 +16,7 @@ Where to change workspace behaviour in the UI. Schema and precedence:
 | **Tags** | Workspace organisation catalogue (labels, colours, rename, merge/delete) — [tag-catalog](../contracts/tag-catalog.md) |
 | **Prompts** | Prompt Hub (OCR, cleanup, detection definitions) |
 | **Interface** | Action-menu prefs (which actions, icon/text appearance) |
-| **Models** | Workspace Ollama URL, OCR preprocess seed, LLM budgets, Apply-OCR to open notebook |
+| **Models** | Workspace Ollama URL, OCR preprocess seed, LLM budgets, **OCR model recipes**, Apply-OCR to open notebook |
 | **Profiles** | Activate named overlays (`workflow` / `ocr` / `llm` / `export`) |
 | **Export** | Read-only typography defaults; change on **Workflow → Export** or via an export profile |
 
@@ -46,6 +46,7 @@ Builtin export profiles: `default`, `readable`, `compact`, `large_print`. Editin
 | Library cover-grid paging | Configuration → Library | `ui.archive_notebooks_initial` (`0` = show all) |
 | Overview cards | Configuration → Overview | Visibility only; status strip always on |
 | OCR preprocess seed | Models | `none` \| `gentle_contrast` for **new** notebooks |
+| OCR model recipes | Models | Per-tag prompt freeze / generation-option overlay — [ocr_model_recipes.md](ocr_model_recipes.md) |
 | When setting a notebook default | Review → **OCR** · Transcribe Advanced | `prefer_is_promote` (default) \| `prefer_only` \| `prefer_promote_with_edit_gate` — [ocr.md](ocr.md#when-setting-a-notebook-default) |
 | Seed transcription from merged draft after multipass | Review → **OCR** · Transcribe Advanced · Transcribe multipass row | `auto_activate_composite` (default **on**) — [ocr.md](ocr.md#seed-transcription-from-merged-draft-after-multipass) |
 | Full-workspace backup | Configuration → Backup | [backup_and_restore.md](../backup_and_restore.md) |

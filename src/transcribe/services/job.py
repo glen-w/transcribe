@@ -111,6 +111,7 @@ class JobPlan:
     pass_id: str | None = None
     skip_match_any_succeeded: bool = False
     attempt_kind: str = "vision"
+    recipe_id: str = ""
 
 
 @dataclass
@@ -467,9 +468,13 @@ class JobCoordinator:
         custom = settings.custom_prompt
         from transcribe.services.ocr_model_recipes import recipe_for_model, recipe_prompt
 
-        recipe = recipe_for_model(resolved_model)
+        recipe = recipe_for_model(resolved_model, runtime=self.archive_runtime)
         custom_set = bool(custom and str(custom).strip())
-        if recipe is not None and not custom_set:
+        freeze_recipe_prompt = (
+            recipe is not None and recipe.freeze_prompt and not custom_set
+        )
+        if freeze_recipe_prompt:
+            assert recipe is not None
             try:
                 from transcribe.prompt_engine.hub import ocr_render_for_job
 
@@ -558,6 +563,7 @@ class JobCoordinator:
             pass_id=pass_id,
             skip_match_any_succeeded=skip_match_any_succeeded,
             attempt_kind=attempt_kind,
+            recipe_id=recipe.recipe_id if recipe is not None else "",
         )
 
     def _seal_provider(self, plan: JobPlan, start_provider: VisionOCRProvider) -> VisionOCRProvider:
@@ -934,6 +940,7 @@ class JobCoordinator:
                 ollama_host=plan.base_url,
                 request_id=attempt_id,
                 render_id=page.active_render_id,
+                recipe_id=plan.recipe_id,
             ),
             provider_metadata={},
             started_at=started,
@@ -980,9 +987,13 @@ class JobCoordinator:
 
             truncated = bool((result.provider_metadata or {}).get("truncated"))
             if truncated:
-                from transcribe.services.review_signals import text_has_repetition
+                from transcribe.services.review_signals import (
+                    text_echoes_prompt,
+                    try_trim_late_repetition,
+                )
 
-                if text_has_repetition(vision_text or ""):
+                leaked = text_echoes_prompt(vision_text or "", plan.prompt_text)
+                if leaked:
                     running.status = "failed"
                     running.error = AttemptError(
                         code=TOKEN_REPEAT_CODE,
@@ -991,6 +1002,29 @@ class JobCoordinator:
                     )
                     self.projects.record_generation(page_id, running, activate=plan.activate)
                     return "failed"
+                trimmed = try_trim_late_repetition(vision_text or "")
+                if trimmed is None:
+                    running.status = "failed"
+                    running.error = AttemptError(
+                        code=TOKEN_REPEAT_CODE,
+                        message=TRUNCATED_REPEAT_MESSAGE,
+                        retriable=False,
+                    )
+                    self.projects.record_generation(page_id, running, activate=plan.activate)
+                    return "failed"
+                if trimmed != (vision_text or ""):
+                    vision_text = trimmed
+                    final_text, cleanup_record = run_ocr_cleanup(
+                        vision_text=vision_text,
+                        plan=plan.cleanup,
+                        base_url=plan.base_url,
+                        client=self.cleanup_client,
+                    )
+                    running.raw_text = final_text
+                    running.cleanup = cleanup_record
+                    meta = dict(running.provider_metadata or {})
+                    meta["trimmed_repetition_tail"] = True
+                    running.provider_metadata = meta
 
             # Atomic success write: raw_text + cleanup together; never persist
             # cleaned text without a complete cleanup record.

@@ -60,14 +60,17 @@ def probe_models(
     for index, model in enumerate(targets, 1):
         name = model.name
         recipe = recipe_for_model(name)
-        prompt = recipe_prompt(recipe)[2] if recipe else faithful
+        use_recipe_prompt = recipe is not None and recipe.freeze_prompt
+        prompt = recipe_prompt(recipe)[2] if use_recipe_prompt else faithful
         row: dict[str, object] = {
             "model": name,
             "capabilities": list(model.capabilities),
             "family": model.family,
             "params": model.parameter_size,
             "advice_kind": advise_model(name, role="vision").kind,
-            "prompt_id": recipe.prompt_id if recipe else "faithful_markdown",
+            "prompt_id": (
+                recipe.prompt_id if use_recipe_prompt else "faithful_markdown"
+            ),
         }
         print(f"[{index}/{len(targets)}] {name}", flush=True)
         t0 = time.monotonic()

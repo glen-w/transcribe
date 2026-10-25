@@ -63,7 +63,7 @@ on Transcribe or Review builds a draft without re-running vision.
   --model glm-ocr --model granite3.2-vision --text-model qwen2.5:7b
 ```
 
-Some tags (DeepSeek-OCR) use a short frozen prompt — [model recipes](ocr_model_recipes.md).
+Some tags use a model recipe (DeepSeek-OCR freezes a short prompt; glm-ocr and granite overlay sampler options). Edit under **Settings → Models** — [model recipes](ocr_model_recipes.md).
 
 ## Notebook OCR settings
 

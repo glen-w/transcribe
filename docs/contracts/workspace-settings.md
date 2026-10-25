@@ -8,6 +8,7 @@ Under `TRANSCRIBE_DATA_DIR` (default `./data`):
 |------|------|
 | `config/settings.json` | Workspace settings (`format: transcribe.settings`) |
 | `config/profiles/{target}/{name}.json` | User profiles (`format: transcribe.profile`) |
+| `config/ocr-model-recipes.json` | OCR model recipe overlay (`format: transcribe.ocr-model-recipes`) — live at job start, not an `ocr.*` new-notebook seed. See [ocr-model-recipes.md](ocr-model-recipes.md) |
 | `config/.transcribe.settings.lock` | Cross-process settings/profile mutation lock |
 
 Virtual builtin profiles are **not** on disk.
@@ -42,6 +43,12 @@ analysis fingerprints.
 Detection auto-tag defaults live in `data/config/detection-auto-tag.json`
 (`transcribe.detection-auto-tag` v1), **not** in fingerprint-relevant settings.
 See [tag-catalog.md](tag-catalog.md).
+
+OCR model recipes live in `data/config/ocr-model-recipes.json`
+(`transcribe.ocr-model-recipes` v1). They apply to **every** OCR job at plan
+freeze (not new-notebook seeds). Resulting prompt SHA and generation options
+are fingerprint-relevant; `recipe_id` itself is not. See
+[ocr-model-recipes.md](ocr-model-recipes.md).
 
 ## UI knobs (`ui.*`)
 

@@ -40,7 +40,11 @@ def test_mini_page_probe_on_installed_vision_models(ollama_available: str) -> No
         if is_thinking_ocr_risk_name(name):
             continue
         recipe = recipe_for_model(name)
-        prompt = recipe_prompt(recipe)[2] if recipe else faithful
+        prompt = (
+            recipe_prompt(recipe)[2]
+            if recipe is not None and recipe.freeze_prompt
+            else faithful
+        )
         try:
             provider.probe_vision_model_load(model=name)
             res = provider.transcribe_image(

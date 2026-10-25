@@ -28,6 +28,7 @@ SUPPORTED: dict[str, int] = {
     "transcribe.workspace-backup": 1,
     "personal_corpus.tag-catalog": 1,
     "transcribe.detection-auto-tag": 1,
+    "transcribe.ocr-model-recipes": 1,
 }
 
 

@@ -640,6 +640,7 @@ class AttemptProvenance:
     ollama_host: str
     request_id: str
     render_id: str
+    recipe_id: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -662,6 +663,7 @@ class AttemptProvenance:
             ollama_host=data["ollama_host"],
             request_id=data["request_id"],
             render_id=data["render_id"],
+            recipe_id=str(data.get("recipe_id") or ""),
         )
 
 

@@ -328,6 +328,7 @@ def render_review_page(
         )
         if not review_repairs_current(st.session_state, paths.root, token):
             projects.repair_empty_successes(page_id)
+            projects.repair_truncated_repetition_successes(page_id)
         projects.repair_review_validity(page_id)
         project = projects.load(reconcile=False)
     except (TranscribeError, ProjectError):

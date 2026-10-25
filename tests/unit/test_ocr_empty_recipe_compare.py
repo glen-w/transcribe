@@ -13,20 +13,34 @@ from tests.unit.test_ocr_lifecycle import _attempt, _project_with_page
 from transcribe.analysis.llm_runtime import RecordedDoubleClient
 from transcribe.domain.models import EMPTY_OUTPUT_CODE, TOKEN_REPEAT_CODE
 from transcribe.ingest import IngestService
+from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.job import JobCoordinator
 from transcribe.services.model_advice import advise_model, is_ocr_oriented_name
 from transcribe.services.multipass import MultiPassCoordinator
 from transcribe.services.ocr_composite_state import merge_input_vision_attempts
-from transcribe.services.ocr_model_recipes import recipe_for_model
+from transcribe.services.ocr_model_recipes import RECIPES, recipe_for_model
 from transcribe.services.project import ProjectService, open_project_paths
 
 
+def _runtime(tmp_path: Path) -> RuntimePaths:
+    data = tmp_path / "ws-data"
+    data.mkdir(exist_ok=True)
+    return RuntimePaths(
+        repo_root=tmp_path,
+        data_dir=data,
+        projects_dir=data / "projects",
+        inbox_dir=data / "inbox",
+        export_dir=data / "exports",
+    )
+
+
 def test_recipe_matches_deepseek_ocr() -> None:
-    recipe = recipe_for_model("deepseek-ocr:latest")
+    recipe = recipe_for_model("deepseek-ocr:latest", recipes=RECIPES)
     assert recipe is not None
     assert recipe.prompt_id == "free_ocr"
-    assert recipe_for_model("qwen2.5vl:3b") is None
-    assert recipe_for_model("deepseek-r1:8b") is None
+    assert recipe.freeze_prompt is True
+    assert recipe_for_model("qwen2.5vl:3b", recipes=RECIPES) is None
+    assert recipe_for_model("deepseek-r1:8b", recipes=RECIPES) is None
     assert is_ocr_oriented_name("deepseek-ocr:latest")
     advice = advise_model("deepseek-ocr:latest")
     assert advice.kind == "ocr_oriented"
@@ -34,14 +48,31 @@ def test_recipe_matches_deepseek_ocr() -> None:
 
 
 def test_recipe_matches_glm_ocr() -> None:
-    recipe = recipe_for_model("glm-ocr:latest")
+    recipe = recipe_for_model("glm-ocr:latest", recipes=RECIPES)
     assert recipe is not None
     assert recipe.recipe_id == "glm_ocr"
     assert recipe.prompt_id == "faithful_markdown"
+    assert recipe.freeze_prompt is False
     assert recipe.generation_options.get("repeat_penalty") == 1.2
-    assert recipe_for_model("qwen2.5vl:7b") is None
+    assert recipe.generation_options.get("stop") == ["```"]
+    assert recipe_for_model("qwen2.5vl:7b", recipes=RECIPES) is None
     advice = advise_model("glm-ocr")
     assert advice.kind == "ocr_oriented"
+    assert "recipe" in advice.title.lower()
+    assert any("repeat_penalty" in w for w in advice.warnings)
+
+
+def test_recipe_matches_granite_vision() -> None:
+    recipe = recipe_for_model("granite3.2-vision:latest", recipes=RECIPES)
+    assert recipe is not None
+    assert recipe.recipe_id == "granite_vision"
+    assert recipe.freeze_prompt is False
+    assert recipe.generation_options.get("repeat_penalty") == 1.2
+    assert recipe.generation_options.get("stop") == ["```"]
+    assert recipe_for_model("granite3.2-vision", recipes=RECIPES) is not None
+    assert recipe_for_model("granite3.2:8b", recipes=RECIPES) is None
+    advice = advise_model("granite3.2-vision")
+    assert advice.kind == "recommended_vlm"
     assert "recipe" in advice.title.lower()
     assert any("repeat_penalty" in w for w in advice.warnings)
 
@@ -120,7 +151,9 @@ def test_build_plan_uses_deepseek_recipe(tmp_path: Path) -> None:
             capability_known=True,
         )
     ]
-    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
     project = projects.load()
     settings = project.settings
     settings.model_name = "deepseek-ocr:latest"
@@ -132,6 +165,7 @@ def test_build_plan_uses_deepseek_recipe(tmp_path: Path) -> None:
     )
     assert plan.prompt_id == "free_ocr"
     assert plan.prompt_text.strip() == "Free OCR."
+    assert plan.recipe_id == "deepseek_ocr"
 
 
 def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
@@ -152,7 +186,9 @@ def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
             capability_known=True,
         )
     ]
-    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
     project = projects.load()
     settings = project.settings
     settings.model_name = "glm-ocr"
@@ -163,8 +199,71 @@ def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
     )
     assert plan.prompt_id == "faithful_markdown"
     assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.generation_options.get("stop") == ["```"]
     assert plan.generation_options.get("temperature") == 0.0
     assert plan.model_identity_verified is True
+    assert plan.recipe_id == "glm_ocr"
+
+
+def test_build_plan_uses_granite_repeat_penalty(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="granite3.2-vision:latest",
+            digest="digest-granite",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "granite3.2-vision"
+    settings.prompt_id = "faithful_markdown"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert plan.prompt_id == "faithful_markdown"
+    assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.model_identity_verified is True
+    assert plan.recipe_id == "granite_vision"
+
+
+def test_repair_truncated_repetition_successes(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    good = _attempt("qwen1", text="kept diary line", model="qwen2.5vl:7b")
+    loop = "I'm talking lily " * 40
+    bad = _attempt(
+        "granite1",
+        text=loop,
+        model="granite3.2-vision",
+        started="2020-01-02T00:00:00+00:00",
+    )
+    bad.provider_metadata = {"truncated": True, "eval_count": 4096}
+    projects.record_generation(page_id, good, activate=True)
+    projects.record_generation(page_id, bad, activate=True)
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    assert result.active_attempt_id == "granite1"
+    repaired = projects.repair_truncated_repetition_successes(page_id)
+    assert repaired is not None
+    assert repaired.active_attempt_id == "qwen1"
+    demoted = repaired.attempt_by_id("granite1")
+    assert demoted is not None
+    assert demoted.status == "failed"
+    assert demoted.error is not None
+    assert demoted.error.code == TOKEN_REPEAT_CODE
 
 
 def test_build_plan_qwen_has_no_repeat_penalty(tmp_path: Path) -> None:
@@ -185,7 +284,9 @@ def test_build_plan_qwen_has_no_repeat_penalty(tmp_path: Path) -> None:
             capability_known=True,
         )
     ]
-    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
     project = projects.load()
     settings = project.settings
     settings.model_name = "qwen2.5vl:7b"
@@ -195,6 +296,7 @@ def test_build_plan_qwen_has_no_repeat_penalty(tmp_path: Path) -> None:
     )
     assert "repeat_penalty" not in plan.generation_options
     assert plan.generation_options.get("num_predict") == 4096
+    assert plan.recipe_id == ""
 
 
 def test_custom_prompt_wins_over_recipe(tmp_path: Path) -> None:
@@ -215,7 +317,9 @@ def test_custom_prompt_wins_over_recipe(tmp_path: Path) -> None:
             capability_known=True,
         )
     ]
-    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
     project = projects.load()
     settings = project.settings
     settings.model_name = "deepseek-ocr:latest"
@@ -226,6 +330,112 @@ def test_custom_prompt_wins_over_recipe(tmp_path: Path) -> None:
     )
     assert plan.prompt_id == "custom"
     assert "Read every word" in plan.prompt_text
+    assert plan.recipe_id == "deepseek_ocr"
+
+
+def test_glm_options_only_keeps_faithful_text(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="digest-glm",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "glm-ocr"
+    settings.prompt_id = "faithful_text"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert plan.prompt_id == "faithful_text"
+    assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.recipe_id == "glm_ocr"
+
+
+def test_glm_custom_prompt_still_overlays_options(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="digest-glm",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "glm-ocr"
+    settings.custom_prompt = "Transcribe this page exactly."
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert plan.prompt_id == "custom"
+    assert "exactly" in plan.prompt_text
+    assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.recipe_id == "glm_ocr"
+
+
+def test_disabled_glm_recipe_skips_overlay(tmp_path: Path) -> None:
+    from transcribe.services.ocr_model_recipe_store import set_recipe_enabled
+
+    runtime = _runtime(tmp_path)
+    set_recipe_enabled("glm_ocr", False, runtime=runtime)
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="digest-glm",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=runtime
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "glm-ocr"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert "repeat_penalty" not in plan.generation_options
+    assert plan.recipe_id == ""
 
 
 def test_compare_existing_ranks_cross_job_attempts(tmp_path: Path) -> None:

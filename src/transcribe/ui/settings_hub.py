@@ -732,6 +732,11 @@ def render_models_panel() -> None:
             st.error(f"{exc.code}: {exc}")
 
     st.divider()
+    from transcribe.ui.settings_ocr_recipes import render_ocr_recipes_section
+
+    render_ocr_recipes_section()
+
+    st.divider()
     st.markdown("#### Apply OCR defaults to open notebook")
     root = st.session_state.get("root")
     if not root:
