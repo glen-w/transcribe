@@ -93,6 +93,11 @@ DEEPSEEK_OCR_RECIPE = OcrModelRecipe(
 # ~58% to ~12% on black. free_ocr was tried and made fence-loops worse
 # (near-100% fail). Hard pages that still echo the prompt or long-cycle
 # loop are failed by truncated+rep / prompt-echo guards.
+# Stop is consecutive fences, not a lone ``` — glm often opens with
+# ```markdown then the page text; a single-fence stop yields eval_count=1
+# empty_output.
+_FENCE_LOOP_STOP = ["```\n```"]
+
 GLM_OCR_RECIPE = OcrModelRecipe(
     recipe_id="glm_ocr",
     title="GLM OCR",
@@ -112,7 +117,7 @@ GLM_OCR_RECIPE = OcrModelRecipe(
             "replaced (options-only lane)."
         ),
     ),
-    generation_options={"repeat_penalty": 1.2, "stop": ["```"]},
+    generation_options={"repeat_penalty": 1.2, "stop": list(_FENCE_LOOP_STOP)},
 )
 
 # Options-only: granite often hits num_predict with sticky looping prose
@@ -135,7 +140,7 @@ GRANITE_VISION_RECIPE = OcrModelRecipe(
             "options from the recipe still apply."
         ),
     ),
-    generation_options={"repeat_penalty": 1.2, "stop": ["```"]},
+    generation_options={"repeat_penalty": 1.2, "stop": list(_FENCE_LOOP_STOP)},
 )
 
 RECIPES: tuple[OcrModelRecipe, ...] = (

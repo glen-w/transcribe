@@ -54,7 +54,7 @@ def test_recipe_matches_glm_ocr() -> None:
     assert recipe.prompt_id == "faithful_markdown"
     assert recipe.freeze_prompt is False
     assert recipe.generation_options.get("repeat_penalty") == 1.2
-    assert recipe.generation_options.get("stop") == ["```"]
+    assert recipe.generation_options.get("stop") == ["```\n```"]
     assert recipe_for_model("qwen2.5vl:7b", recipes=RECIPES) is None
     advice = advise_model("glm-ocr")
     assert advice.kind == "ocr_oriented"
@@ -68,7 +68,7 @@ def test_recipe_matches_granite_vision() -> None:
     assert recipe.recipe_id == "granite_vision"
     assert recipe.freeze_prompt is False
     assert recipe.generation_options.get("repeat_penalty") == 1.2
-    assert recipe.generation_options.get("stop") == ["```"]
+    assert recipe.generation_options.get("stop") == ["```\n```"]
     assert recipe_for_model("granite3.2-vision", recipes=RECIPES) is not None
     assert recipe_for_model("granite3.2:8b", recipes=RECIPES) is None
     advice = advise_model("granite3.2-vision")
@@ -199,7 +199,7 @@ def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
     )
     assert plan.prompt_id == "faithful_markdown"
     assert plan.generation_options.get("repeat_penalty") == 1.2
-    assert plan.generation_options.get("stop") == ["```"]
+    assert plan.generation_options.get("stop") == ["```\n```"]
     assert plan.generation_options.get("temperature") == 0.0
     assert plan.model_identity_verified is True
     assert plan.recipe_id == "glm_ocr"
@@ -239,13 +239,13 @@ def test_glm_recipe_job_seals_options_not_recipe_id(tmp_path: Path) -> None:
     assert progress.status == "completed"
     assert progress.completed == 1
     assert provider.last_options.get("repeat_penalty") == 1.2
-    assert provider.last_options.get("stop") == ["```"]
+    assert provider.last_options.get("stop") == ["```\n```"]
     page_id = projects.load().pages[0].page_id
     attempt = projects.load_page_result(page_id).active_attempt()
     assert attempt is not None
     payload = attempt.fingerprint_payload or {}
     assert payload.get("generation_options", {}).get("repeat_penalty") == 1.2
-    assert payload.get("generation_options", {}).get("stop") == ["```"]
+    assert payload.get("generation_options", {}).get("stop") == ["```\n```"]
     assert "recipe_id" not in payload
     assert attempt.provenance is not None
     assert attempt.provenance.recipe_id == "glm_ocr"

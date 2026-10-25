@@ -100,22 +100,21 @@ def render_caption_with_info(
     *,
     control_id: str | None = None,
 ) -> None:
-    """Caption line with adjacent ⓘ tooltip (no click / no rerun)."""
+    """Caption line; extra detail is a hover tip on the text (no ⓘ button)."""
     cleaned = str(help_text).strip()
     if not cleaned or not info_tooltips_enabled():
         st.caption(body)
         return
-    tip_id = control_id or f"tx-cap-tip-{uuid.uuid4().hex[:12]}"
-    tip_html = build_info_tooltip_html(
-        cleaned,
-        control_id=tip_id,
-        aria_label="More info",
-    )
-    if not tip_html:
-        st.caption(body)
-        return
+    tip_id = html.escape(control_id or f"tx-cap-tip-{uuid.uuid4().hex[:12]}", quote=True)
     body_esc = html.escape(body)
+    tip_body = html.escape(cleaned)
     st.markdown(
-        f'<p class="tx-caption-with-info">{body_esc}{tip_html}</p>',
+        f'<p class="tx-caption-with-info">'
+        f'<span class="tx-caption-info-hit" tabindex="0" '
+        f'aria-label="More info" aria-describedby="{tip_id}">'
+        f"{body_esc}"
+        f'<span id="{tip_id}" class="tx-run-id-info-tip tx-methodology-info-tip" '
+        f'role="tooltip">{tip_body}</span>'
+        f"</span></p>",
         unsafe_allow_html=True,
     )

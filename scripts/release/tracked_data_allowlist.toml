@@ -30,4 +30,9 @@ purpose = "Streamlit / browser favicon"
 [[paths]]
 path = "src/transcribe/ui/assets/logo.png"
 owner = "ui"
-purpose = "Product logo asset"
+purpose = "Product logo asset (navy wordmark for light backgrounds)"
+
+[[paths]]
+path = "src/transcribe/ui/assets/logo-dark.png"
+owner = "ui"
+purpose = "Product logo asset (white wordmark for dark backgrounds)"

@@ -51,10 +51,11 @@ SELECTBOX_PLACEHOLDER_NOTEBOOK = "— Select a notebook —"
 
 _ASSETS = Path(__file__).resolve().parent / "assets"
 _LOGO_PATH = _ASSETS / "logo.png"
+_LOGO_DARK_PATH = _ASSETS / "logo-dark.png"
 _FAVICON_PATH = _ASSETS / "favicon.png"
 
 # Session key: avoid re-pushing ~19KB CSS on every full-app rerun.
-_GLOBAL_STYLES_SESSION_KEY = "_tx_global_styles_injected"
+_GLOBAL_STYLES_SESSION_KEY = "_tx_global_styles_injected_v3"
 
 
 @lru_cache(maxsize=8)
@@ -69,8 +70,21 @@ def _logo_data_uri(path_str: str, mtime_ns: int) -> str:
 
 
 def logo_path() -> Path | None:
-    """Packaged brand mark, if present."""
+    """Packaged brand mark, if present (navy wordmark, for light backgrounds)."""
     return _LOGO_PATH if _LOGO_PATH.is_file() else None
+
+
+def logo_dark_path() -> Path | None:
+    """Brand mark with a white wordmark, for black/dark backgrounds."""
+    return _LOGO_DARK_PATH if _LOGO_DARK_PATH.is_file() else None
+
+
+def _sidebar_theme_type() -> str | None:
+    """Streamlit reports ``dark`` / ``light`` from the app background; may be None."""
+    try:
+        return st.context.theme.type
+    except Exception:
+        return None
 
 
 def favicon_path() -> Path | None:
@@ -118,7 +132,8 @@ def inject_global_styles(*, force: bool = False) -> None:
         padding-top: 0 !important;
     }
     .tx-sidebar-brand {
-        margin: 0 0 0.65rem 0;
+        margin: 0 0 1.35rem 0;
+        padding-bottom: 0.45rem;
         line-height: 1.2;
     }
     .tx-sidebar-brand img {
@@ -128,11 +143,26 @@ def inject_global_styles(*, force: bool = False) -> None:
         height: auto;
         border-radius: 8px;
     }
+    /* Dark-first: white wordmark on black/dark sidebar. Light theme keeps navy ink. */
+    .tx-sidebar-brand img.tx-logo--light { display: none !important; }
+    .tx-sidebar-brand img.tx-logo--dark { display: block !important; }
+    @media (prefers-color-scheme: light) {
+        .tx-sidebar-brand:not(.tx-sidebar-brand--dark) img.tx-logo--light { display: block !important; }
+        .tx-sidebar-brand:not(.tx-sidebar-brand--dark) img.tx-logo--dark { display: none !important; }
+    }
+    .tx-sidebar-brand--light img.tx-logo--light { display: block !important; }
+    .tx-sidebar-brand--light img.tx-logo--dark { display: none !important; }
+    .tx-sidebar-brand--dark img.tx-logo--light { display: none !important; }
+    .tx-sidebar-brand--dark img.tx-logo--dark { display: block !important; }
     .tx-sidebar-brand-text {
         font-size: 1.35rem;
         font-weight: 700;
-        color: #1f77b4;
+        color: var(--text-color, #fafafa);
         letter-spacing: 0.01em;
+    }
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"]:has(.tx-sidebar-brand) {
+        margin-bottom: 0.75rem !important;
+        padding-bottom: 0.25rem !important;
     }
     section[data-testid="stSidebar"] * {
         overflow-wrap: anywhere;
@@ -476,21 +506,22 @@ def inject_global_styles(*, force: bool = False) -> None:
         align-items: center;
         vertical-align: middle;
     }
-    .tx-run-id-info-btn {
+    button.tx-run-id-info-btn {
+        all: unset;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 1.15rem;
-        height: 1.15rem;
-        padding: 0;
+        width: 0.95rem;
+        height: 0.95rem;
         margin: 0;
         border: none;
         border-radius: 50%;
         background: transparent;
         color: #8a9ab0;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         line-height: 1;
         cursor: help;
+        box-shadow: none;
     }
     .tx-run-id-info-btn:hover,
     .tx-run-id-info-btn:focus {
@@ -563,6 +594,22 @@ def inject_global_styles(*, force: bool = False) -> None:
         color: var(--text-color);
         opacity: 0.6;
         margin: 0 0 0.35rem 0;
+    }
+    /* Caption help: hover the line — no boxed ⓘ control. */
+    .tx-caption-info-hit {
+        position: relative;
+        display: inline;
+        cursor: help;
+        border-bottom: 1px dotted currentColor;
+    }
+    .tx-caption-info-hit:hover .tx-run-id-info-tip,
+    .tx-caption-info-hit:focus-within .tx-run-id-info-tip {
+        opacity: 1;
+        visibility: visible;
+    }
+    .tx-caption-info-hit .tx-methodology-info-tip {
+        left: 0;
+        transform: none;
     }
     /* OCR faithful_markdown in captions must not become page-title headings */
     [data-testid="stCaptionContainer"] h1,
@@ -673,17 +720,35 @@ def inject_global_styles(*, force: bool = False) -> None:
 def render_brand() -> None:
     """Sidebar brand mark (HTML img — no Streamlit fullscreen toolbar)."""
     path = logo_path()
+    theme = _sidebar_theme_type()
+    theme_cls = ""
+    if theme == "dark":
+        theme_cls = " tx-sidebar-brand--dark"
+    elif theme == "light":
+        theme_cls = " tx-sidebar-brand--light"
     if path is not None:
-        uri = _logo_data_uri(str(path), path.stat().st_mtime_ns)
+        light_uri = _logo_data_uri(str(path), path.stat().st_mtime_ns)
+        dark = logo_dark_path()
+        if dark is not None:
+            dark_uri = _logo_data_uri(str(dark), dark.stat().st_mtime_ns)
+            st.markdown(
+                f'<div class="tx-sidebar-brand{theme_cls}">'
+                f'<img class="tx-logo--light" src="{light_uri}" alt="Transcribe" />'
+                f'<img class="tx-logo--dark" src="{dark_uri}" alt="" />'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            return
         st.markdown(
-            f'<div class="tx-sidebar-brand">'
-            f'<img src="{uri}" alt="Transcribe" />'
+            f'<div class="tx-sidebar-brand{theme_cls}">'
+            f'<img src="{light_uri}" alt="Transcribe" />'
             f"</div>",
             unsafe_allow_html=True,
         )
         return
     st.markdown(
-        '<div class="tx-sidebar-brand"><span class="tx-sidebar-brand-text">Transcribe</span></div>',
+        f'<div class="tx-sidebar-brand{theme_cls}">'
+        f'<span class="tx-sidebar-brand-text">Transcribe</span></div>',
         unsafe_allow_html=True,
     )
 

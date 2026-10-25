@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - OCR generate hardening from the 2026-10-23 overnight glm-ocr run: [docs/reviews/ocr_generate_failures.md](docs/reviews/ocr_generate_failures.md). Ollama `token repeat limit reached` is `token_repeat` (not retried). glm-ocr recipe overlays `repeat_penalty=1.2` without changing the prompt. Truncated output that also loops is failed. SIGINT persists `interrupted` and `POST /api/abort`. `name` / `name:latest` are the same model identity for skip.
 - Granite vision recipe (`repeat_penalty=1.2`) and `repair_truncated_repetition_successes` so historical truncated+looping “successes” demote to `token_repeat` and do not skip forever — [ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md).
-- Truncated OCR: fail prompt-echo / early loops; **trim** late fence/loop tails (≥70% into the text) and keep the diary prefix. glm/granite recipes add `stop=["```"]` plus `repeat_penalty=1.2`.
+- Truncated OCR: fail prompt-echo / early loops; **trim** late fence/loop tails (≥70% into the text) and keep the diary prefix. glm/granite recipes add `stop=["```\\n```"]` plus `repeat_penalty=1.2` (a lone fence stop emptied glm pages that open with ` ```markdown `).
 - Workspace-configurable OCR model recipes (`data/config/ocr-model-recipes.json` + **Settings → Models**): disable/override builtins, add custom lanes, `freeze_prompt` so glm/granite stay options-only, tighter granite/deepseek matching, `recipe_id` on plan/provenance — [ocr_model_recipes.md](docs/runtime/ocr_model_recipes.md).
 
 ## [1.0.0] - 2026-10-23

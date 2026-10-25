@@ -152,7 +152,7 @@ def render_ocr_recipes_section() -> None:
         default_opts = (
             json.dumps(selected.generation_options, indent=2)
             if selected and selected.generation_options
-            else "{\n  \"repeat_penalty\": 1.2,\n  \"stop\": [\"```\"]\n}"
+            else "{\n  \"repeat_penalty\": 1.2,\n  \"stop\": [\"```\\n```\"]\n}"
         )
         with st.form("ocr_recipe_overlay_form"):
             recipe_id = st.text_input("recipe_id", value=default_id)

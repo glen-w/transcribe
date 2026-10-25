@@ -68,7 +68,7 @@ def test_overlay_replaces_repeat_penalty(tmp_path: Path) -> None:
     recipe = recipe_for_model("glm-ocr", runtime=runtime)
     assert recipe is not None
     assert recipe.generation_options.get("repeat_penalty") == 1.35
-    assert recipe.generation_options.get("stop") == ["```"]
+    assert recipe.generation_options.get("stop") == ["```\n```"]
     assert recipe.source == "override"
 
 

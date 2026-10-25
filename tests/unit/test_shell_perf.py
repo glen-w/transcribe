@@ -28,6 +28,34 @@ def test_inject_global_styles_once_per_session(monkeypatch) -> None:
     assert len(markdown_calls) == 2
 
 
+def test_render_brand_uses_white_wordmark_on_dark_theme(monkeypatch) -> None:
+    import transcribe.ui.shell as shell
+
+    class _Theme:
+        type = "dark"
+
+    class _Context:
+        theme = _Theme()
+
+    html: list[str] = []
+
+    class _St:
+        session_state: dict = {}
+        context = _Context()
+
+        @staticmethod
+        def markdown(text: str, **_k):
+            html.append(text)
+
+    monkeypatch.setattr(shell, "st", _St)
+    shell.render_brand()
+    assert html
+    markup = html[0]
+    assert "tx-sidebar-brand--dark" in markup
+    assert "tx-logo--dark" in markup
+    assert "tx-logo--light" in markup
+
+
 def test_logo_data_uri_is_cached(tmp_path: Path) -> None:
     import transcribe.ui.shell as shell
 

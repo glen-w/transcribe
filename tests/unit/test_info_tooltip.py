@@ -74,6 +74,34 @@ def test_info_tooltips_enabled_reads_cached_prefs(monkeypatch) -> None:
     assert info_tooltip.info_tooltips_enabled() is True
 
 
+def test_render_caption_with_info_has_no_boxed_icon(monkeypatch) -> None:
+    monkeypatch.setattr(info_tooltip, "info_tooltips_enabled", lambda: True)
+    captured: list[str] = []
+
+    class _St:
+        @staticmethod
+        def markdown(text: str, **_k):
+            captured.append(text)
+
+        @staticmethod
+        def caption(text: str, **_k):
+            captured.append(f"caption:{text}")
+
+    monkeypatch.setattr(info_tooltip, "st", _St)
+    info_tooltip.render_caption_with_info(
+        "Transcription model: qwen3:8b",
+        "Vision OCR model for this page: qwen3:8b.",
+        control_id="tip-model",
+    )
+    assert captured
+    markup = captured[0]
+    assert "tx-caption-info-hit" in markup
+    assert "Transcription model: qwen3:8b" in markup
+    assert "Vision OCR model for this page" in markup
+    assert "ⓘ" not in markup
+    assert "<button" not in markup
+
+
 def test_build_section_heading_with_info_html(monkeypatch) -> None:
     monkeypatch.setattr(info_tooltip, "info_tooltips_enabled", lambda: True)
     tip = info_tooltip.build_info_tooltip_html(

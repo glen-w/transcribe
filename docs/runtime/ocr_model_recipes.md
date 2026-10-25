@@ -46,7 +46,7 @@ empty attempts.
 |--|--|
 | Match | `glm-ocr` in the tag |
 | Prompt | **Not frozen** — notebook `faithful_markdown` / `faithful_text` stays |
-| Options | `repeat_penalty=1.2`, `stop=["```"]` |
+| Options | `repeat_penalty=1.2`, `stop=["```\\n```"]` (consecutive fences; a lone ` ``` ` would empty pages that open with ` ```markdown `) |
 | Why | Host Modelfile only sets `temperature 0`. llama.cpp aborts many dense pages with `token repeat limit reached`. Options-only dropped fail rate ~58% → ~12% on `black`. Evidence: [ocr_generate_failures.md](../reviews/ocr_generate_failures.md). |
 
 A custom notebook prompt still wins. Recipe options still apply.
@@ -57,7 +57,7 @@ A custom notebook prompt still wins. Recipe options still apply.
 |--|--|
 | Match | `granite3.2-vision` in the tag (not a bare `granite3.2` text tag) |
 | Prompt | **Not frozen** |
-| Options | `repeat_penalty=1.2`, `stop=["```"]` |
+| Options | `repeat_penalty=1.2`, `stop=["```\\n```"]` |
 | Advice | Recommended VLM (not OCR-oriented) |
 | Why | Dense pages often hit `num_predict` with looping prose that used to store as `succeeded` and skip forever. Live jobs fail truncated+repetition; the recipe reduces how often the loop starts. |
 
