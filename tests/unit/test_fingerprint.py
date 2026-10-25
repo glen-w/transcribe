@@ -103,6 +103,8 @@ def test_fingerprint_omits_default_num_predict():
     assert a == b
     assert "num_predict" not in pa["generation_options"]
     assert "num_predict" not in pb["generation_options"]
+    assert "recipe_id" not in pa
+    assert "recipe_id" not in pb
 
 
 def test_fingerprint_changes_with_custom_num_predict():

@@ -76,7 +76,7 @@ Ollama generate abort `token repeat limit reached` is persisted as attempt `erro
 
 Fingerprint skip requires **verified** model identity. Ollama tags `name` and `name:latest` are treated as the same identity.
 
-When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
+When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts. Soft cleanup `execution_status=provider_failed` also omits `cleanup` from the skip fingerprint so resume can retry cleanup while the page keeps raw vision text.
 
 Some vision tags use a **model recipe** (name match → frozen prompt such as `free_ocr`, and/or generation-option overlay). Prompt hash participates like any other `prompt_sha256`; extra option keys such as `repeat_penalty` change the fingerprint. Custom notebook prompts always win prompt text. Options-only recipes (`freeze_prompt=false`) keep the notebook `prompt_id`. Optional provenance `recipe_id` records which lane matched; it is not hashed. See [ocr-model-recipes.md](ocr-model-recipes.md) and [runtime/ocr_model_recipes.md](../runtime/ocr_model_recipes.md).
 

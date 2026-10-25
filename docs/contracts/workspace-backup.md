@@ -18,7 +18,7 @@ Absolute host paths are **not** authority. Members use fixed role prefixes remap
 transcribe.workspace-backup.json
 projects/          # TRANSCRIBE_PROJECTS_DIR tree
 data/
-  config/          # settings, profiles, prompts, detection, interface menus
+  config/          # settings, profiles, prompts, detection, interface menus, ocr-model-recipes.json
   corpus/          # index, import/ocr/analysis runs, quarantine
   ocr_preference_ledger.json   # when present at backup time
 inbox/             # only when includes.inbox
@@ -49,7 +49,7 @@ Verify recomputes this index over non-manifest members and compares the digest. 
 ## Always include (when present on disk)
 
 - Entire projects tree for managed notebooks (`project.json`, `sources/`, `pages/`, `results/`, and present `analysis/`, `detection/`, `page_metrics/`)
-- `data/config/**`
+- `data/config/**` (includes `ocr-model-recipes.json` when present)
 - `data/corpus/**`
 - `data/ocr_preference_ledger.json` when present
 

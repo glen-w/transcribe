@@ -205,6 +205,55 @@ def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
     assert plan.recipe_id == "glm_ocr"
 
 
+def test_glm_recipe_job_seals_options_not_recipe_id(tmp_path: Path) -> None:
+    """Recipe overlay is hashed; recipe_id stays provenance-only so skip still matches."""
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider(
+        digest="digest-glm",
+        default_text="glm notebook line about weather metro",
+    )
+    provider.models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="digest-glm",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "glm-ocr"
+    settings.prompt_id = "faithful_markdown"
+    projects.save_settings(project, settings)
+    progress = coord.run_blocking()
+    assert progress.status == "completed"
+    assert progress.completed == 1
+    assert provider.last_options.get("repeat_penalty") == 1.2
+    assert provider.last_options.get("stop") == ["```"]
+    page_id = projects.load().pages[0].page_id
+    attempt = projects.load_page_result(page_id).active_attempt()
+    assert attempt is not None
+    payload = attempt.fingerprint_payload or {}
+    assert payload.get("generation_options", {}).get("repeat_penalty") == 1.2
+    assert payload.get("generation_options", {}).get("stop") == ["```"]
+    assert "recipe_id" not in payload
+    assert attempt.provenance is not None
+    assert attempt.provenance.recipe_id == "glm_ocr"
+    progress2 = coord.run_blocking()
+    assert progress2.skipped == 1
+    assert provider.calls == 1
+
+
 def test_build_plan_uses_granite_repeat_penalty(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
@@ -365,6 +414,40 @@ def test_glm_options_only_keeps_faithful_text(tmp_path: Path) -> None:
     assert plan.prompt_id == "faithful_text"
     assert plan.generation_options.get("repeat_penalty") == 1.2
     assert plan.recipe_id == "glm_ocr"
+
+
+def test_granite_options_only_keeps_faithful_text(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="granite3.2-vision:latest",
+            digest="digest-granite",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(
+        paths, projects, provider, clock=clock, ids=ids, archive_runtime=_runtime(tmp_path)
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "granite3.2-vision"
+    settings.prompt_id = "faithful_text"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert plan.prompt_id == "faithful_text"
+    assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.recipe_id == "granite_vision"
 
 
 def test_glm_custom_prompt_still_overlays_options(tmp_path: Path) -> None:

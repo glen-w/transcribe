@@ -38,6 +38,7 @@ from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.ocr_cleanup import (
     CleanupPlanConfig,
+    cleanup_fingerprint_for_attempt,
     resolve_cleanup_plan_config,
     run_ocr_cleanup,
 )
@@ -1029,24 +1030,20 @@ class JobCoordinator:
             # Atomic success write: raw_text + cleanup together; never persist
             # cleaned text without a complete cleanup record.
             running.status = "succeeded"
-            if (
-                result.model_digest != plan.model_digest
-                or result.model_identity_verified != plan.model_identity_verified
-            ):
-                fp2, payload2 = compute_input_fingerprint(
-                    provider=plan.provider_id,
-                    model_name=plan.model_name,
-                    model_digest=result.model_digest,
-                    model_identity_verified=result.model_identity_verified,
-                    input_sha256=sha256_bytes(image_bytes),
-                    prompt_sha256=plan.prompt_sha256,
-                    preprocess_profile=plan.preprocess_profile,
-                    preprocess_version=plan.preprocess_version,
-                    generation_options=plan.generation_options,
-                    cleanup=plan.cleanup.fingerprint_dict(),
-                )
-                running.input_fingerprint = fp2
-                running.fingerprint_payload = payload2
+            fp2, payload2 = compute_input_fingerprint(
+                provider=plan.provider_id,
+                model_name=plan.model_name,
+                model_digest=result.model_digest,
+                model_identity_verified=result.model_identity_verified,
+                input_sha256=sha256_bytes(image_bytes),
+                prompt_sha256=plan.prompt_sha256,
+                preprocess_profile=plan.preprocess_profile,
+                preprocess_version=plan.preprocess_version,
+                generation_options=plan.generation_options,
+                cleanup=cleanup_fingerprint_for_attempt(plan.cleanup, running.cleanup),
+            )
+            running.input_fingerprint = fp2
+            running.fingerprint_payload = payload2
             self.projects.record_generation(page_id, running, activate=plan.activate)
             self._best_effort_suggest_page_date(page_id)
             return "succeeded"
