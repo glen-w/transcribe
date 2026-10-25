@@ -70,7 +70,11 @@ Optional `comparison` on the page (last successful multipass rank):
 
 Successful attempts store `input_fingerprint` and a canonical `fingerprint_payload` including provider, model name, model digest, **model identity verification flag**, input image hash (after preprocess), prompt hash, preprocess profile/version, and generation options.
 
-Vision generate always sends a `num_predict` cap (default 4096). The **default** cap is omitted from hashed `generation_options` so skip/resume stays compatible with attempts that only stored `temperature`. A non-default `num_predict` is included and changes the fingerprint.
+Vision generate always sends a `num_predict` cap (default 4096). The **default** cap is omitted from hashed `generation_options` so skip/resume stays compatible with attempts that only stored `temperature`. A non-default `num_predict` is included and changes the fingerprint. Extra recipe keys such as `repeat_penalty` are included and change the fingerprint.
+
+Ollama generate abort `token repeat limit reached` is persisted as attempt `error.code=token_repeat` (`retriable=false`). Hitting `num_predict` with repeated text (Review repetition regex) is the same code and also fails the page.
+
+Fingerprint skip requires **verified** model identity. Ollama tags `name` and `name:latest` are treated as the same identity.
 
 When optional post-OCR cleanup is enabled for the job, the fingerprint also includes a `cleanup` object: mode, cleanup model name/digest/verified flag, cleanup prompt id/version/sha256, and `cleanup_validator_policy_id` / `cleanup_validator_policy_version`. When cleanup is disabled, the `cleanup` key is omitted so fingerprints remain compatible with pre-cleanup attempts.
 

@@ -21,6 +21,9 @@ class FakeVisionOCRProvider:
     fail_codes: list[str] = field(default_factory=list)
     probe_fail_code: str | None = None
     models: list[ModelInfo] = field(default_factory=list)
+    result_metadata: dict[str, Any] = field(default_factory=dict)
+    abort_calls: list[str] = field(default_factory=list)
+    raise_interrupt: bool = False
 
     def __post_init__(self) -> None:
         if not self.models:
@@ -65,9 +68,12 @@ class FakeVisionOCRProvider:
             )
         raise ProviderError(
             message,
-            retriable=code not in {"timeout", "model_missing", "model_load"},
+            retriable=code not in {"timeout", "model_missing", "model_load", "token_repeat"},
             code=code,
         )
+
+    def abort_generate(self, model: str) -> None:
+        self.abort_calls.append(model)
 
     def transcribe_image(
         self,
@@ -80,6 +86,8 @@ class FakeVisionOCRProvider:
         self.calls += 1
         self.last_options = dict(options or {})
         self.last_prompt = prompt
+        if self.raise_interrupt:
+            raise KeyboardInterrupt
         if self.fail_codes:
             code = self.fail_codes.pop(0)
             if code:
@@ -92,10 +100,12 @@ class FakeVisionOCRProvider:
             if self.text_by_call
             else f"{self.default_text}:{len(image_bytes)}"
         )
+        meta = {"retry_count": 0, "total_duration": 12}
+        meta.update(self.result_metadata)
         return ProviderResult(
             text=text,
             model=model,
             model_digest=self.digest,
             model_identity_verified=self.verified,
-            provider_metadata={"retry_count": 0, "total_duration": 12},
+            provider_metadata=meta,
         )

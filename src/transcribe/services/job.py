@@ -17,9 +17,11 @@ from transcribe.domain.fingerprint import (
     sha256_text,
 )
 from transcribe.domain.models import (
+    DEFAULT_VISION_NUM_PREDICT,
+    TOKEN_REPEAT_CODE,
+    TRUNCATED_REPEAT_MESSAGE,
     AttemptError,
     AttemptProvenance,
-    DEFAULT_VISION_NUM_PREDICT,
     OCRAttempt,
     Project,
     page_label,
@@ -36,7 +38,6 @@ from transcribe.providers.base import VisionOCRProvider
 from transcribe.runtime_paths import RuntimePaths
 from transcribe.services.ocr_cleanup import (
     CleanupPlanConfig,
-    cleanup_fingerprint_for_attempt,
     resolve_cleanup_plan_config,
     run_ocr_cleanup,
 )
@@ -464,12 +465,11 @@ class JobCoordinator:
         validate_ocr_vision_model(provider, resolved_model)
         targets = tuple(page_ids or [p.page_id for p in project.pages])
         custom = settings.custom_prompt
-        recipe = None
-        if not (custom and str(custom).strip()):
-            from transcribe.services.ocr_model_recipes import recipe_for_model, recipe_prompt
+        from transcribe.services.ocr_model_recipes import recipe_for_model, recipe_prompt
 
-            recipe = recipe_for_model(resolved_model)
-        if recipe is not None:
+        recipe = recipe_for_model(resolved_model)
+        custom_set = bool(custom and str(custom).strip())
+        if recipe is not None and not custom_set:
             try:
                 from transcribe.prompt_engine.hub import ocr_render_for_job
 
@@ -978,15 +978,26 @@ class JobCoordinator:
                 self.projects.record_generation(page_id, running, activate=plan.activate)
                 return "failed"
 
+            truncated = bool((result.provider_metadata or {}).get("truncated"))
+            if truncated:
+                from transcribe.services.review_signals import text_has_repetition
+
+                if text_has_repetition(vision_text or ""):
+                    running.status = "failed"
+                    running.error = AttemptError(
+                        code=TOKEN_REPEAT_CODE,
+                        message=TRUNCATED_REPEAT_MESSAGE,
+                        retriable=False,
+                    )
+                    self.projects.record_generation(page_id, running, activate=plan.activate)
+                    return "failed"
+
             # Atomic success write: raw_text + cleanup together; never persist
             # cleaned text without a complete cleanup record.
             running.status = "succeeded"
-            seal_cleanup = cleanup_fingerprint_for_attempt(plan.cleanup, cleanup_record)
-            planned_cleanup = plan.cleanup.fingerprint_dict()
             if (
                 result.model_digest != plan.model_digest
                 or result.model_identity_verified != plan.model_identity_verified
-                or seal_cleanup != planned_cleanup
             ):
                 fp2, payload2 = compute_input_fingerprint(
                     provider=plan.provider_id,
@@ -998,7 +1009,7 @@ class JobCoordinator:
                     preprocess_profile=plan.preprocess_profile,
                     preprocess_version=plan.preprocess_version,
                     generation_options=plan.generation_options,
-                    cleanup=seal_cleanup,
+                    cleanup=plan.cleanup.fingerprint_dict(),
                 )
                 running.input_fingerprint = fp2
                 running.fingerprint_payload = payload2
@@ -1015,6 +1026,22 @@ class JobCoordinator:
             if exc.code == "model_load":
                 return "model_load"
             return "failed"
+        except KeyboardInterrupt:
+            running.status = "interrupted"
+            running.error = AttemptError(
+                code="interrupted",
+                message="OCR attempt interrupted by process exit",
+                retriable=True,
+            )
+            running.completed_at = to_iso(self.clock.now())
+            self.projects.record_generation(page_id, running, activate=plan.activate)
+            abort = getattr(provider, "abort_generate", None)
+            if callable(abort):
+                try:
+                    abort(plan.model_name)
+                except Exception:  # noqa: BLE001 — persist first; abort is best-effort
+                    _log.exception("Ollama abort after interrupt failed")
+            raise
         except Exception as exc:  # noqa: BLE001
             running.status = "failed"
             running.error = AttemptError(code="internal", message=str(exc), retriable=False)

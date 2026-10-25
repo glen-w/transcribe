@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 from urllib.parse import urlparse
 
-from transcribe.domain.models import DEFAULT_VISION_NUM_PREDICT
+from transcribe.domain.models import (
+    DEFAULT_VISION_NUM_PREDICT,
+    TOKEN_REPEAT_CODE,
+    TOKEN_REPEAT_MESSAGE,
+)
 from transcribe.errors import ProviderError
 from transcribe.providers.base import DiscoveryResult, ModelInfo, ProviderResult
 
@@ -32,6 +36,9 @@ _FATAL_MODEL_LOAD_MARKERS = (
     "llama-server process has terminated",
 )
 
+# llama.cpp aborts a looping generate; retrying the same payload will abort again.
+_TOKEN_REPEAT_MARKERS = ("token repeat limit reached",)
+
 # Minimal 1×1 PNG for vision model load probes (not OCR quality).
 _PROBE_IMAGE_PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
@@ -47,6 +54,36 @@ def is_fatal_model_load_error(message: str) -> bool:
     """True when Ollama cannot load the selected model (architecture/loader crash)."""
     lower = (message or "").lower()
     return any(marker in lower for marker in _FATAL_MODEL_LOAD_MARKERS)
+
+
+def is_token_repeat_error(message: str) -> bool:
+    """True when llama.cpp aborted because the model repeated tokens."""
+    lower = (message or "").lower()
+    return any(marker in lower for marker in _TOKEN_REPEAT_MARKERS)
+
+
+def model_name_aliases(model_name: str) -> set[str]:
+    """Ollama tag names with and without an explicit ``:latest`` suffix."""
+    name = (model_name or "").strip()
+    if not name:
+        return set()
+    aliases = {name}
+    if name.endswith(":latest"):
+        aliases.add(name[: -len(":latest")])
+    else:
+        aliases.add(f"{name}:latest")
+    return aliases
+
+
+def generate_error_from_ollama_message(message: str) -> ProviderError:
+    """Map an Ollama generate error string to a :class:`ProviderError`."""
+    if is_token_repeat_error(message):
+        return ProviderError(
+            f"{TOKEN_REPEAT_MESSAGE}: {message}",
+            retriable=False,
+            code=TOKEN_REPEAT_CODE,
+        )
+    return ProviderError(message, retriable=True, code="http_error")
 
 
 def is_mllama_vision_model(model_name: str) -> bool:
@@ -313,8 +350,9 @@ class OllamaVisionProvider:
 
     def resolve_model_identity(self, model_name: str) -> tuple[str | None, bool]:
         result = self.list_models()
+        aliases = model_name_aliases(model_name)
         for model in result.models:
-            if model.name == model_name:
+            if model.name == model_name or model.name in aliases:
                 if model.digest:
                     return model.digest, True
                 return None, False
@@ -357,6 +395,9 @@ class OllamaVisionProvider:
                     "Ollama returned a non-object JSON response",
                     code="bad_response",
                 )
+            err = payload.get("error")
+            if isinstance(err, str) and err.strip():
+                raise generate_error_from_ollama_message(err)
             text = payload.get("response")
             if not isinstance(text, str):
                 raise ProviderError(
@@ -375,6 +416,30 @@ class OllamaVisionProvider:
                 payload, retry_count=attempt, options=gen_options
             ),
         )
+
+    def abort_generate(self, model: str) -> None:
+        """Best-effort stop of an in-flight ``/api/generate`` for ``model``.
+
+        Ollama ``POST /api/abort`` often returns an empty body; do not parse it
+        as generate JSON. Failures are swallowed so interrupt handling can
+        persist the attempt and re-raise.
+        """
+        name = (model or "").strip()
+        if not name:
+            return
+        url = f"{self.base_url}/api/abort"
+        data = json.dumps({"name": name}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=min(5.0, self.request_timeout)) as resp:
+                resp.read()
+        except Exception:  # noqa: BLE001 — best-effort abort
+            return
 
     def _discover(self, *, refresh: bool) -> tuple[list[ModelInfo], str | None]:
         def fetch() -> tuple[list[ModelInfo], str | None]:
@@ -478,6 +543,8 @@ class OllamaVisionProvider:
                 retriable = False
                 if exc.code == 405:
                     code = "method_not_allowed"
+            elif is_token_repeat_error(message):
+                raise generate_error_from_ollama_message(message) from exc
             elif is_fatal_model_load_error(message):
                 # Unrecoverable mid-job (e.g. unknown architecture 'mllama').
                 # Do not retry every page — JobCoordinator circuits on this code.

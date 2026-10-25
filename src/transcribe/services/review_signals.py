@@ -8,7 +8,14 @@ from dataclasses import dataclass
 from transcribe.domain.dates import extract_page_date
 from transcribe.services.ocr_alignment import AlignmentResult, normalize_span
 
-_REPEAT_RE = re.compile(r"(.{12,40}?)\1{2,}", re.DOTALL)
+# 12–80 so a looping handwritten sentence (~50–70 chars) still matches when
+# concatenated; 3 consecutive copies. Used by Review chrome and truncated OCR fail.
+_REPEAT_RE = re.compile(r"(.{12,80}?)\1{2,}", re.DOTALL)
+
+
+def text_has_repetition(text: str) -> bool:
+    """True when ``text`` contains a 12–80 character span repeated 3+ times."""
+    return bool(_REPEAT_RE.search(text or ""))
 _MD_HEADING_RE = re.compile(r"(?m)^#{1,6}\s")
 _PROMPT_LEAK_RE = re.compile(
     r"format\s+the\s+output\s+in\s+markdown|"
@@ -96,6 +103,6 @@ def build_review_signals(
         departure_count=alignment.departure_count,
         date_disagreement=_date_disagreement(sources),
         length_disagreement=_length_disagreement(sources),
-        repetition=bool(_REPEAT_RE.search(blob)),
+        repetition=text_has_repetition(blob),
         markdown_contamination=bool(_MD_HEADING_RE.search(blob) or _PROMPT_LEAK_RE.search(blob)),
     )

@@ -130,3 +130,64 @@ def test_fingerprint_changes_with_custom_num_predict():
     )
     assert a != b
     assert pb["generation_options"].get("num_predict") is None
+
+
+def test_fingerprint_changes_with_repeat_penalty():
+    a, pa = compute_input_fingerprint(
+        provider="ollama",
+        model_name="glm-ocr",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0, "num_predict": 4096},
+    )
+    b, pb = compute_input_fingerprint(
+        provider="ollama",
+        model_name="glm-ocr",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={
+            "temperature": 0.0,
+            "num_predict": 4096,
+            "repeat_penalty": 1.2,
+        },
+    )
+    assert a != b
+    assert "repeat_penalty" not in pa["generation_options"]
+    assert pb["generation_options"]["repeat_penalty"] == 1.2
+    assert "num_predict" not in pb["generation_options"]
+
+
+def test_fingerprint_qwen_without_repeat_penalty_omits_default_num_predict():
+    a, pa = compute_input_fingerprint(
+        provider="ollama",
+        model_name="qwen2.5vl:7b",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0},
+    )
+    b, pb = compute_input_fingerprint(
+        provider="ollama",
+        model_name="qwen2.5vl:7b",
+        model_digest="d",
+        model_identity_verified=True,
+        input_sha256="aa",
+        prompt_sha256="bb",
+        preprocess_profile="none",
+        preprocess_version=1,
+        generation_options={"temperature": 0.0, "num_predict": 4096},
+    )
+    assert a == b
+    assert "repeat_penalty" not in pa["generation_options"]
+    assert "repeat_penalty" not in pb["generation_options"]

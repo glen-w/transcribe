@@ -314,6 +314,99 @@ def test_urlerror_timeout_reason_is_not_retriable():
     assert calls["n"] == 1
 
 
+def test_token_repeat_http_error_is_not_retriable():
+    invalidate_discovery_cache()
+    import urllib.error
+
+    body = b'{"error":"prediction aborted, token repeat limit reached"}'
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        raise urllib.error.HTTPError(
+            req.full_url, 500, "Internal Server Error", hdrs=None, fp=BytesIO(body)
+        )
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="glm-ocr",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "token_repeat"
+        assert exc.value.retriable is False
+    assert calls["n"] == 1
+
+
+def test_token_repeat_http_200_error_field_is_not_retriable():
+    invalidate_discovery_cache()
+    calls = {"n": 0}
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": []})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        calls["n"] += 1
+        return _Resp(
+            {"error": "prediction aborted, token repeat limit reached", "response": ""}
+        )
+
+    provider = OllamaVisionProvider("http://localhost:11434", max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(ProviderError) as exc:
+            provider.transcribe_image(
+                model="glm-ocr",
+                prompt="p",
+                image_bytes=b"abc",
+                options={"temperature": 0},
+            )
+        assert exc.value.code == "token_repeat"
+        assert exc.value.retriable is False
+    assert calls["n"] == 1
+
+
+def test_resolve_model_identity_matches_latest_alias():
+    invalidate_discovery_cache()
+
+    def fake_urlopen(req, timeout=None):
+        if req.full_url.endswith("/api/tags"):
+            return _Resp({"models": [{"name": "glm-ocr:latest", "digest": "digest-glm"}]})
+        if req.full_url.endswith("/api/show"):
+            return _Resp({"capabilities": ["vision"], "details": {}})
+        raise AssertionError(req.full_url)
+
+    provider = OllamaVisionProvider("http://localhost:11434")
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        digest, verified = provider.resolve_model_identity("glm-ocr")
+    assert digest == "digest-glm"
+    assert verified is True
+
+
+def test_abort_generate_posts_model_name():
+    captured: dict = {}
+
+    def fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
+        captured["body"] = json.loads(req.data.decode())
+        captured["timeout"] = timeout
+        return _Resp({})
+
+    provider = OllamaVisionProvider("http://localhost:11434")
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        provider.abort_generate("glm-ocr")
+    assert captured["url"].endswith("/api/abort")
+    assert captured["body"] == {"name": "glm-ocr"}
+    assert captured["timeout"] == 5.0
+
+
 def test_generate_maps_model_missing_404():
     invalidate_discovery_cache()
     import urllib.error

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OCR generate hardening from the 2026-10-23 overnight glm-ocr run: [docs/reviews/ocr_generate_failures.md](docs/reviews/ocr_generate_failures.md). Ollama `token repeat limit reached` is `token_repeat` (not retried). glm-ocr recipe overlays `repeat_penalty=1.2` without changing the prompt. Truncated output that also loops is failed. SIGINT persists `interrupted` and `POST /api/abort`. `name` / `name:latest` are the same model identity for skip.
+
 ## [1.0.0] - 2026-10-23
 
 ### Added

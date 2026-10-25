@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from transcribe.services.ocr_alignment import align_ocr
-from transcribe.services.review_signals import build_review_signals
+from transcribe.services.review_signals import build_review_signals, text_has_repetition
 
 
 def test_build_review_signals_uses_source_only_counts() -> None:
@@ -60,3 +60,14 @@ def test_use_consistent_style_leak_sets_markdown_contamination() -> None:
     alignment = align_ocr(sources)
     signals = build_review_signals(alignment, sources, remaining=0)
     assert signals.markdown_contamination
+
+
+def test_text_has_repetition_detects_looping_span() -> None:
+    looping = ("I'm talking lily and I'm not sure. ") * 6
+    long_sentence = (
+        "I'm talking lily and I'm not sure what I'm talking about. "
+    ) * 4
+    assert text_has_repetition(looping)
+    assert text_has_repetition(long_sentence)
+    assert not text_has_repetition("a unique notebook line with no looping span")
+    assert not text_has_repetition("")

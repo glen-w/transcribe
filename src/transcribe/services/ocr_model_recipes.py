@@ -42,7 +42,27 @@ DEEPSEEK_OCR_RECIPE = OcrModelRecipe(
     ),
 )
 
-RECIPES: tuple[OcrModelRecipe, ...] = (DEEPSEEK_OCR_RECIPE,)
+# Options-only: keep faithful_markdown. Raising repeat_penalty is what stops
+# llama.cpp "token repeat limit reached" aborts on this 1.1B tag.
+GLM_OCR_RECIPE = OcrModelRecipe(
+    recipe_id="glm_ocr",
+    title="GLM OCR",
+    match_tokens=("glm-ocr",),
+    prompt_id="faithful_markdown",
+    warnings=(
+        (
+            "Sends repeat_penalty=1.2 so looping generates abort less often. "
+            "The default faithful_markdown prompt is unchanged."
+        ),
+        (
+            "A custom prompt override still wins over this recipe; generation "
+            "options from the recipe still apply."
+        ),
+    ),
+    generation_options={"repeat_penalty": 1.2},
+)
+
+RECIPES: tuple[OcrModelRecipe, ...] = (DEEPSEEK_OCR_RECIPE, GLM_OCR_RECIPE)
 
 
 def recipe_for_model(model_name: str) -> OcrModelRecipe | None:

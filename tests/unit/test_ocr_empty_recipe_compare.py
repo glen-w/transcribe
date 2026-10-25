@@ -4,19 +4,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from transcribe.analysis.llm_runtime import RecordedDoubleClient
-from transcribe.domain.models import EMPTY_OUTPUT_CODE
-from transcribe.ingest import IngestService
-from transcribe.services.job import JobCoordinator
-from transcribe.services.model_advice import advise_model, is_ocr_oriented_name
-from transcribe.services.multipass import MultiPassCoordinator
-from transcribe.services.ocr_model_recipes import recipe_for_model
-from transcribe.services.project import ProjectService, open_project_paths
-from transcribe.services.ocr_composite_state import merge_input_vision_attempts
+import pytest
+
 from tests.conftest import FakeClock, SequentialIds
 from tests.fakes import FakeVisionOCRProvider
 from tests.ingest.test_ingest import _png_bytes
 from tests.unit.test_ocr_lifecycle import _attempt, _project_with_page
+from transcribe.analysis.llm_runtime import RecordedDoubleClient
+from transcribe.domain.models import EMPTY_OUTPUT_CODE, TOKEN_REPEAT_CODE
+from transcribe.ingest import IngestService
+from transcribe.services.job import JobCoordinator
+from transcribe.services.model_advice import advise_model, is_ocr_oriented_name
+from transcribe.services.multipass import MultiPassCoordinator
+from transcribe.services.ocr_composite_state import merge_input_vision_attempts
+from transcribe.services.ocr_model_recipes import recipe_for_model
+from transcribe.services.project import ProjectService, open_project_paths
 
 
 def test_recipe_matches_deepseek_ocr() -> None:
@@ -29,6 +31,19 @@ def test_recipe_matches_deepseek_ocr() -> None:
     advice = advise_model("deepseek-ocr:latest")
     assert advice.kind == "ocr_oriented"
     assert "recipe" in advice.title.lower()
+
+
+def test_recipe_matches_glm_ocr() -> None:
+    recipe = recipe_for_model("glm-ocr:latest")
+    assert recipe is not None
+    assert recipe.recipe_id == "glm_ocr"
+    assert recipe.prompt_id == "faithful_markdown"
+    assert recipe.generation_options.get("repeat_penalty") == 1.2
+    assert recipe_for_model("qwen2.5vl:7b") is None
+    advice = advise_model("glm-ocr")
+    assert advice.kind == "ocr_oriented"
+    assert "recipe" in advice.title.lower()
+    assert any("repeat_penalty" in w for w in advice.warnings)
 
 
 def test_empty_ocr_fails_and_keeps_prior_active(tmp_path: Path) -> None:
@@ -119,6 +134,69 @@ def test_build_plan_uses_deepseek_recipe(tmp_path: Path) -> None:
     assert plan.prompt_text.strip() == "Free OCR."
 
 
+def test_build_plan_uses_glm_ocr_repeat_penalty(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="glm-ocr:latest",
+            digest="digest-glm",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "glm-ocr"
+    settings.prompt_id = "faithful_markdown"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert plan.prompt_id == "faithful_markdown"
+    assert plan.generation_options.get("repeat_penalty") == 1.2
+    assert plan.generation_options.get("temperature") == 0.0
+    assert plan.model_identity_verified is True
+
+
+def test_build_plan_qwen_has_no_repeat_penalty(tmp_path: Path) -> None:
+    paths = open_project_paths(tmp_path / "proj")
+    clock, ids = FakeClock(), SequentialIds()
+    projects = ProjectService(paths, clock=clock, ids=ids)
+    projects.create("t")
+    ingest = IngestService(paths, clock=clock, ids=ids)
+    ingest.import_bytes("p.png", _png_bytes())
+    from transcribe.providers.base import ModelInfo
+
+    provider = FakeVisionOCRProvider()
+    provider.models = [
+        ModelInfo(
+            name="qwen2.5vl:7b",
+            digest="digest-qwen",
+            capabilities=["vision"],
+            capability_known=True,
+        )
+    ]
+    coord = JobCoordinator(paths, projects, provider, clock=clock, ids=ids)
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "qwen2.5vl:7b"
+    projects.save_settings(project, settings)
+    plan = coord._build_plan(
+        projects.load(), job_id="j1", page_ids=None, force=True, provider=provider
+    )
+    assert "repeat_penalty" not in plan.generation_options
+    assert plan.generation_options.get("num_predict") == 4096
+
+
 def test_custom_prompt_wins_over_recipe(tmp_path: Path) -> None:
     paths = open_project_paths(tmp_path / "proj")
     clock, ids = FakeClock(), SequentialIds()
@@ -205,3 +283,76 @@ def test_compare_existing_ranks_cross_job_attempts(tmp_path: Path) -> None:
     assert after.comparison.ranked_attempt_ids[0] == "a2"
     kinds = {(a.attempt_kind or "vision") for a in after.attempts}
     assert "composite" in kinds
+
+
+def test_truncated_repetition_fails_and_keeps_prior_active(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    good = _attempt("qwen1", text="notebook line", model="qwen2.5vl:3b")
+    projects.record_generation(page_id, good, activate=True)
+    looping = ("I'm talking lily and I'm not sure. ") * 6
+    provider = FakeVisionOCRProvider(
+        text_by_call=[looping],
+        digest="digest-aaa",
+        result_metadata={"truncated": True, "eval_count": 4096},
+    )
+    coord = JobCoordinator(
+        projects.paths, projects, provider, clock=FakeClock(), ids=SequentialIds()
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "fake-vision"
+    projects.save_settings(project, settings)
+    progress = coord.run_blocking(page_ids=[page_id], force=True)
+    assert progress.failed == 1
+    assert progress.completed == 0
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    assert result.active_attempt_id == "qwen1"
+    failed = next(a for a in result.attempts if a.attempt_id != "qwen1" and a.status == "failed")
+    assert failed.error is not None
+    assert failed.error.code == TOKEN_REPEAT_CODE
+    assert failed.raw_text == looping
+
+
+def test_truncated_without_repetition_succeeds(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    provider = FakeVisionOCRProvider(
+        text_by_call=["a unique notebook line with no looping span"],
+        digest="digest-aaa",
+        result_metadata={"truncated": True, "eval_count": 4096},
+    )
+    coord = JobCoordinator(
+        projects.paths, projects, provider, clock=FakeClock(), ids=SequentialIds()
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "fake-vision"
+    projects.save_settings(project, settings)
+    progress = coord.run_blocking(page_ids=[page_id], force=True)
+    assert progress.completed == 1
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    active = result.active_attempt()
+    assert active is not None
+    assert active.status == "succeeded"
+
+
+def test_keyboard_interrupt_persists_and_aborts(tmp_path: Path) -> None:
+    projects, page_id = _project_with_page(tmp_path)
+    provider = FakeVisionOCRProvider(raise_interrupt=True, digest="digest-aaa")
+    coord = JobCoordinator(
+        projects.paths, projects, provider, clock=FakeClock(), ids=SequentialIds()
+    )
+    project = projects.load()
+    settings = project.settings
+    settings.model_name = "fake-vision"
+    projects.save_settings(project, settings)
+    with pytest.raises(KeyboardInterrupt):
+        coord.run_blocking(page_ids=[page_id], force=True)
+    assert provider.abort_calls == ["fake-vision"]
+    result = projects.load_page_result(page_id)
+    assert result is not None
+    interrupted = [a for a in result.attempts if a.status == "interrupted"]
+    assert len(interrupted) == 1
+    assert interrupted[0].error is not None
+    assert interrupted[0].error.code == "interrupted"

@@ -8,6 +8,7 @@ For normative analysis behaviour see [analysis-result.md](../contracts/analysis-
 
 | Review | Date | Subject |
 |--------|------|---------|
+| [ocr_generate_failures.md](ocr_generate_failures.md) | 2026-10-23 | Ollama token-repeat aborts, glm-ocr recipe, truncated looping success, SIGINT abort |
 | [architecture_from_evidence.md](architecture_from_evidence.md) | 2026-09-03 | System reconstructed from code — coupling, failure, and minimum decoupling |
 | [moments_analysis_module.md](moments_analysis_module.md) | 2026-08-19 | Mood → Moments salience module — score clustering and user value |
 

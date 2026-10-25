@@ -38,7 +38,7 @@ Spot checks on green pages (same `faithful_markdown` prompt):
 
 | Model | Load | OCR on fixture | Notes |
 |-------|------|----------------|-------|
-| **glm-ocr:latest** | ok | ok | Best OCR-oriented pick; may loop on long output (watch `truncated`) |
+| **glm-ocr:latest** | ok | ok | OCR-oriented; recipe sends `repeat_penalty=1.2`. May still loop — token-repeat aborts are failed, not retried |
 | **deepseek-ocr:latest** | ok | ok | Uses `free_ocr` recipe — do not override with long faithful prompts |
 | **granite3.2-vision:latest** | ok | ok | Fast, reliable general VLM for handwriting |
 | **qwen2.5vl:3b** / **7b** | ok | ok | Good size/quality trade-off |
