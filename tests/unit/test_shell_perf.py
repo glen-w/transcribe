@@ -28,7 +28,7 @@ def test_inject_global_styles_once_per_session(monkeypatch) -> None:
     assert len(markdown_calls) == 2
 
 
-def test_render_brand_uses_white_wordmark_on_dark_theme(monkeypatch) -> None:
+def test_render_brand_uses_dark_wordmark_asset_on_dark_theme(monkeypatch) -> None:
     import transcribe.ui.shell as shell
 
     class _Theme:
@@ -48,12 +48,32 @@ def test_render_brand_uses_white_wordmark_on_dark_theme(monkeypatch) -> None:
             html.append(text)
 
     monkeypatch.setattr(shell, "st", _St)
+    dark = shell.logo_dark_path()
+    assert dark is not None
     shell.render_brand()
     assert html
     markup = html[0]
-    assert "tx-sidebar-brand--dark" in markup
-    assert "tx-logo--dark" in markup
-    assert "tx-logo--light" in markup
+    assert markup.count("<img") == 1
+    assert "logo-dark.png" not in markup  # data URI, not path
+    assert shell._logo_data_uri(str(dark), dark.stat().st_mtime_ns) in markup
+
+
+def test_sidebar_logo_path_prefers_light_asset_on_light_theme(monkeypatch) -> None:
+    import transcribe.ui.shell as shell
+
+    class _Theme:
+        type = "light"
+
+    class _Context:
+        theme = _Theme()
+
+    class _St:
+        context = _Context()
+
+    monkeypatch.setattr(shell, "st", _St)
+    light = shell.logo_path()
+    assert light is not None
+    assert shell._sidebar_logo_path() == light
 
 
 def test_logo_data_uri_is_cached(tmp_path: Path) -> None:

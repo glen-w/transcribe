@@ -55,7 +55,7 @@ _LOGO_DARK_PATH = _ASSETS / "logo-dark.png"
 _FAVICON_PATH = _ASSETS / "favicon.png"
 
 # Session key: avoid re-pushing ~19KB CSS on every full-app rerun.
-_GLOBAL_STYLES_SESSION_KEY = "_tx_global_styles_injected_v3"
+_GLOBAL_STYLES_SESSION_KEY = "_tx_global_styles_injected_v4"
 
 
 @lru_cache(maxsize=8)
@@ -85,6 +85,20 @@ def _sidebar_theme_type() -> str | None:
         return st.context.theme.type
     except Exception:
         return None
+
+
+def _sidebar_logo_path() -> Path | None:
+    """One packaged logo for the sidebar — pick wordmark contrast server-side.
+
+    Streamlit may strip ``class`` on ``<img>`` in markdown, so do not rely on CSS
+    to toggle light/dark assets in the DOM.
+    """
+    light = logo_path()
+    dark = logo_dark_path()
+    theme = _sidebar_theme_type()
+    if theme == "light":
+        return light or dark
+    return dark or light
 
 
 def favicon_path() -> Path | None:
@@ -143,17 +157,6 @@ def inject_global_styles(*, force: bool = False) -> None:
         height: auto;
         border-radius: 8px;
     }
-    /* Dark-first: white wordmark on black/dark sidebar. Light theme keeps navy ink. */
-    .tx-sidebar-brand img.tx-logo--light { display: none !important; }
-    .tx-sidebar-brand img.tx-logo--dark { display: block !important; }
-    @media (prefers-color-scheme: light) {
-        .tx-sidebar-brand:not(.tx-sidebar-brand--dark) img.tx-logo--light { display: block !important; }
-        .tx-sidebar-brand:not(.tx-sidebar-brand--dark) img.tx-logo--dark { display: none !important; }
-    }
-    .tx-sidebar-brand--light img.tx-logo--light { display: block !important; }
-    .tx-sidebar-brand--light img.tx-logo--dark { display: none !important; }
-    .tx-sidebar-brand--dark img.tx-logo--light { display: none !important; }
-    .tx-sidebar-brand--dark img.tx-logo--dark { display: block !important; }
     .tx-sidebar-brand-text {
         font-size: 1.35rem;
         font-weight: 700;
@@ -719,36 +722,19 @@ def inject_global_styles(*, force: bool = False) -> None:
 
 def render_brand() -> None:
     """Sidebar brand mark (HTML img — no Streamlit fullscreen toolbar)."""
-    path = logo_path()
-    theme = _sidebar_theme_type()
-    theme_cls = ""
-    if theme == "dark":
-        theme_cls = " tx-sidebar-brand--dark"
-    elif theme == "light":
-        theme_cls = " tx-sidebar-brand--light"
+    path = _sidebar_logo_path()
     if path is not None:
-        light_uri = _logo_data_uri(str(path), path.stat().st_mtime_ns)
-        dark = logo_dark_path()
-        if dark is not None:
-            dark_uri = _logo_data_uri(str(dark), dark.stat().st_mtime_ns)
-            st.markdown(
-                f'<div class="tx-sidebar-brand{theme_cls}">'
-                f'<img class="tx-logo--light" src="{light_uri}" alt="Transcribe" />'
-                f'<img class="tx-logo--dark" src="{dark_uri}" alt="" />'
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-            return
+        uri = _logo_data_uri(str(path), path.stat().st_mtime_ns)
         st.markdown(
-            f'<div class="tx-sidebar-brand{theme_cls}">'
-            f'<img src="{light_uri}" alt="Transcribe" />'
+            f'<div class="tx-sidebar-brand">'
+            f'<img src="{uri}" alt="Transcribe" />'
             f"</div>",
             unsafe_allow_html=True,
         )
         return
     st.markdown(
-        f'<div class="tx-sidebar-brand{theme_cls}">'
-        f'<span class="tx-sidebar-brand-text">Transcribe</span></div>',
+        '<div class="tx-sidebar-brand">'
+        '<span class="tx-sidebar-brand-text">Transcribe</span></div>',
         unsafe_allow_html=True,
     )
 
